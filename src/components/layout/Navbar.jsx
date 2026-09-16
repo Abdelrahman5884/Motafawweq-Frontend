@@ -17,7 +17,7 @@ import {
   X
 } from 'lucide-react';
 
-export const Navbar = () => {
+export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

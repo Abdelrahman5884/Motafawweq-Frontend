@@ -440,7 +440,7 @@
 /* ── Mobile Phone Optimization (< 768px) ── */
 @media (max-width: 767px) {
   .auth-page-container {
-    padding: 10px 8px 24px;
+    padding: 12px 10px 32px;
     align-items: flex-start;
     min-height: 100vh;
   }
@@ -448,34 +448,60 @@
     flex-direction: column;
     max-width: 100%;
     width: 100%;
-    border-radius: 16px;
+    border-radius: 20px;
     margin: 0;
     min-height: auto;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
   }
   .auth-split-side {
     flex: none;
     border-inline-end: none;
     border-bottom: 1px solid var(--border-medium);
-    padding: 20px 16px 16px;
+    padding: 22px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
   .auth-side-logo-box {
-    padding: 6px 0 12px;
+    padding: 2px 0 10px;
   }
   /* Scale down orbital wrapper on mobile */
   .auth-orbital-wrapper {
-    width: 90px !important;
-    height: 90px !important;
+    width: 76px !important;
+    height: 76px !important;
   }
   .auth-orbital-img {
-    width: 52px !important;
-    height: 52px !important;
+    width: 44px !important;
+    height: 44px !important;
   }
+  /* Show character image on mobile nicely scaled */
   .auth-side-character-wrap {
-    display: none; /* hide tall 350px image on mobile so form is immediately visible */
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 0;
+    position: relative;
+    width: 100%;
+    max-height: 200px;
+  }
+  .auth-character-img {
+    max-height: clamp(140px, 24vh, 185px) !important;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 20px rgba(108, 77, 255, 0.28));
+    animation: authCharFloat 3.8s ease-in-out infinite;
+  }
+  .auth-character-glow {
+    width: 160px;
+    height: 160px;
+    bottom: 0px;
+    filter: blur(28px);
   }
   .auth-split-form {
-    padding: 20px 16px 28px;
+    padding: 22px 16px 30px;
   }
   /* Prevent iOS Safari zoom on input focus */
   .auth-split-form input,
@@ -505,13 +531,29 @@
 }
 
 @media (max-width: 380px) {
+  .auth-page-container {
+    padding: 8px 6px 20px;
+  }
+  .auth-split-side {
+    padding: 16px 10px 10px;
+  }
+  .auth-character-img {
+    max-height: 140px !important;
+  }
+  .auth-orbital-wrapper {
+    width: 64px !important;
+    height: 64px !important;
+  }
+  .auth-orbital-img {
+    width: 38px !important;
+    height: 38px !important;
+  }
   .auth-roles-grid,
   .auth-demo-grid {
     grid-template-columns: 1fr;
     gap: 8px;
   }
 }
-
 
 /* Brand name: neon glow pulse effect — logo img untouched */
 .auth-title-shimmer {
@@ -1318,3 +1360,41 @@ button, input, select, textarea {
   border-radius: 4px;
   animation: liveWave 1.2s ease-in-out infinite;
 }
+
+/* ── Global Adaptive & Responsive Utilities ── */
+@media (max-width: 767px) {
+  /* Dashboard container mobile padding */
+  .dashboard-main,
+  main > div[style*="max-width"],
+  main > div[style*="maxWidth"] {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    padding-top: 20px !important;
+  }
+
+  /* Responsive grid fallbacks for mobile */
+  .grid-responsive-2 {
+    grid-template-columns: 1fr !important;
+  }
+  .grid-responsive-3 {
+    grid-template-columns: 1fr !important;
+  }
+  .grid-responsive-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Horizontal scroll for wide data tables */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Stat cards and headers wrap cleanly */
+  .banner-card-responsive {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+}
+
