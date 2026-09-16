@@ -393,14 +393,17 @@ export const LandingPage = () => {
         maxWidth: '1240px',
         margin: '0 auto'
       }}>
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-medium)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '36px',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
-          position: 'relative'
-        }}>
+        <div
+          className="pipeline-card"
+          style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-medium)',
+            borderRadius: 'var(--radius-xl)',
+            padding: 'clamp(16px, 4vw, 36px)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
+            position: 'relative'
+          }}
+        >
           {/* Section Header */}
           <div style={{
             display: 'flex',
@@ -520,12 +523,13 @@ export const LandingPage = () => {
             backgroundColor: 'var(--bg-app)',
             border: `1.5px solid ${currentStep.color}40`,
             borderRadius: 'var(--radius-xl)',
-            padding: '32px',
+            padding: 'clamp(16px, 3.5vw, 32px)',
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '28px',
-            alignItems: 'center'
-          }} className="animate-fade-in">
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap: '24px',
+            alignItems: 'center',
+            overflow: 'hidden'
+          }} className="animate-fade-in pipeline-stage-card">
             {/* Left/Text Description */}
             <div>
               <div style={{
@@ -540,19 +544,19 @@ export const LandingPage = () => {
               }}>
                 {currentStep.badge}
               </div>
-              <h3 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
                 {currentStep.headline}
               </h3>
-              <p style={{ fontSize: '14.5px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '24px' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '20px' }}>
                 {currentStep.desc}
               </p>
 
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <Link
                   to="/teacher/workspace"
                   className="btn btn-primary"
                   style={{
-                    padding: '10px 20px',
+                    padding: '10px 18px',
                     fontSize: '13px',
                     fontWeight: '700',
                     textDecoration: 'none',
@@ -567,7 +571,7 @@ export const LandingPage = () => {
                 <Link
                   to="/register"
                   style={{
-                    padding: '10px 18px',
+                    padding: '10px 16px',
                     fontSize: '13px',
                     fontWeight: '600',
                     borderRadius: 'var(--radius-md)',
@@ -587,15 +591,18 @@ export const LandingPage = () => {
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-lg)',
-              padding: '24px',
+              padding: 'clamp(14px, 3vw, 24px)',
               boxShadow: 'var(--shadow-md)',
               position: 'relative',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              width: '100%',
+              maxWidth: '100%',
+              boxSizing: 'border-box'
             }}>
               {/* Dynamic Step Visualization */}
               {activePipelineStep === 0 && (
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '60px', marginBottom: '20px' }}>
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', height: '60px', marginBottom: '16px' }}>
                     <div className="audio-bar" style={{ animationDelay: '0s' }} />
                     <div className="audio-bar" style={{ animationDelay: '0.2s', height: '28px' }} />
                     <div className="audio-bar" style={{ animationDelay: '0.4s', height: '42px' }} />
@@ -631,54 +638,81 @@ export const LandingPage = () => {
               )}
 
               {activePipelineStep === 2 && (
-                <div style={{ position: 'relative', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                  position: 'relative',
+                  width: '100%',
+                  padding: '16px 8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  overflow: 'hidden'
+                }}>
+                  {/* Top Child Concept */}
                   <div style={{
-                    padding: '10px 18px',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1.5px solid rgba(6, 182, 212, 0.4)',
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    color: '#06B6D4',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(6, 182, 212, 0.12)',
+                    maxWidth: '100%',
+                    textAlign: 'center'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#06B6D4' }} />
+                    {lang === 'ar' ? 'التفاعلات الضوئية (الجرانا)' : 'Light Reactions (Grana)'}
+                  </div>
+
+                  {/* Central Hub Concept */}
+                  <div style={{
+                    padding: '9px 20px',
                     borderRadius: 'var(--radius-full)',
                     backgroundColor: '#6C4DFF',
-                    color: '#fff',
+                    color: '#ffffff',
                     fontWeight: '800',
                     fontSize: '13px',
                     boxShadow: '0 8px 24px rgba(108,77,255,0.4)',
-                    position: 'relative',
-                    zIndex: 2
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    zIndex: 2,
+                    maxWidth: '100%',
+                    textAlign: 'center'
                   }}>
+                    <Sparkles size={14} />
                     {lang === 'ar' ? 'البناء الضوئي' : 'Photosynthesis'}
                   </div>
+
+                  {/* Bottom Child Concept */}
                   <div style={{
-                    position: 'absolute',
-                    top: '20px',
-                    left: '30px',
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-md)',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-full)',
                     backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)',
-                    fontSize: '11px',
+                    border: '1.5px solid rgba(16, 185, 129, 0.4)',
+                    fontSize: '11.5px',
                     fontWeight: '700',
-                    color: '#06B6D4'
+                    color: '#10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.12)',
+                    maxWidth: '100%',
+                    textAlign: 'center'
                   }}>
-                    {lang === 'ar' ? 'التفاعلات الضوئية (الجرانا)' : 'Light Reactions'}
-                  </div>
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    right: '30px',
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: '#10B981'
-                  }}>
-                    {lang === 'ar' ? 'دورة كالفن (الستروما)' : 'Calvin Cycle'}
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                    {lang === 'ar' ? 'دورة كالفن (الستروما)' : 'Calvin Cycle (Stroma)'}
                   </div>
                 </div>
               )}
 
               {activePipelineStep >= 3 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--bg-subtle)', flexWrap: 'wrap', gap: '4px' }}>
                     <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
                       {lang === 'ar' ? 'س: ما هو المستقبل النهائي للإلكترونات في التفاعلات الضوئية؟' : 'Q: Final electron acceptor in light reactions?'}
                     </span>

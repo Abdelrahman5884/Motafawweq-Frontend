@@ -371,22 +371,28 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) 
 
           {/* Mobile Hamburger Toggle Button */}
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={() => {
+              if (!isFullPage && setMobileSidebarOpen) {
+                setMobileSidebarOpen(!mobileSidebarOpen);
+              } else {
+                setMobileMenuOpen(!mobileMenuOpen);
+              }
+            }}
             className="mobile-only"
-            aria-label="Toggle Menu"
+            aria-label={!isFullPage ? "Toggle Sidebar" : "Toggle Menu"}
             style={{
               width: '36px',
               height: '36px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',
-              backgroundColor: mobileMenuOpen ? 'var(--primary-surface)' : 'var(--bg-surface)',
-              color: mobileMenuOpen ? 'var(--primary)' : 'var(--text-primary)',
+              backgroundColor: (!isFullPage ? mobileSidebarOpen : mobileMenuOpen) ? 'var(--primary-surface)' : 'var(--bg-surface)',
+              color: (!isFullPage ? mobileSidebarOpen : mobileMenuOpen) ? 'var(--primary)' : 'var(--text-primary)',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer'
             }}
           >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            {(!isFullPage ? mobileSidebarOpen : mobileMenuOpen) ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
