@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { Menu } from 'lucide-react';
 
 // Layout Components
 import { Navbar } from './components/layout/Navbar';
@@ -50,12 +51,18 @@ function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { setRouterNavigator } = useAuth();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (setRouterNavigator) {
       setRouterNavigator(() => navigate);
     }
   }, [navigate, setRouterNavigator]);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   const fullPageRoutes = [
     '/',
@@ -68,6 +75,8 @@ function AppShell({ children }) {
     '/teacher/processing'
   ];
 
+  const authRoutes = ['/login', '/register', '/forgot-password'];
+  const isAuthRoute = authRoutes.includes(location.pathname);
   const isFullPage = fullPageRoutes.includes(location.pathname);
 
   return (
@@ -78,10 +87,13 @@ function AppShell({ children }) {
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'var(--bg-app)',
-        color: 'var(--text-primary)'
+        color: 'var(--text-primary)',
+        width: '100%',
+        maxWidth: '100vw',
+        overflowX: 'hidden'
       }}
     >
-      <Navbar />
+      {!isAuthRoute && <Navbar mobileSidebarOpen={mobileSidebarOpen} setMobileSidebarOpen={setMobileSidebarOpen} isFullPage={isFullPage} />}
 
       {isFullPage ? (
         <main style={{ flex: 1 }}>
@@ -89,8 +101,49 @@ function AppShell({ children }) {
         </main>
       ) : (
         <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - var(--topbar-height))', position: 'relative' }}>
-          <Sidebar />
-          <main style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+          {/* Mobile Sidebar Backdrop Overlay */}
+          {mobileSidebarOpen && (
+            <div
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                zIndex: 998,
+                backdropFilter: 'blur(2px)'
+              }}
+            />
+          )}
+          <Sidebar mobileSidebarOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
+          <main
+            className="app-main-content"
+            style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}
+          >
+            {/* Mobile Sidebar Toggle Button - only in dashboard pages */}
+            <button
+              className="mobile-sidebar-toggle"
+              onClick={() => setMobileSidebarOpen(true)}
+              aria-label="Open menu"
+              style={{
+                position: 'fixed',
+                bottom: '20px',
+                right: '20px',
+                zIndex: 997,
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--primary)',
+                color: '#fff',
+                border: 'none',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(108,77,255,0.5)',
+                cursor: 'pointer'
+              }}
+            >
+              <Menu size={22} />
+            </button>
             {children}
           </main>
         </div>

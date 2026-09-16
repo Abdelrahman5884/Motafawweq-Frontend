@@ -20,7 +20,7 @@ import {
   Award
 } from 'lucide-react';
 
-export const Sidebar = () => {
+export const Sidebar = ({ mobileSidebarOpen, onClose }) => {
   const location = useLocation();
   const { currentRole } = useAuth();
   const { lang, t, isRtl } = useLanguage();
@@ -63,21 +63,25 @@ export const Sidebar = () => {
   const menuItems = getMenuItems();
 
   return (
-    <aside style={{
-      width: 'var(--sidebar-width)',
-      backgroundColor: 'var(--bg-surface)',
-      borderRight: isRtl ? 'none' : '1px solid var(--border-subtle)',
-      borderLeft: isRtl ? '1px solid var(--border-subtle)' : 'none',
-      padding: '24px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
-      minHeight: 'calc(100vh - var(--topbar-height))',
-      position: 'sticky',
-      top: 'var(--topbar-height)',
-      height: 'calc(100vh - var(--topbar-height))',
-      overflowY: 'auto'
-    }}>
+    <aside
+      className={`app-sidebar ${mobileSidebarOpen ? 'sidebar-mobile-open' : ''}`}
+      style={{
+        width: 'var(--sidebar-width)',
+        backgroundColor: 'var(--bg-surface)',
+        borderRight: isRtl ? 'none' : '1px solid var(--border-subtle)',
+        borderLeft: isRtl ? '1px solid var(--border-subtle)' : 'none',
+        padding: '24px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        minHeight: 'calc(100vh - var(--topbar-height))',
+        position: 'sticky',
+        top: 'var(--topbar-height)',
+        height: 'calc(100vh - var(--topbar-height))',
+        overflowY: 'auto',
+        flexShrink: 0
+      }}
+    >
       <div>
         {/* Role Header indicator */}
         <div style={{

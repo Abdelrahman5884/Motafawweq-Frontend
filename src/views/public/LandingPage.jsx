@@ -112,7 +112,7 @@ export const LandingPage = () => {
          ========================================================================= */}
       <section style={{
         position: 'relative',
-        padding: '70px 24px 100px',
+        padding: 'clamp(40px, 6vw, 70px) 16px clamp(60px, 8vw, 100px)',
         textAlign: 'center',
         overflow: 'hidden'
       }}>
@@ -389,7 +389,7 @@ export const LandingPage = () => {
           ANIMATED LIVE AI PIPELINE ENGINE (The Interactive Showcase)
          ========================================================================= */}
       <section style={{
-        padding: '20px 24px 90px',
+        padding: 'clamp(10px, 2vw, 20px) clamp(12px, 2vw, 24px) clamp(60px, 8vw, 90px)',
         maxWidth: '1240px',
         margin: '0 auto'
       }}>
@@ -452,12 +452,15 @@ export const LandingPage = () => {
           </div>
 
           {/* 6 Step Tab Buttons */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-            gap: '10px',
-            marginBottom: '32px'
-          }}>
+          <div
+            className="pipeline-steps-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+              gap: '10px',
+              marginBottom: '32px'
+            }}
+          >
             {pipelineSteps.map((step) => {
               const StepIcon = step.icon;
               const isActive = activePipelineStep === step.id;
@@ -465,6 +468,7 @@ export const LandingPage = () => {
                 <button
                   key={step.id}
                   onClick={() => setActivePipelineStep(step.id)}
+                  className="pipeline-step-btn"
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -697,7 +701,7 @@ export const LandingPage = () => {
           THE 4 EDUCATIONAL PILLARS (Teacher, Student, Parent, Center)
          ========================================================================= */}
       <section style={{
-        padding: '60px 24px',
+        padding: 'clamp(40px, 5vw, 60px) 16px',
         maxWidth: '1240px',
         margin: '0 auto'
       }}>
@@ -942,9 +946,9 @@ export const LandingPage = () => {
       {/* =========================================================================
           TESTIMONIALS FROM EGYPTIAN EDUCATORS & STUDENTS
          ========================================================================= */}
-      <section style={{ padding: '80px 24px', maxWidth: '1180px', margin: '0 auto' }}>
+      <section style={{ padding: 'clamp(50px, 6vw, 80px) 16px', maxWidth: '1180px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '10px' }}>
+          <h2 style={{ fontSize: 'clamp(1.3rem, 3.5vw, 1.75rem)', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '10px' }}>
             {lang === 'ar' ? 'ماذا يقول كبار المعلمين وأوائل الجمهورية عن متفوّق؟' : 'Trusted by Top Educators & High Achievers'}
           </h2>
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
@@ -952,7 +956,7 @@ export const LandingPage = () => {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          <div className="testimonials-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           <div className="card" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', gap: '4px', color: '#F59E0B', marginBottom: '14px' }}>
               {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="#F59E0B" />)}
@@ -1002,13 +1006,16 @@ export const LandingPage = () => {
       {/* =========================================================================
           FINAL CALL TO ACTION BANNER
          ========================================================================= */}
-      <section style={{
-        padding: '80px 24px',
-        textAlign: 'center',
-        background: 'linear-gradient(180deg, var(--bg-app) 0%, var(--bg-surface) 100%)',
-        borderTop: '1px solid var(--border-subtle)',
-        position: 'relative'
-      }}>
+      <section
+        className="cta-section"
+        style={{
+          padding: 'clamp(50px, 7vw, 80px) 16px',
+          textAlign: 'center',
+          background: 'linear-gradient(180deg, var(--bg-app) 0%, var(--bg-surface) 100%)',
+          borderTop: '1px solid var(--border-subtle)',
+          position: 'relative'
+        }}
+      >
         <div style={{ maxWidth: '680px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
           <img src={isDark ? '/logo-dark.png' : '/logo-light.png'} alt="متفوّق" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
           <h2 style={{ fontSize: '32px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '14px' }}>
@@ -1044,19 +1051,22 @@ export const LandingPage = () => {
       <footer style={{
         backgroundColor: 'var(--bg-surface)',
         borderTop: '1px solid var(--border-subtle)',
-        padding: '50px 24px 30px'
+        padding: 'clamp(30px, 4vw, 50px) 16px 24px'
       }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '24px',
-          paddingBottom: '30px',
-          borderBottom: '1px solid var(--border-subtle)'
-        }}>
+        <div
+          className="footer-top-row"
+          style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '24px',
+            paddingBottom: '30px',
+            borderBottom: '1px solid var(--border-subtle)'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <img src={isDark ? '/logo-dark.png' : '/logo-light.png'} alt="متفوّق" style={{ width: '36px', height: '36px' }} />
             <div>
@@ -1070,7 +1080,7 @@ export const LandingPage = () => {
           </div>
 
           {/* Quick Links */}
-          <div style={{ display: 'flex', gap: '20px', fontSize: '13px', fontWeight: '600' }}>
+          <div className="footer-links" style={{ display: 'flex', gap: '20px', fontSize: '13px', fontWeight: '600' }}>
             <Link to="/features" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('navFeatures')}</Link>
             <Link to="/pricing" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('navPricing')}</Link>
             <Link to="/marketplace" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('navMarketplace')}</Link>
@@ -1078,7 +1088,7 @@ export const LandingPage = () => {
           </div>
 
           {/* Egyptian Payment Badges */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--text-muted)' }}>
+          <div className="footer-payment-badges" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--text-muted)' }}>
             <span>{lang === 'ar' ? 'طرق الدفع المتاحة في مصر:' : 'Supported Payments in Egypt:'}</span>
             <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-subtle)', fontWeight: '700', color: 'var(--text-primary)' }}>Fawry</span>
             <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-subtle)', fontWeight: '700', color: 'var(--text-primary)' }}>Vodafone Cash</span>
@@ -1086,15 +1096,18 @@ export const LandingPage = () => {
           </div>
         </div>
 
-        <div style={{
-          maxWidth: '1200px',
-          margin: '20px auto 0',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '12px',
-          color: 'var(--text-muted)'
-        }}>
+        <div
+          className="footer-bottom-row"
+          style={{
+            maxWidth: '1200px',
+            margin: '20px auto 0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '12px',
+            color: 'var(--text-muted)'
+          }}
+        >
           <div>© {new Date().getFullYear()} {lang === 'ar' ? 'منصة متفوّق (Motafawweq). جميع الحقوق محفوظة.' : 'Motafawweq Inc. All rights reserved.'}</div>
           <div>{lang === 'ar' ? 'صُنعت بحب في مصر 🇪🇬 لتطوير التعليم' : 'Crafted with passion in Egypt 🇪🇬'}</div>
         </div>

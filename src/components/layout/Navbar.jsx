@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -9,20 +9,18 @@ import {
   Moon, 
   Sun, 
   Globe, 
-  Mic, 
-  BookOpen, 
-  ArrowRight,
-  ArrowLeft,
-  Layers,
-  LogOut,
-  User,
-  LogIn,
-  UserPlus
+  Layers, 
+  LogOut, 
+  LogIn, 
+  UserPlus,
+  Menu,
+  X
 } from 'lucide-react';
 
 export const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { 
     currentRole, 
     currentUser, 
@@ -35,6 +33,10 @@ export const Navbar = () => {
 
   const currentPath = location.pathname;
   const isPublicPage = ['/', '/features', '/pricing', '/marketplace'].includes(currentPath);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const navLinks = [
     { label: t('navFeatures'), path: '/features' },
@@ -61,26 +63,19 @@ export const Navbar = () => {
       backgroundColor: 'var(--bg-surface)',
       borderBottom: '1px solid var(--border-subtle)',
       backdropFilter: 'blur(16px)',
-      transition: 'background-color 0.2s ease, border-color 0.2s ease'
+      transition: 'background-color 0.2s ease, border-color 0.2s ease',
+      width: '100%',
+      maxWidth: '100vw'
     }}>
-      <div style={{
-        maxWidth: 'var(--max-content-width)',
-        margin: '0 auto',
-        height: 'var(--topbar-height)',
-        padding: '0 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px'
-      }}>
+      <div className="navbar-container">
         {/* Left: Brand Logo & Tagline */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <Link 
             to="/"
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '12px', 
+              gap: '10px', 
               cursor: 'pointer',
               textDecoration: 'none'
             }}
@@ -89,28 +84,28 @@ export const Navbar = () => {
               src={isDark ? '/logo-dark.png' : '/logo-light.png'}
               alt="متفوّق"
               style={{
-                width: '42px',
-                height: '42px',
+                width: '38px',
+                height: '38px',
                 objectFit: 'contain',
-                filter: 'drop-shadow(0 4px 12px rgba(108, 77, 255, 0.35))'
+                filter: 'drop-shadow(0 4px 10px rgba(108, 77, 255, 0.35))'
               }}
             />
             <div>
               <div style={{
-                fontSize: '20px',
+                fontSize: '18px',
                 fontWeight: '900',
                 letterSpacing: '-0.3px',
                 color: 'var(--text-primary)',
                 fontFamily: 'var(--font-heading)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '6px'
               }}>
                 {lang === 'ar' ? 'متفوّق' : 'Motafawweq'}
                 <span style={{
-                  fontSize: '9.5px',
+                  fontSize: '9px',
                   fontWeight: '800',
-                  padding: '2px 7px',
+                  padding: '1px 6px',
                   borderRadius: 'var(--radius-full)',
                   backgroundColor: 'var(--primary-surface)',
                   color: 'var(--primary)',
@@ -119,8 +114,8 @@ export const Navbar = () => {
                   {lang === 'ar' ? 'مصر' : 'EG'}
                 </span>
               </div>
-              <div style={{ 
-                fontSize: '11px', 
+              <div className="desktop-only" style={{ 
+                fontSize: '10.5px', 
                 color: 'var(--text-secondary)',
                 marginTop: '-2px',
                 fontWeight: '600'
@@ -131,8 +126,7 @@ export const Navbar = () => {
           </Link>
 
           {/* Navigation Links (Desktop) */}
-          <nav style={{
-            display: 'flex',
+          <nav className="desktop-only" style={{
             alignItems: 'center',
             gap: '4px'
           }}>
@@ -143,8 +137,8 @@ export const Navbar = () => {
                   key={idx}
                   to={link.path}
                   style={{
-                    padding: '8px 13px',
-                    fontSize: '13.5px',
+                    padding: '8px 12px',
+                    fontSize: '13px',
                     fontWeight: isActive ? '700' : '500',
                     color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
                     backgroundColor: isActive ? 'var(--primary-surface)' : 'transparent',
@@ -165,8 +159,8 @@ export const Navbar = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '8px 13px',
-                fontSize: '13.5px',
+                padding: '8px 12px',
+                fontSize: '13px',
                 fontWeight: '600',
                 color: !isPublicPage ? 'var(--primary)' : 'var(--text-secondary)',
                 backgroundColor: !isPublicPage ? 'var(--primary-surface)' : 'transparent',
@@ -174,38 +168,38 @@ export const Navbar = () => {
                 textDecoration: 'none'
               }}
             >
-              <Layers size={15} />
+              <Layers size={14} />
               {t('navDashboard')}
             </Link>
           </nav>
         </div>
 
-        {/* Center/Right: Global Search & Control Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Global Cmd+K Search Bar Button */}
+        {/* Center/Right: Global Controls & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Global Cmd+K Search Bar Button (Desktop) */}
           <button
             onClick={() => setSearchModalOpen(true)}
+            className="desktop-only"
             style={{
-              display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              padding: '7px 13px',
+              gap: '8px',
+              padding: '6px 12px',
               borderRadius: 'var(--radius-full)',
               backgroundColor: 'var(--bg-subtle)',
               border: '1px solid var(--border-subtle)',
               color: 'var(--text-muted)',
-              fontSize: '13px',
+              fontSize: '12.5px',
               cursor: 'pointer',
               transition: 'all 0.15s ease'
             }}
           >
-            <Search size={15} color="var(--text-secondary)" />
+            <Search size={14} color="var(--text-secondary)" />
             <span style={{ color: 'var(--text-secondary)' }}>
               {lang === 'ar' ? 'بحث سريع...' : 'Search...'}
             </span>
             <kbd style={{
-              fontSize: '10px',
-              padding: '2px 6px',
+              fontSize: '9.5px',
+              padding: '2px 5px',
               borderRadius: '4px',
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-subtle)',
@@ -215,6 +209,26 @@ export const Navbar = () => {
             </kbd>
           </button>
 
+          {/* Compact Search Trigger (Mobile) */}
+          <button
+            onClick={() => setSearchModalOpen(true)}
+            className="mobile-only"
+            aria-label="Search"
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <Search size={16} />
+          </button>
+
           {/* Language Switcher (AR / EN) */}
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
@@ -222,19 +236,19 @@ export const Navbar = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '7px 11px',
+              gap: '4px',
+              padding: '6px 9px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',
               backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
-              fontSize: '12.5px',
+              fontSize: '12px',
               fontWeight: '600',
               cursor: 'pointer'
             }}
           >
-            <Globe size={15} color="var(--primary)" />
-            <span>{lang === 'ar' ? 'English' : 'عربي'}</span>
+            <Globe size={14} color="var(--primary)" />
+            <span>{lang === 'ar' ? 'En' : 'عربي'}</span>
           </button>
 
           {/* Theme Switcher (Dark / Light) */}
@@ -254,13 +268,12 @@ export const Navbar = () => {
               cursor: 'pointer'
             }}
           >
-            {theme === 'dark' ? <Sun size={16} color="#F59E0B" /> : <Moon size={16} color="var(--text-secondary)" />}
+            {theme === 'dark' ? <Sun size={15} color="#F59E0B" /> : <Moon size={15} color="var(--text-secondary)" />}
           </button>
 
-          {/* Authentication Actions */}
+          {/* Desktop Authentication Actions */}
           {isAuthenticated ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* User Avatar Card (Current Role) */}
+            <div className="desktop-only" style={{ alignItems: 'center', gap: '8px' }}>
               <div 
                 onClick={() => navigate(getDashboardPath())}
                 title={currentUser.email}
@@ -279,23 +292,22 @@ export const Navbar = () => {
                   src={currentUser.avatar}
                   alt={currentUser.name}
                   style={{
-                    width: '32px',
-                    height: '32px',
+                    width: '30px',
+                    height: '30px',
                     borderRadius: '50%',
                     objectFit: 'cover'
                   }}
                 />
                 <div style={{ textAlign: isRtl ? 'right' : 'left' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1.1 }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1.1 }}>
                     {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
                   </div>
-                  <div style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '600' }}>
+                  <div style={{ fontSize: '9.5px', color: 'var(--primary)', fontWeight: '600' }}>
                     {lang === 'ar' ? (currentUser.roleLabelAr || currentUser.roleLabel) : currentUser.roleLabel}
                   </div>
                 </div>
               </div>
 
-              {/* Logout Button */}
               <button
                 onClick={() => {
                   logout();
@@ -314,28 +326,28 @@ export const Navbar = () => {
                   justifyContent: 'center'
                 }}
               >
-                <LogOut size={16} />
+                <LogOut size={15} />
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="desktop-only" style={{ alignItems: 'center', gap: '6px' }}>
               <Link
                 to="/login"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 14px',
+                  padding: '6px 12px',
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'transparent',
                   color: 'var(--text-primary)',
                   border: '1px solid var(--border-medium)',
                   fontWeight: '600',
-                  fontSize: '13px',
+                  fontSize: '12.5px',
                   textDecoration: 'none'
                 }}
               >
-                <LogIn size={15} />
+                <LogIn size={14} />
                 <span>{t('navLogin')}</span>
               </Link>
               <Link
@@ -345,19 +357,173 @@ export const Navbar = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 16px',
-                  fontSize: '13px',
+                  padding: '6px 14px',
+                  fontSize: '12.5px',
                   fontWeight: '700',
                   textDecoration: 'none'
                 }}
               >
-                <UserPlus size={15} />
+                <UserPlus size={14} />
                 <span>{t('navRegister')}</span>
               </Link>
             </div>
           )}
+
+          {/* Mobile Hamburger Toggle Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="mobile-only"
+            aria-label="Toggle Menu"
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: mobileMenuOpen ? 'var(--primary-surface)' : 'var(--bg-surface)',
+              color: mobileMenuOpen ? 'var(--primary)' : 'var(--text-primary)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer Dropdown Menu */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-drawer animate-fade-in">
+          {/* Navigation Links */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {navLinks.map((link, idx) => {
+              const isActive = currentPath === link.path;
+              return (
+                <Link
+                  key={idx}
+                  to={link.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{
+                    padding: '10px 14px',
+                    fontSize: '14px',
+                    fontWeight: isActive ? '700' : '600',
+                    color: isActive ? 'var(--primary)' : 'var(--text-primary)',
+                    backgroundColor: isActive ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    textDecoration: 'none'
+                  }}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+            <Link
+              to={getDashboardPath()}
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: !isPublicPage ? 'var(--primary)' : 'var(--text-primary)',
+                backgroundColor: !isPublicPage ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                borderRadius: 'var(--radius-md)',
+                textDecoration: 'none'
+              }}
+            >
+              <Layers size={16} />
+              <span>{t('navDashboard')}</span>
+            </Link>
+          </div>
+
+          {/* Mobile Auth Actions */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+            {isAuthenticated ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    style={{ width: '36px', height: '36px', borderRadius: '50%' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                      {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--primary)' }}>
+                      {lang === 'ar' ? (currentUser.roleLabelAr || currentUser.roleLabel) : currentUser.roleLabel}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                    navigate('/login');
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <LogOut size={16} />
+                  <span>{t('navLogout')}</span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={{
+                    padding: '10px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-medium)',
+                    color: 'var(--text-primary)',
+                    textAlign: 'center',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <LogIn size={15} />
+                  <span>{t('navLogin')}</span>
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="btn btn-primary"
+                  style={{
+                    padding: '10px',
+                    textAlign: 'center',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <UserPlus size={15} />
+                  <span>{t('navRegister')}</span>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 };
