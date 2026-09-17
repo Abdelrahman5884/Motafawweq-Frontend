@@ -16,6 +16,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { SpiderManWeb } from '../common/SpiderManWeb';
 
 export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) => {
   const navigate = useNavigate();
@@ -67,6 +68,9 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) 
       width: '100%',
       maxWidth: '100vw'
     }}>
+      {/* Spider-Man descending on web from behind the navbar */}
+      <SpiderManWeb />
+
       <div className="navbar-container">
         {/* Left: Brand Logo & Tagline */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
