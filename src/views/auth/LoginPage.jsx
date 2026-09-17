@@ -21,6 +21,7 @@ import {
   AlertCircle,
   User
 } from 'lucide-react';
+import { PlexusBackground } from '../../components/common/PlexusBackground';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -108,9 +109,8 @@ export const LoginPage = () => {
 
   return (
     <div className="auth-page-container">
-      {/* Background Ambient Glow Orbs */}
-      <div className="hero-glow-orb hero-orb-1" />
-      <div className="hero-glow-orb hero-orb-2" />
+      {/* Interactive Constellation / Neural Background */}
+      <PlexusBackground />
 
       <div className="auth-split-card">
         {/* Side Panel: Logo + Dynamic Welcome + Emerging Character */}

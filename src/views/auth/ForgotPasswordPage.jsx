@@ -14,6 +14,7 @@ import {
   Sparkles,
   ShieldCheck
 } from 'lucide-react';
+import { PlexusBackground } from '../../components/common/PlexusBackground';
 
 export const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -105,8 +106,8 @@ export const ForgotPasswordPage = () => {
 
   return (
     <div className="auth-page-container">
-      <div className="hero-glow-orb hero-orb-1" />
-      <div className="hero-glow-orb hero-orb-2" />
+      {/* Interactive Constellation / Neural Background */}
+      <PlexusBackground />
 
       <div className="auth-split-card">
         {/* Side Panel: Logo + Step Info + 3D Character */}

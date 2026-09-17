@@ -20,6 +20,7 @@ import {
   Award,
   ChevronRight
 } from 'lucide-react';
+import { PlexusBackground } from '../../components/common/PlexusBackground';
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -130,9 +131,8 @@ export const RegisterPage = () => {
 
   return (
     <div className="auth-page-container">
-      {/* Background Glows */}
-      <div className="hero-glow-orb hero-orb-1" />
-      <div className="hero-glow-orb hero-orb-2" />
+      {/* Interactive Constellation / Neural Background */}
+      <PlexusBackground />
 
       <div className="auth-split-card">
         {/* Side Panel: Logo + Dynamic Welcome + Emerging Character */}

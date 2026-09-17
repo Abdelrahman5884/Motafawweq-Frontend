@@ -32,6 +32,8 @@ import {
   CreditCard
 } from 'lucide-react';
 
+import { PlexusBackground } from '../../components/common/PlexusBackground';
+
 export const LandingPage = () => {
   const navigate = useNavigate();
   const { switchRole } = useAuth();
@@ -105,28 +107,26 @@ export const LandingPage = () => {
   const currentStep = pipelineSteps[activePipelineStep];
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', overflow: 'hidden' }}>
       
+      {/* ── Interactive Neural / Spiderweb Constellation Canvas Background ── */}
+      <PlexusBackground />
+
       {/* =========================================================================
-          HERO SECTION with Animated Glowing Cyber Orbs, Light Beams & Particles
+          HERO SECTION with Animated Cyber Grid, Light Beams & Particles
          ========================================================================= */}
       <section style={{
         position: 'relative',
         padding: 'clamp(40px, 6vw, 70px) 16px clamp(60px, 8vw, 100px)',
         textAlign: 'center',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        zIndex: 1
       }}>
         {/* Animated Cyber Grid Layer */}
         <div className="cyber-grid-overlay" />
 
         {/* Sweeping Light Beam */}
         <div className="hero-light-beam" />
-
-        {/* 4 Animated Glowing Multi-Color Orbs */}
-        <div className="hero-glow-orb hero-orb-1" />
-        <div className="hero-glow-orb hero-orb-2" />
-        <div className="hero-glow-orb hero-orb-3" />
-        <div className="hero-glow-orb hero-orb-4" />
 
         {/* Floating Twinkling Sparkles */}
         <div className="sparkle-particle" style={{ top: '18%', left: '22%', width: '4px', height: '4px', animationDelay: '0.2s' }} />
