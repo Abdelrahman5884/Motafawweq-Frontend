@@ -108,7 +108,7 @@ export const LandingPage = () => {
     <div style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', overflow: 'hidden' }}>
       
       {/* =========================================================================
-          HERO SECTION with Animated Glowing Orbs & Modern Typography
+          HERO SECTION with Animated Glowing Cyber Orbs, Light Beams & Particles
          ========================================================================= */}
       <section style={{
         position: 'relative',
@@ -116,9 +116,24 @@ export const LandingPage = () => {
         textAlign: 'center',
         overflow: 'hidden'
       }}>
-        {/* Animated Background Mesh Orbs */}
+        {/* Animated Cyber Grid Layer */}
+        <div className="cyber-grid-overlay" />
+
+        {/* Sweeping Light Beam */}
+        <div className="hero-light-beam" />
+
+        {/* 4 Animated Glowing Multi-Color Orbs */}
         <div className="hero-glow-orb hero-orb-1" />
         <div className="hero-glow-orb hero-orb-2" />
+        <div className="hero-glow-orb hero-orb-3" />
+        <div className="hero-glow-orb hero-orb-4" />
+
+        {/* Floating Twinkling Sparkles */}
+        <div className="sparkle-particle" style={{ top: '18%', left: '22%', width: '4px', height: '4px', animationDelay: '0.2s' }} />
+        <div className="sparkle-particle" style={{ top: '28%', right: '18%', width: '5px', height: '5px', animationDelay: '1.2s' }} />
+        <div className="sparkle-particle" style={{ top: '65%', left: '15%', width: '3px', height: '3px', animationDelay: '2.1s' }} />
+        <div className="sparkle-particle" style={{ top: '75%', right: '25%', width: '4px', height: '4px', animationDelay: '0.8s' }} />
+        <div className="sparkle-particle" style={{ top: '42%', left: '80%', width: '5px', height: '5px', animationDelay: '1.7s' }} />
 
         <div style={{ maxWidth: '1080px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
           
