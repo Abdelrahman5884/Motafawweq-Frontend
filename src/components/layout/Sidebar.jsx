@@ -3,131 +3,106 @@ import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { 
-  LayoutDashboard, 
-  Mic, 
-  Sparkles, 
-  Users, 
-  BookOpen, 
-  DollarSign, 
-  Brain, 
-  AlertTriangle, 
-  Building2, 
-  ShieldCheck, 
-  Compass, 
-  ChevronLeft,
+import {
+  LayoutDashboard,
+  Mic,
+  Users,
+  BookOpen,
+  DollarSign,
+  AlertTriangle,
+  Building2,
+  ShieldCheck,
+  Compass,
   ChevronRight,
+  ChevronLeft,
   Flame,
   Award,
   X,
   GraduationCap,
   HeartHandshake,
   QrCode,
-  FileSpreadsheet,
   Activity,
   Server,
-  Zap
+  Trophy,
+  FileText,
+  RotateCcw,
+  BarChart3,
+  CreditCard,
+  BookMarked,
+  ClipboardList,
+  TrendingUp,
+  Medal
 } from 'lucide-react';
 
-export const Sidebar = ({ mobileSidebarOpen, onClose }) => {
+export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
   const { currentRole, currentUser } = useAuth();
-  const { lang, t, isRtl } = useLanguage();
+  const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Role metadata configurations
-  const roleConfig = {
-    teacher: {
-      nameAr: 'بوابة المعلم الخارق',
-      nameEn: 'Teacher Pro Suite',
-      badgeAr: 'معلم معتمد',
-      badgeEn: 'Verified Teacher',
-      icon: Mic,
-      color: '#6C4DFF',
-      gradient: 'linear-gradient(135deg, #6C4DFF 0%, #4C8DFF 100%)',
-      bgSurface: 'rgba(108, 77, 255, 0.08)'
-    },
-    student: {
-      nameAr: 'بوابة الطالب المتفوق',
-      nameEn: 'Student Study Suite',
-      badgeAr: 'طالب متميز',
-      badgeEn: 'Top Scholar',
-      icon: GraduationCap,
-      color: '#06B6D4',
-      gradient: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
-      bgSurface: 'rgba(6, 182, 212, 0.08)'
-    },
-    parent: {
-      nameAr: 'بوابة أولياء الأمور',
-      nameEn: 'Parent Portal',
-      badgeAr: 'متابعة أسرية',
-      badgeEn: 'Guardian Hub',
-      icon: HeartHandshake,
-      color: '#10B981',
-      gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-      bgSurface: 'rgba(16, 185, 129, 0.08)'
-    },
-    center: {
-      nameAr: 'لوحة إدارة السنتر',
-      nameEn: 'Center Academy Suite',
-      badgeAr: 'سنتر مرخص',
-      badgeEn: 'Licensed Center',
-      icon: Building2,
-      color: '#F59E0B',
-      gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-      bgSurface: 'rgba(245, 158, 11, 0.08)'
-    },
-    admin: {
-      nameAr: 'إدارة المنصة والذكاء',
-      nameEn: 'HQ & AI Economics',
-      badgeAr: 'مدير المنظومة',
-      badgeEn: 'System Admin',
-      icon: ShieldCheck,
-      color: '#EC4899',
-      gradient: 'linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)',
-      bgSurface: 'rgba(236, 72, 153, 0.08)'
-    }
+  // Role accent color (kept minimal — only for active state highlight)
+  const roleAccent = {
+    teacher: '#6C4BFF',
+    student: '#6C4BFF',
+    parent: '#14B87A',
+    center: '#F5A623',
+    admin: '#6C4BFF',
   };
-
-  const activeRoleMeta = roleConfig[currentRole] || roleConfig.teacher;
+  const accent = roleAccent[currentRole] || '#6C4BFF';
 
   const getMenuItems = () => {
     switch (currentRole) {
       case 'teacher':
         return [
-          { id: 'dashboard', path: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة التحكم الرئيسية' : 'Teacher Dashboard', icon: LayoutDashboard },
-          { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: lang === 'ar' ? 'مباشر AI' : 'Live AI', badgeColor: '#6C4DFF' },
-          { id: 'lesson-workspace', path: '/teacher/workspace', label: lang === 'ar' ? 'خريطة المعرفة والحصة' : 'Lesson Workspace', icon: Sparkles, badge: '3D' },
-          { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'إدارة المجموعات والقاعات' : 'Classes & Groups', icon: BookOpen },
-          { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب والتقييمات' : 'Student Roster', icon: Users },
-          { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة (EGP)' : 'Earnings & Payouts', icon: DollarSign }
+          { id: 'dashboard', path: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
+          { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic },
+          { id: 'lesson-workspace', path: '/teacher/workspace', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace', icon: BookOpen },
+          { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Users },
+          { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: ClipboardList },
+          { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign },
         ];
       case 'student':
         return [
-          { id: 'student-dashboard', path: '/student/dashboard', label: lang === 'ar' ? 'لوحة مذاكرتي' : 'My Study Desk', icon: LayoutDashboard },
-          { id: 'lesson-study', path: '/student/lesson', label: lang === 'ar' ? 'غرفة الحصة والشرح' : 'Lesson Study Room', icon: BookOpen },
-          { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات الذكية' : 'Smart Exams', icon: Sparkles, badge: '15 Qs', badgeColor: '#3B82F6' },
-          { id: 'weak-areas', path: '/student/weak-areas', label: lang === 'ar' ? 'تشخيص نقاط الضعف' : 'Weak Areas Hub', icon: AlertTriangle, badge: '⚠️', badgeColor: '#EF4444' }
+          {
+            group: lang === 'ar' ? 'الرئيسية' : 'Main',
+            items: [
+              { id: 'student-dashboard', path: '/student/dashboard', label: lang === 'ar' ? 'الرئيسية' : 'Home', icon: LayoutDashboard },
+              { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'حصصي' : 'My Courses', icon: BookOpen },
+              { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات' : 'Exams', icon: ClipboardList },
+              { id: 'homework', path: '/student/homework', label: lang === 'ar' ? 'الواجبات' : 'Homework', icon: FileText },
+              { id: 'analytics', path: '/student/analytics', label: lang === 'ar' ? 'مستواي' : 'My Level', icon: TrendingUp },
+            ]
+          },
+          {
+            group: lang === 'ar' ? 'أدوات التعلم' : 'Learning Tools',
+            items: [
+              { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic },
+              { id: 'revision', path: '/student/revision', label: lang === 'ar' ? 'المراجعة' : 'Revision', icon: RotateCcw },
+              { id: 'quiz', path: '/student/quiz', label: lang === 'ar' ? 'الكويزات' : 'Quizzes', icon: Trophy },
+              { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات' : 'Achievements', icon: Medal },
+              { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات' : 'Certificates', icon: Award },
+              { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك' : 'Subscription', icon: CreditCard },
+            ]
+          }
         ];
       case 'parent':
         return [
           { id: 'parent-portal', path: '/parent/dashboard', label: lang === 'ar' ? 'متابعة الأبناء' : 'Children Overview', icon: Users },
-          { id: 'parent-reports', path: '/parent/dashboard', label: lang === 'ar' ? 'التقارير الأسبوعية' : 'Weekly Reports', icon: Activity, badge: '96%' },
-          { id: 'parent-feedback', path: '/parent/dashboard', label: lang === 'ar' ? 'ملاحظات المعلمين' : 'Teacher Feedback', icon: Sparkles }
+          { id: 'parent-reports', path: '/parent/dashboard', label: lang === 'ar' ? 'التقارير الأسبوعية' : 'Weekly Reports', icon: Activity },
+          { id: 'parent-feedback', path: '/parent/dashboard', label: lang === 'ar' ? 'ملاحظات المعلمين' : 'Teacher Feedback', icon: BookMarked },
         ];
       case 'center':
         return [
           { id: 'center-portal', path: '/center/dashboard', label: lang === 'ar' ? 'لوحة تحكم السنتر' : 'Center Dashboard', icon: Building2 },
-          { id: 'center-halls', path: '/center/dashboard', label: lang === 'ar' ? 'القاعات والجداول' : 'Halls & Schedule', icon: BookOpen, badge: '18 قاعة' },
-          { id: 'center-qr', path: '/center/dashboard', label: lang === 'ar' ? 'حضور الطلاب بالـ QR' : 'QR Attendance', icon: QrCode },
-          { id: 'center-financials', path: '/center/dashboard', label: lang === 'ar' ? 'الفواتير والإيرادات' : 'Billing & Revenue', icon: DollarSign }
+          { id: 'center-halls', path: '/center/dashboard', label: lang === 'ar' ? 'القاعات والجداول' : 'Halls & Schedule', icon: BookOpen },
+          { id: 'center-qr', path: '/center/dashboard', label: lang === 'ar' ? 'حضور الطلاب' : 'QR Attendance', icon: QrCode },
+          { id: 'center-financials', path: '/center/dashboard', label: lang === 'ar' ? 'الفواتير والإيرادات' : 'Billing & Revenue', icon: DollarSign },
         ];
       case 'admin':
         return [
-          { id: 'admin-portal', path: '/admin/dashboard', label: lang === 'ar' ? 'اقتصاديات المنصة والـ AI' : 'SaaS Economics', icon: ShieldCheck },
-          { id: 'admin-gpu', path: '/admin/dashboard', label: lang === 'ar' ? 'كفاءة معالجة Whisper' : 'GPU Clusters', icon: Server, badge: '99.9%' },
-          { id: 'admin-users', path: '/admin/dashboard', label: lang === 'ar' ? 'إدارة المستخدمين' : 'User Management', icon: Users }
+          { id: 'admin-portal', path: '/admin/dashboard', label: lang === 'ar' ? 'اقتصاديات المنصة' : 'SaaS Economics', icon: ShieldCheck },
+          { id: 'admin-gpu', path: '/admin/dashboard', label: lang === 'ar' ? 'كفاءة المعالجة' : 'GPU Clusters', icon: Server },
+          { id: 'admin-users', path: '/admin/dashboard', label: lang === 'ar' ? 'إدارة المستخدمين' : 'User Management', icon: Users },
         ];
       default:
         return [];
@@ -136,401 +111,277 @@ export const Sidebar = ({ mobileSidebarOpen, onClose }) => {
 
   const menuItems = getMenuItems();
 
+  // Flatten for non-student roles (they use flat arrays, not groups)
+  const isStudentGrouped = currentRole === 'student' && Array.isArray(menuItems) && menuItems[0]?.group;
+
   const handleLinkClick = () => {
-    if (onClose) {
-      onClose();
-    }
+    if (onClose) onClose();
   };
 
-  const currentWidth = isCollapsed ? '76px' : '260px';
+  const currentWidth = isCollapsed ? '72px' : '260px';
+
+  const renderNavItem = (item) => {
+    const ItemIcon = item.icon;
+    const isActive = location.pathname === item.path;
+
+    return (
+      <Link
+        key={item.id}
+        to={item.path}
+        onClick={handleLinkClick}
+        title={isCollapsed ? item.label : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: isCollapsed ? '10px' : '10px 12px',
+          borderRadius: '10px',
+          backgroundColor: isActive ? `${accent}14` : 'transparent',
+          color: isActive ? accent : 'var(--text-secondary)',
+          fontWeight: isActive ? '600' : '500',
+          fontSize: '14px',
+          textDecoration: 'none',
+          transition: 'background-color 0.15s ease, color 0.15s ease',
+          justifyContent: isCollapsed ? 'center' : 'flex-start',
+          position: 'relative',
+          borderInlineStart: isActive ? `3px solid ${accent}` : '3px solid transparent',
+        }}
+        className="sidebar-nav-item"
+      >
+        <ItemIcon
+          size={18}
+          style={{ flexShrink: 0 }}
+        />
+        {!isCollapsed && (
+          <span style={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            flex: 1
+          }}>
+            {item.label}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <aside
       className={`app-sidebar ${mobileSidebarOpen ? 'sidebar-mobile-open' : ''} ${isCollapsed ? 'sidebar-collapsed' : ''}`}
       style={{
+        position: 'fixed',
+        top: 0,
+        right: isRtl ? 0 : undefined,
+        left: isRtl ? undefined : 0,
+        bottom: 0,
         width: currentWidth,
-        minWidth: currentWidth,
         backgroundColor: 'var(--bg-surface)',
-        borderRight: isRtl ? 'none' : '1px solid var(--border-subtle)',
-        borderLeft: isRtl ? '1px solid var(--border-subtle)' : 'none',
-        padding: isCollapsed ? '20px 8px' : '20px 14px',
+        borderInlineStart: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
-        minHeight: 'calc(100vh - var(--topbar-height))',
-        position: 'sticky',
-        top: 'var(--topbar-height)',
-        height: 'calc(100vh - var(--topbar-height))',
-        overflowY: 'auto',
+        zIndex: 999,
+        transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         overflowX: 'hidden',
-        flexShrink: 0,
-        transition: 'width 0.28s cubic-bezier(0.16, 1, 0.3, 1), padding 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
-        zIndex: mobileSidebarOpen ? 999 : 50
+        overflowY: 'auto',
       }}
     >
-      <div>
-        {/* Mobile Header with Close Button */}
-        <div className="mobile-only" style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 4px 16px',
-          marginBottom: '14px',
-          borderBottom: '1px solid var(--border-subtle)'
-        }}>
+      {/* Top brand + close (mobile only) */}
+      <div style={{
+        padding: isCollapsed ? '16px 8px' : '16px 16px',
+        borderBottom: '1px solid var(--border-subtle)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: isCollapsed ? 'center' : 'space-between',
+        minHeight: '64px',
+        flexShrink: 0
+      }}>
+        {!isCollapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img
               src={isDark ? '/logo-dark.png' : '/logo-light.png'}
               alt="متفوّق"
               style={{ width: '28px', height: '28px', objectFit: 'contain' }}
             />
-            <span style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {lang === 'ar' ? 'متفوّق' : 'Motafawweq'}
+            <span style={{
+              fontSize: '15px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-arabic)'
+            }}>
+              متفوّق
             </span>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close sidebar"
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Dynamic Role Banner Card */}
-        <div style={{
-          padding: isCollapsed ? '10px 4px' : '12px 14px',
-          backgroundColor: activeRoleMeta.bgSurface,
-          borderRadius: 'var(--radius-lg)',
-          marginBottom: '20px',
-          border: `1px solid ${activeRoleMeta.color}30`,
-          position: 'relative',
-          overflow: 'hidden',
-          transition: 'all 0.2s ease',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          {/* Subtle Glow Accent */}
-          <div style={{
-            position: 'absolute',
-            top: '-20px',
-            right: '-20px',
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            background: activeRoleMeta.gradient,
-            opacity: 0.15,
-            filter: 'blur(15px)',
-            pointerEvents: 'none'
-          }} />
-
-          {/* Role Icon */}
-          <div style={{
-            width: isCollapsed ? '38px' : '34px',
-            height: isCollapsed ? '38px' : '34px',
-            borderRadius: '10px',
-            background: activeRoleMeta.gradient,
-            color: '#FFFFFF',
+        )}
+        {isCollapsed && (
+          <img
+            src={isDark ? '/logo-dark.png' : '/logo-light.png'}
+            alt="متفوّق"
+            style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+          />
+        )}
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          className="mobile-only"
+          aria-label="إغلاق القائمة"
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            border: '1px solid var(--border-subtle)',
+            backgroundColor: 'transparent',
+            color: 'var(--text-secondary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: `0 4px 12px ${activeRoleMeta.color}40`
-          }}>
-            {React.createElement(activeRoleMeta.icon, { size: isCollapsed ? 18 : 16 })}
-          </div>
-
-          {!isCollapsed && (
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{
-                fontSize: '10px',
-                color: activeRoleMeta.color,
-                fontWeight: '800',
-                textTransform: 'uppercase',
-                letterSpacing: '0.6px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <span>{lang === 'ar' ? activeRoleMeta.badgeAr : activeRoleMeta.badgeEn}</span>
-              </div>
-              <div style={{
-                fontSize: '13px',
-                fontWeight: '800',
-                color: 'var(--text-primary)',
-                marginTop: '1px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {lang === 'ar' ? activeRoleMeta.nameAr : activeRoleMeta.nameEn}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation list */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-          {menuItems.map(item => {
-            const ItemIcon = item.icon;
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.id}
-                to={item.path}
-                onClick={handleLinkClick}
-                title={isCollapsed ? item.label : undefined}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: isCollapsed ? 'center' : 'space-between',
-                  padding: isCollapsed ? '12px' : '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: isActive ? activeRoleMeta.gradient : 'transparent',
-                  color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontWeight: isActive ? '700' : '600',
-                  fontSize: '13px',
-                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                  textAlign: isRtl ? 'right' : 'left',
-                  textDecoration: 'none',
-                  position: 'relative',
-                  boxShadow: isActive ? `0 6px 18px ${activeRoleMeta.color}35` : 'none'
-                }}
-                className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <ItemIcon
-                    size={18}
-                    color={isActive ? '#FFFFFF' : 'currentColor'}
-                    style={{ flexShrink: 0, transition: 'transform 0.2s ease' }}
-                  />
-                  {!isCollapsed && (
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.label}
-                    </span>
-                  )}
-                </div>
-
-                {!isCollapsed && item.badge && (
-                  <span style={{
-                    fontSize: '9.5px',
-                    fontWeight: '800',
-                    padding: '2px 7px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: item.badgeColor || (isActive ? '#FFFFFF25' : `${activeRoleMeta.color}18`),
-                    color: isActive ? '#FFFFFF' : (item.badgeColor || activeRoleMeta.color),
-                    border: isActive ? '1px solid rgba(255,255,255,0.3)' : `1px solid ${activeRoleMeta.color}30`,
-                    flexShrink: 0
-                  }}>
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+            cursor: 'pointer',
+            flexShrink: 0
+          }}
+        >
+          <X size={16} />
+        </button>
       </div>
 
-      {/* Bottom widgets & Controls */}
-      <div style={{ marginTop: '24px' }}>
-        {/* Teacher Widget: AI Quota with animated progress */}
-        {currentRole === 'teacher' && !isCollapsed && (
+      {/* Student profile pill (non-collapsed) */}
+      {currentRole === 'student' && !isCollapsed && currentUser && (
+        <div style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          flexShrink: 0
+        }}>
           <div style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-subtle)',
-            marginBottom: '10px',
-            boxShadow: 'var(--shadow-xs)'
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            backgroundColor: `${accent}18`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: accent,
+            fontSize: '13px',
+            fontWeight: '700',
+            flexShrink: 0,
+            overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                {lang === 'ar' ? 'رصيد الذكاء الاصطناعي' : 'AI Processing Quota'}
-              </span>
-              <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)' }}>
-                184 / 300 {lang === 'ar' ? 'دقيقة' : 'm'}
-              </span>
-            </div>
-            <div style={{
-              height: '6px',
-              width: '100%',
-              backgroundColor: 'var(--border-subtle)',
-              borderRadius: '3px',
-              overflow: 'hidden',
-              marginBottom: '8px'
-            }}>
-              <div style={{
-                width: `${(184 / 300) * 100}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, #6C4DFF, #38BDF8)',
-                borderRadius: '3px'
-              }} />
-            </div>
-            <Link
-              to="/pricing"
-              onClick={handleLinkClick}
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                padding: '6px 8px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--primary-light)',
-                backgroundColor: 'var(--primary-surface)',
-                color: 'var(--primary)',
-                fontSize: '11px',
-                fontWeight: '700',
-                textDecoration: 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {lang === 'ar' ? '+ شحن دقائق إضافية' : '+ Add AI Minutes'}
-            </Link>
+            {currentUser.avatar ? (
+              <img src={currentUser.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            ) : (
+              <GraduationCap size={16} />
+            )}
           </div>
-        )}
-
-        {/* Student Widget: Gamification Streak */}
-        {currentRole === 'student' && !isCollapsed && (
-          <div style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-subtle)',
-            marginBottom: '10px',
-            boxShadow: 'var(--shadow-xs)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <Flame size={18} color="#F59E0B" />
-              <span style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? '14 يوماً متتالياً 🔥' : '14-Day Streak 🔥'}
-              </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser?.nameAr || currentUser?.name || 'الطالب'}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-              <Award size={14} color="#06B6D4" />
-              <span>{lang === 'ar' ? '2,450 XP (مستوى 8)' : '2,450 XP (Level 8)'}</span>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '1px' }}>
+              {lang === 'ar' ? 'الصف الثالث الثانوي' : '3rd Secondary'}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Parent Widget: Children Attendance */}
-        {currentRole === 'parent' && !isCollapsed && (
-          <div style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-subtle)',
-            marginBottom: '10px'
-          }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>
-              {lang === 'ar' ? 'الأبناء المسجلين (2)' : 'Registered Children (2)'}
+      {/* Navigation */}
+      <nav style={{
+        flex: 1,
+        padding: isCollapsed ? '12px 8px' : '12px 10px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+        overflowY: 'auto',
+        overflowX: 'hidden'
+      }}>
+        {isStudentGrouped ? (
+          // Student: grouped nav
+          menuItems.map((group, gi) => (
+            <div key={gi} style={{ marginBottom: '8px' }}>
+              {!isCollapsed && (
+                <div style={{
+                  fontSize: '10px',
+                  fontWeight: '600',
+                  color: 'var(--text-secondary)',
+                  padding: '4px 12px 6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.6px',
+                  opacity: 0.7
+                }}>
+                  {group.group}
+                </div>
+              )}
+              {isCollapsed && gi > 0 && (
+                <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '8px 4px' }} />
+              )}
+              {group.items.map(renderNavItem)}
             </div>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: '#10B981', marginTop: '3px' }}>
-              {lang === 'ar' ? '✓ نسبة الحضور 96.5%' : '✓ Attendance 96.5%'}
-            </div>
-          </div>
+          ))
+        ) : (
+          // Other roles: flat nav
+          menuItems.map(renderNavItem)
         )}
+      </nav>
 
-        {/* Center Widget: Active Halls */}
-        {currentRole === 'center' && !isCollapsed && (
-          <div style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-subtle)',
-            marginBottom: '10px'
-          }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>
-              {lang === 'ar' ? 'حالة القاعات الآن' : 'Active Rooms Status'}
-            </div>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: '#F59E0B', marginTop: '3px' }}>
-              {lang === 'ar' ? '18 قاعة ممتلئة (94%)' : '18 Rooms Busy (94%)'}
-            </div>
-          </div>
-        )}
-
-        {/* Admin Widget: AI Clusters */}
-        {currentRole === 'admin' && !isCollapsed && (
-          <div style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-subtle)',
-            marginBottom: '10px'
-          }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700' }}>
-              {lang === 'ar' ? 'سيرفرات الذكاء الاصطناعي' : 'Whisper GPU Server'}
-            </div>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: '#EC4899', marginTop: '3px' }}>
-              {lang === 'ar' ? 'جاهز 99.99% • 32ms' : 'Online 99.99% • 32ms'}
-            </div>
-          </div>
-        )}
-
-        {/* Return to Public Site Link */}
+      {/* Bottom: collapse toggle (desktop only) + back to site */}
+      <div style={{
+        padding: isCollapsed ? '12px 8px' : '12px 10px',
+        borderTop: '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        flexShrink: 0
+      }}>
+        {/* Back to website */}
         <Link
           to="/"
           onClick={handleLinkClick}
-          title={isCollapsed ? (lang === 'ar' ? 'الرجوع للموقع العام' : 'Public Website') : undefined}
+          title={isCollapsed ? (lang === 'ar' ? 'الموقع الرئيسي' : 'Website') : undefined}
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: isCollapsed ? 'center' : 'flex-start',
             gap: '8px',
-            width: '100%',
-            padding: '8px 10px',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--text-muted)',
-            fontSize: '12px',
-            fontWeight: '600',
+            padding: isCollapsed ? '8px' : '8px 12px',
+            borderRadius: '8px',
+            color: 'var(--text-secondary)',
+            fontSize: '13px',
+            fontWeight: '500',
             textDecoration: 'none',
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
             transition: 'color 0.15s ease'
           }}
         >
           <Compass size={16} />
-          {!isCollapsed && <span>{lang === 'ar' ? 'الرجوع للموقع العام' : 'Public Website'}</span>}
+          {!isCollapsed && <span>{lang === 'ar' ? 'الموقع الرئيسي' : 'Website'}</span>}
         </Link>
 
-        {/* Desktop Collapse / Expand Toggle Button */}
+        {/* Desktop collapse toggle */}
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={onToggleCollapse}
           className="desktop-only"
-          title={isCollapsed ? (lang === 'ar' ? 'توسيع القائمة' : 'Expand Sidebar') : (lang === 'ar' ? 'طي القائمة' : 'Collapse Sidebar')}
+          title={isCollapsed ? (lang === 'ar' ? 'توسيع' : 'Expand') : (lang === 'ar' ? 'طي' : 'Collapse')}
           style={{
-            marginTop: '8px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: isCollapsed ? 'center' : 'space-between',
             gap: '8px',
-            width: '100%',
-            padding: '8px 10px',
-            borderRadius: 'var(--radius-md)',
+            padding: isCollapsed ? '8px' : '8px 12px',
+            borderRadius: '8px',
             border: '1px solid var(--border-subtle)',
             backgroundColor: 'var(--bg-subtle)',
             color: 'var(--text-secondary)',
-            fontSize: '11.5px',
-            fontWeight: '700',
+            fontSize: '12px',
+            fontWeight: '500',
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            width: '100%',
+            justifyContent: isCollapsed ? 'center' : 'space-between',
+            transition: 'background-color 0.15s ease'
           }}
         >
           {!isCollapsed && <span>{lang === 'ar' ? 'طي القائمة' : 'Collapse'}</span>}
-          {isRtl ? (
-            isCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />
-          ) : (
-            isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />
-          )}
+          {isRtl
+            ? (isCollapsed ? <ChevronLeft size={15} /> : <ChevronRight size={15} />)
+            : (isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />)
+          }
         </button>
       </div>
     </aside>

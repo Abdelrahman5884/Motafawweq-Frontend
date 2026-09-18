@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Menu } from 'lucide-react';
 
 // Layout Components
 import { Navbar } from './components/layout/Navbar';
@@ -33,8 +32,17 @@ import { AIProcessingScreen } from './views/teacher/AIProcessingScreen';
 
 // Student Views
 import { StudentDashboard } from './views/student/StudentDashboard';
+import { StudentCoursesView } from './views/student/StudentCoursesView';
 import { StudentLessonView } from './views/student/StudentLessonView';
+import { StudentQuizView } from './views/student/StudentQuizView';
+import { StudentHomeworkView } from './views/student/StudentHomeworkView';
 import { ExamTakingView } from './views/student/ExamTakingView';
+import { StudentSmartLectureView } from './views/student/StudentSmartLectureView';
+import { StudentRevisionView } from './views/student/StudentRevisionView';
+import { StudentAnalyticsView } from './views/student/StudentAnalyticsView';
+import { StudentGamificationView } from './views/student/StudentGamificationView';
+import { StudentCertificatesView } from './views/student/StudentCertificatesView';
+import { StudentBillingView } from './views/student/StudentBillingView';
 import { WeakAreasHub } from './views/student/WeakAreasHub';
 
 // Parent Views
@@ -46,12 +54,16 @@ import { CenterDashboard } from './views/center/CenterDashboard';
 // Admin Views
 import { AdminDashboard } from './views/admin/AdminDashboard';
 
-// Shell layout component
+const SIDEBAR_EXPANDED = 260;
+const SIDEBAR_COLLAPSED = 72;
+
+// Shell layout component — proper fixed-sidebar architecture
 function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { setRouterNavigator } = useAuth();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (setRouterNavigator) {
@@ -78,14 +90,16 @@ function AppShell({ children }) {
   const authRoutes = ['/login', '/register', '/forgot-password'];
   const isAuthRoute = authRoutes.includes(location.pathname);
   const isFullPage = fullPageRoutes.includes(location.pathname);
+  const hasSidebar = !isFullPage && !isAuthRoute;
+
+  // Sidebar pixel width (used for margin offset)
+  const sidebarWidth = hasSidebar ? (sidebarCollapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED) : 0;
 
   return (
     <div
       className="app-root"
       style={{
         minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
         backgroundColor: 'var(--bg-app)',
         color: 'var(--text-primary)',
         width: '100%',
@@ -93,61 +107,97 @@ function AppShell({ children }) {
         overflowX: 'hidden'
       }}
     >
-      {!isAuthRoute && <Navbar mobileSidebarOpen={mobileSidebarOpen} setMobileSidebarOpen={setMobileSidebarOpen} isFullPage={isFullPage} />}
+      {/* Fixed Sidebar — only in dashboard layouts */}
+      {hasSidebar && (
+        <Sidebar
+          mobileSidebarOpen={mobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+        />
+      )}
 
-      {isFullPage ? (
-        <main style={{ flex: 1 }}>
-          {children}
-        </main>
-      ) : (
-        <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - var(--topbar-height))', position: 'relative' }}>
-          {/* Mobile Sidebar Backdrop Overlay */}
-          {mobileSidebarOpen && (
-            <div
-              onClick={() => setMobileSidebarOpen(false)}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                zIndex: 998,
-                backdropFilter: 'blur(2px)'
-              }}
-            />
-          )}
-          <Sidebar mobileSidebarOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
+      {/* Main content area — offset by sidebar width on desktop */}
+      <div
+        className="app-content-wrapper"
+        style={{
+          marginRight: `${sidebarWidth}px`,
+          transition: 'margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        {/* Navbar */}
+        {!isAuthRoute && (
+          <Navbar
+            mobileSidebarOpen={mobileSidebarOpen}
+            setMobileSidebarOpen={setMobileSidebarOpen}
+            isFullPage={isFullPage}
+            hasSidebar={hasSidebar}
+          />
+        )}
+
+        {/* Page content */}
+        {isFullPage ? (
+          <main style={{ flex: 1 }}>
+            {children}
+          </main>
+        ) : (
           <main
             className="app-main-content"
             style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}
           >
-            {/* Mobile Sidebar Toggle Button - only in dashboard pages */}
-            <button
-              className="mobile-sidebar-toggle"
-              onClick={() => setMobileSidebarOpen(true)}
-              aria-label="Open menu"
-              style={{
-                position: 'fixed',
-                bottom: '20px',
-                right: '20px',
-                zIndex: 997,
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--primary)',
-                color: '#fff',
-                border: 'none',
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 8px 24px rgba(108,77,255,0.5)',
-                cursor: 'pointer'
-              }}
-            >
-              <Menu size={22} />
-            </button>
+            {/* Mobile menu button — only on dashboard pages */}
+            {hasSidebar && (
+              <button
+                className="mobile-sidebar-toggle"
+                onClick={() => setMobileSidebarOpen(true)}
+                aria-label="فتح القائمة"
+                style={{
+                  position: 'fixed',
+                  bottom: '20px',
+                  left: '20px',
+                  zIndex: 997,
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--primary)',
+                  color: '#fff',
+                  border: 'none',
+                  display: 'none',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 24px rgba(108,77,255,0.4)',
+                  cursor: 'pointer'
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="3" y1="6" x2="21" y2="6"/>
+                  <line x1="3" y1="12" x2="21" y2="12"/>
+                  <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+              </button>
+            )}
+
+            {/* Mobile sidebar backdrop */}
+            {mobileSidebarOpen && (
+              <div
+                onClick={() => setMobileSidebarOpen(false)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                  zIndex: 998,
+                  backdropFilter: 'blur(3px)'
+                }}
+              />
+            )}
+
             {children}
           </main>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Global Universal Search (Ctrl+K) */}
       <SearchModal />
@@ -185,8 +235,17 @@ export default function App() {
 
                 {/* Student Routes */}
                 <Route path="/student/dashboard" element={<StudentDashboard />} />
+                <Route path="/student/courses" element={<StudentCoursesView />} />
                 <Route path="/student/lesson" element={<StudentLessonView />} />
+                <Route path="/student/quiz" element={<StudentQuizView />} />
+                <Route path="/student/homework" element={<StudentHomeworkView />} />
                 <Route path="/student/exam" element={<ExamTakingView />} />
+                <Route path="/student/smart-lecture" element={<StudentSmartLectureView />} />
+                <Route path="/student/revision" element={<StudentRevisionView />} />
+                <Route path="/student/analytics" element={<StudentAnalyticsView />} />
+                <Route path="/student/gamification" element={<StudentGamificationView />} />
+                <Route path="/student/certificates" element={<StudentCertificatesView />} />
+                <Route path="/student/billing" element={<StudentBillingView />} />
                 <Route path="/student/weak-areas" element={<WeakAreasHub />} />
 
                 {/* Parent Portal Route */}

@@ -1,346 +1,488 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { MOCK_LESSON } from '../../data/mockData';
-import { 
-  Flame, 
-  Award, 
-  BookOpen, 
-  Sparkles, 
-  Clock, 
-  Play, 
-  ArrowRight, 
-  AlertTriangle,
+import {
+  STUDENT_PROFILE,
+  TODAY_TASKS,
+  UPCOMING_EXAMS,
+  COURSES_CATALOG,
+  MISTAKE_BANK
+} from '../../data/studentData';
+import {
+  Play,
+  BookOpen,
+  FileText,
+  ClipboardList,
+  RotateCcw,
   Calendar,
-  CheckCircle2
+  Mic,
+  ChevronLeft,
+  Clock,
+  AlertCircle,
+  Trophy,
+  Flame
 } from 'lucide-react';
+import {
+  SPage,
+  SPageHeader,
+  SSection,
+  SCard,
+  SPrimaryCard,
+  SRowItem,
+  SBadge,
+  SStatusBadge,
+  SProgress,
+  SButton,
+  STextLink,
+  SStatBlock,
+  SIconBox,
+  SDivider,
+  SEmptyState
+} from '../../components/student/ui';
+import { StudentFutureFeaturesModal } from '../../components/student/StudentFutureFeaturesModal';
 
 export const StudentDashboard = () => {
-  const { navigate, currentUser } = useAuth();
-  const { lang, isRtl } = useLanguage();
+  const navigate = useNavigate();
+  const { lang } = useLanguage();
+  const student = STUDENT_PROFILE;
+  const [futureModalOpen, setFutureModalOpen] = useState(false);
+  const [futureModalTab, setFutureModalTab] = useState('live');
+
+  const activeCourse = COURSES_CATALOG[0]; // last studied course
+  const mistakesCount = MISTAKE_BANK.filter(m => !m.solvedCorrectlyNow).length;
+
+  // Subject progress data derived from enrolled courses
+  const subjectProgress = COURSES_CATALOG.filter(c => c.isEnrolled).map(c => ({
+    name: c.subjectAr,
+    pct: c.progressPercent
+  }));
+
+  // Task type metadata
+  const taskMeta = {
+    lesson:   { icon: <Play size={16} />,       color: '#6C4BFF', bg: '#F0EEFF' },
+    homework: { icon: <FileText size={16} />,    color: '#F25C5C', bg: '#FFF0F0' },
+    quiz:     { icon: <ClipboardList size={16} />, color: '#F5A623', bg: '#FFF8EC' },
+    exam:     { icon: <AlertCircle size={16} />, color: '#F25C5C', bg: '#FFF0F0' },
+  };
+
+  const taskActionLabel = {
+    lesson:   lang === 'ar' ? 'أكمل' : 'Continue',
+    homework: lang === 'ar' ? 'حل' : 'Solve',
+    quiz:     lang === 'ar' ? 'ابدأ' : 'Start',
+    exam:     lang === 'ar' ? 'دخول' : 'Enter',
+  };
+
+  // Upcoming items (nearest exam + nearest homework)
+  const nearestExam = UPCOMING_EXAMS[0];
+  const nearestHomework = (MISTAKE_BANK.length > 0) ? null : null;
 
   return (
-    <div style={{
-      maxWidth: '1100px',
-      margin: '0 auto',
-      padding: '36px 24px 80px'
-    }}>
-      {/* Top Banner with Streak & XP */}
+    <SPage>
+      {/* ── Page Header: greeting + key stats ─────────────────────────── */}
       <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1px solid var(--border-medium)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '28px',
-        marginBottom: '32px',
-        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '20px'
+        gap: '12px',
+        marginBottom: '24px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-          <img
-            src={currentUser.avatar}
-            alt={currentUser.name}
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '3px solid #06B6D4'
-            }}
-          />
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-              {lang === 'ar' ? `أهلاً بك، يا بطل! 👋` : `Welcome, Omar! 👋`}
-            </h1>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              {lang === 'ar' ? currentUser.roleLabelAr : currentUser.roleLabel} • {currentUser.center}
-            </div>
-          </div>
+        <div>
+          <h1 style={{
+            fontSize: '22px',
+            fontWeight: '700',
+            color: 'var(--text-primary)',
+            margin: 0,
+            fontFamily: 'var(--font-arabic)'
+          }}>
+            {lang === 'ar' ? `مرحبًا، ${student.nameAr.split(' ')[0]}` : `Hello, ${student.name.split(' ')[0]}`}
+          </h1>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '3px 0 0', fontWeight: '400', fontFamily: 'var(--font-arabic)' }}>
+            {student.gradeNameAr} — {student.trackAr}
+          </p>
         </div>
 
-        {/* Gamification Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Streak Counter */}
+        {/* Streak + XP pills — compact, secondary */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: 'var(--radius-full)',
-            backgroundColor: '#FFFBEB',
-            border: '1px solid #FDE68A'
+            display: 'flex', alignItems: 'center', gap: '5px',
+            padding: '5px 10px', borderRadius: '99px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)'
           }}>
-            <Flame size={20} color="#F59E0B" />
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: '900', color: '#B45309', lineHeight: 1 }}>
-                14 {lang === 'ar' ? 'يوماً متتالياً' : 'Days'}
-              </div>
-              <div style={{ fontSize: '10px', color: '#D97706', fontWeight: '700' }}>
-                {lang === 'ar' ? 'حماسك مشتعل 🔥' : 'On Fire 🔥'}
-              </div>
-            </div>
+            <Flame size={13} color="#F5A623" />
+            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+              {student.streakDays} {lang === 'ar' ? 'يوم' : 'days'}
+            </span>
           </div>
-
-          {/* XP Points */}
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: 'var(--radius-full)',
-            backgroundColor: 'var(--primary-surface)',
-            border: '1px solid var(--primary-light)'
+            display: 'flex', alignItems: 'center', gap: '5px',
+            padding: '5px 10px', borderRadius: '99px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)'
           }}>
-            <Award size={20} color="var(--primary)" />
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: '900', color: 'var(--primary)', lineHeight: 1 }}>
-                2,450 XP
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '700' }}>
-                {lang === 'ar' ? 'المستوى 8 (متفوق)' : 'Level 8 (Scholar)'}
-              </div>
-            </div>
+            <Trophy size={13} color="#6C4BFF" />
+            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+              {student.xp.toLocaleString()} XP
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Urgent AI Weak Area Alert */}
-      <div style={{
-        backgroundColor: '#FEF2F2',
-        border: '1.5px solid #FCA5A5',
-        borderRadius: 'var(--radius-lg)',
-        padding: '18px 22px',
-        marginBottom: '32px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '14px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      {/* ── SECTION 1: Continue Learning — PRIMARY, DOMINANT ─────────── */}
+      <div style={{ marginBottom: '28px' }}>
+        <SPrimaryCard>
           <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '50%',
-            backgroundColor: '#FEE2E2',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '20px',
+            flexWrap: 'wrap'
+          }}>
+            {/* Left: lesson info */}
+            <div style={{ flex: 1, minWidth: '240px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <SIconBox
+                  icon={<BookOpen size={16} />}
+                  size={32}
+                  color="#6C4BFF"
+                  bg="#F0EEFF"
+                />
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '400', fontFamily: 'var(--font-arabic)' }}>
+                    {activeCourse.subjectAr} — {activeCourse.teacher.nameAr}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#6C4BFF', fontWeight: '600', fontFamily: 'var(--font-arabic)' }}>
+                    {lang === 'ar' ? 'أكمل من حيث توقفت' : 'Continue Learning'}
+                  </div>
+                </div>
+              </div>
+
+              <h2 style={{
+                fontSize: '17px',
+                fontWeight: '600',
+                color: 'var(--text-primary)',
+                margin: '0 0 12px',
+                lineHeight: 1.4,
+                fontFamily: 'var(--font-arabic)'
+              }}>
+                {activeCourse.lastLessonTitleAr}
+              </h2>
+
+              {/* Progress */}
+              <SProgress
+                value={activeCourse.progressPercent}
+                label={lang === 'ar' ? `توقفت عند الدقيقة ${activeCourse.lastLessonTimeFormatted}` : `Left at ${activeCourse.lastLessonTimeFormatted}`}
+                style={{ maxWidth: '380px', marginBottom: '16px' }}
+              />
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <SButton
+                  onClick={() => navigate('/student/lesson')}
+                  icon={<Play size={15} fill="#fff" />}
+                >
+                  {lang === 'ar' ? 'أكمل الدرس' : 'Continue Lesson'}
+                </SButton>
+                <SButton
+                  onClick={() => navigate('/student/courses')}
+                  variant="ghost"
+                >
+                  {lang === 'ar' ? 'عرض تفاصيل الدرس' : 'Lesson Details'}
+                </SButton>
+              </div>
+            </div>
+
+            {/* Right: compact stats */}
+            <div style={{
+              display: 'flex',
+              gap: '24px',
+              flexShrink: 0,
+              alignItems: 'flex-start',
+              flexWrap: 'wrap'
+            }}>
+              <SStatBlock
+                value={`${student.completedLessonsCount}/${student.totalEnrolledLessons}`}
+                label={lang === 'ar' ? 'حصة مكتملة' : 'Lessons done'}
+                color="var(--text-primary)"
+              />
+              <SStatBlock
+                value={student.overallGpa}
+                label={lang === 'ar' ? 'المعدل العام' : 'GPA'}
+                color="#14B87A"
+              />
+              <SStatBlock
+                value={`${student.studyMinutesToday}د`}
+                label={lang === 'ar' ? 'مذاكرة اليوم' : 'Today'}
+                color="#6C4BFF"
+              />
+            </div>
+          </div>
+        </SPrimaryCard>
+      </div>
+
+      {/* ── SECTION 2: Today's Tasks + Upcoming — 2 columns ─────────── */}
+      <div className="s-grid-2col" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '20px',
+        marginBottom: '28px'
+      }}>
+        {/* Today's Tasks */}
+        <SCard padding={0} style={{ overflow: 'hidden' }}>
+          <div style={{
+            padding: '16px 16px 12px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: '#EF4444'
+            justifyContent: 'space-between'
           }}>
-            <AlertTriangle size={20} />
-          </div>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: '800', color: '#991B1B' }}>
-              {lang === 'ar' ? 'تنبيه ذكاء اصطناعي: نقطة تحتاج مراجعة قبل امتحان الأحد' : 'AI Alert: Concept Needs Quick Review'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={16} color="#6C4BFF" />
+              <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', fontFamily: 'var(--font-arabic)' }}>
+                {lang === 'ar' ? 'مهام اليوم' : "Today's Tasks"}
+              </span>
             </div>
-            <div style={{ fontSize: '12.5px', color: '#7F1D1D', marginTop: '2px' }}>
-              {lang === 'ar'
-                ? 'نسبة استيعابك في "مركبا الطاقة التثبيتية NADPH و ATP" هي 64%. استمع إلى 3 دقائق شرح وحل 5 أسئلة.'
-                : 'Your mastery in "NADPH & ATP Synthesis" is 64%. Review 3 minutes of lecture audio.'}
-            </div>
+            <SBadge variant="primary" size="xs">{TODAY_TASKS.length}</SBadge>
           </div>
-        </div>
+          <SDivider />
+          <div style={{ padding: '8px 0' }}>
+            {TODAY_TASKS.length === 0 ? (
+              <SEmptyState
+                icon={<ClipboardList size={20} />}
+                title={lang === 'ar' ? 'لا توجد مهام اليوم' : 'No tasks today'}
+              />
+            ) : (
+              TODAY_TASKS.map((task, i) => {
+                const meta = taskMeta[task.type] || taskMeta.lesson;
+                return (
+                  <div key={task.id}>
+                    <div
+                      onClick={() => navigate(task.actionRoute)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 16px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.12s ease'
+                      }}
+                      className="s-row-clickable"
+                    >
+                      <div style={{
+                        width: '30px', height: '30px', borderRadius: '8px',
+                        backgroundColor: meta.bg, color: meta.color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        {meta.icon}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '13px', fontWeight: '500',
+                          color: 'var(--text-primary)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          fontFamily: 'var(--font-arabic)'
+                        }}>
+                          {task.titleAr}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          {task.subjectAr} · {task.deadline}
+                        </div>
+                      </div>
+                      <SBadge variant={task.priority === 'urgent' ? 'error' : task.priority === 'high' ? 'warning' : 'default'} size="xs">
+                        {taskActionLabel[task.type]}
+                      </SBadge>
+                    </div>
+                    {i < TODAY_TASKS.length - 1 && <SDivider />}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </SCard>
 
-        <button
-          onClick={() => navigate('weak-areas')}
+        {/* Upcoming */}
+        <SCard padding={0} style={{ overflow: 'hidden' }}>
+          <div style={{
+            padding: '16px 16px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={16} color="#F5A623" />
+              <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', fontFamily: 'var(--font-arabic)' }}>
+                {lang === 'ar' ? 'الاختبارات القادمة' : 'Upcoming'}
+              </span>
+            </div>
+            <STextLink onClick={() => navigate('/student/exam')}>
+              {lang === 'ar' ? 'عرض الكل' : 'See all'}
+            </STextLink>
+          </div>
+          <SDivider />
+          <div style={{ padding: '8px 0' }}>
+            {UPCOMING_EXAMS.length === 0 ? (
+              <SEmptyState
+                icon={<Calendar size={20} />}
+                title={lang === 'ar' ? 'لا توجد اختبارات قادمة' : 'No upcoming exams'}
+              />
+            ) : (
+              UPCOMING_EXAMS.map((exam, i) => (
+                <div key={exam.id}>
+                  <div
+                    onClick={() => navigate('/student/exam')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '10px 16px', cursor: 'pointer'
+                    }}
+                    className="s-row-clickable"
+                  >
+                    <div style={{
+                      width: '30px', height: '30px', borderRadius: '8px',
+                      backgroundColor: '#FFF8EC', color: '#F5A623',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>
+                      <AlertCircle size={15} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        fontFamily: 'var(--font-arabic)'
+                      }}>
+                        {exam.titleAr}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {exam.subjectAr} · {exam.date} · {exam.durationMinutes}{lang === 'ar' ? 'د' : 'min'}
+                      </div>
+                    </div>
+                    <SStatusBadge status={exam.status} />
+                  </div>
+                  {i < UPCOMING_EXAMS.length - 1 && <SDivider />}
+                </div>
+              ))
+            )}
+          </div>
+        </SCard>
+      </div>
+
+      {/* ── SECTION 3: Subject Progress ───────────────────────────────── */}
+      <SSection
+        title={lang === 'ar' ? 'التقدم في المواد' : 'Subject Progress'}
+        action={<STextLink onClick={() => navigate('/student/analytics')}>{lang === 'ar' ? 'التفاصيل' : 'Details'}</STextLink>}
+      >
+        <SCard>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {subjectProgress.map((s, i) => (
+              <SProgress
+                key={i}
+                label={s.name}
+                value={s.pct}
+                color={s.pct >= 80 ? '#14B87A' : s.pct >= 60 ? '#6C4BFF' : '#F5A623'}
+                height={5}
+              />
+            ))}
+          </div>
+        </SCard>
+      </SSection>
+
+      {/* ── SECTION 4: Review Needed ──────────────────────────────────── */}
+      {mistakesCount > 0 && (
+        <SSection
+          title={lang === 'ar' ? 'يحتاج إلى مراجعة' : 'Review Needed'}
+          action={<STextLink onClick={() => navigate('/student/revision')}>{lang === 'ar' ? 'عرض الكل' : 'See all'}</STextLink>}
+        >
+          <SCard padding={0} style={{ overflow: 'hidden' }}>
+            {MISTAKE_BANK.filter(m => !m.solvedCorrectlyNow).slice(0, 3).map((m, i, arr) => (
+              <div key={m.id}>
+                <div
+                  onClick={() => navigate('/student/revision')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '12px 16px', cursor: 'pointer'
+                  }}
+                  className="s-row-clickable"
+                >
+                  <SIconBox icon={<RotateCcw size={15} />} size={30} color="#F25C5C" bg="#FFF0F0" radius={7} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      fontFamily: 'var(--font-arabic)'
+                    }}>
+                      {m.questionAr || m.topicAr || `سؤال ${i + 1}`}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {m.subjectAr} · {lang === 'ar' ? 'إجابة خاطئة' : 'Incorrect answer'}
+                    </div>
+                  </div>
+                  <SButton size="sm" variant="subtle" onClick={(e) => { e.stopPropagation(); navigate('/student/revision'); }}>
+                    {lang === 'ar' ? 'مراجعة' : 'Review'}
+                  </SButton>
+                </div>
+                {i < arr.length - 1 && <SDivider />}
+              </div>
+            ))}
+          </SCard>
+        </SSection>
+      )}
+
+      {/* ── SECTION 5: Lecture Conversion — Professional CTA ─────────── */}
+      <SSection>
+        <SCard
+          onClick={() => navigate('/student/smart-lecture')}
           style={{
-            padding: '9px 18px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: '#EF4444',
-            color: '#FFFFFF',
-            border: 'none',
-            fontSize: '12.5px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+            cursor: 'pointer'
           }}
         >
-          {lang === 'ar' ? 'حل التدريب المركز (5 أسئلة)' : 'Review Concept'}
-        </button>
-      </div>
-
-      {/* Continue Learning Card (Flagship Lesson) */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1.5px solid var(--primary)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '28px',
-        marginBottom: '32px',
-        boxShadow: '0 8px 24px rgba(108, 77, 255, 0.15)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '24px'
-      }}>
-        <div style={{ flex: 1, minWidth: '280px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <span style={{
-              fontSize: '11px',
-              fontWeight: '700',
-              padding: '2px 8px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'var(--primary-surface)',
-              color: 'var(--primary)'
-            }}>
-              {lang === 'ar' ? 'متابعة المذاكرة' : 'Continue Studying'}
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              • {lang === 'ar' ? 'د. سلمى السيد' : 'Dr. Salma'}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <SIconBox
+              icon={<Mic size={18} />}
+              size={42}
+              color="#6C4BFF"
+              bg="#F0EEFF"
+              radius={10}
+            />
+            <div>
+              <div style={{
+                fontSize: '15px', fontWeight: '600',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-arabic)'
+              }}>
+                {lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Conversion'}
+              </div>
+              <div style={{
+                fontSize: '12px', color: 'var(--text-secondary)',
+                marginTop: '2px', maxWidth: '340px',
+                lineHeight: 1.5, fontFamily: 'var(--font-arabic)'
+              }}>
+                {lang === 'ar'
+                  ? 'حوّل تسجيل المحاضرة إلى نص منظم وخريطة للمحتوى وأسئلة للمراجعة.'
+                  : 'Convert a lecture recording into organized notes, a content map, and review questions.'}
+              </div>
+            </div>
           </div>
-
-          <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-            {lang === 'ar' ? MOCK_LESSON.titleAr : MOCK_LESSON.title}
-          </h2>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-            <span>{lang === 'ar' ? 'وصلت إلى دقيقة: 05:20 (التفاعلات الضوئية)' : 'Left off at 05:20 (Light Reactions)'}</span>
-            <span>• 14 {lang === 'ar' ? 'مفهوماً' : 'concepts'}</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => navigate('lesson-study')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 24px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '14px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(108, 77, 255, 0.35)'
-            }}
+          <SButton
+            onClick={() => navigate('/student/smart-lecture')}
+            variant="subtle"
           >
-            <Play size={16} fill="#FFFFFF" />
-            <span>{lang === 'ar' ? 'استكمال المذاكرة وسماع الشرح' : 'Resume Lesson Room'}</span>
-          </button>
+            {lang === 'ar' ? 'إضافة محاضرة' : 'Add Lecture'}
+          </SButton>
+        </SCard>
+      </SSection>
 
-          <button
-            onClick={() => navigate('take-exam')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '12px 20px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <Sparkles size={16} color="var(--primary)" />
-            <span>{lang === 'ar' ? 'بدء الامتحان' : 'Take Exam'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Enrolled Courses & Upcoming Sessions */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '24px'
-      }}>
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-medium)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '24px'
-        }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '16px' }}>
-            {lang === 'ar' ? 'مجموعاتي الدراسية المسجل بها' : 'My Enrolled Classes'}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)'
-            }}>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? 'الأحياء - سنتر الدقي (قاعة النخبة)' : 'Biology - Dokki Elite Hall'}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600', marginTop: '2px' }}>
-                {lang === 'ar' ? 'د. سلمى السيد • الأحد 4:00 عصراً' : 'Dr. Salma • Sun 4:00 PM'}
-              </div>
-            </div>
-
-            <div style={{
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)'
-            }}>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? 'الفيزياء الحديثة - سنتر مدينة نصر' : 'Physics - Nasr City Hall'}
-              </div>
-              <div style={{ fontSize: '12px', color: '#06B6D4', fontWeight: '600', marginTop: '2px' }}>
-                {lang === 'ar' ? 'د. هاني الشناوي • الثلاثاء 6:00 مساءً' : 'Dr. Hany • Tue 6:00 PM'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Next Exams */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-medium)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '24px'
-        }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '16px' }}>
-            {lang === 'ar' ? 'الامتحانات الأسبوعية القادمة' : 'Upcoming Weekly Exams'}
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)'
-            }}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'امتحان البناء الضوئي الشامل' : 'Photosynthesis Comprehensive Test'}
-                </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                  {lang === 'ar' ? '15 سؤالاً • 25 دقيقة • إلكتروني' : '15 Qs • 25 Mins • Online'}
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('take-exam')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                {lang === 'ar' ? 'ابدأ الآن' : 'Start'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      {/* Future features modal */}
+      <StudentFutureFeaturesModal
+        isOpen={futureModalOpen}
+        defaultTab={futureModalTab}
+        onClose={() => setFutureModalOpen(false)}
+      />
+    </SPage>
   );
 };
