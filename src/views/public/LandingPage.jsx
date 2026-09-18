@@ -3,21 +3,21 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { 
-  Sparkles, 
-  Mic, 
-  FileText, 
-  Share2, 
-  BookOpen, 
-  CheckCircle2, 
-  ArrowRight, 
+import {
+  Sparkles,
+  Mic,
+  FileText,
+  Share2,
+  BookOpen,
+  CheckCircle2,
+  ArrowRight,
   ArrowLeft,
-  Play, 
-  Star, 
-  TrendingUp, 
-  ShieldCheck, 
-  Users, 
-  Zap, 
+  Play,
+  Star,
+  TrendingUp,
+  ShieldCheck,
+  Users,
+  Zap,
   Brain,
   Layers,
   Award,
@@ -108,7 +108,7 @@ export const LandingPage = () => {
 
   return (
     <div style={{ position: 'relative', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', overflow: 'hidden' }}>
-      
+
       {/* ── Interactive Neural / Spiderweb Constellation Canvas Background ── */}
       <PlexusBackground />
 
@@ -136,7 +136,7 @@ export const LandingPage = () => {
         <div className="sparkle-particle" style={{ top: '42%', left: '80%', width: '5px', height: '5px', animationDelay: '1.7s' }} />
 
         <div style={{ maxWidth: '1080px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
-          
+
           {/* Floating EdTech Badge */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '22px' }} className="animate-float">
             <div style={{
@@ -159,8 +159,8 @@ export const LandingPage = () => {
               }} />
               <Sparkles size={15} color="var(--primary)" />
               <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                {lang === 'ar' 
-                  ? 'منصة الذكاء الاصطناعي التعليمي لجميع المراحل الدراسية في مصر' 
+                {lang === 'ar'
+                  ? 'منصة الذكاء الاصطناعي التعليمي لجميع المراحل الدراسية في مصر'
                   : 'Egypt\'s Leading AI EdTech Platform for All Educational Stages'}
               </span>
             </div>
@@ -759,7 +759,7 @@ export const LandingPage = () => {
             {lang === 'ar' ? 'منظومة واحدة ذكية تخدم كافة أطراف العملية التعليمية' : 'One Unified Platform for All 4 Stakeholders'}
           </h2>
           <p style={{ fontSize: '15px', color: 'var(--text-secondary)', maxWidth: '640px', margin: '0 auto' }}>
-            {lang === 'ar' 
+            {lang === 'ar'
               ? 'صُمم متفوّق خصيصاً ليواكب احتياجات سوق التعليم المصري من أكبر السناتر التعليمية حتى الطالب في المنزل.'
               : 'Built specifically for the Egyptian educational ecosystem from premier centers to home study.'}
           </p>
@@ -790,7 +790,7 @@ export const LandingPage = () => {
                 {lang === 'ar' ? 'للمعلمين والمحاضرين' : 'For Teachers'}
               </h3>
               <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '20px' }}>
-                {lang === 'ar' 
+                {lang === 'ar'
                   ? 'سجّل حصتك مرة واحدة، واحصل على التفريغ، الخريطة المعرفية، وبنك الأسئلة تلقائياً. وفر 8 ساعات تحضير كل أسبوع.'
                   : 'Record once, get automatic transcripts, interactive mind maps, and quiz banks. Save 8+ hours weekly.'}
               </p>
@@ -832,7 +832,7 @@ export const LandingPage = () => {
                 {lang === 'ar' ? 'للطلاب في جميع المراحل' : 'For Students — All Stages'}
               </h3>
               <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '20px' }}>
-                {lang === 'ar' 
+                {lang === 'ar'
                   ? 'لا تضيع وقتك في إعادة سماع تسجيلات 3 ساعات! اضغط على أي نقطة مبهمة في الخريطة لتسمع شرحها، وتدرب على أسئلة الامتحانات.'
                   : 'Skip re-listening to hours of audio. Click confusing concept nodes, jump to exact seconds, and solve adaptive quizzes tailored to your grade.'}
               </p>
@@ -874,7 +874,7 @@ export const LandingPage = () => {
                 {lang === 'ar' ? 'لأولياء الأمور' : 'For Parents'}
               </h3>
               <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '20px' }}>
-                {lang === 'ar' 
+                {lang === 'ar'
                   ? 'إشعارات حية بنسبة حضور الحصص، نتائج الاختبارات الأسبوعية، وتشخيص نقاط الضعف التي تحتاج لتقوية مباشرة على موبايلك.'
                   : 'Real-time attendance alerts, weekly exam scores, and weak-area diagnosis directly on your phone.'}
               </p>
@@ -916,7 +916,7 @@ export const LandingPage = () => {
                 {lang === 'ar' ? 'للسناتر والمراكز التعليمية' : 'For Learning Centers'}
               </h3>
               <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '20px' }}>
-                {lang === 'ar' 
+                {lang === 'ar'
                   ? 'إدارة متكاملة للقاعات والمجموعات، جداول المدرسين، ونظام دومين مخصص وهوية كاملة باسم السنتر.'
                   : 'Multi-teacher oversight, hall schedules, consolidated revenue split, and white-label branding.'}
               </p>
@@ -1005,7 +1005,7 @@ export const LandingPage = () => {
           </p>
         </div>
 
-          <div className="testimonials-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        <div className="testimonials-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           <div className="card" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', gap: '4px', color: '#F59E0B', marginBottom: '14px' }}>
               {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="#F59E0B" />)}
