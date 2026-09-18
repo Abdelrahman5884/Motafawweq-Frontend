@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -9,29 +9,26 @@ import {
   Users,
   BookOpen,
   DollarSign,
-  AlertTriangle,
   Building2,
   ShieldCheck,
   Compass,
   ChevronRight,
   ChevronLeft,
-  Flame,
   Award,
   X,
   GraduationCap,
-  HeartHandshake,
   QrCode,
   Activity,
   Server,
   Trophy,
   FileText,
   RotateCcw,
-  BarChart3,
   CreditCard,
   BookMarked,
   ClipboardList,
   TrendingUp,
-  Medal
+  Medal,
+  Sparkles
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -40,7 +37,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
 
-  // Role accent color (kept minimal — only for active state highlight)
+  // Role accent color
   const roleAccent = {
     teacher: '#6C4BFF',
     student: '#6C4BFF',
@@ -55,7 +52,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       case 'teacher':
         return [
           { id: 'dashboard', path: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
-          { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic },
+          { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: 'AI' },
           { id: 'lesson-workspace', path: '/teacher/workspace', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace', icon: BookOpen },
           { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Users },
           { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: ClipboardList },
@@ -74,14 +71,14 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             ]
           },
           {
-            group: lang === 'ar' ? 'أدوات التعلم' : 'Learning Tools',
+            group: lang === 'ar' ? 'أدوات التعلم الذكية' : 'Smart Learning Tools',
             items: [
-              { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic },
-              { id: 'revision', path: '/student/revision', label: lang === 'ar' ? 'المراجعة' : 'Revision', icon: RotateCcw },
-              { id: 'quiz', path: '/student/quiz', label: lang === 'ar' ? 'الكويزات' : 'Quizzes', icon: Trophy },
-              { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات' : 'Achievements', icon: Medal },
-              { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات' : 'Certificates', icon: Award },
-              { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك' : 'Subscription', icon: CreditCard },
+              { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic, badge: 'AI' },
+              { id: 'revision', path: '/student/revision', label: lang === 'ar' ? 'المراجعة الذكية' : 'Smart Revision', icon: RotateCcw },
+              { id: 'quiz', path: '/student/quiz', label: lang === 'ar' ? 'الكويزات والتدريب' : 'Quizzes', icon: Trophy },
+              { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal },
+              { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
+              { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription', icon: CreditCard },
             ]
           }
         ];
@@ -110,59 +107,61 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
   };
 
   const menuItems = getMenuItems();
-
-  // Flatten for non-student roles (they use flat arrays, not groups)
   const isStudentGrouped = currentRole === 'student' && Array.isArray(menuItems) && menuItems[0]?.group;
 
   const handleLinkClick = () => {
     if (onClose) onClose();
   };
 
-  const currentWidth = isCollapsed ? '72px' : '260px';
+  const currentWidth = isCollapsed ? '76px' : '260px';
 
   const renderNavItem = (item) => {
     const ItemIcon = item.icon;
     const isActive = location.pathname === item.path;
 
     return (
-      <Link
-        key={item.id}
-        to={item.path}
-        onClick={handleLinkClick}
-        title={isCollapsed ? item.label : undefined}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: isCollapsed ? '10px' : '10px 12px',
-          borderRadius: '10px',
-          backgroundColor: isActive ? `${accent}14` : 'transparent',
-          color: isActive ? accent : 'var(--text-secondary)',
-          fontWeight: isActive ? '600' : '500',
-          fontSize: '14px',
-          textDecoration: 'none',
-          transition: 'background-color 0.15s ease, color 0.15s ease',
-          justifyContent: isCollapsed ? 'center' : 'flex-start',
-          position: 'relative',
-          borderInlineStart: isActive ? `3px solid ${accent}` : '3px solid transparent',
-        }}
-        className="sidebar-nav-item"
-      >
-        <ItemIcon
-          size={18}
-          style={{ flexShrink: 0 }}
-        />
-        {!isCollapsed && (
-          <span style={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            flex: 1
-          }}>
-            {item.label}
-          </span>
+      <div key={item.id} className="sidebar-item-wrapper">
+        <Link
+          to={item.path}
+          onClick={handleLinkClick}
+          className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+          style={{
+            color: isActive ? accent : undefined,
+          }}
+        >
+          <ItemIcon
+            size={18}
+            style={{ flexShrink: 0 }}
+          />
+          {!isCollapsed && (
+            <span style={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              flex: 1
+            }}>
+              {item.label}
+            </span>
+          )}
+          {!isCollapsed && item.badge && (
+            <span className="sidebar-badge-ai">
+              {item.badge}
+            </span>
+          )}
+        </Link>
+
+        {/* High-Performance Floating Tooltip in Collapsed Mode */}
+        {isCollapsed && (
+          <div className="sidebar-tooltip">
+            <span>{item.label}</span>
+            {item.badge && (
+              <span className="sidebar-badge-ai" style={{ fontSize: '8.5px', padding: '1px 5px' }}>
+                {item.badge}
+              </span>
+            )}
+          </div>
         )}
-      </Link>
+      </div>
     );
   };
 
@@ -176,138 +175,232 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         left: isRtl ? undefined : 0,
         bottom: 0,
         width: currentWidth,
-        backgroundColor: 'var(--bg-surface)',
-        borderInlineStart: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
-        zIndex: 999,
-        transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        zIndex: 1002,
         overflowX: 'hidden',
-        overflowY: 'auto',
+        overflowY: 'hidden',
       }}
     >
-      {/* Top brand + close (mobile only) */}
-      <div style={{
-        padding: isCollapsed ? '16px 8px' : '16px 16px',
-        borderBottom: '1px solid var(--border-subtle)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: isCollapsed ? 'center' : 'space-between',
-        minHeight: '64px',
-        flexShrink: 0
-      }}>
-        {!isCollapsed && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img
-              src={isDark ? '/logo-dark.png' : '/logo-light.png'}
-              alt="متفوّق"
-              style={{ width: '28px', height: '28px', objectFit: 'contain' }}
-            />
-            <span style={{
-              fontSize: '15px',
-              fontWeight: '700',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-arabic)'
-            }}>
-              متفوّق
-            </span>
+      {/* ── Brand Header ── */}
+      <div className="sidebar-brand-wrapper">
+        {!isCollapsed ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <Link
+              to="/"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                textDecoration: 'none',
+                minWidth: 0
+              }}
+            >
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: `${accent}16`,
+                border: `1px solid ${accent}30`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <img
+                  src={isDark ? '/logo-dark.png' : '/logo-light.png'}
+                  alt="متفوّق"
+                  style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  lineHeight: 1.2
+                }}>
+                  <span style={{
+                    fontSize: '16px',
+                    fontWeight: '800',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-heading)'
+                  }}>
+                    {lang === 'ar' ? 'متفوّق' : 'Motafawweq'}
+                  </span>
+                  <span style={{
+                    fontSize: '9px',
+                    fontWeight: '800',
+                    padding: '1px 5px',
+                    borderRadius: '99px',
+                    backgroundColor: 'var(--primary-surface)',
+                    color: 'var(--primary)',
+                    border: '1px solid var(--primary-light)'
+                  }}>
+                    {lang === 'ar' ? 'مصر' : 'EG'}
+                  </span>
+                </div>
+                <div style={{
+                  fontSize: '10px',
+                  color: 'var(--text-secondary)',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  marginTop: '1px'
+                }}>
+                  {currentRole === 'student'
+                    ? (lang === 'ar' ? 'منصة المتفوقين الذكية' : 'Smart Learning Hub')
+                    : (lang === 'ar' ? 'بوابة المعلم' : 'Workspace')}
+                </div>
+              </div>
+            </Link>
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={onClose}
+              className="mobile-only"
+              aria-label="إغلاق القائمة"
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="sidebar-item-wrapper" style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: `${accent}16`,
+                border: `1px solid ${accent}30`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <img
+                  src={isDark ? '/logo-dark.png' : '/logo-light.png'}
+                  alt="متفوّق"
+                  style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                />
+              </div>
+            </Link>
+            <div className="sidebar-tooltip">
+              <span>{lang === 'ar' ? 'منصة متفوّق' : 'Motafawweq'}</span>
+            </div>
           </div>
         )}
-        {isCollapsed && (
-          <img
-            src={isDark ? '/logo-dark.png' : '/logo-light.png'}
-            alt="متفوّق"
-            style={{ width: '28px', height: '28px', objectFit: 'contain' }}
-          />
-        )}
-        {/* Mobile close button */}
-        <button
-          onClick={onClose}
-          className="mobile-only"
-          aria-label="إغلاق القائمة"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-subtle)',
-            backgroundColor: 'transparent',
-            color: 'var(--text-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0
-          }}
-        >
-          <X size={16} />
-        </button>
       </div>
 
-      {/* Student profile pill (non-collapsed) */}
-      {currentRole === 'student' && !isCollapsed && currentUser && (
-        <div style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--border-subtle)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          flexShrink: 0
-        }}>
-          <div style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '50%',
-            backgroundColor: `${accent}18`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: accent,
-            fontSize: '13px',
-            fontWeight: '700',
-            flexShrink: 0,
-            overflow: 'hidden'
-          }}>
-            {currentUser.avatar ? (
-              <img src={currentUser.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-            ) : (
-              <GraduationCap size={16} />
-            )}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentUser?.nameAr || currentUser?.name || 'الطالب'}
+      {/* ── User Profile Mini-Card ── */}
+      {currentUser && (
+        !isCollapsed ? (
+          <div className="sidebar-user-card">
+            <div className="sidebar-avatar-wrapper">
+              {currentUser.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '50%',
+                    objectFit: 'cover'
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  backgroundColor: `${accent}20`,
+                  color: accent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <GraduationCap size={16} />
+                </div>
+              )}
+              <span className="sidebar-online-dot" />
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '1px' }}>
-              {lang === 'ar' ? 'الصف الثالث الثانوي' : '3rd Secondary'}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{
+                fontSize: '12.5px',
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
+              </div>
+              <div style={{
+                fontSize: '10.5px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500',
+                marginTop: '1px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {lang === 'ar' ? (currentUser.roleLabelAr || currentUser.roleLabel) : currentUser.roleLabel}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="sidebar-item-wrapper" style={{ margin: '10px auto 4px auto', display: 'flex', justifyContent: 'center' }}>
+            <div className="sidebar-avatar-wrapper">
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }}
+              />
+              <span className="sidebar-online-dot" />
+            </div>
+            <div className="sidebar-tooltip">
+              <span>{lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}</span>
+            </div>
+          </div>
+        )
       )}
 
-      {/* Navigation */}
-      <nav style={{
-        flex: 1,
-        padding: isCollapsed ? '12px 8px' : '12px 10px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '2px',
-        overflowY: 'auto',
-        overflowX: 'hidden'
-      }}>
+      {/* ── Main Navigation List ── */}
+      <nav
+        className="sidebar-nav-scroll"
+        style={{
+          flex: 1,
+          padding: isCollapsed ? '10px 8px' : '10px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}
+      >
         {isStudentGrouped ? (
-          // Student: grouped nav
           menuItems.map((group, gi) => (
             <div key={gi} style={{ marginBottom: '8px' }}>
               {!isCollapsed && (
-                <div style={{
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  color: 'var(--text-secondary)',
-                  padding: '4px 12px 6px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.6px',
-                  opacity: 0.7
-                }}>
+                <div className="sidebar-group-title">
                   {group.group}
                 </div>
               )}
@@ -318,71 +411,63 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             </div>
           ))
         ) : (
-          // Other roles: flat nav
           menuItems.map(renderNavItem)
         )}
       </nav>
 
-      {/* Bottom: collapse toggle (desktop only) + back to site */}
-      <div style={{
-        padding: isCollapsed ? '12px 8px' : '12px 10px',
-        borderTop: '1px solid var(--border-subtle)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-        flexShrink: 0
-      }}>
+      {/* ── Bottom Section: Website Link & Collapse Toggle ── */}
+      <div className="sidebar-footer-wrapper">
         {/* Back to website */}
-        <Link
-          to="/"
-          onClick={handleLinkClick}
-          title={isCollapsed ? (lang === 'ar' ? 'الموقع الرئيسي' : 'Website') : undefined}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: isCollapsed ? '8px' : '8px 12px',
-            borderRadius: '8px',
-            color: 'var(--text-secondary)',
-            fontSize: '13px',
-            fontWeight: '500',
-            textDecoration: 'none',
-            justifyContent: isCollapsed ? 'center' : 'flex-start',
-            transition: 'color 0.15s ease'
-          }}
-        >
-          <Compass size={16} />
-          {!isCollapsed && <span>{lang === 'ar' ? 'الموقع الرئيسي' : 'Website'}</span>}
-        </Link>
+        <div className="sidebar-item-wrapper">
+          <Link
+            to="/"
+            onClick={handleLinkClick}
+            className="sidebar-nav-item"
+            style={{
+              padding: isCollapsed ? '8px' : '8px 12px',
+              fontSize: '12.5px',
+              justifyContent: isCollapsed ? 'center' : 'flex-start'
+            }}
+          >
+            <Compass size={17} style={{ flexShrink: 0 }} />
+            {!isCollapsed && <span>{lang === 'ar' ? 'الموقع الرئيسي' : 'Main Website'}</span>}
+          </Link>
+          {isCollapsed && (
+            <div className="sidebar-tooltip">
+              <span>{lang === 'ar' ? 'الموقع الرئيسي' : 'Main Website'}</span>
+            </div>
+          )}
+        </div>
 
         {/* Desktop collapse toggle */}
-        <button
-          onClick={onToggleCollapse}
-          className="desktop-only"
-          title={isCollapsed ? (lang === 'ar' ? 'توسيع' : 'Expand') : (lang === 'ar' ? 'طي' : 'Collapse')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: isCollapsed ? '8px' : '8px 12px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--bg-subtle)',
-            color: 'var(--text-secondary)',
-            fontSize: '12px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            width: '100%',
-            justifyContent: isCollapsed ? 'center' : 'space-between',
-            transition: 'background-color 0.15s ease'
-          }}
-        >
-          {!isCollapsed && <span>{lang === 'ar' ? 'طي القائمة' : 'Collapse'}</span>}
-          {isRtl
-            ? (isCollapsed ? <ChevronLeft size={15} /> : <ChevronRight size={15} />)
-            : (isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />)
-          }
-        </button>
+        <div className="sidebar-item-wrapper desktop-only">
+          <button
+            onClick={onToggleCollapse}
+            className="sidebar-nav-item"
+            style={{
+              width: '100%',
+              padding: isCollapsed ? '8px' : '8px 12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              fontSize: '12px',
+              cursor: 'pointer',
+              justifyContent: isCollapsed ? 'center' : 'space-between',
+              color: 'var(--text-secondary)'
+            }}
+          >
+            {!isCollapsed && <span>{lang === 'ar' ? 'طي القائمة' : 'Collapse'}</span>}
+            {isRtl
+              ? (isCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />)
+              : (isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />)
+            }
+          </button>
+          {isCollapsed && (
+            <div className="sidebar-tooltip">
+              <span>{lang === 'ar' ? 'توسيع القائمة' : 'Expand Sidebar'}</span>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );

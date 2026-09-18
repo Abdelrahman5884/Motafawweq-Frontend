@@ -14,11 +14,16 @@ import {
   LogIn, 
   UserPlus,
   Menu,
-  X
+  X,
+  Flame,
+  Trophy,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import { SpiderManWeb } from '../common/SpiderManWeb';
+import { STUDENT_PROFILE } from '../../data/studentData';
 
-export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) => {
+export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, hasSidebar }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -34,6 +39,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) 
 
   const currentPath = location.pathname;
   const isPublicPage = ['/', '/features', '/pricing', '/marketplace'].includes(currentPath);
+  const isDashboardLayout = hasSidebar && !isFullPage;
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -56,6 +62,30 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) 
     }
   };
 
+  const getPageTitle = () => {
+    if (currentPath.startsWith('/student/dashboard')) return lang === 'ar' ? 'الرئيسية' : 'Overview';
+    if (currentPath.startsWith('/student/courses')) return lang === 'ar' ? 'حصصي' : 'My Courses';
+    if (currentPath.startsWith('/student/exam')) return lang === 'ar' ? 'الاختبارات' : 'Exams';
+    if (currentPath.startsWith('/student/homework')) return lang === 'ar' ? 'الواجبات' : 'Homework';
+    if (currentPath.startsWith('/student/analytics')) return lang === 'ar' ? 'مستواي والتحليلات' : 'Analytics';
+    if (currentPath.startsWith('/student/smart-lecture')) return lang === 'ar' ? 'تحويل المحاضرة الذكية' : 'Smart Lecture Tool';
+    if (currentPath.startsWith('/student/revision')) return lang === 'ar' ? 'المراجعة الذكية' : 'Smart Revision';
+    if (currentPath.startsWith('/student/quiz')) return lang === 'ar' ? 'الكويزات والتدريبات' : 'Quizzes';
+    if (currentPath.startsWith('/student/gamification')) return lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements';
+    if (currentPath.startsWith('/student/certificates')) return lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates';
+    if (currentPath.startsWith('/student/billing')) return lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription';
+    if (currentPath.startsWith('/teacher/dashboard')) return lang === 'ar' ? 'لوحة المعلم' : 'Teacher Dashboard';
+    if (currentPath.startsWith('/teacher/studio')) return lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio';
+    if (currentPath.startsWith('/teacher/workspace')) return lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace';
+    if (currentPath.startsWith('/teacher/classes')) return lang === 'ar' ? 'المجموعات والقاعات' : 'Classes';
+    if (currentPath.startsWith('/teacher/students')) return lang === 'ar' ? 'سجل الطلاب' : 'Student Roster';
+    if (currentPath.startsWith('/teacher/financials')) return lang === 'ar' ? 'الأرباح والمحفظة' : 'Financials';
+    if (currentPath.startsWith('/parent')) return lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal';
+    if (currentPath.startsWith('/center')) return lang === 'ar' ? 'لوحة السنتر' : 'Center Dashboard';
+    if (currentPath.startsWith('/admin')) return lang === 'ar' ? 'إدارة المنصة' : 'Platform Admin';
+    return lang === 'ar' ? 'لوحة التحكم' : 'Dashboard';
+  };
+
   return (
     <header style={{
       position: 'sticky',
@@ -71,120 +101,227 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) 
       {/* Spider-Man descending on web from behind the navbar */}
       <SpiderManWeb />
 
-      <div className="navbar-container">
-        {/* Left: Brand Logo & Tagline */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <Link 
-            to="/"
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px', 
-              cursor: 'pointer',
-              textDecoration: 'none'
-            }}
-          >
-            <img
-              src={isDark ? '/logo-dark.png' : '/logo-light.png'}
-              alt="متفوّق"
+      <div className={`navbar-container ${isDashboardLayout ? 'navbar-dashboard' : ''}`}>
+        {/* ── LEFT / START AREA ── */}
+        {isDashboardLayout ? (
+          /* Dashboard Mode: Desktop shows Breadcrumb / Route Title (NO duplicate logo), Mobile shows hamburger + compact logo */
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {/* Mobile Hamburger Toggle for Sidebar */}
+            <button
+              onClick={() => setMobileSidebarOpen && setMobileSidebarOpen(!mobileSidebarOpen)}
+              className="mobile-only"
+              aria-label="Toggle Sidebar"
               style={{
                 width: '38px',
                 height: '38px',
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 4px 10px rgba(108, 77, 255, 0.35))'
-              }}
-            />
-            <div>
-              <div style={{
-                fontSize: '18px',
-                fontWeight: '900',
-                letterSpacing: '-0.3px',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-heading)',
+                borderRadius: '10px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: mobileSidebarOpen ? 'var(--primary-surface)' : 'var(--bg-surface)',
+                color: mobileSidebarOpen ? 'var(--primary)' : 'var(--text-primary)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
-              }}>
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              {mobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+
+            {/* Mobile Compact Logo */}
+            <div className="mobile-only" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <img
+                src={isDark ? '/logo-dark.png' : '/logo-light.png'}
+                alt="متفوّق"
+                style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+              />
+              <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
                 {lang === 'ar' ? 'متفوّق' : 'Motafawweq'}
-                <span style={{
-                  fontSize: '9px',
-                  fontWeight: '800',
-                  padding: '1px 6px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'var(--primary-surface)',
-                  color: 'var(--primary)',
-                  border: '1px solid var(--primary-light)'
-                }}>
-                  {lang === 'ar' ? 'مصر' : 'EG'}
-                </span>
-              </div>
-              <div className="desktop-only" style={{ 
-                fontSize: '10.5px', 
-                color: 'var(--text-secondary)',
-                marginTop: '-2px',
-                fontWeight: '600'
-              }}>
-                {t('tagline')}
-              </div>
+              </span>
             </div>
-          </Link>
 
-          {/* Navigation Links (Desktop) */}
-          <nav className="desktop-only" style={{
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            {navLinks.map((link, idx) => {
-              const isActive = currentPath === link.path;
-              return (
-                <Link
-                  key={idx}
-                  to={link.path}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    fontWeight: isActive ? '700' : '500',
-                    color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                    backgroundColor: isActive ? 'var(--primary-surface)' : 'transparent',
-                    borderRadius: 'var(--radius-md)',
-                    textDecoration: 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-
-            {/* Direct Link to Main Role Dashboard */}
-            <Link
-              to={getDashboardPath()}
-              style={{
+            {/* Desktop Breadcrumb / Route Indicator */}
+            <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '8px 12px',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: !isPublicPage ? 'var(--primary)' : 'var(--text-secondary)',
-                backgroundColor: !isPublicPage ? 'var(--primary-surface)' : 'transparent',
-                borderRadius: 'var(--radius-md)',
+                fontSize: '12.5px',
+                fontWeight: '500',
+                color: 'var(--text-secondary)'
+              }}>
+                <span>{lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</span>
+                <span style={{ opacity: 0.35 }}>
+                  {isRtl ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
+                </span>
+              </div>
+              <span style={{
+                fontSize: '14px',
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.2px'
+              }}>
+                {getPageTitle()}
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* Public Marketing Mode: Full Brand Logo & Tagline + Marketing Links */
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <Link 
+              to="/"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                cursor: 'pointer',
                 textDecoration: 'none'
               }}
             >
-              <Layers size={14} />
-              {t('navDashboard')}
+              <img
+                src={isDark ? '/logo-dark.png' : '/logo-light.png'}
+                alt="متفوّق"
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 4px 10px rgba(108, 77, 255, 0.35))'
+                }}
+              />
+              <div>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '900',
+                  letterSpacing: '-0.3px',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-heading)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  {lang === 'ar' ? 'متفوّق' : 'Motafawweq'}
+                  <span style={{
+                    fontSize: '9px',
+                    fontWeight: '800',
+                    padding: '1px 6px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--primary-surface)',
+                    color: 'var(--primary)',
+                    border: '1px solid var(--primary-light)'
+                  }}>
+                    {lang === 'ar' ? 'مصر' : 'EG'}
+                  </span>
+                </div>
+                <div className="desktop-only" style={{ 
+                  fontSize: '10.5px', 
+                  color: 'var(--text-secondary)',
+                  marginTop: '-2px',
+                  fontWeight: '600'
+                }}>
+                  {t('tagline')}
+                </div>
+              </div>
             </Link>
-          </nav>
-        </div>
 
-        {/* Center/Right: Global Controls & Actions */}
+            {/* Navigation Links (Desktop) */}
+            <nav className="desktop-only" style={{
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              {navLinks.map((link, idx) => {
+                const isActive = currentPath === link.path;
+                return (
+                  <Link
+                    key={idx}
+                    to={link.path}
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      fontWeight: isActive ? '700' : '500',
+                      color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                      backgroundColor: isActive ? 'var(--primary-surface)' : 'transparent',
+                      borderRadius: 'var(--radius-md)',
+                      textDecoration: 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+
+              {/* Direct Link to Main Role Dashboard */}
+              <Link
+                to={getDashboardPath()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: !isPublicPage ? 'var(--primary)' : 'var(--text-secondary)',
+                  backgroundColor: !isPublicPage ? 'var(--primary-surface)' : 'transparent',
+                  borderRadius: 'var(--radius-md)',
+                  textDecoration: 'none'
+                }}
+              >
+                <Layers size={14} />
+                {t('navDashboard')}
+              </Link>
+            </nav>
+          </div>
+        )}
+
+        {/* ── RIGHT / END AREA: Global Controls & Actions ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Student gamification stats (Desktop only, in dashboard mode) */}
+          {isDashboardLayout && currentRole === 'student' && (
+            <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginInlineEnd: '4px' }}>
+              <div 
+                title={lang === 'ar' ? 'سلسلة المذاكرة المتتالية' : 'Study Streak'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 10px',
+                  borderRadius: '99px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                <Flame size={14} color="#F5A623" />
+                <span>{STUDENT_PROFILE.streakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
+              </div>
+              <div 
+                title={lang === 'ar' ? 'نقاط الخبرة الكلية' : 'Total XP'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 10px',
+                  borderRadius: '99px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                <Trophy size={14} color="#6C4BFF" />
+                <span>{STUDENT_PROFILE.xp.toLocaleString()} XP</span>
+              </div>
+            </div>
+          )}
+
           {/* Global Cmd+K Search Bar Button (Desktop) */}
           <button
             onClick={() => setSearchModalOpen(true)}
             className="desktop-only"
             style={{
+              display: 'flex',
               alignItems: 'center',
               gap: '8px',
               padding: '6px 12px',
@@ -373,31 +510,27 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage }) 
             </div>
           )}
 
-          {/* Mobile Hamburger Toggle Button */}
-          <button
-            onClick={() => {
-              if (!isFullPage && setMobileSidebarOpen) {
-                setMobileSidebarOpen(!mobileSidebarOpen);
-              } else {
-                setMobileMenuOpen(!mobileMenuOpen);
-              }
-            }}
-            className="mobile-only"
-            aria-label={!isFullPage ? "Toggle Sidebar" : "Toggle Menu"}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: (!isFullPage ? mobileSidebarOpen : mobileMenuOpen) ? 'var(--primary-surface)' : 'var(--bg-surface)',
-              color: (!isFullPage ? mobileSidebarOpen : mobileMenuOpen) ? 'var(--primary)' : 'var(--text-primary)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer'
-            }}
-          >
-            {(!isFullPage ? mobileSidebarOpen : mobileMenuOpen) ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          {/* Mobile Hamburger Toggle Button (Public Marketing Pages Only) */}
+          {!isDashboardLayout && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="mobile-only"
+              aria-label="Toggle Menu"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: mobileMenuOpen ? 'var(--primary-surface)' : 'var(--bg-surface)',
+                color: mobileMenuOpen ? 'var(--primary)' : 'var(--text-primary)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          )}
         </div>
       </div>
 

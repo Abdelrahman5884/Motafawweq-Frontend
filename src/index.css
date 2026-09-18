@@ -581,6 +581,17 @@
   }
 }
 
+.navbar-container.navbar-dashboard {
+  max-width: 100% !important;
+  padding: 0 24px;
+}
+
+@media (max-width: 767px) {
+  .navbar-container.navbar-dashboard {
+    padding: 0 14px;
+  }
+}
+
 .mobile-menu-drawer {
   position: absolute;
   top: 100%;
@@ -594,7 +605,6 @@
   flex-direction: column;
   gap: 12px;
   z-index: 999;
-  backdrop-filter: blur(20px);
 }
 
 .desktop-only {
@@ -613,20 +623,233 @@
   }
 }
 
-/* ── Fixed Sidebar Layout ── */
-/* Sidebar is position:fixed in JS, width controlled by state */
-/* Content wrapper uses margin-right (RTL) offset to match sidebar width */
+/* ── Fixed Sidebar & Dashboard Layout System ── */
 
 .app-sidebar {
-  /* Desktop: visible, width toggled between 260px / 72px */
   box-shadow: none;
+  border-inline-end: 1px solid var(--border-subtle) !important;
+  border-inline-start: none !important;
+  background-color: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width, transform;
 }
 
-/* Mobile: hide sidebar behind right edge (RTL), slide in on open */
+/* Custom Sleek Scrollbar for Sidebar */
+.sidebar-nav-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-medium);
+}
+
+/* Sidebar Brand Header */
+.sidebar-brand-wrapper {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  flex-shrink: 0;
+  transition: padding 0.2s ease;
+}
+
+.sidebar-collapsed .sidebar-brand-wrapper {
+  padding: 14px 8px;
+  justify-content: center;
+}
+
+/* Sidebar User Profile Card */
+.sidebar-user-card {
+  margin: 12px 12px 6px 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.sidebar-collapsed .sidebar-user-card {
+  margin: 10px auto 4px auto;
+  padding: 6px;
+  background: transparent;
+  border: none;
+  justify-content: center;
+}
+
+.sidebar-avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sidebar-online-dot {
+  position: absolute;
+  bottom: 0px;
+  inset-inline-end: 0px;
+  width: 9px;
+  height: 9px;
+  background-color: #10B981;
+  border: 2px solid var(--bg-surface);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+/* Sidebar Nav Groups & Titles */
+.sidebar-group-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding: 8px 12px 4px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  opacity: 0.65;
+  transition: opacity 0.15s ease;
+}
+
+/* Sidebar Nav Items */
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 13.5px;
+  text-decoration: none;
+  position: relative;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.sidebar-collapsed .sidebar-nav-item {
+  padding: 10px;
+  justify-content: center;
+}
+
+.sidebar-nav-item:hover:not(.active) {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.sidebar-nav-item:hover:not(.active) svg {
+  transform: scale(1.08);
+  transition: transform 0.18s ease;
+}
+
+.sidebar-nav-item.active {
+  background: linear-gradient(135deg, rgba(108, 77, 255, 0.12) 0%, rgba(142, 84, 233, 0.05) 100%);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.sidebar-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  inset-inline-start: 0;
+  width: 3.5px;
+  border-radius: 0 4px 4px 0;
+  background-color: var(--primary);
+  box-shadow: 0 0 10px rgba(108, 77, 255, 0.65);
+}
+
+html[dir="rtl"] .sidebar-nav-item.active::before {
+  border-radius: 4px 0 0 4px;
+}
+
+.sidebar-nav-item.active svg {
+  filter: drop-shadow(0 2px 6px rgba(108, 77, 255, 0.4));
+  color: var(--primary);
+}
+
+/* Floating Tooltip in Collapsed Mode */
+.sidebar-item-wrapper {
+  position: relative;
+}
+
+.sidebar-tooltip {
+  position: absolute;
+  inset-inline-start: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) scale(0.92);
+  background: #1E1B2E;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.4), 0 4px 10px -2px rgba(0, 0, 0, 0.2);
+  z-index: 1100;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+[data-theme="dark"] .sidebar-tooltip {
+  background: #252238;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.6);
+}
+
+.sidebar-collapsed .sidebar-item-wrapper:hover .sidebar-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+
+/* AI Badge */
+.sidebar-badge-ai {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1.5px 6px;
+  border-radius: 99px;
+  background: linear-gradient(135deg, #6C4BFF 0%, #A855F7 100%);
+  color: #FFFFFF;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(108, 77, 255, 0.4);
+  flex-shrink: 0;
+}
+
+/* Sidebar Footer Actions */
+.sidebar-footer-wrapper {
+  padding: 12px 10px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-collapsed .sidebar-footer-wrapper {
+  padding: 12px 8px;
+}
+
+/* Mobile Sidebar Behavior */
 @media (max-width: 991px) {
   .app-sidebar {
     transform: translateX(110%) !important;
-    box-shadow: var(--shadow-lg) !important;
+    box-shadow: var(--shadow-xl) !important;
+    border-inline-end: none !important;
   }
 
   html[dir="ltr"] .app-sidebar {
@@ -641,10 +864,11 @@
   .app-content-wrapper {
     margin-right: 0 !important;
     margin-left: 0 !important;
+    margin-inline-start: 0 !important;
   }
 }
 
-/* ── Mobile FAB Sidebar Toggle ── */
+/* Mobile Floating Action Button */
 .mobile-sidebar-toggle {
   display: none;
 }

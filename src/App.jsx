@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
-import { LanguageProvider } from './context/LanguageContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Layout Components
@@ -55,13 +55,14 @@ import { CenterDashboard } from './views/center/CenterDashboard';
 import { AdminDashboard } from './views/admin/AdminDashboard';
 
 const SIDEBAR_EXPANDED = 260;
-const SIDEBAR_COLLAPSED = 72;
+const SIDEBAR_COLLAPSED = 76;
 
 // Shell layout component — proper fixed-sidebar architecture
 function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { setRouterNavigator } = useAuth();
+  const { isRtl } = useLanguage();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -117,12 +118,13 @@ function AppShell({ children }) {
         />
       )}
 
-      {/* Main content area — offset by sidebar width on desktop */}
+      {/* Main content area — dynamically offset by sidebar width on desktop for both RTL and LTR */}
       <div
         className="app-content-wrapper"
         style={{
-          marginRight: `${sidebarWidth}px`,
-          transition: 'margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          marginRight: isRtl ? `${sidebarWidth}px` : 0,
+          marginLeft: !isRtl ? `${sidebarWidth}px` : 0,
+          transition: 'margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column'
