@@ -157,7 +157,6 @@ export const LandingPage = () => {
                 backgroundColor: '#10B981',
                 boxShadow: '0 0 10px #10B981'
               }} />
-              <Sparkles size={15} color="var(--primary)" />
               <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
                 {lang === 'ar'
                   ? 'منصة الذكاء الاصطناعي التعليمي لجميع المراحل الدراسية في مصر'
