@@ -58,7 +58,7 @@ export const SpiderManWeb = () => {
         // Transition to normal hanging swing after entrance
         setTimeout(() => {
           if (isMounted) setStage('hanging');
-        }, 1000);
+        }, 2000);
 
         // Step 2: After ~10 seconds of hanging, perform dramatic superhero downward dive ("يقع لتحت خالص")
         cycleTimerRef.current = setTimeout(() => {
