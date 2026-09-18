@@ -4,16 +4,16 @@ import { useLanguage } from '../../context/LanguageContext';
 
 const SPIDEY_QUOTES_AR = [
   'يا بطل! مستعد تكسّر الدنيا؟ 🕷️',
-  'مع متفوّق.. التفوق مضمون! 🚀',
-  'أنا في ضهرك.. ركّز وذاكر! 🕸️',
-  'أبطال مصر قادمون للتفوق! ⭐'
+  'مع متفوّق.. التفوق مضمون!',
+  'أنا في ضهرك.. ركّز وذاكر!',
+  'أبطال مصر قادمون للتفوق!'
 ];
 
 const SPIDEY_QUOTES_EN = [
   'Ready to crush your goals, hero? 🕷️',
-  'With Motafawweq, success is yours! 🚀',
-  'I got your back.. Stay focused! 🕸️',
-  'Your superpowers start here! ⭐'
+  'With Motafawweq, success is yours!',
+  'I got your back.. Stay focused!',
+  'Your superpowers start here!'
 ];
 
 export const SpiderManWeb = () => {
