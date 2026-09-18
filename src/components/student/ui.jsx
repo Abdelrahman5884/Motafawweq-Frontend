@@ -38,13 +38,16 @@ export const S = {
 
 // ─── PAGE WRAPPER ──────────────────────────────────────────────────────────────
 export const SPage = ({ children, maxWidth = 1100 }) => (
-  <div style={{
-    maxWidth: `${maxWidth}px`,
-    margin: '0 auto',
-    padding: '28px 20px 64px',
-    width: '100%',
-    boxSizing: 'border-box'
-  }}>
+  <div
+    className="s-page-wrapper"
+    style={{
+      maxWidth: `${maxWidth}px`,
+      margin: '0 auto',
+      padding: '24px 20px 64px',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}
+  >
     {children}
   </div>
 );
