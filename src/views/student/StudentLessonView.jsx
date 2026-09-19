@@ -1084,7 +1084,7 @@ export const StudentLessonView = () => {
                   <div className="lv-km__header">
                     <div className="lv-km__header-left">
                       <div className="lv-km__header-icon"><Brain size={20} /></div>
-                      <div>
+                      <div className="lv-km__header-text">
                         <h2 className="lv-km__title">
                           {lang === 'ar' ? 'خارطة المفاهيم وشبكة المعرفة التفاعلية' : 'Interactive Knowledge Roadmap & Graph'}
                         </h2>
@@ -1125,7 +1125,7 @@ export const StudentLessonView = () => {
                     <div className="lv-graph-container">
                       <div className="lv-graph-hint">
                         <Sparkles size={14} />
-                        <span>{lang === 'ar' ? 'اضغط على أي عقدة (Node) لاستكشاف العلاقات والانتقال المباشر لتوقيتها في الحصة' : 'Click any node to explore connections & jump in video'}</span>
+                        <span>{lang === 'ar' ? 'اضغط على أي عقدة (Node) لاستكشاف العلاقات والانتقال المباشر لتوقيتها (اسحب يميناً ويساراً ↔)' : 'Click any node to explore connections & jump in video (swipe to pan ↔)'}</span>
                       </div>
 
                       {/* SVG Network Graph */}
