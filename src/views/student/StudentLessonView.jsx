@@ -225,6 +225,18 @@ export const StudentLessonView = () => {
   // ─── 5 Tabs State (Matching Image 1) ──────────────────────
   // 'notes' | 'transcript' | 'roadmap' | 'materials' | 'questions'
   const [activeTab, setActiveTab] = useState('notes');
+  const [mobileSubpage, setMobileSubpage] = useState(null); // 'notes' | 'transcript' | 'roadmap' | 'materials' | 'questions' | null
+
+  // Body scroll lock when dedicated mobile subpage is open
+  useEffect(() => {
+    if (mobileSubpage) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [mobileSubpage]);
 
   // ─── Knowledge Map & Graph Sub-Mode ───────────────────────
   const [roadmapViewMode, setRoadmapViewMode] = useState('cards'); // 'cards' | 'graph'
@@ -654,6 +666,501 @@ export const StudentLessonView = () => {
 
   const activeGraphNodeObj = graphNodes.find(n => n.id === selectedGraphNode) || graphNodes[3];
 
+  const renderTabContent = (targetTab) => {
+    return (
+      <>
+        {/* ── TAB 1: NOTES (ملاحظات الدرس) ── */}
+        {targetTab === 'notes' && (
+          <div className="lv-notes">
+            <div className="lv-notes__head">
+              <div className="lv-notes__title-group">
+                <h3 className="lv-notes__heading">{lang === 'ar' ? 'مفكرة الطالب الذكية' : 'Student Notebook'}</h3>
+                <span className="lv-notes__saved">
+                  <span className="lv-notes__saved-dot" />
+                  {lang === 'ar' ? `تم الحفظ تلقائياً: ${fmt(currentTime)}` : `Auto-saved: ${fmt(currentTime)}`}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={addNote} className="lv-notes__form">
+              <textarea
+                rows={3}
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                placeholder={lang === 'ar' ? 'اكتب ملاحظاتك هنا... سيتم ربط الملاحظة بالوقت الحالي للمقطع' : 'Type your notes here... linked to current video timestamp.'}
+                className="lv-notes__input"
+              />
+              <div className="lv-notes__form-footer">
+                <span className="lv-notes__hint">
+                  {lang === 'ar' ? `سيتم تسجيل الملاحظة عند الدقيقة ${fmt(currentTime)}` : `Linked at ${fmt(currentTime)}`}
+                </span>
+                <button type="submit" disabled={!noteInput.trim()} className="lv-notes__submit">
+                  <Sparkles size={13} />
+                  <span>{lang === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}</span>
+                </button>
+              </div>
+            </form>
+
+            {notes.length > 0 && (
+              <div className="lv-notes__list">
+                {notes.map((n, i) => (
+                  <div key={n.id} className="lv-note" style={{ animationDelay: `${i * 0.05}s` }}>
+                    <div className="lv-note__top">
+                      <button
+                        className="lv-note__ts"
+                        onClick={() => seekTo(n.sec)}
+                        title="انتقل لهذا التوقيت في الفيديو"
+                      >
+                        <Play size={10} fill="currentColor" />
+                        <span>{n.ts}</span>
+                      </button>
+                      <div className="lv-note__actions">
+                        <span className="lv-note__date">{n.date}</span>
+                        <button
+                          className="lv-note__del"
+                          onClick={() => handleDeleteNoteClick(n)}
+                          title="حذف الملاحظة"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="lv-note__text">{n.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB 2: TRANSCRIPT (نص الحصة الذكي) ── */}
+        {targetTab === 'transcript' && (
+          <div className="lv-transcript">
+            {/* Search bar inside transcript */}
+            <div className="lv-transcript__search-bar">
+              <Search size={15} />
+              <input
+                type="text"
+                placeholder={lang === 'ar' ? 'ابحث في كلمات وشرح الحصة...' : 'Search in lecture transcript...'}
+                value={transcriptSearch}
+                onChange={e => setTranscriptSearch(e.target.value)}
+                className="lv-transcript__search-input"
+              />
+              {transcriptSearch && (
+                <button onClick={() => setTranscriptSearch('')} className="lv-transcript__search-clear">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Segments List */}
+            <div className="lv-transcript__list">
+              {transcriptSegments
+                .filter(seg => !transcriptSearch || seg.text.toLowerCase().includes(transcriptSearch.toLowerCase()))
+                .map(seg => {
+                  const isCurrent = currentTime >= seg.startSec && currentTime < seg.endSec;
+                  return (
+                    <div
+                      key={seg.id}
+                      className={`lv-transcript__item ${isCurrent ? 'active' : ''}`}
+                      onClick={() => seekTo(seg.startSec)}
+                    >
+                      <button className="lv-transcript__time-btn" title="تشغيل من هذه النقطة">
+                        <Play size={11} fill="currentColor" />
+                        <span>{fmt(seg.startSec)}</span>
+                      </button>
+                      <div className="lv-transcript__content">
+                        <div className="lv-transcript__speaker">{seg.speaker}</div>
+                        <p className="lv-transcript__p">{seg.text}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 3: ROADMAP (خريطة الحصة + الرسم البياني الشبكي ك جراف) ── */}
+        {targetTab === 'roadmap' && (
+          <div className="lv-roadmap-tab" ref={kmRef}>
+            <div className="lv-km__header">
+              <div className="lv-km__header-left">
+                <div className="lv-km__header-icon"><Brain size={20} /></div>
+                <div className="lv-km__header-text">
+                  <h2 className="lv-km__title">
+                    {lang === 'ar' ? 'خارطة المفاهيم وشبكة المعرفة التفاعلية' : 'Interactive Knowledge Roadmap & Graph'}
+                  </h2>
+                  <p className="lv-km__sub">
+                    {courseInfo.subjectAr} • {lesson.titleAr}
+                  </p>
+                </div>
+              </div>
+
+              <div className="lv-km__header-actions">
+                {/* Sub-mode Switcher: Cards vs Graph */}
+                <div className="lv-roadmap-toggle-group">
+                  <button
+                    className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'cards' ? 'active' : ''}`}
+                    onClick={() => setRoadmapViewMode('cards')}
+                  >
+                    <Layers size={13} />
+                    <span>{lang === 'ar' ? 'بطاقات الشرح' : 'Cards View'}</span>
+                  </button>
+
+                  <button
+                    className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'graph' ? 'active' : ''}`}
+                    onClick={() => setRoadmapViewMode('graph')}
+                  >
+                    <Network size={13} />
+                    <span>{lang === 'ar' ? 'الرسم البياني (Graph)' : 'Network Graph'}</span>
+                  </button>
+                </div>
+
+                <button className="lv-km__action" onClick={toggleKMFS} title="شاشة كاملة">
+                  {isKMFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {/* ── SUB-MODE 1: Interactive Network Graph (خريطة ك جراف) ── */}
+            {roadmapViewMode === 'graph' && (
+              <div className="lv-graph-container">
+                <div className="lv-graph-hint">
+                  <Sparkles size={14} />
+                  <span>{lang === 'ar' ? 'اضغط على أي عقدة (Node) لاستكشاف العلاقات والانتقال المباشر لتوقيتها (اسحب يميناً ويساراً ↔)' : 'Click any node to explore connections & jump in video (swipe to pan ↔)'}</span>
+                </div>
+
+                {/* SVG Network Graph */}
+                <div className="lv-graph-svg-wrap">
+                  <svg viewBox="0 0 1260 360" className="lv-graph-svg">
+                    <defs>
+                      <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#6C4DFF" stopOpacity="0.8" />
+                        <stop offset="50%" stopColor="#06B6D4" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#10B981" stopOpacity="0.8" />
+                      </linearGradient>
+
+                      <filter id="glow">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                        <feMerge>
+                          <feMergeNode in="coloredBlur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
+
+                    {/* Render Connecting Edges */}
+                    {graphEdges.map((e, idx) => {
+                      const source = graphNodes.find(n => n.id === e.from);
+                      const target = graphNodes.find(n => n.id === e.to);
+                      if (!source || !target) return null;
+                      const midX = (source.x + target.x) / 2;
+                      const pathData = `M ${source.x} ${source.y} C ${midX} ${source.y}, ${midX} ${target.y}, ${target.x} ${target.y}`;
+                      return (
+                        <g key={idx}>
+                          <path
+                            d={pathData}
+                            stroke="var(--border-subtle)"
+                            strokeWidth="3"
+                            fill="none"
+                          />
+                          <path
+                            d={pathData}
+                            stroke="url(#edgeGrad)"
+                            strokeWidth="2.5"
+                            strokeDasharray="8 6"
+                            className="lv-graph-edge-flow"
+                            fill="none"
+                          />
+                        </g>
+                      );
+                    })}
+
+                    {/* Render Graph Nodes */}
+                    {graphNodes.map(node => {
+                      const isSelected = selectedGraphNode === node.id;
+                      const isCurrent = currentTime >= node.startSec && currentTime < (node.startSec + 300);
+                      return (
+                        <g
+                          key={node.id}
+                          transform={`translate(${node.x}, ${node.y})`}
+                          className={`lv-graph-node ${isSelected ? 'selected' : ''} ${isCurrent ? 'current' : ''}`}
+                          onClick={() => setSelectedGraphNode(node.id)}
+                        >
+                          {isCurrent && (
+                            <circle
+                              r={node.r + 10}
+                              fill="none"
+                              stroke={node.color}
+                              strokeWidth="2"
+                              className="lv-graph-node-pulse"
+                            />
+                          )}
+
+                          <circle
+                            r={node.r}
+                            fill="var(--bg-surface)"
+                            stroke={isSelected ? '#6C4DFF' : node.color}
+                            strokeWidth={isSelected ? 3.5 : 2}
+                            filter="url(#glow)"
+                          />
+
+                          <circle
+                            r={node.r - 5}
+                            fill={node.color}
+                            fillOpacity="0.16"
+                          />
+
+                          <text
+                            y="-6"
+                            textAnchor="middle"
+                            fill="var(--text-primary)"
+                            fontSize="12.5"
+                            fontWeight="800"
+                            fontFamily="var(--font-heading)"
+                          >
+                            {node.label}
+                          </text>
+
+                          <text
+                            y="12"
+                            textAnchor="middle"
+                            fill="var(--text-secondary)"
+                            fontSize="9.5"
+                            fontWeight="600"
+                          >
+                            {node.tag}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+
+                {/* Selected Node Details Bar */}
+                {activeGraphNodeObj && (
+                  <div className="lv-graph-card animate-pop">
+                    <div className="lv-graph-card__head">
+                      <div className="lv-graph-card__title-group">
+                        <span
+                          className="lv-graph-card__dot"
+                          style={{ backgroundColor: activeGraphNodeObj.color }}
+                        />
+                        <h4 className="lv-graph-card__title">{activeGraphNodeObj.label}</h4>
+                        <span className="lv-graph-card__tag">{activeGraphNodeObj.tag}</span>
+                      </div>
+
+                      <button
+                        className="lv-graph-card__jump-btn"
+                        onClick={() => {
+                          seekTo(activeGraphNodeObj.startSec);
+                          setIsPlaying(true);
+                        }}
+                      >
+                        <Play size={13} fill="currentColor" />
+                        <span>{lang === 'ar' ? `تشغيل الحصة من هذه النقطة (${fmt(activeGraphNodeObj.startSec)})` : `Play from ${fmt(activeGraphNodeObj.startSec)}`}</span>
+                      </button>
+                    </div>
+
+                    <p className="lv-graph-card__desc">{activeGraphNodeObj.desc}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── SUB-MODE 2: Concept Cards Roadmap (خريطة البطاقات) ── */}
+            {roadmapViewMode === 'cards' && (
+              <>
+                {/* Overall Lesson Progress */}
+                <div className="lv-km__progress">
+                  <div className="lv-km__progress-bar">
+                    <div className="lv-km__progress-fill" style={{ width: `${progress}%` }} />
+                  </div>
+                  <span className="lv-km__progress-text">
+                    {progress}% {lang === 'ar' ? 'مكتمل من المعرفة التراكمية لهذه الحصة' : 'completed of roadmap'}
+                  </span>
+                </div>
+
+                {/* Central Node Badge */}
+                <div className="lv-km__center-badge">
+                  <Sparkles size={14} />
+                  <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
+                </div>
+
+                {/* Concept Roadmap Cards */}
+                <div className="lv-km__grid">
+                  {lesson.chapters.map((ch, i) => {
+                    const isDone = currentTime >= ch.endSec;
+                    const isCurrent = currentCh.id === ch.id;
+                    const isExpanded = expandedConcept === ch.id;
+                    const isMastered = !!masteredConcepts[ch.id];
+                    const chProgress = isCurrent
+                      ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
+                      : isDone ? 100 : 0;
+
+                    return (
+                      <div
+                        key={ch.id}
+                        className={`lv-concept ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`}
+                        style={{ animationDelay: `${i * 0.08}s` }}
+                        onClick={() => setExpandedConcept(isExpanded ? null : ch.id)}
+                      >
+                        <div className="lv-concept__status">
+                          {isDone ? (
+                            <CheckCircle2 size={18} />
+                          ) : isCurrent ? (
+                            <Play size={14} fill="currentColor" />
+                          ) : (
+                            <Lock size={14} />
+                          )}
+                        </div>
+
+                        <div className="lv-concept__body">
+                          <div className="lv-concept__head">
+                            <span className="lv-concept__num">{lang === 'ar' ? `المحطة ${ch.id}` : `Node ${ch.id}`}</span>
+                            <span className="lv-concept__time">{fmt(ch.startSec)} — {fmt(ch.endSec)}</span>
+                          </div>
+                          <h4 className="lv-concept__title">{ch.titleAr}</h4>
+
+                          <div className="lv-concept__bar">
+                            <div className="lv-concept__bar-fill" style={{ width: `${chProgress}%` }} />
+                          </div>
+
+                          {isExpanded && (
+                            <div className="lv-concept__details" onClick={e => e.stopPropagation()}>
+                              <p className="lv-concept__desc">{ch.descAr}</p>
+                              <div className="lv-concept__terms">
+                                <span className="lv-concept__terms-label">
+                                  {lang === 'ar' ? 'المصطلحات المحورية:' : 'Key Terms:'}
+                                </span>
+                                {ch.keyTerms.map(t => (
+                                  <span key={t} className="lv-concept__term">{t}</span>
+                                ))}
+                              </div>
+                              <div className="lv-concept__actions">
+                                <button
+                                  className="lv-concept__jump"
+                                  onClick={() => {
+                                    seekTo(ch.startSec);
+                                    setIsPlaying(true);
+                                  }}
+                                >
+                                  <Play size={12} fill="currentColor" />
+                                  <span>{lang === 'ar' ? `انتقل لهذا الجزء في الحصة (${fmt(ch.startSec)})` : `Jump to ${fmt(ch.startSec)}`}</span>
+                                </button>
+
+                                <button
+                                  className={`lv-concept__mastery ${isMastered ? 'mastered' : ''}`}
+                                  onClick={() => handleToggleMasteredClick(ch)}
+                                >
+                                  {isMastered ? <CheckSquare size={14} /> : <Square size={14} />}
+                                  <span>{isMastered ? (lang === 'ar' ? 'تم استيعاب المفهوم' : 'Mastered') : (lang === 'ar' ? 'تأكيد الاستيعاب' : 'Mark Mastered')}</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <ChevronDown size={15} className={`lv-concept__chevron ${isExpanded ? 'open' : ''}`} />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Learning Outcomes Checklist */}
+                <div className="lv-km__outcomes">
+                  <h3 className="lv-km__outcomes-title">
+                    <Target size={16} />
+                    <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
+                  </h3>
+                  {[
+                    'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
+                    'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
+                    'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
+                  ].map((outcome, i) => (
+                    <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
+                      <Check size={14} className="lv-km__outcome-icon" />
+                      <span>{outcome}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB 4: MATERIALS (الملفات) ── */}
+        {targetTab === 'materials' && (
+          <div className="lv-materials">
+            {attachments.map((a, i) => (
+              <div key={a.id} className="lv-att" style={{ animationDelay: `${i * 0.06}s` }}>
+                <div className="lv-att__icon">
+                  <FileText size={22} />
+                </div>
+                <div className="lv-att__info">
+                  <div className="lv-att__name">{a.titleAr}</div>
+                  <div className="lv-att__meta">{a.size} • {a.pages} • ملف {a.type}</div>
+                </div>
+                <button
+                  className="lv-att__dl"
+                  onClick={() => handleAttachmentDownloadClick(a)}
+                  disabled={dlId === a.id}
+                >
+                  <Download size={14} />
+                  <span>{dlId === a.id ? (lang === 'ar' ? 'جاري التحميل...' : 'Downloading...') : (lang === 'ar' ? 'تحميل' : 'Download')}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── TAB 5: QUESTIONS (الأسئلة) ── */}
+        {targetTab === 'questions' && (
+          <div className="lv-questions">
+            {questions.map((q, i) => (
+              <div key={q.id} className="lv-q" style={{ animationDelay: `${i * 0.06}s` }}>
+                <div className="lv-q__head">
+                  <span className={`lv-q__diff ${q.diff === 'صعب' ? 'hard' : q.diff === 'سهل' ? 'easy' : 'med'}`}>
+                    {q.diff}
+                  </span>
+                  <span className="lv-q__src">{q.src}</span>
+                  <button
+                    className={`lv-q__save ${savedQ[q.id] ? 'on' : ''}`}
+                    onClick={() => handleSaveQuestionClick(q)}
+                    title="حفظ السؤال للمراجعة"
+                  >
+                    <Star size={14} fill={savedQ[q.id] ? 'currentColor' : 'transparent'} />
+                  </button>
+                </div>
+
+                <p className="lv-q__text">{q.q}</p>
+
+                <div className="lv-q__reveal-action">
+                  <button
+                    className="lv-q__toggle-btn"
+                    onClick={() => setRevealedA(p => ({ ...p, [q.id]: !p[q.id] }))}
+                  >
+                    {revealedA[q.id] ? (lang === 'ar' ? 'إخفاء الإجابة النموذجية' : 'Hide Answer') : (lang === 'ar' ? 'عرض الإجابة النموذجية والتفسير' : 'Show Model Answer')}
+                  </button>
+                </div>
+
+                {revealedA[q.id] && (
+                  <div className="lv-q__answer">
+                    <div className="lv-q__answer-bar" />
+                    <div className="lv-q__answer-content">
+                      <strong>{lang === 'ar' ? 'الإجابة المعتمدة: ' : 'Official Answer: '}</strong>
+                      <span>{q.a}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="lv">
       {/* ── Feedback Toast ── */}
@@ -945,7 +1452,7 @@ export const StudentLessonView = () => {
             </div>
           </div>
 
-          {/* ══ TABS NAVIGATION (Matching Image 1 Reference Exactly) ══ */}
+          {/* ══ TABS NAVIGATION ══ */}
           <div className="lv-tabs">
             <div className="lv-tabs__header" role="tablist">
               {tabs.map(t => {
@@ -957,7 +1464,12 @@ export const StudentLessonView = () => {
                     role="tab"
                     aria-selected={isActive}
                     className={`lv-tabs__btn ${isActive ? 'active' : ''}`}
-                    onClick={() => setActiveTab(t.id)}
+                    onClick={() => {
+                      setActiveTab(t.id);
+                      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+                        setMobileSubpage(t.id);
+                      }
+                    }}
                   >
                     <Icon size={16} />
                     <span>{t.label}</span>
@@ -966,495 +1478,38 @@ export const StudentLessonView = () => {
               })}
             </div>
 
-            <div className="lv-tabs__body">
-              {/* ── TAB 1: NOTES (ملاحظات الدرس) ── */}
-              {activeTab === 'notes' && (
-                <div className="lv-notes">
-                  <div className="lv-notes__head">
-                    <div className="lv-notes__title-group">
-                      <h3 className="lv-notes__heading">{lang === 'ar' ? 'مفكرة الطالب الذكية' : 'Student Notebook'}</h3>
-                      <span className="lv-notes__saved">
-                        <span className="lv-notes__saved-dot" />
-                        {lang === 'ar' ? `تم الحفظ تلقائياً: ${fmt(currentTime)}` : `Auto-saved: ${fmt(currentTime)}`}
-                      </span>
-                    </div>
-                  </div>
+            {/* Desktop Tabs Body */}
+            <div className="lv-tabs__body lv-tabs__body--desktop-only">
+              {renderTabContent(activeTab)}
+            </div>
 
-                  <form onSubmit={addNote} className="lv-notes__form">
-                    <textarea
-                      rows={3}
-                      value={noteInput}
-                      onChange={e => setNoteInput(e.target.value)}
-                      placeholder={lang === 'ar' ? 'اكتب ملاحظاتك هنا... سيتم ربط الملاحظة بالوقت الحالي للمقطع' : 'Type your notes here... linked to current video timestamp.'}
-                      className="lv-notes__input"
-                    />
-                    <div className="lv-notes__form-footer">
-                      <span className="lv-notes__hint">
-                        {lang === 'ar' ? `سيتم تسجيل الملاحظة عند الدقيقة ${fmt(currentTime)}` : `Linked at ${fmt(currentTime)}`}
-                      </span>
-                      <button type="submit" disabled={!noteInput.trim()} className="lv-notes__submit">
-                        <Sparkles size={13} />
-                        <span>{lang === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}</span>
-                      </button>
-                    </div>
-                  </form>
-
-                  {notes.length > 0 && (
-                    <div className="lv-notes__list">
-                      {notes.map((n, i) => (
-                        <div key={n.id} className="lv-note" style={{ animationDelay: `${i * 0.05}s` }}>
-                          <div className="lv-note__top">
-                            <button
-                              className="lv-note__ts"
-                              onClick={() => seekTo(n.sec)}
-                              title="انتقل لهذا التوقيت في الفيديو"
-                            >
-                              <Play size={10} fill="currentColor" />
-                              <span>{n.ts}</span>
-                            </button>
-                            <div className="lv-note__actions">
-                              <span className="lv-note__date">{n.date}</span>
-                              <button
-                                className="lv-note__del"
-                                onClick={() => handleDeleteNoteClick(n)}
-                                title="حذف الملاحظة"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </div>
-                          <p className="lv-note__text">{n.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+            {/* Mobile Dedicated Page Quick-Open Banner */}
+            <div className="lv-mobile-open-banner">
+              <div className="lv-mobile-open-banner__info">
+                <div className="lv-mobile-open-banner__icon">
+                  {(() => {
+                    const curr = tabs.find(t => t.id === activeTab);
+                    const TabIcon = curr ? curr.icon : FileText;
+                    return <TabIcon size={18} />;
+                  })()}
                 </div>
-              )}
-
-              {/* ── TAB 2: TRANSCRIPT (نص الحصة الذكي) ── */}
-              {activeTab === 'transcript' && (
-                <div className="lv-transcript">
-                  {/* Search bar inside transcript */}
-                  <div className="lv-transcript__search-bar">
-                    <Search size={15} />
-                    <input
-                      type="text"
-                      placeholder={lang === 'ar' ? 'ابحث في كلمات وشرح الحصة...' : 'Search in lecture transcript...'}
-                      value={transcriptSearch}
-                      onChange={e => setTranscriptSearch(e.target.value)}
-                      className="lv-transcript__search-input"
-                    />
-                    {transcriptSearch && (
-                      <button onClick={() => setTranscriptSearch('')} className="lv-transcript__search-clear">
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Segments List */}
-                  <div className="lv-transcript__list">
-                    {transcriptSegments
-                      .filter(seg => !transcriptSearch || seg.text.toLowerCase().includes(transcriptSearch.toLowerCase()))
-                      .map(seg => {
-                        const isCurrent = currentTime >= seg.startSec && currentTime < seg.endSec;
-                        return (
-                          <div
-                            key={seg.id}
-                            className={`lv-transcript__item ${isCurrent ? 'active' : ''}`}
-                            onClick={() => seekTo(seg.startSec)}
-                          >
-                            <button className="lv-transcript__time-btn" title="تشغيل من هذه النقطة">
-                              <Play size={11} fill="currentColor" />
-                              <span>{fmt(seg.startSec)}</span>
-                            </button>
-                            <div className="lv-transcript__content">
-                              <div className="lv-transcript__speaker">{seg.speaker}</div>
-                              <p className="lv-transcript__p">{seg.text}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
+                <div className="lv-mobile-open-banner__text">
+                  <span className="lv-mobile-open-banner__title">
+                    {tabs.find(t => t.id === activeTab)?.label}
+                  </span>
+                  <span className="lv-mobile-open-banner__sub">
+                    {lang === 'ar' ? 'عرض مستقل بملء الشاشة لراحة أكبر وبدون تشتيت' : 'Distraction-free full screen view'}
+                  </span>
                 </div>
-              )}
-
-              {/* ── TAB 3: ROADMAP (خريطة الحصة + الرسم البياني الشبكي ك جراف) ── */}
-              {activeTab === 'roadmap' && (
-                <div className="lv-roadmap-tab" ref={kmRef}>
-                  <div className="lv-km__header">
-                    <div className="lv-km__header-left">
-                      <div className="lv-km__header-icon"><Brain size={20} /></div>
-                      <div className="lv-km__header-text">
-                        <h2 className="lv-km__title">
-                          {lang === 'ar' ? 'خارطة المفاهيم وشبكة المعرفة التفاعلية' : 'Interactive Knowledge Roadmap & Graph'}
-                        </h2>
-                        <p className="lv-km__sub">
-                          {courseInfo.subjectAr} • {lesson.titleAr}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="lv-km__header-actions">
-                      {/* Sub-mode Switcher: Cards vs Graph */}
-                      <div className="lv-roadmap-toggle-group">
-                        <button
-                          className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'cards' ? 'active' : ''}`}
-                          onClick={() => setRoadmapViewMode('cards')}
-                        >
-                          <Layers size={13} />
-                          <span>{lang === 'ar' ? 'بطاقات الشرح' : 'Cards View'}</span>
-                        </button>
-
-                        <button
-                          className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'graph' ? 'active' : ''}`}
-                          onClick={() => setRoadmapViewMode('graph')}
-                        >
-                          <Network size={13} />
-                          <span>{lang === 'ar' ? 'الرسم البياني (Graph)' : 'Network Graph'}</span>
-                        </button>
-                      </div>
-
-                      <button className="lv-km__action" onClick={toggleKMFS} title="شاشة كاملة">
-                        {isKMFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ── SUB-MODE 1: Interactive Network Graph (خريطة ك جراف) ── */}
-                  {roadmapViewMode === 'graph' && (
-                    <div className="lv-graph-container">
-                      <div className="lv-graph-hint">
-                        <Sparkles size={14} />
-                        <span>{lang === 'ar' ? 'اضغط على أي عقدة (Node) لاستكشاف العلاقات والانتقال المباشر لتوقيتها (اسحب يميناً ويساراً ↔)' : 'Click any node to explore connections & jump in video (swipe to pan ↔)'}</span>
-                      </div>
-
-                      {/* SVG Network Graph */}
-                      <div className="lv-graph-svg-wrap">
-                        <svg viewBox="0 0 1260 360" className="lv-graph-svg">
-                          <defs>
-                            <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="#6C4DFF" stopOpacity="0.8" />
-                              <stop offset="50%" stopColor="#06B6D4" stopOpacity="0.8" />
-                              <stop offset="100%" stopColor="#10B981" stopOpacity="0.8" />
-                            </linearGradient>
-
-                            <filter id="glow">
-                              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                              <feMerge>
-                                <feMergeNode in="coloredBlur" />
-                                <feMergeNode in="SourceGraphic" />
-                              </feMerge>
-                            </filter>
-                          </defs>
-
-                          {/* Render Connecting Edges (Bezier Curves with Flow Animation) */}
-                          {graphEdges.map((e, idx) => {
-                            const source = graphNodes.find(n => n.id === e.from);
-                            const target = graphNodes.find(n => n.id === e.to);
-                            if (!source || !target) return null;
-                            const midX = (source.x + target.x) / 2;
-                            const pathData = `M ${source.x} ${source.y} C ${midX} ${source.y}, ${midX} ${target.y}, ${target.x} ${target.y}`;
-                            return (
-                              <g key={idx}>
-                                <path
-                                  d={pathData}
-                                  stroke="var(--border-subtle)"
-                                  strokeWidth="3"
-                                  fill="none"
-                                />
-                                <path
-                                  d={pathData}
-                                  stroke="url(#edgeGrad)"
-                                  strokeWidth="2.5"
-                                  strokeDasharray="8 6"
-                                  className="lv-graph-edge-flow"
-                                  fill="none"
-                                />
-                              </g>
-                            );
-                          })}
-
-                          {/* Render Graph Nodes */}
-                          {graphNodes.map(node => {
-                            const isSelected = selectedGraphNode === node.id;
-                            const isCurrent = currentTime >= node.startSec && currentTime < (node.startSec + 300);
-                            return (
-                              <g
-                                key={node.id}
-                                transform={`translate(${node.x}, ${node.y})`}
-                                className={`lv-graph-node ${isSelected ? 'selected' : ''} ${isCurrent ? 'current' : ''}`}
-                                onClick={() => setSelectedGraphNode(node.id)}
-                              >
-                                {isCurrent && (
-                                  <circle
-                                    r={node.r + 10}
-                                    fill="none"
-                                    stroke={node.color}
-                                    strokeWidth="2"
-                                    className="lv-graph-node-pulse"
-                                  />
-                                )}
-
-                                <circle
-                                  r={node.r}
-                                  fill="var(--bg-surface)"
-                                  stroke={isSelected ? '#6C4DFF' : node.color}
-                                  strokeWidth={isSelected ? 3.5 : 2}
-                                  filter="url(#glow)"
-                                />
-
-                                <circle
-                                  r={node.r - 5}
-                                  fill={node.color}
-                                  fillOpacity="0.16"
-                                />
-
-                                <text
-                                  y="-6"
-                                  textAnchor="middle"
-                                  fill="var(--text-primary)"
-                                  fontSize="12.5"
-                                  fontWeight="800"
-                                  fontFamily="var(--font-heading)"
-                                >
-                                  {node.label}
-                                </text>
-
-                                <text
-                                  y="12"
-                                  textAnchor="middle"
-                                  fill="var(--text-secondary)"
-                                  fontSize="9.5"
-                                  fontWeight="600"
-                                >
-                                  {node.tag}
-                                </text>
-                              </g>
-                            );
-                          })}
-                        </svg>
-                      </div>
-
-                      {/* Selected Node Details Bar */}
-                      {activeGraphNodeObj && (
-                        <div className="lv-graph-card animate-pop">
-                          <div className="lv-graph-card__head">
-                            <div className="lv-graph-card__title-group">
-                              <span
-                                className="lv-graph-card__dot"
-                                style={{ backgroundColor: activeGraphNodeObj.color }}
-                              />
-                              <h4 className="lv-graph-card__title">{activeGraphNodeObj.label}</h4>
-                              <span className="lv-graph-card__tag">{activeGraphNodeObj.tag}</span>
-                            </div>
-
-                            <button
-                              className="lv-graph-card__jump-btn"
-                              onClick={() => {
-                                seekTo(activeGraphNodeObj.startSec);
-                                setIsPlaying(true);
-                              }}
-                            >
-                              <Play size={13} fill="currentColor" />
-                              <span>{lang === 'ar' ? `تشغيل الحصة من هذه النقطة (${fmt(activeGraphNodeObj.startSec)})` : `Play from ${fmt(activeGraphNodeObj.startSec)}`}</span>
-                            </button>
-                          </div>
-
-                          <p className="lv-graph-card__desc">{activeGraphNodeObj.desc}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ── SUB-MODE 2: Concept Cards Roadmap (خريطة البطاقات) ── */}
-                  {roadmapViewMode === 'cards' && (
-                    <>
-                      {/* Overall Lesson Progress */}
-                      <div className="lv-km__progress">
-                        <div className="lv-km__progress-bar">
-                          <div className="lv-km__progress-fill" style={{ width: `${progress}%` }} />
-                        </div>
-                        <span className="lv-km__progress-text">
-                          {progress}% {lang === 'ar' ? 'مكتمل من المعرفة التراكمية لهذه الحصة' : 'completed of roadmap'}
-                        </span>
-                      </div>
-
-                      {/* Central Node Badge */}
-                      <div className="lv-km__center-badge">
-                        <Sparkles size={14} />
-                        <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
-                      </div>
-
-                      {/* Concept Roadmap Cards */}
-                      <div className="lv-km__grid">
-                        {lesson.chapters.map((ch, i) => {
-                          const isDone = currentTime >= ch.endSec;
-                          const isCurrent = currentCh.id === ch.id;
-                          const isExpanded = expandedConcept === ch.id;
-                          const isMastered = !!masteredConcepts[ch.id];
-                          const chProgress = isCurrent
-                            ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
-                            : isDone ? 100 : 0;
-
-                          return (
-                            <div
-                              key={ch.id}
-                              className={`lv-concept ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`}
-                              style={{ animationDelay: `${i * 0.08}s` }}
-                              onClick={() => setExpandedConcept(isExpanded ? null : ch.id)}
-                            >
-                              <div className="lv-concept__status">
-                                {isDone ? (
-                                  <CheckCircle2 size={18} />
-                                ) : isCurrent ? (
-                                  <Play size={14} fill="currentColor" />
-                                ) : (
-                                  <Lock size={14} />
-                                )}
-                              </div>
-
-                              <div className="lv-concept__body">
-                                <div className="lv-concept__head">
-                                  <span className="lv-concept__num">{lang === 'ar' ? `المحطة ${ch.id}` : `Node ${ch.id}`}</span>
-                                  <span className="lv-concept__time">{fmt(ch.startSec)} — {fmt(ch.endSec)}</span>
-                                </div>
-                                <h4 className="lv-concept__title">{ch.titleAr}</h4>
-
-                                <div className="lv-concept__bar">
-                                  <div className="lv-concept__bar-fill" style={{ width: `${chProgress}%` }} />
-                                </div>
-
-                                {isExpanded && (
-                                  <div className="lv-concept__details" onClick={e => e.stopPropagation()}>
-                                    <p className="lv-concept__desc">{ch.descAr}</p>
-                                    <div className="lv-concept__terms">
-                                      <span className="lv-concept__terms-label">
-                                        {lang === 'ar' ? 'المصطلحات المحورية:' : 'Key Terms:'}
-                                      </span>
-                                      {ch.keyTerms.map(t => (
-                                        <span key={t} className="lv-concept__term">{t}</span>
-                                      ))}
-                                    </div>
-                                    <div className="lv-concept__actions">
-                                      <button
-                                        className="lv-concept__jump"
-                                        onClick={() => {
-                                          seekTo(ch.startSec);
-                                          setIsPlaying(true);
-                                        }}
-                                      >
-                                        <Play size={12} fill="currentColor" />
-                                        <span>{lang === 'ar' ? `انتقل لهذا الجزء في الحصة (${fmt(ch.startSec)})` : `Jump to ${fmt(ch.startSec)}`}</span>
-                                      </button>
-
-                                      <button
-                                        className={`lv-concept__mastery ${isMastered ? 'mastered' : ''}`}
-                                        onClick={() => handleToggleMasteredClick(ch)}
-                                      >
-                                        {isMastered ? <CheckSquare size={14} /> : <Square size={14} />}
-                                        <span>{isMastered ? (lang === 'ar' ? 'تم استيعاب المفهوم' : 'Mastered') : (lang === 'ar' ? 'تأكيد الاستيعاب' : 'Mark Mastered')}</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              <ChevronDown size={15} className={`lv-concept__chevron ${isExpanded ? 'open' : ''}`} />
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Learning Outcomes Checklist */}
-                      <div className="lv-km__outcomes">
-                        <h3 className="lv-km__outcomes-title">
-                          <Target size={16} />
-                          <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
-                        </h3>
-                        {[
-                          'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
-                          'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
-                          'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
-                        ].map((outcome, i) => (
-                          <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
-                            <Check size={14} className="lv-km__outcome-icon" />
-                            <span>{outcome}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* ── TAB 4: MATERIALS (الملفات) ── */}
-              {activeTab === 'materials' && (
-                <div className="lv-materials">
-                  {attachments.map((a, i) => (
-                    <div key={a.id} className="lv-att" style={{ animationDelay: `${i * 0.06}s` }}>
-                      <div className="lv-att__icon">
-                        <FileText size={22} />
-                      </div>
-                      <div className="lv-att__info">
-                        <div className="lv-att__name">{a.titleAr}</div>
-                        <div className="lv-att__meta">{a.size} • {a.pages} • ملف {a.type}</div>
-                      </div>
-                      <button
-                        className="lv-att__dl"
-                        onClick={() => handleAttachmentDownloadClick(a)}
-                        disabled={dlId === a.id}
-                      >
-                        <Download size={14} />
-                        <span>{dlId === a.id ? (lang === 'ar' ? 'جاري التحميل...' : 'Downloading...') : (lang === 'ar' ? 'تحميل' : 'Download')}</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── TAB 5: QUESTIONS (الأسئلة) ── */}
-              {activeTab === 'questions' && (
-                <div className="lv-questions">
-                  {questions.map((q, i) => (
-                    <div key={q.id} className="lv-q" style={{ animationDelay: `${i * 0.06}s` }}>
-                      <div className="lv-q__head">
-                        <span className={`lv-q__diff ${q.diff === 'صعب' ? 'hard' : q.diff === 'سهل' ? 'easy' : 'med'}`}>
-                          {q.diff}
-                        </span>
-                        <span className="lv-q__src">{q.src}</span>
-                        <button
-                          className={`lv-q__save ${savedQ[q.id] ? 'on' : ''}`}
-                          onClick={() => handleSaveQuestionClick(q)}
-                          title="حفظ السؤال للمراجعة"
-                        >
-                          <Star size={14} fill={savedQ[q.id] ? 'currentColor' : 'transparent'} />
-                        </button>
-                      </div>
-
-                      <p className="lv-q__text">{q.q}</p>
-
-                      <div className="lv-q__reveal-action">
-                        <button
-                          className="lv-q__toggle-btn"
-                          onClick={() => setRevealedA(p => ({ ...p, [q.id]: !p[q.id] }))}
-                        >
-                          {revealedA[q.id] ? (lang === 'ar' ? 'إخفاء الإجابة النموذجية' : 'Hide Answer') : (lang === 'ar' ? 'عرض الإجابة النموذجية والتفسير' : 'Show Model Answer')}
-                        </button>
-                      </div>
-
-                      {revealedA[q.id] && (
-                        <div className="lv-q__answer">
-                          <div className="lv-q__answer-bar" />
-                          <div className="lv-q__answer-content">
-                            <strong>{lang === 'ar' ? 'الإجابة المعتمدة: ' : 'Official Answer: '}</strong>
-                            <span>{q.a}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              </div>
+              <button
+                type="button"
+                className="lv-mobile-open-banner__btn"
+                onClick={() => setMobileSubpage(activeTab)}
+              >
+                <span>{lang === 'ar' ? 'فتح في صفحة مخصصة' : 'Open Full Page'}</span>
+                {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
+              </button>
             </div>
           </div>
         </main>
@@ -1771,6 +1826,74 @@ export const StudentLessonView = () => {
                 {lang === 'ar' ? 'متابعة المذاكرة هنا' : 'Stay Here'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ DEDICATED FULL-SCREEN MOBILE SUBPAGE ══════════ */}
+      {mobileSubpage && (
+        <div className="lv-mobile-subpage" role="dialog" aria-modal="true">
+          {/* Top Bar */}
+          <div className="lv-mobile-subpage__header">
+            <button
+              type="button"
+              className="lv-mobile-subpage__back-btn"
+              onClick={() => setMobileSubpage(null)}
+              title={lang === 'ar' ? 'العودة للحصة' : 'Back to Lesson'}
+            >
+              {isRtl ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}
+              <span>{lang === 'ar' ? 'العودة للحصة' : 'Back to Lesson'}</span>
+            </button>
+
+            <div className="lv-mobile-subpage__title">
+              {(() => {
+                const currentT = tabs.find(t => t.id === mobileSubpage);
+                if (!currentT) return null;
+                const TabIcon = currentT.icon;
+                return (
+                  <>
+                    <TabIcon size={16} />
+                    <span>{currentT.label}</span>
+                  </>
+                );
+              })()}
+            </div>
+
+            <button
+              type="button"
+              className="lv-mobile-subpage__close-btn"
+              onClick={() => setMobileSubpage(null)}
+              title={lang === 'ar' ? 'إغلاق' : 'Close'}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Quick Tab Switcher Strip */}
+          <div className="lv-mobile-subpage__pills">
+            {tabs.map(t => {
+              const Icon = t.icon;
+              const isActive = mobileSubpage === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`lv-mobile-subpage__pill ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    setMobileSubpage(t.id);
+                    setActiveTab(t.id);
+                  }}
+                >
+                  <Icon size={14} />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scrollable Subpage Body */}
+          <div className="lv-mobile-subpage__body">
+            {renderTabContent(mobileSubpage)}
           </div>
         </div>
       )}

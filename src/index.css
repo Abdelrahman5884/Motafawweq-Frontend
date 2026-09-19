@@ -5029,6 +5029,239 @@ button, input, select, textarea {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   DEDICATED FULL-SCREEN MOBILE SUBPAGE FOR LESSON TABS
+   ═══════════════════════════════════════════════════════════ */
+.lv-mobile-subpage {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: var(--bg-app);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: mobileSubpageSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes mobileSubpageSlide {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lv-mobile-subpage__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.lv-mobile-subpage__back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.lv-mobile-subpage__back-btn:hover {
+  background: rgba(108, 77, 255, 0.1);
+  border-color: rgba(108, 77, 255, 0.3);
+  color: #6C4DFF;
+}
+
+[data-theme="dark"] .lv-mobile-subpage__back-btn:hover {
+  color: #A78BFA;
+}
+
+.lv-mobile-subpage__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-mobile-subpage__close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.lv-mobile-subpage__close-btn:hover {
+  color: var(--text-primary);
+  background: var(--border-subtle);
+}
+
+/* Quick Tab Switcher Strip */
+.lv-mobile-subpage__pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.lv-mobile-subpage__pills::-webkit-scrollbar {
+  display: none;
+}
+
+.lv-mobile-subpage__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.lv-mobile-subpage__pill.active {
+  background: #6C4DFF;
+  border-color: #6C4DFF;
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(108, 77, 255, 0.3);
+}
+
+.lv-mobile-subpage__body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 14px 40px;
+}
+
+/* Mobile Quick Open Banner & Desktop Separation */
+.lv-mobile-open-banner {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .lv-tabs__body--desktop-only {
+    display: none !important;
+  }
+
+  .lv-mobile-open-banner {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .lv-mobile-open-banner__info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .lv-mobile-open-banner__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(108, 77, 255, 0.1);
+    color: #6C4DFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  [data-theme="dark"] .lv-mobile-open-banner__icon {
+    color: #A78BFA;
+  }
+
+  .lv-mobile-open-banner__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .lv-mobile-open-banner__title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lv-mobile-open-banner__sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lv-mobile-open-banner__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: none;
+    background: #6C4DFF;
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(108, 77, 255, 0.3);
+  }
+
+  .lv-mobile-open-banner__btn:active {
+    transform: scale(0.97);
+  }
+}
+
+
 
 
 
