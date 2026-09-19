@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   STUDENT_PROFILE,
   TODAY_TASKS,
@@ -75,6 +76,7 @@ function generateSplinePaths(points, baseline = 165) {
 export const StudentDashboard = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
+  const { isDark } = useTheme();
   const student = STUDENT_PROFILE;
 
   // Active filter state for subjects
@@ -83,7 +85,7 @@ export const StudentDashboard = () => {
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
 
   // Filter state for Today's Tasks (US-10)
-  const [taskCategoryFilter, setTaskCategoryFilter] = useState('all'); // 'all' | 'lesson' | 'homework' | 'quiz'
+  const [taskCategoryFilter, setTaskCategoryFilter] = useState('all');
 
   // Interactive Today's Tasks with toggle capability (US-10)
   const [tasks, setTasks] = useState(
@@ -189,6 +191,12 @@ export const StudentDashboard = () => {
   const overallMasteryValue = 94.6;
   const donutDashOffset = donutCircumference - (overallMasteryValue / 100) * donutCircumference;
 
+  // Adaptive theme colors for SVGs
+  const themeAccent = isDark ? '#38BDF8' : '#0284C7';
+  const themeGridStroke = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(15, 23, 42, 0.08)';
+  const themeTrackStroke = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
+  const themeAxisFill = isDark ? '#94A3B8' : '#64748B';
+
   return (
     <SPage maxWidth={1240}>
       <div className="executive-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -210,7 +218,7 @@ export const StudentDashboard = () => {
               width: '52px',
               height: '52px',
               borderRadius: '14px',
-              border: '2px solid rgba(56, 189, 248, 0.35)',
+              border: `2px solid ${isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.35)'}`,
               overflow: 'hidden',
               flexShrink: 0
             }}>
@@ -227,7 +235,7 @@ export const StudentDashboard = () => {
                 height: '10px',
                 backgroundColor: '#10B981',
                 borderRadius: '50%',
-                border: '2px solid #0E1726',
+                border: '2px solid var(--bg-surface)',
                 boxShadow: '0 0 6px #10B981'
               }} />
             </div>
@@ -239,13 +247,13 @@ export const StudentDashboard = () => {
                   fontWeight: '700',
                   padding: '2px 8px',
                   borderRadius: '6px',
-                  backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                  color: '#38BDF8',
-                  border: '1px solid rgba(56, 189, 248, 0.25)'
+                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)',
+                  color: themeAccent,
+                  border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)'}`
                 }}>
                   {student.gradeNameAr}
                 </span>
-                <span style={{ fontSize: '12px', fontWeight: '600', color: '#94A3B8' }}>
+                <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
                   {student.trackAr}
                 </span>
               </div>
@@ -262,7 +270,7 @@ export const StudentDashboard = () => {
                 gap: '8px'
               }}>
                 <span>{lang === 'ar' ? 'مرحباً' : 'Welcome,'}</span>
-                <span style={{ color: '#38BDF8' }}>
+                <span style={{ color: themeAccent }}>
                   {lang === 'ar' ? student.nameAr.split(' ')[0] : student.name.split(' ')[0]}
                 </span>
               </h1>
@@ -277,13 +285,13 @@ export const StudentDashboard = () => {
               style={{ minWidth: '155px', justifyContent: 'space-between' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BookOpen size={15} style={{ color: '#38BDF8' }} />
+                <BookOpen size={15} style={{ color: themeAccent }} />
                 <span>{currentSubjectLabel}</span>
               </div>
               <ChevronDown
                 size={14}
                 style={{
-                  color: '#94A3B8',
+                  color: 'var(--text-secondary)',
                   transform: subjectDropdownOpen ? 'rotate(180deg)' : 'none',
                   transition: 'transform 0.2s ease'
                 }}
@@ -297,10 +305,10 @@ export const StudentDashboard = () => {
                 top: 'calc(100% + 6px)',
                 insetInlineEnd: 0,
                 width: '180px',
-                background: '#0E1726',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: '12px',
-                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
+                boxShadow: isDark ? '0 12px 30px rgba(0, 0, 0, 0.5)' : '0 12px 30px rgba(0, 0, 0, 0.12)',
                 padding: '6px',
                 zIndex: 50
               }}>
@@ -317,8 +325,8 @@ export const StudentDashboard = () => {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '8px 12px',
-                      background: selectedSubject === opt.id ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
-                      color: selectedSubject === opt.id ? '#38BDF8' : '#CBD5E1',
+                      background: selectedSubject === opt.id ? (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
+                      color: selectedSubject === opt.id ? themeAccent : 'var(--text-primary)',
                       border: 'none',
                       borderRadius: '8px',
                       fontSize: '13px',
@@ -329,7 +337,7 @@ export const StudentDashboard = () => {
                     }}
                   >
                     <span>{lang === 'ar' ? opt.labelAr : opt.labelEn}</span>
-                    {selectedSubject === opt.id && <Check size={14} style={{ color: '#38BDF8' }} />}
+                    {selectedSubject === opt.id && <Check size={14} style={{ color: themeAccent }} />}
                   </button>
                 ))}
               </div>
@@ -344,7 +352,7 @@ export const StudentDashboard = () => {
           {/* Card 1: Completed Lessons */}
           <div className="executive-kpi-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div className="executive-icon-box" style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38BDF8' }}>
+              <div className="executive-icon-box" style={{ background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)', color: themeAccent }}>
                 <BookOpen size={19} />
               </div>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
@@ -354,7 +362,7 @@ export const StudentDashboard = () => {
             <div>
               <div className="executive-kpi-val">
                 <span>{student.completedLessonsCount}</span>
-                <span style={{ fontSize: '18px', fontWeight: '500', color: '#64748B', marginInlineStart: '4px' }}>
+                <span style={{ fontSize: '18px', fontWeight: '500', color: 'var(--text-muted)', marginInlineStart: '4px' }}>
                   / {student.totalEnrolledLessons}
                 </span>
               </div>
@@ -367,7 +375,7 @@ export const StudentDashboard = () => {
           {/* Card 2: Overall GPA */}
           <div className="executive-kpi-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div className="executive-icon-box" style={{ background: 'rgba(52, 211, 153, 0.12)', color: '#34D399' }}>
+              <div className="executive-icon-box" style={{ background: 'rgba(52, 211, 153, 0.12)', color: '#10B981' }}>
                 <TrendingUp size={19} />
               </div>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
@@ -375,7 +383,7 @@ export const StudentDashboard = () => {
               </span>
             </div>
             <div>
-              <div className="executive-kpi-val" style={{ color: '#34D399' }}>
+              <div className="executive-kpi-val" style={{ color: '#10B981' }}>
                 {student.overallGpa}
               </div>
               <div className="executive-kpi-sub">
@@ -387,17 +395,17 @@ export const StudentDashboard = () => {
           {/* Card 3: Streak Days */}
           <div className="executive-kpi-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div className="executive-icon-box" style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#C084FC' }}>
+              <div className="executive-icon-box" style={{ background: 'rgba(192, 132, 252, 0.12)', color: '#8B5CF6' }}>
                 <Calendar size={19} />
               </div>
-              <span style={{ fontSize: '11px', fontWeight: '600', color: '#C084FC', background: 'rgba(192, 132, 252, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: '#8B5CF6', background: 'rgba(139, 92, 246, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
                 {lang === 'ar' ? 'التزام نشط' : 'Active Streak'}
               </span>
             </div>
             <div>
               <div className="executive-kpi-val">
                 <span>{student.streakDays}</span>
-                <span style={{ fontSize: '16px', fontWeight: '500', color: '#94A3B8', marginInlineStart: '6px' }}>
+                <span style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-muted)', marginInlineStart: '6px' }}>
                   {lang === 'ar' ? 'يوماً متتالياً' : 'Days'}
                 </span>
               </div>
@@ -410,19 +418,19 @@ export const StudentDashboard = () => {
           {/* Card 4: Dual Metric (Today's Study + Batch Rank - Adaptive) */}
           <div className="executive-kpi-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div className="executive-icon-box" style={{ background: 'rgba(96, 165, 250, 0.12)', color: '#60A5FA' }}>
+              <div className="executive-icon-box" style={{ background: 'rgba(96, 165, 250, 0.12)', color: '#3B82F6' }}>
                 <GraduationCap size={19} />
               </div>
-              <span style={{ fontSize: '11px', fontWeight: '600', color: '#60A5FA', background: 'rgba(96, 165, 250, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: '#3B82F6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
                 {lang === 'ar' ? 'دوري النخبة' : 'Elite League'}
               </span>
             </div>
             <div>
               <div className="executive-dual-stat">
                 <div>
-                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#FFFFFF', lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
                     {student.studyMinutesToday}
-                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#94A3B8', marginInlineStart: '3px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-muted)', marginInlineStart: '3px' }}>
                       {lang === 'ar' ? 'د' : 'm'}
                     </span>
                   </div>
@@ -431,10 +439,10 @@ export const StudentDashboard = () => {
                   </div>
                 </div>
 
-                <div className="executive-dual-stat-divider" style={{ width: '1px', height: '36px', background: 'rgba(255, 255, 255, 0.1)', margin: '0 20px' }} />
+                <div className="executive-dual-stat-divider" style={{ width: '1px', height: '36px', background: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.1)', margin: '0 20px' }} />
 
                 <div>
-                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#38BDF8', lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: '800', color: themeAccent, lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
                     #2
                   </div>
                   <div className="executive-kpi-sub" style={{ marginTop: '3px' }}>
@@ -463,13 +471,13 @@ export const StudentDashboard = () => {
                 <h2 style={{
                   fontSize: '16px',
                   fontWeight: '700',
-                  color: '#FFFFFF',
+                  color: 'var(--text-primary)',
                   margin: 0,
                   fontFamily: 'var(--font-heading), var(--font-arabic)'
                 }}>
                   {lang === 'ar' ? 'معدل المذاكرة — آخر 7 أيام' : 'Study Activity — Last 7 Days'}
                 </h2>
-                <p style={{ fontSize: '12px', color: '#94A3B8', margin: '2px 0 0' }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
                   {lang === 'ar' ? 'إجمالي الدقائق والحصص المنجزة يومياً' : 'Daily study minutes and completed sessions'}
                 </p>
               </div>
@@ -478,15 +486,15 @@ export const StudentDashboard = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)',
+                border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
                 padding: '5px 10px',
                 borderRadius: '8px',
                 fontSize: '12px',
-                color: '#94A3B8',
+                color: 'var(--text-secondary)',
                 fontWeight: '500'
               }}>
-                <Calendar size={13} style={{ color: '#38BDF8' }} />
+                <Calendar size={13} style={{ color: themeAccent }} />
                 <span>{lang === 'ar' ? 'آخر 7 أيام' : 'Last 7 Days'}</span>
               </div>
             </div>
@@ -500,13 +508,13 @@ export const StudentDashboard = () => {
               >
                 <defs>
                   <linearGradient id="execAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.28" />
-                    <stop offset="90%" stopColor="#38BDF8" stopOpacity="0.01" />
-                    <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.0" />
+                    <stop offset="0%" stopColor={themeAccent} stopOpacity={isDark ? 0.28 : 0.22} />
+                    <stop offset="90%" stopColor={themeAccent} stopOpacity={0.01} />
+                    <stop offset="100%" stopColor={themeAccent} stopOpacity={0.0} />
                   </linearGradient>
 
                   <filter id="glowEffect" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#38BDF8" floodOpacity="0.7" />
+                    <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor={themeAccent} floodOpacity={0.6} />
                   </filter>
                 </defs>
 
@@ -520,7 +528,7 @@ export const StudentDashboard = () => {
                         x={paddingLeft - 12}
                         y={y + 4}
                         textAnchor="end"
-                        fill="#64748B"
+                        fill={themeAxisFill}
                         fontSize="10"
                         fontFamily="var(--font-latin)"
                         fontWeight="500"
@@ -532,7 +540,7 @@ export const StudentDashboard = () => {
                         y1={y}
                         x2={chartWidth - paddingRight}
                         y2={y}
-                        stroke="rgba(255, 255, 255, 0.05)"
+                        stroke={themeGridStroke}
                         strokeDasharray="4 4"
                         strokeWidth="1"
                       />
@@ -551,7 +559,7 @@ export const StudentDashboard = () => {
                 <path
                   d={linePath}
                   fill="none"
-                  stroke="#38BDF8"
+                  stroke={themeAccent}
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -578,7 +586,7 @@ export const StudentDashboard = () => {
                           cx={p.x}
                           cy={p.y}
                           r={isHovered ? 8 : 6}
-                          fill="rgba(56, 189, 248, 0.25)"
+                          fill={isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.2)'}
                           filter="url(#glowEffect)"
                           style={{ transition: 'r 0.2s ease' }}
                         />
@@ -588,8 +596,8 @@ export const StudentDashboard = () => {
                         cx={p.x}
                         cy={p.y}
                         r={isHovered ? 4.5 : 3.5}
-                        fill="#0E1726"
-                        stroke="#38BDF8"
+                        fill={isDark ? '#0E1726' : '#FFFFFF'}
+                        stroke={themeAccent}
                         strokeWidth="2.5"
                         style={{ transition: 'r 0.2s ease, stroke-width 0.2s ease' }}
                       />
@@ -598,7 +606,7 @@ export const StudentDashboard = () => {
                         x={p.x}
                         y={baseline + 20}
                         textAnchor="middle"
-                        fill={p.isToday ? '#38BDF8' : '#94A3B8'}
+                        fill={p.isToday ? themeAccent : themeAxisFill}
                         fontSize="11"
                         fontWeight={p.isToday ? '700' : '500'}
                         fontFamily="var(--font-arabic)"
@@ -617,9 +625,9 @@ export const StudentDashboard = () => {
                   left: `${(points[hoveredPointIndex].x / chartWidth) * 100}%`,
                   top: `${(points[hoveredPointIndex].y / chartHeight) * 100}%`,
                   transform: 'translate(-50%, -135%)',
-                  background: '#131E33',
-                  border: '1px solid rgba(56, 189, 248, 0.35)',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                  background: isDark ? '#131E33' : '#FFFFFF',
+                  border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.25)'}`,
+                  boxShadow: isDark ? '0 8px 24px rgba(0, 0, 0, 0.5)' : '0 8px 24px rgba(0, 0, 0, 0.12)',
                   padding: '6px 12px',
                   borderRadius: '8px',
                   pointerEvents: 'none',
@@ -627,15 +635,15 @@ export const StudentDashboard = () => {
                   zIndex: 20,
                   fontSize: '12px',
                   fontWeight: '600',
-                  color: '#FFFFFF',
+                  color: 'var(--text-primary)',
                   animation: 'fadeInArea 0.15s ease'
                 }}>
-                  <div style={{ color: '#38BDF8', fontSize: '11px', marginBottom: '2px' }}>
+                  <div style={{ color: themeAccent, fontSize: '11px', marginBottom: '2px' }}>
                     {lang === 'ar' ? points[hoveredPointIndex].dayAr : points[hoveredPointIndex].dayEn}
                   </div>
                   <div>
                     {points[hoveredPointIndex].minutes} {lang === 'ar' ? 'دقيقة' : 'mins'}
-                    <span style={{ color: '#94A3B8', marginInlineStart: '6px', fontSize: '11px' }}>
+                    <span style={{ color: 'var(--text-muted)', marginInlineStart: '6px', fontSize: '11px' }}>
                       ({points[hoveredPointIndex].lessons} {lang === 'ar' ? 'حصص' : 'lessons'})
                     </span>
                   </div>
@@ -650,13 +658,13 @@ export const StudentDashboard = () => {
               <h2 style={{
                 fontSize: '16px',
                 fontWeight: '700',
-                color: '#FFFFFF',
+                color: 'var(--text-primary)',
                 margin: 0,
                 fontFamily: 'var(--font-heading), var(--font-arabic)'
               }}>
                 {lang === 'ar' ? 'توزيع إتقان المواد' : 'Subject Mastery'}
               </h2>
-              <p style={{ fontSize: '12px', color: '#94A3B8', margin: '2px 0 0' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
                 {lang === 'ar' ? 'مؤشر الفهم والاستيعاب التراكمي' : 'Cumulative mastery & comprehension'}
               </p>
             </div>
@@ -675,7 +683,7 @@ export const StudentDashboard = () => {
                   cy="80"
                   r={donutRadius}
                   fill="transparent"
-                  stroke="rgba(255, 255, 255, 0.06)"
+                  stroke={themeTrackStroke}
                   strokeWidth="14"
                 />
 
@@ -684,7 +692,7 @@ export const StudentDashboard = () => {
                   cy="80"
                   r={donutRadius}
                   fill="transparent"
-                  stroke="#38BDF8"
+                  stroke={themeAccent}
                   strokeWidth="14"
                   strokeDasharray={donutCircumference}
                   strokeDashoffset={donutDashOffset}
@@ -705,7 +713,7 @@ export const StudentDashboard = () => {
                 <span style={{
                   fontSize: '28px',
                   fontWeight: '800',
-                  color: '#FFFFFF',
+                  color: 'var(--text-primary)',
                   fontFamily: 'var(--font-heading)',
                   lineHeight: 1
                 }}>
@@ -713,7 +721,7 @@ export const StudentDashboard = () => {
                 </span>
                 <span style={{
                   fontSize: '11px',
-                  color: '#94A3B8',
+                  color: 'var(--text-secondary)',
                   marginTop: '4px',
                   fontWeight: '500'
                 }}>
@@ -728,7 +736,7 @@ export const StudentDashboard = () => {
               gridTemplateColumns: 'repeat(2, 1fr)',
               gap: '8px',
               paddingTop: '8px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+              borderTop: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.08)'}`
             }}>
               {subjectMastery.map((sub, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -739,10 +747,10 @@ export const StudentDashboard = () => {
                     backgroundColor: sub.color,
                     flexShrink: 0
                   }} />
-                  <span style={{ fontSize: '12px', color: '#94A3B8', flex: 1 }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flex: 1 }}>
                     {lang === 'ar' ? sub.nameAr : sub.nameEn}
                   </span>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#FFFFFF' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
                     {sub.pct}%
                   </span>
                 </div>
@@ -761,14 +769,14 @@ export const StudentDashboard = () => {
                 width: '46px',
                 height: '46px',
                 borderRadius: '12px',
-                background: 'rgba(56, 189, 248, 0.12)',
-                color: '#38BDF8',
+                background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)',
+                color: themeAccent,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0
               }}>
-                <Play size={22} fill="#38BDF8" />
+                <Play size={22} fill={themeAccent} />
               </div>
 
               <div>
@@ -778,13 +786,13 @@ export const StudentDashboard = () => {
                     fontWeight: '700',
                     padding: '2px 8px',
                     borderRadius: '6px',
-                    background: 'rgba(56, 189, 248, 0.12)',
-                    color: '#38BDF8',
-                    border: '1px solid rgba(56, 189, 248, 0.25)'
+                    background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)',
+                    color: themeAccent,
+                    border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)'}`
                   }}>
                     {lang === 'ar' ? 'آخر درس توقفت عنده (US-08)' : 'Last Studied Lesson'}
                   </span>
-                  <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                     {lang === 'ar' ? lastLesson.subjectAr : lastLesson.subjectEn} • {lang === 'ar' ? lastLesson.teacherAr : lastLesson.teacherEn}
                   </span>
                 </div>
@@ -792,14 +800,14 @@ export const StudentDashboard = () => {
                 <h2 style={{
                   fontSize: '17px',
                   fontWeight: '700',
-                  color: '#FFFFFF',
+                  color: 'var(--text-primary)',
                   margin: '0 0 6px 0',
                   fontFamily: 'var(--font-heading), var(--font-arabic)'
                 }}>
                   {lang === 'ar' ? lastLesson.titleAr : lastLesson.titleEn}
                 </h2>
 
-                <div style={{ fontSize: '12px', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <span>
                     {lang === 'ar'
                       ? `توقفت عند الدقيقة ${lastLesson.pausedMinute} من ${lastLesson.totalDuration} (متبقي ${lastLesson.remainingMinutes} دقيقة)`
@@ -807,7 +815,7 @@ export const StudentDashboard = () => {
                     }
                   </span>
                   <span>•</span>
-                  <span style={{ color: '#38BDF8' }}>
+                  <span style={{ color: themeAccent, fontWeight: '600' }}>
                     {lang === 'ar' ? `الدرس القادم: ${lastLesson.nextLessonTitleAr}` : `Next: ${lastLesson.nextLessonTitleEn}`}
                   </span>
                 </div>
@@ -817,12 +825,12 @@ export const StudentDashboard = () => {
             {/* Resume Action & Progress */}
             <div className="executive-hero-lesson-actions">
               <div style={{ minWidth: '140px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94A3B8', marginBottom: '5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   <span>{lastLesson.progressPercent}% {lang === 'ar' ? 'مكتمل' : 'completed'}</span>
                   <span>{lang === 'ar' ? `الدرس ${lastLesson.lessonNumber} من ${lastLesson.totalLessons}` : `Lesson ${lastLesson.lessonNumber}/${lastLesson.totalLessons}`}</span>
                 </div>
-                <div style={{ height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '99px', overflow: 'hidden' }}>
-                  <div style={{ width: `${lastLesson.progressPercent}%`, height: '100%', background: '#38BDF8', borderRadius: '99px' }} />
+                <div style={{ height: '6px', background: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)', borderRadius: '99px', overflow: 'hidden' }}>
+                  <div style={{ width: `${lastLesson.progressPercent}%`, height: '100%', background: themeAccent, borderRadius: '99px' }} />
                 </div>
               </div>
 
@@ -834,8 +842,8 @@ export const StudentDashboard = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
-                  background: '#38BDF8',
-                  color: '#0A0F1D',
+                  background: themeAccent,
+                  color: '#FFFFFF',
                   border: 'none',
                   borderRadius: '10px',
                   padding: '10px 20px',
@@ -843,13 +851,13 @@ export const StudentDashboard = () => {
                   fontWeight: '700',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  boxShadow: '0 4px 16px rgba(56, 189, 248, 0.35)',
+                  boxShadow: `0 4px 16px ${isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.35)'}`,
                   minHeight: '44px'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
               >
-                <Play size={16} fill="#0A0F1D" />
+                <Play size={16} fill="#FFFFFF" />
                 <span>{lang === 'ar' ? `أكمل من حيث توقفت (د ${lastLesson.pausedMinute})` : 'Resume Where You Left Off'}</span>
                 {isRtl ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}
               </button>
@@ -874,7 +882,7 @@ export const StudentDashboard = () => {
                 <h2 style={{
                   fontSize: '17px',
                   fontWeight: '700',
-                  color: '#FFFFFF',
+                  color: 'var(--text-primary)',
                   margin: 0,
                   fontFamily: 'var(--font-heading), var(--font-arabic)'
                 }}>
@@ -884,14 +892,14 @@ export const StudentDashboard = () => {
                   fontSize: '11px',
                   padding: '2px 8px',
                   borderRadius: '6px',
-                  background: 'rgba(56, 189, 248, 0.12)',
-                  color: '#38BDF8',
+                  background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)',
+                  color: themeAccent,
                   fontWeight: '700'
                 }}>
                   {completedTasksCount} / {tasks.length} {lang === 'ar' ? 'مكتملة' : 'completed'}
                 </span>
               </div>
-              <p style={{ fontSize: '12.5px', color: '#94A3B8', margin: '3px 0 0' }}>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '3px 0 0' }}>
                 {lang === 'ar'
                   ? `الحصص والاختبارات والواجبات المطلوبة منك اليوم لإنجاز خطتك الدراسية.`
                   : 'Daily lessons, quizzes, and homework scheduled for today.'
@@ -911,9 +919,9 @@ export const StudentDashboard = () => {
                   key={pill.id}
                   onClick={() => setTaskCategoryFilter(pill.id)}
                   style={{
-                    background: taskCategoryFilter === pill.id ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                    color: taskCategoryFilter === pill.id ? '#38BDF8' : '#94A3B8',
-                    border: `1px solid ${taskCategoryFilter === pill.id ? 'rgba(56, 189, 248, 0.35)' : 'rgba(255, 255, 255, 0.08)'}`,
+                    background: taskCategoryFilter === pill.id ? (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.12)') : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(15, 23, 42, 0.04)'),
+                    color: taskCategoryFilter === pill.id ? themeAccent : 'var(--text-secondary)',
+                    border: `1px solid ${taskCategoryFilter === pill.id ? (isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.35)') : (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)')}`,
                     borderRadius: '8px',
                     padding: '5px 12px',
                     fontSize: '12px',
@@ -943,13 +951,13 @@ export const StudentDashboard = () => {
                       padding: 0,
                       display: 'flex',
                       alignItems: 'center',
-                      color: task.isCompleted ? '#10B981' : '#64748B',
+                      color: task.isCompleted ? '#10B981' : 'var(--text-muted)',
                       transition: 'transform 0.15s ease'
                     }}
                     title={lang === 'ar' ? 'تحديد المهمة كمكتملة' : 'Toggle Completed'}
                   >
                     {task.isCompleted ? (
-                      <CheckCircle2 size={22} fill="#10B981" color="#0E1726" />
+                      <CheckCircle2 size={22} fill="#10B981" color={isDark ? '#0E1726' : '#FFFFFF'} />
                     ) : (
                       <Circle size={22} />
                     )}
@@ -959,19 +967,19 @@ export const StudentDashboard = () => {
                     <div style={{
                       fontSize: '14px',
                       fontWeight: '600',
-                      color: task.isCompleted ? '#64748B' : '#FFFFFF',
+                      color: task.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)',
                       textDecoration: task.isCompleted ? 'line-through' : 'none'
                     }}>
                       {task.titleAr}
                     </div>
-                    <div style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '3px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ color: '#38BDF8', fontWeight: '600' }}>{task.subjectAr}</span>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '3px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ color: themeAccent, fontWeight: '600' }}>{task.subjectAr}</span>
                       <span>•</span>
                       <span>{task.duration}</span>
                       {task.deadline && (
                         <>
                           <span>•</span>
-                          <span style={{ color: task.priority === 'urgent' ? '#F59E0B' : '#94A3B8', fontWeight: task.priority === 'urgent' ? '700' : '400' }}>
+                          <span style={{ color: task.priority === 'urgent' ? '#F59E0B' : 'var(--text-secondary)', fontWeight: task.priority === 'urgent' ? '700' : '400' }}>
                             {task.deadline}
                           </span>
                         </>
@@ -1023,7 +1031,7 @@ export const StudentDashboard = () => {
                     <Calendar size={17} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#FFFFFF', margin: 0 }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
                       {lang === 'ar' ? 'الاختبارات القادمة (US-11)' : 'Upcoming Exams'}
                     </h3>
                   </div>
@@ -1034,10 +1042,10 @@ export const StudentDashboard = () => {
                 </span>
               </div>
 
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#FFFFFF', marginBottom: '4px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
                 {UPCOMING_EXAMS[0].titleAr}
               </div>
-              <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '14px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                 {lang === 'ar'
                   ? `الموعد: الأحد 06:00 م • المدة: ${UPCOMING_EXAMS[0].durationMinutes} دقيقة • ${UPCOMING_EXAMS[0].questionsCount} سؤال (${UPCOMING_EXAMS[0].maxScore} درجة)`
                   : `Sunday 06:00 PM • ${UPCOMING_EXAMS[0].durationMinutes} mins • ${UPCOMING_EXAMS[0].questionsCount} questions`
@@ -1057,7 +1065,7 @@ export const StudentDashboard = () => {
                 border: '1px solid rgba(245, 158, 11, 0.3)',
                 borderRadius: '8px',
                 padding: '9px 14px',
-                color: '#F59E0B',
+                color: '#D97706',
                 fontSize: '13px',
                 fontWeight: '700',
                 cursor: 'pointer',
@@ -1089,7 +1097,7 @@ export const StudentDashboard = () => {
                     <FileText size={17} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#FFFFFF', margin: 0 }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
                       {lang === 'ar' ? 'الواجبات المطلوبة (US-12)' : 'Upcoming Homework'}
                     </h3>
                   </div>
@@ -1100,10 +1108,10 @@ export const StudentDashboard = () => {
                 </span>
               </div>
 
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#FFFFFF', marginBottom: '4px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
                 {HOMEWORK_LIST[0].titleAr}
               </div>
-              <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '14px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                 {lang === 'ar'
                   ? `الموعد النهائي: الليلة قبل 11:59 م • ${HOMEWORK_LIST[0].questionsCount} أسئلة (${HOMEWORK_LIST[0].maxScore} درجة) • مادة ${HOMEWORK_LIST[0].subjectAr}`
                   : `Deadline: Tonight 11:59 PM • ${HOMEWORK_LIST[0].questionsCount} questions (${HOMEWORK_LIST[0].maxScore} pts)`
@@ -1123,7 +1131,7 @@ export const StudentDashboard = () => {
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 borderRadius: '8px',
                 padding: '9px 14px',
-                color: '#EF4444',
+                color: '#DC2626',
                 fontSize: '13px',
                 fontWeight: '700',
                 cursor: 'pointer',
@@ -1142,7 +1150,9 @@ export const StudentDashboard = () => {
             6. US-13 — معرفة الخطوة التالية (AI Next-Step Guidance)
             ══════════════════════════════════════════════════════════════════════ */}
         <div className="executive-card" style={{
-          background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.08) 0%, rgba(14, 23, 38, 0.8) 100%)',
+          background: isDark
+            ? 'linear-gradient(90deg, rgba(168, 85, 247, 0.08) 0%, rgba(14, 23, 38, 0.8) 100%)'
+            : 'linear-gradient(90deg, rgba(139, 92, 246, 0.08) 0%, rgba(255, 255, 255, 0.95) 100%)',
           border: '1px solid rgba(168, 85, 247, 0.25)',
           display: 'flex',
           alignItems: 'center',
@@ -1156,7 +1166,7 @@ export const StudentDashboard = () => {
               height: '42px',
               borderRadius: '10px',
               background: 'rgba(168, 85, 247, 0.15)',
-              color: '#C084FC',
+              color: '#8B5CF6',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1167,15 +1177,15 @@ export const StudentDashboard = () => {
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: '#C084FC', background: 'rgba(168, 85, 247, 0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#8B5CF6', background: 'rgba(139, 92, 246, 0.12)', padding: '2px 8px', borderRadius: '6px' }}>
                   {lang === 'ar' ? 'توصية المستشار الذكي (US-13)' : 'AI Smart Next Step'}
                 </span>
-                <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   {lang === 'ar' ? 'إرشاد موجه يزيل أي حيرة' : 'Zero hesitation workflow'}
                 </span>
               </div>
 
-              <div style={{ fontSize: '13.5px', color: '#E2E8F0', lineHeight: 1.45 }}>
+              <div style={{ fontSize: '13.5px', color: 'var(--text-primary)', lineHeight: 1.45 }}>
                 {lang === 'ar'
                   ? 'خطوتك التالية الموصى بها الآن: تسليم واجب الأحياء المطلوب قبل إغلاقه الليلة، ثم استكمال آخر 14 دقيقة من درس "البناء الضوئي" لضمان الاستعداد التام لاختبار الأحد والحفاظ على ترتيبك #2.'
                   : 'Your recommended next step: Submit Biology homework before midnight, then finish the remaining 14m of Photosynthesis lesson to stay ready for Sunday’s exam and retain your #2 rank.'
@@ -1190,8 +1200,8 @@ export const StudentDashboard = () => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              background: '#C084FC',
-              color: '#0A0F1D',
+              background: '#8B5CF6',
+              color: '#FFFFFF',
               border: 'none',
               borderRadius: '10px',
               padding: '10px 18px',
@@ -1199,7 +1209,7 @@ export const StudentDashboard = () => {
               fontWeight: '700',
               cursor: 'pointer',
               minHeight: '44px',
-              boxShadow: '0 4px 16px rgba(192, 132, 252, 0.35)',
+              boxShadow: '0 4px 16px rgba(139, 92, 246, 0.35)',
               transition: 'all 0.15s ease'
             }}
             onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
