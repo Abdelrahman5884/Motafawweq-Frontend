@@ -10,18 +10,27 @@ import {
   Headphones, Video, ChevronDown, X, Maximize2, Minimize2,
   Send, Trash2, Check, Award, Star, Map, ChevronRight,
   Zap, Target, Brain, Lock, Unlock, ExternalLink, CheckSquare, Square,
-  PanelRightClose, PanelRightOpen, AlertCircle, ChevronLeft
+  AlertCircle, ChevronLeft, Calendar, Folder, AlignLeft, Search
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════
    World-Class Student Lesson Study Workspace
-   Matching Reference Layout with:
-   - Clean 2-column layout (content + collapsible playlist)
-   - Collapsible & expandable course content playlist
-   - In-header action buttons with smooth confirmation dialogs
-   - NotebookLM Interactive Knowledge Map with Fullscreen
-   - Adaptive video / audio single player with real fullscreen
-   - Fully responsive & adaptive for mobile phones and tablets
+   Matching Reference Layout & User Design Specs:
+   1. 5 Specific Header Tabs (Image 1):
+      - ملاحظات الدرس (Notes)
+      - نص الحصة (Interactive Synced Transcript)
+      - خريطة الحصة (NotebookLM Concept Map)
+      - الملفات (Files & PDFs)
+      - الأسئلة (Q&A & Practice)
+   2. "درس اليوم" Card (Image 2):
+      - Calendar Icon + "درس اليوم" + "أكمل تقدمك في هذا الدرس"
+      - Large Donut Progress Ring with 78% / dynamic percentage
+      - "تم إكمال الدرس" + "الوقت المتبقي: 10:25 دقيقة"
+      - Interactive Checklist (مشاهدة الفيديو, مراجعة الملاحظات, حل الأسئلة, إكمال مصادر إضافية)
+      - Primary CTA Button: "متابعة الدرس ▶"
+   3. Course Content Playlist (Permanently open, no collapse button)
+   4. Interactive Confirmation Dialogs with smooth spring pop animations
+   5. 100% Mobile Responsive & Adaptive
    ═══════════════════════════════════════════════════════════ */
 
 export const StudentLessonView = () => {
@@ -148,8 +157,7 @@ export const StudentLessonView = () => {
 
   const lesson = lessonsDatabase[activeLessonId] || lessonsDatabase.l3;
 
-  // ─── Collapsible Course Content Sidebar ───────────────────
-  const [isPlaylistCollapsed, setIsPlaylistCollapsed] = useState(false);
+  // Mobile drawer state
   const [mobilePlaylistOpen, setMobilePlaylistOpen] = useState(false);
 
   // ─── Media State ──────────────────────────────────────────
@@ -171,6 +179,21 @@ export const StudentLessonView = () => {
   );
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
 
+  // ─── Checklist State ("درس اليوم" Card - Image 2) ─────────
+  const [lessonChecklist, setLessonChecklist] = useState({
+    watchVideo: true,
+    reviewNotes: true,
+    solveQuestions: false,
+    completeMaterials: false
+  });
+
+  const toggleChecklistItem = (key) => {
+    setLessonChecklist(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
   // ─── Confirmation Modal State ─────────────────────────────
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
@@ -179,18 +202,21 @@ export const StudentLessonView = () => {
     message: '',
     confirmText: '',
     cancelText: '',
-    confirmColor: 'primary',
+    confirmColor: 'emerald',
     payload: null
   });
 
-  // Active Tab
+  // ─── 5 Tabs State (Matching Image 1) ──────────────────────
+  // 'notes' | 'transcript' | 'roadmap' | 'materials' | 'questions'
   const [activeTab, setActiveTab] = useState('notes');
 
   // NotebookLM Knowledge Map State
-  const [showKM, setShowKM] = useState(false);
   const [isKMFS, setIsKMFS] = useState(false);
   const [expandedConcept, setExpandedConcept] = useState(2);
   const [masteredConcepts, setMasteredConcepts] = useState({ 1: true });
+
+  // Transcript Search State
+  const [transcriptSearch, setTranscriptSearch] = useState('');
 
   // Notes State
   const [notes, setNotes] = useState([
@@ -235,6 +261,52 @@ export const StudentLessonView = () => {
     { id: 'a3', titleAr: 'بنك أسئلة الوزارة وتدريبات البابل شيت مع نماذج الإجابة', size: '3.4 MB', pages: '12 صفحة', type: 'PDF' },
   ];
 
+  // Transcript Database (نص الحصة الذكي)
+  const transcriptSegments = [
+    {
+      id: 't1',
+      startSec: 0,
+      endSec: 240,
+      speaker: 'د. سلمى السيد',
+      text: 'أهلاً بكم يا شباب في المحاضرة الثالثة من كورس الأحياء للثانوية العامة. اليوم هنركز على موضوع في غاية الأهمية والخطورة وهو آلية البناء الضوئي وحركية الطاقة. قبل ما ندخل في المعادلات، لازم نفهم البنية التشريحية للبلاستيدة الخضراء وأغشية الثيلاكويد.'
+    },
+    {
+      id: 't2',
+      startSec: 240,
+      endSec: 480,
+      speaker: 'د. سلمى السيد',
+      text: 'الكلوروفيل مش مجرد صبغة خضراء، دي شبكة معقدة لاصطياد الفوتونات الضوئية. ذرة المغنيسيوم الموجودة في مركز الجزيء بتمتص طاقة الفوتون، وده بيؤدي إلى إثارة إلكتروناتها وانتقالها لمستوى طاقة أعلى.'
+    },
+    {
+      id: 't3',
+      startSec: 480,
+      endSec: 850,
+      speaker: 'د. سلمى السيد',
+      text: 'هنا بنوصل لتجربة العالم فان نيل الحاسمة. لسنوات طويلة كان الاعتقاد السائد أن الأكسجين المتصاعد جاي من ثاني أكسيد الكربون! لكن فان نيل استخدم بكتيريا الكبريت الخضراء والأرجوانية، وأثبت أن الماء هو المصدر الحقيقي للأكسجين عبر نظائر الأكسجين المشعة O18.'
+    },
+    {
+      id: 't4',
+      startSec: 850,
+      endSec: 1300,
+      speaker: 'د. سلمى السيد',
+      text: 'عند انشطار الماء ضوئياً، بنحصل على بروتونات الهيدروجين والإلكترونات النشطة، وبيتم تحميلها على مرافق الإنزيم NADP+ ليتحول إلى NADPH2. بالتوازي مع ده، بيحدث انحدار إلكتروني يولد طاقة كافية لإنتاج جزيئات ATP عبر الفسفرة الضوئية.'
+    },
+    {
+      id: 't5',
+      startSec: 1300,
+      endSec: 1800,
+      speaker: 'د. سلمى السيد',
+      text: 'في المرحلة الثانية، بننتقل من الجرانا إلى الستروما، وهنا بتبدأ التفاعلات اللاضوئية أو دورة كالفن. د. ملفن كالفن عرض طحلب الكلوريلا للضوء لثانيتين فقط، واكتشف أن أول مركب كيميائي ثابت هو PGAL ثلاثي الكربون.'
+    },
+    {
+      id: 't6',
+      startSec: 1800,
+      endSec: 2100,
+      speaker: 'د. سلمى السيد',
+      text: 'من مركب PGAL، تستطيع الخلية النباتية بناء الجلوكوز، والنشا، والدهون، والبروتينات. هذا هو الركيزة الأساسية للحياة على كوكب الأرض، وأي خلل في هذه المسارات يؤثر مباشرة على تدفق الطاقة الحيوية.'
+    }
+  ];
+
   // ─── Playlist Array ───────────────────────────────────────
   const playlist = Object.keys(lessonsDatabase).map(key => ({
     id: key,
@@ -247,6 +319,7 @@ export const StudentLessonView = () => {
   const completedCount = playlist.filter(l => l.completed).length;
   const currentCh = lesson.chapters.find(c => currentTime >= c.startSec && currentTime < c.endSec) || lesson.chapters[0];
   const progress = Math.min(100, Math.max(0, ((currentTime / lesson.durationSec) * 100))).toFixed(1);
+  const remainingSec = Math.max(0, lesson.durationSec - currentTime);
 
   // ─── Lesson Switching ─────────────────────────────────────
   const switchLesson = (lid) => {
@@ -258,109 +331,68 @@ export const StudentLessonView = () => {
     setMobilePlaylistOpen(false);
   };
 
-  // ─── Playback Tick ────────────────────────────────────────
+  // ─── Video Time Simulation ────────────────────────────────
   useEffect(() => {
-    if (!isPlaying) return;
-    const iv = setInterval(() => {
-      setCurrentTime(p => {
-        if (p >= lesson.durationSec) {
-          setIsPlaying(false);
-          return lesson.durationSec;
-        }
-        const n = p + 1;
-        localStorage.setItem(`mtfq_pos_${activeLessonId}`, n.toString());
-        return n;
-      });
-    }, 1000 / speed);
-    return () => clearInterval(iv);
+    let interval = null;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setCurrentTime(prev => {
+          if (prev >= lesson.durationSec) {
+            setIsPlaying(false);
+            if (!lessonStatuses[activeLessonId]) {
+              handleMarkComplete(true);
+            }
+            return lesson.durationSec;
+          }
+          const next = prev + 1;
+          localStorage.setItem(`mtfq_pos_${activeLessonId}`, next.toString());
+          return next;
+        });
+      }, 1000 / speed);
+    }
+    return () => clearInterval(interval);
   }, [isPlaying, speed, lesson.durationSec, activeLessonId]);
 
-  // ─── Keyboard Shortcuts ───────────────────────────────────
-  useEffect(() => {
-    const handler = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setIsPlaying(p => !p);
-      } else if (e.code === 'ArrowRight') {
-        e.preventDefault();
-        seekBy(isRtl ? -10 : 10);
-      } else if (e.code === 'ArrowLeft') {
-        e.preventDefault();
-        seekBy(isRtl ? 10 : -10);
-      } else if (e.code === 'KeyM') {
-        setIsMuted(m => !m);
-      } else if (e.code === 'Escape') {
-        setShowKM(false);
-        setIsKMFS(false);
-        setConfirmDialog(p => ({ ...p, open: false }));
-        setShowCelebrationModal(false);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isRtl]);
-
-  // ─── Fullscreen Event Listener ────────────────────────────
-  useEffect(() => {
-    const handler = () => {
-      if (!document.fullscreenElement) {
-        setIsPlayerFS(false);
-        setIsKMFS(false);
-      }
-    };
-    document.addEventListener('fullscreenchange', handler);
-    return () => document.removeEventListener('fullscreenchange', handler);
-  }, []);
-
-  // ─── Playback Actions ─────────────────────────────────────
-  const seekBy = (s) => {
-    setCurrentTime(p => {
-      const n = Math.max(0, Math.min(lesson.durationSec, p + s));
-      localStorage.setItem(`mtfq_pos_${activeLessonId}`, n.toString());
-      return n;
-    });
+  const fmt = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const seekTo = (s) => {
-    setCurrentTime(s);
-    localStorage.setItem(`mtfq_pos_${activeLessonId}`, s.toString());
+  const seekTo = (sec) => {
+    const target = Math.max(0, Math.min(lesson.durationSec, sec));
+    setCurrentTime(target);
+    localStorage.setItem(`mtfq_pos_${activeLessonId}`, target.toString());
   };
 
-  const fmt = (s) => {
-    const m = Math.floor(s / 60).toString().padStart(2, '0');
-    const sec = (s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
-  };
+  const seekBy = (sec) => seekTo(currentTime + sec);
 
   // ─── Confirmation Handlers ────────────────────────────────
   const handleCompleteButtonClick = () => {
-    if (isCompleted) {
-      // Prompt for uncomplete confirmation
-      setConfirmDialog({
-        open: true,
-        type: 'uncomplete',
-        title: lang === 'ar' ? 'إلغاء تحديد إتمام الحصة' : 'Reset Completion',
-        message: lang === 'ar'
-          ? `هل ترغب في إعادة تعيين حالة درس "${lesson.titleAr}" إلى غير مكتمل لمتابعة المذاكرة من جديد؟`
-          : 'Do you want to reset this lesson status to uncompleted?',
-        confirmText: lang === 'ar' ? 'نعم، إعادة التعيين' : 'Yes, Reset',
-        cancelText: lang === 'ar' ? 'تراجع' : 'Cancel',
-        confirmColor: 'amber',
-        payload: null
-      });
-    } else {
-      // Prompt for completion confirmation with enthusiasm
+    if (!isCompleted) {
       setConfirmDialog({
         open: true,
         type: 'complete',
-        title: lang === 'ar' ? 'تأكيد إتمام الحصة التعليمية' : 'Complete Lesson',
+        title: lang === 'ar' ? 'تأكيد إكمال الحصة' : 'Confirm Lesson Completion',
         message: lang === 'ar'
-          ? `هل أتممت استيعاب ومذاكرة "${lesson.titleAr}"؟ سيتم تسجيل إنجازك ومنحك +50 نقطة خبرة XP!`
-          : 'Confirm that you finished studying this lesson? You will earn +50 XP!',
-        confirmText: lang === 'ar' ? 'نعم، أتممت الحصة والحمد لله 🎉' : 'Yes, Complete! 🎉',
-        cancelText: lang === 'ar' ? 'متابعة المذاكرة' : 'Keep Studying',
+          ? 'هل أنت متأكد من تحديد هذه الحصة كمكتملة؟ سيتم منحك +50 XP وتحديث نسبة إنجازك في المقرر الدراسي.'
+          : 'Are you sure you want to mark this lesson as completed? You will earn +50 XP.',
+        confirmText: lang === 'ar' ? 'نعم، أتممت الحصة' : 'Yes, Complete',
+        cancelText: lang === 'ar' ? 'تراجع' : 'Cancel',
         confirmColor: 'emerald',
+        payload: null
+      });
+    } else {
+      setConfirmDialog({
+        open: true,
+        type: 'uncomplete',
+        title: lang === 'ar' ? 'إلغاء إتمام الحصة' : 'Revert Completion',
+        message: lang === 'ar'
+          ? 'هل تريد إرجاع حالة الحصة إلى "قيد المذاكرة"؟ لن تفقد أي من ملاحظاتك أو إجاباتك.'
+          : 'Do you want to revert this lesson status to in-progress?',
+        confirmText: lang === 'ar' ? 'نعم، إلغاء الإتمام' : 'Yes, Revert',
+        cancelText: lang === 'ar' ? 'إلغاء' : 'Cancel',
+        confirmColor: 'amber',
         payload: null
       });
     }
@@ -372,10 +404,10 @@ export const StudentLessonView = () => {
       type: 'delete_note',
       title: lang === 'ar' ? 'تأكيد حذف الملاحظة' : 'Delete Note',
       message: lang === 'ar'
-        ? `هل أنت متأكد من رغبتك في حذف الملاحظة المسجلة عند التوقيت (${note.ts})؟ لا يمكن التراجع عن هذا الإجراء.`
-        : `Are you sure you want to delete note at (${note.ts})?`,
-      confirmText: lang === 'ar' ? 'تأكيد الحذف' : 'Delete',
-      cancelText: lang === 'ar' ? 'إلغاء' : 'Cancel',
+        ? `هل تريد بالتأكيد حذف الملاحظة المسجلة عند التوقيت (${note.ts})؟ لا يمكن استرجاعها بعد الحذف.`
+        : 'Are you sure you want to delete this note? This action cannot be undone.',
+      confirmText: lang === 'ar' ? 'حذف نهائياً' : 'Delete',
+      cancelText: lang === 'ar' ? 'تراجع' : 'Cancel',
       confirmColor: 'rose',
       payload: note.id
     });
@@ -389,8 +421,8 @@ export const StudentLessonView = () => {
       setConfirmDialog(p => ({ ...p, open: false }));
       try {
         confetti({
-          particleCount: 150,
-          spread: 90,
+          particleCount: 80,
+          spread: 70,
           origin: { y: 0.6 }
         });
       } catch (e) {}
@@ -465,12 +497,20 @@ export const StudentLessonView = () => {
     }
   };
 
-  // ─── Tab Configuration ────────────────────────────────────
+  // ─── 5 Tabs Configuration (Exact Match to User Image 1) ───
   const tabs = [
-    { id: 'notes', label: lang === 'ar' ? 'ملاحظات الدرس' : 'Lesson Notes', icon: Sparkles, badge: notes.length },
-    { id: 'questions', label: lang === 'ar' ? 'الأسئلة والأجوبة' : 'Q&A', icon: HelpCircle, badge: questions.length },
-    { id: 'materials', label: lang === 'ar' ? 'المصادر الإضافية' : 'Materials', icon: FileText, badge: attachments.length },
+    { id: 'notes', label: lang === 'ar' ? 'ملاحظات الدرس' : 'Lesson Notes', icon: FileText, badge: notes.length },
+    { id: 'transcript', label: lang === 'ar' ? 'نص الحصة' : 'Transcript', icon: AlignLeft },
+    { id: 'roadmap', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Map', icon: Map },
+    { id: 'materials', label: lang === 'ar' ? 'الملفات' : 'Files', icon: Folder, badge: attachments.length },
+    { id: 'questions', label: lang === 'ar' ? 'الأسئلة' : 'Questions', icon: HelpCircle, badge: questions.length },
   ];
+
+  // Donut progress calculation for Image 2 Card
+  const donutProgressVal = isCompleted ? 100 : Math.max(15, Math.round(progress));
+  const donutRadius = 36;
+  const donutCircumference = 2 * Math.PI * donutRadius;
+  const donutDashoffset = donutCircumference - (donutProgressVal / 100) * donutCircumference;
 
   return (
     <div className="lv">
@@ -482,7 +522,7 @@ export const StudentLessonView = () => {
         </div>
       )}
 
-      {/* ══════════ BREADCRUMB & CONTROLS BAR ══════════ */}
+      {/* ══════════ BREADCRUMB BAR ══════════ */}
       <div className="lv-top-bar">
         <nav className="lv-crumb" aria-label="Breadcrumb">
           <button className="lv-crumb-link" onClick={() => navigate('/student/courses')}>
@@ -495,24 +535,10 @@ export const StudentLessonView = () => {
           <ChevronRight size={13} className="lv-crumb-sep" />
           <span className="lv-crumb-current">{lesson.titleAr}</span>
         </nav>
-
-        {/* Collapsed Playlist Re-open Button */}
-        {isPlaylistCollapsed && (
-          <button
-            className="lv-playlist-expand-btn desktop-only"
-            onClick={() => setIsPlaylistCollapsed(false)}
-            title="إظهار محتوى الدورة"
-          >
-            <BookOpen size={15} />
-            <span>{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</span>
-            <span className="lv-playlist-expand-badge">{completedCount}/{playlist.length}</span>
-            <PanelRightOpen size={15} />
-          </button>
-        )}
       </div>
 
       {/* ══════════ MAIN 2-COLUMN LAYOUT ══════════ */}
-      <div className={`lv-layout ${isPlaylistCollapsed ? 'lv-layout--collapsed' : ''}`}>
+      <div className="lv-layout">
 
         {/* ─── MAIN COLUMN: Content Area ─── */}
         <main className="lv-content">
@@ -758,20 +784,21 @@ export const StudentLessonView = () => {
             </div>
           </div>
 
-          {/* ══ TABS NAVIGATION ══ */}
+          {/* ══ TABS NAVIGATION (Matching Image 1 Exactly) ══ */}
           <div className="lv-tabs">
             <div className="lv-tabs__header" role="tablist">
               {tabs.map(t => {
                 const Icon = t.icon;
+                const isActive = activeTab === t.id;
                 return (
                   <button
                     key={t.id}
                     role="tab"
-                    aria-selected={activeTab === t.id}
-                    className={`lv-tabs__btn ${activeTab === t.id ? 'active' : ''}`}
+                    aria-selected={isActive}
+                    className={`lv-tabs__btn ${isActive ? 'active' : ''}`}
                     onClick={() => setActiveTab(t.id)}
                   >
-                    <Icon size={15} />
+                    <Icon size={16} />
                     <span>{t.label}</span>
                     {t.badge > 0 && <span className="lv-tabs__badge">{t.badge}</span>}
                   </button>
@@ -780,12 +807,12 @@ export const StudentLessonView = () => {
             </div>
 
             <div className="lv-tabs__body">
-              {/* ── TAB 1: NOTES ── */}
+              {/* ── TAB 1: NOTES (ملاحظات الدرس) ── */}
               {activeTab === 'notes' && (
                 <div className="lv-notes">
                   <div className="lv-notes__head">
                     <div className="lv-notes__title-group">
-                      <h3 className="lv-notes__heading">{lang === 'ar' ? 'مفكرة الطالب' : 'Student Notebook'}</h3>
+                      <h3 className="lv-notes__heading">{lang === 'ar' ? 'مفكرة الطالب الذكية' : 'Student Notebook'}</h3>
                       <span className="lv-notes__saved">
                         <span className="lv-notes__saved-dot" />
                         {lang === 'ar' ? `تم الحفظ تلقائياً: ${fmt(currentTime)}` : `Auto-saved: ${fmt(currentTime)}`}
@@ -844,7 +871,217 @@ export const StudentLessonView = () => {
                 </div>
               )}
 
-              {/* ── TAB 2: QUESTIONS ── */}
+              {/* ── TAB 2: TRANSCRIPT (نص الحصة الذكي) ── */}
+              {activeTab === 'transcript' && (
+                <div className="lv-transcript">
+                  {/* Search bar inside transcript */}
+                  <div className="lv-transcript__search-bar">
+                    <Search size={15} />
+                    <input
+                      type="text"
+                      placeholder={lang === 'ar' ? 'ابحث في كلمات وشرح الحصة...' : 'Search in lecture transcript...'}
+                      value={transcriptSearch}
+                      onChange={e => setTranscriptSearch(e.target.value)}
+                      className="lv-transcript__search-input"
+                    />
+                    {transcriptSearch && (
+                      <button onClick={() => setTranscriptSearch('')} className="lv-transcript__search-clear">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Segments List */}
+                  <div className="lv-transcript__list">
+                    {transcriptSegments
+                      .filter(seg => !transcriptSearch || seg.text.toLowerCase().includes(transcriptSearch.toLowerCase()))
+                      .map(seg => {
+                        const isCurrent = currentTime >= seg.startSec && currentTime < seg.endSec;
+                        return (
+                          <div
+                            key={seg.id}
+                            className={`lv-transcript__item ${isCurrent ? 'active' : ''}`}
+                            onClick={() => seekTo(seg.startSec)}
+                          >
+                            <button className="lv-transcript__time-btn" title="تشغيل من هذه النقطة">
+                              <Play size={11} fill="currentColor" />
+                              <span>{fmt(seg.startSec)}</span>
+                            </button>
+                            <div className="lv-transcript__content">
+                              <div className="lv-transcript__speaker">{seg.speaker}</div>
+                              <p className="lv-transcript__p">{seg.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* ── TAB 3: ROADMAP (خريطة الحصة - NotebookLM Concept Map) ── */}
+              {activeTab === 'roadmap' && (
+                <div className="lv-roadmap-tab" ref={kmRef}>
+                  <div className="lv-km__header">
+                    <div className="lv-km__header-left">
+                      <div className="lv-km__header-icon"><Brain size={20} /></div>
+                      <div>
+                        <h2 className="lv-km__title">
+                          {lang === 'ar' ? 'خارطة المفاهيم التفاعلية (NotebookLM)' : 'Interactive Knowledge Roadmap'}
+                        </h2>
+                        <p className="lv-km__sub">
+                          {courseInfo.subjectAr} • {lesson.titleAr}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="lv-km__header-actions">
+                      <button className="lv-km__action" onClick={toggleKMFS} title="شاشة كاملة">
+                        {isKMFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Overall Lesson Progress */}
+                  <div className="lv-km__progress">
+                    <div className="lv-km__progress-bar">
+                      <div className="lv-km__progress-fill" style={{ width: `${progress}%` }} />
+                    </div>
+                    <span className="lv-km__progress-text">
+                      {progress}% {lang === 'ar' ? 'مكتمل من المعرفة التراكمية لهذه الحصة' : 'completed of roadmap'}
+                    </span>
+                  </div>
+
+                  {/* Central Node Badge */}
+                  <div className="lv-km__center-badge">
+                    <Sparkles size={14} />
+                    <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
+                  </div>
+
+                  {/* Concept Roadmap Cards */}
+                  <div className="lv-km__grid">
+                    {lesson.chapters.map((ch, i) => {
+                      const isDone = currentTime >= ch.endSec;
+                      const isCurrent = currentCh.id === ch.id;
+                      const isExpanded = expandedConcept === ch.id;
+                      const isMastered = !!masteredConcepts[ch.id];
+                      const chProgress = isCurrent
+                        ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
+                        : isDone ? 100 : 0;
+
+                      return (
+                        <div
+                          key={ch.id}
+                          className={`lv-concept ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`}
+                          style={{ animationDelay: `${i * 0.08}s` }}
+                          onClick={() => setExpandedConcept(isExpanded ? null : ch.id)}
+                        >
+                          <div className="lv-concept__status">
+                            {isDone ? (
+                              <CheckCircle2 size={18} />
+                            ) : isCurrent ? (
+                              <Play size={14} fill="currentColor" />
+                            ) : (
+                              <Lock size={14} />
+                            )}
+                          </div>
+
+                          <div className="lv-concept__body">
+                            <div className="lv-concept__head">
+                              <span className="lv-concept__num">{lang === 'ar' ? `المحطة ${ch.id}` : `Node ${ch.id}`}</span>
+                              <span className="lv-concept__time">{fmt(ch.startSec)} — {fmt(ch.endSec)}</span>
+                            </div>
+                            <h4 className="lv-concept__title">{ch.titleAr}</h4>
+
+                            <div className="lv-concept__bar">
+                              <div className="lv-concept__bar-fill" style={{ width: `${chProgress}%` }} />
+                            </div>
+
+                            {isExpanded && (
+                              <div className="lv-concept__details" onClick={e => e.stopPropagation()}>
+                                <p className="lv-concept__desc">{ch.descAr}</p>
+                                <div className="lv-concept__terms">
+                                  <span className="lv-concept__terms-label">
+                                    {lang === 'ar' ? 'المصطلحات المحورية:' : 'Key Terms:'}
+                                  </span>
+                                  {ch.keyTerms.map(t => (
+                                    <span key={t} className="lv-concept__term">{t}</span>
+                                  ))}
+                                </div>
+                                <div className="lv-concept__actions">
+                                  <button
+                                    className="lv-concept__jump"
+                                    onClick={() => {
+                                      seekTo(ch.startSec);
+                                      setIsPlaying(true);
+                                    }}
+                                  >
+                                    <Play size={12} fill="currentColor" />
+                                    <span>{lang === 'ar' ? `انتقل لهذا الجزء في الحصة (${fmt(ch.startSec)})` : `Jump to ${fmt(ch.startSec)}`}</span>
+                                  </button>
+
+                                  <button
+                                    className={`lv-concept__mastery ${isMastered ? 'mastered' : ''}`}
+                                    onClick={() => setMasteredConcepts(p => ({ ...p, [ch.id]: !p[ch.id] }))}
+                                  >
+                                    {isMastered ? <CheckSquare size={14} /> : <Square size={14} />}
+                                    <span>{isMastered ? (lang === 'ar' ? 'تم استيعاب المفهوم' : 'Mastered') : (lang === 'ar' ? 'تأكيد الاستيعاب' : 'Mark Mastered')}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <ChevronDown size={15} className={`lv-concept__chevron ${isExpanded ? 'open' : ''}`} />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Learning Outcomes Checklist */}
+                  <div className="lv-km__outcomes">
+                    <h3 className="lv-km__outcomes-title">
+                      <Target size={16} />
+                      <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
+                    </h3>
+                    {[
+                      'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
+                      'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
+                      'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
+                    ].map((outcome, i) => (
+                      <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
+                        <Check size={14} className="lv-km__outcome-icon" />
+                        <span>{outcome}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── TAB 4: MATERIALS (الملفات) ── */}
+              {activeTab === 'materials' && (
+                <div className="lv-materials">
+                  {attachments.map((a, i) => (
+                    <div key={a.id} className="lv-att" style={{ animationDelay: `${i * 0.06}s` }}>
+                      <div className="lv-att__icon">
+                        <FileText size={22} />
+                      </div>
+                      <div className="lv-att__info">
+                        <div className="lv-att__name">{a.titleAr}</div>
+                        <div className="lv-att__meta">{a.size} • {a.pages} • ملف {a.type}</div>
+                      </div>
+                      <button
+                        className="lv-att__dl"
+                        onClick={() => handleDL(a)}
+                        disabled={dlId === a.id}
+                      >
+                        <Download size={14} />
+                        <span>{dlId === a.id ? (lang === 'ar' ? 'جاري التحميل...' : 'Downloading...') : (lang === 'ar' ? 'تحميل' : 'Download')}</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── TAB 5: QUESTIONS (الأسئلة) ── */}
               {activeTab === 'questions' && (
                 <div className="lv-questions">
                   {questions.map((q, i) => (
@@ -887,68 +1124,153 @@ export const StudentLessonView = () => {
                   ))}
                 </div>
               )}
-
-              {/* ── TAB 3: MATERIALS ── */}
-              {activeTab === 'materials' && (
-                <div className="lv-materials">
-                  {attachments.map((a, i) => (
-                    <div key={a.id} className="lv-att" style={{ animationDelay: `${i * 0.06}s` }}>
-                      <div className="lv-att__icon">
-                        <FileText size={22} />
-                      </div>
-                      <div className="lv-att__info">
-                        <div className="lv-att__name">{a.titleAr}</div>
-                        <div className="lv-att__meta">{a.size} • {a.pages} • ملف {a.type}</div>
-                      </div>
-                      <button
-                        className="lv-att__dl"
-                        onClick={() => handleDL(a)}
-                        disabled={dlId === a.id}
-                      >
-                        <Download size={14} />
-                        <span>{dlId === a.id ? (lang === 'ar' ? 'جاري التحميل...' : 'Downloading...') : (lang === 'ar' ? 'تحميل' : 'Download')}</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </main>
 
-        {/* ─── RIGHT COLUMN: Course Playlist Sidebar (Collapsible) ─── */}
-        {!isPlaylistCollapsed && (
-          <aside className="lv-sidebar">
-            {/* Header */}
-            <div className="lv-sidebar__head">
-              <div>
-                <h3 className="lv-sidebar__title">{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</h3>
-                <span className="lv-sidebar__progress-text">
-                  <span className="lv-sidebar__pct">{Math.round((completedCount / playlist.length) * 100)}%</span>
-                  {' '}
-                  {completedCount} {lang === 'ar' ? `من أصل ${playlist.length} درساً مكتمل` : `of ${playlist.length} done`}
+        {/* ─── RIGHT COLUMN: Course Playlist Sidebar ─── */}
+        <aside className="lv-sidebar">
+
+          {/* ══════════ "درس اليوم" CARD (Exact Match to User Image 2) ══════════ */}
+          <div className="lv-today-card">
+            {/* Header: Calendar Icon + Title + Subtitle */}
+            <div className="lv-today-card__head">
+              <div className="lv-today-card__title-row">
+                <h3 className="lv-today-card__title">
+                  {lang === 'ar' ? 'درس اليوم' : 'Today’s Lesson'}
+                </h3>
+                <div className="lv-today-card__icon-wrap">
+                  <Calendar size={18} />
+                </div>
+              </div>
+              <p className="lv-today-card__subtitle">
+                {lang === 'ar' ? 'أكمل تقدمك في هذا الدرس' : 'Continue your progress in this lesson'}
+              </p>
+            </div>
+
+            {/* Circular Progress Donut Section */}
+            <div className="lv-today-card__gauge-row">
+              {/* Radial Donut SVG */}
+              <div className="lv-today-card__circle-wrap">
+                <svg width="84" height="84" viewBox="0 0 84 84">
+                  {/* Background Track */}
+                  <circle
+                    cx="42"
+                    cy="42"
+                    r={donutRadius}
+                    fill="transparent"
+                    stroke="var(--border-subtle)"
+                    strokeWidth="7"
+                  />
+                  {/* Green Progress Stroke */}
+                  <circle
+                    cx="42"
+                    cy="42"
+                    r={donutRadius}
+                    fill="transparent"
+                    stroke="#10B981"
+                    strokeWidth="7"
+                    strokeDasharray={donutCircumference}
+                    strokeDashoffset={donutDashoffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 42 42)"
+                    style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+                  />
+                </svg>
+                <div className="lv-today-card__circle-text">
+                  <span>{donutProgressVal}%</span>
+                </div>
+              </div>
+
+              {/* Progress Text Info */}
+              <div className="lv-today-card__gauge-info">
+                <h4 className="lv-today-card__status-title">
+                  {isCompleted
+                    ? (lang === 'ar' ? 'تم إكمال الدرس' : 'Lesson Completed')
+                    : (lang === 'ar' ? 'تم إكمال الدرس' : 'Lesson Progress')}
+                </h4>
+                <p className="lv-today-card__remaining-time">
+                  {lang === 'ar'
+                    ? `الوقت المتبقي: ${fmt(remainingSec)} دقيقة`
+                    : `Time Remaining: ${fmt(remainingSec)} min`}
+                </p>
+              </div>
+            </div>
+
+            {/* Interactive Checklist Box */}
+            <div className="lv-today-card__checklist">
+              {/* Item 1: مشاهدة الفيديو */}
+              <div
+                className="lv-today-card__check-item"
+                onClick={() => toggleChecklistItem('watchVideo')}
+              >
+                <span className="lv-today-card__check-label">
+                  {lang === 'ar' ? 'مشاهدة الفيديو' : 'Watch Video'}
+                </span>
+                <span className={`lv-today-card__check-icon ${lessonChecklist.watchVideo ? 'checked' : ''}`}>
+                  {lessonChecklist.watchVideo ? <CheckCircle2 size={17} /> : <Circle size={17} />}
                 </span>
               </div>
 
-              {/* Collapse Button */}
-              <button
-                className="lv-sidebar__collapse-btn desktop-only"
-                onClick={() => setIsPlaylistCollapsed(true)}
-                title={lang === 'ar' ? 'طي قائمة الحصص' : 'Collapse Playlist'}
-              >
-                <PanelRightClose size={16} />
-              </button>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="lv-sidebar__bar">
+              {/* Item 2: مراجعة الملاحظات */}
               <div
-                className="lv-sidebar__bar-fill"
-                style={{ width: `${(completedCount / playlist.length) * 100}%` }}
-              />
+                className="lv-today-card__check-item"
+                onClick={() => toggleChecklistItem('reviewNotes')}
+              >
+                <span className="lv-today-card__check-label">
+                  {lang === 'ar' ? 'مراجعة الملاحظات' : 'Review Notes'}
+                </span>
+                <span className={`lv-today-card__check-icon ${lessonChecklist.reviewNotes ? 'checked' : ''}`}>
+                  {lessonChecklist.reviewNotes ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+                </span>
+              </div>
+
+              {/* Item 3: حل الأسئلة */}
+              <div
+                className="lv-today-card__check-item"
+                onClick={() => toggleChecklistItem('solveQuestions')}
+              >
+                <span className="lv-today-card__check-label">
+                  {lang === 'ar' ? 'حل الأسئلة' : 'Solve Questions'}
+                </span>
+                <span className={`lv-today-card__check-icon ${lessonChecklist.solveQuestions ? 'checked' : ''}`}>
+                  {lessonChecklist.solveQuestions ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+                </span>
+              </div>
+
+              {/* Item 4: إكمال مصادر إضافية */}
+              <div
+                className="lv-today-card__check-item"
+                onClick={() => toggleChecklistItem('completeMaterials')}
+              >
+                <span className="lv-today-card__check-label">
+                  {lang === 'ar' ? 'إكمال مصادر إضافية' : 'Supplementary Materials'}
+                </span>
+                <span className={`lv-today-card__check-icon ${lessonChecklist.completeMaterials ? 'checked' : ''}`}>
+                  {lessonChecklist.completeMaterials ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+                </span>
+              </div>
             </div>
 
-            {/* Playlist Items */}
+            {/* Prominent CTA Button: متابعة الدرس ▶ */}
+            <button
+              className="lv-today-card__btn"
+              onClick={() => setIsPlaying(!isPlaying)}
+            >
+              <span>{isPlaying ? (lang === 'ar' ? 'إيقاف مؤقت' : 'Pause') : (lang === 'ar' ? 'متابعة الدرس' : 'Resume Lesson')}</span>
+              {isPlaying ? <Pause size={17} /> : <Play size={17} fill="currentColor" />}
+            </button>
+          </div>
+
+          {/* ══════════ COURSE PLAYLIST ITEMS ══════════ */}
+          <div className="lv-sidebar__playlist-box">
+            <div className="lv-sidebar__head">
+              <h3 className="lv-sidebar__title">{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</h3>
+              <span className="lv-sidebar__progress-text">
+                {completedCount} {lang === 'ar' ? `من أصل ${playlist.length} درساً مكتمل` : `of ${playlist.length} done`}
+              </span>
+            </div>
+
             <div className="lv-playlist">
               {playlist.map((item, i) => (
                 <div
@@ -977,14 +1299,8 @@ export const StudentLessonView = () => {
                 </div>
               ))}
             </div>
-
-            {/* Knowledge Map Roadmap Button */}
-            <button className="lv-km-btn" onClick={() => setShowKM(true)}>
-              <Map size={17} />
-              <span>{lang === 'ar' ? 'خارطة الطريق التعليمية' : 'Learning Roadmap'}</span>
-            </button>
-          </aside>
-        )}
+          </div>
+        </aside>
       </div>
 
       {/* ══════════ MOBILE FLOATING PLAYLIST TRIGGER ══════════ */}
@@ -994,16 +1310,8 @@ export const StudentLessonView = () => {
           onClick={() => setMobilePlaylistOpen(true)}
         >
           <BookOpen size={16} />
-          <span>{lang === 'ar' ? 'قائمة الحصص' : 'Playlist'}</span>
+          <span>{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</span>
           <span className="lv-mobile-bar__count">{completedCount}/{playlist.length}</span>
-        </button>
-
-        <button
-          className="lv-mobile-bar__btn lv-mobile-bar__btn--km"
-          onClick={() => setShowKM(true)}
-        >
-          <Map size={16} />
-          <span>{lang === 'ar' ? 'خريطة المفاهيم' : 'Roadmap'}</span>
         </button>
       </div>
 
@@ -1042,159 +1350,6 @@ export const StudentLessonView = () => {
                     </div>
                     <span className="lv-playlist__time">{item.time}</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════ NOTEBOOKLM KNOWLEDGE MAP MODAL ══════════ */}
-      {showKM && (
-        <div className="lv-km-overlay" onClick={() => { setShowKM(false); setIsKMFS(false); }}>
-          <div
-            className={`lv-km ${isKMFS ? 'lv-km--fs' : ''}`}
-            ref={kmRef}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="lv-km__header">
-              <div className="lv-km__header-left">
-                <div className="lv-km__header-icon"><Brain size={20} /></div>
-                <div>
-                  <h2 className="lv-km__title">
-                    {lang === 'ar' ? 'خارطة الطريق التعليمية — خريطة المفاهيم (NotebookLM)' : 'Interactive Knowledge Roadmap'}
-                  </h2>
-                  <p className="lv-km__sub">
-                    {courseInfo.subjectAr} • {lesson.titleAr}
-                  </p>
-                </div>
-              </div>
-              <div className="lv-km__header-actions">
-                <button className="lv-km__action" onClick={toggleKMFS} title="شاشة كاملة">
-                  {isKMFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                </button>
-                <button className="lv-km__action" onClick={() => { setShowKM(false); setIsKMFS(false); }} title="إغلاق">
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Overall Lesson Progress */}
-            <div className="lv-km__progress">
-              <div className="lv-km__progress-bar">
-                <div className="lv-km__progress-fill" style={{ width: `${progress}%` }} />
-              </div>
-              <span className="lv-km__progress-text">
-                {progress}% {lang === 'ar' ? 'مكتمل من المعرفة التراكمية لهذه الحصة' : 'completed of this lesson roadmap'}
-              </span>
-            </div>
-
-            {/* Central Node Badge */}
-            <div className="lv-km__center-badge">
-              <Sparkles size={14} />
-              <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
-            </div>
-
-            {/* Concept Roadmap Cards */}
-            <div className="lv-km__grid">
-              {lesson.chapters.map((ch, i) => {
-                const isDone = currentTime >= ch.endSec;
-                const isCurrent = currentCh.id === ch.id;
-                const isExpanded = expandedConcept === ch.id;
-                const isMastered = !!masteredConcepts[ch.id];
-                const chProgress = isCurrent
-                  ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
-                  : isDone ? 100 : 0;
-
-                return (
-                  <div
-                    key={ch.id}
-                    className={`lv-concept ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`}
-                    style={{ animationDelay: `${i * 0.08}s` }}
-                    onClick={() => setExpandedConcept(isExpanded ? null : ch.id)}
-                  >
-                    {/* Status indicator */}
-                    <div className="lv-concept__status">
-                      {isDone ? (
-                        <CheckCircle2 size={18} />
-                      ) : isCurrent ? (
-                        <Play size={14} fill="currentColor" />
-                      ) : (
-                        <Lock size={14} />
-                      )}
-                    </div>
-
-                    {/* Body */}
-                    <div className="lv-concept__body">
-                      <div className="lv-concept__head">
-                        <span className="lv-concept__num">{lang === 'ar' ? `المحطة ${ch.id}` : `Node ${ch.id}`}</span>
-                        <span className="lv-concept__time">{fmt(ch.startSec)} — {fmt(ch.endSec)}</span>
-                      </div>
-                      <h4 className="lv-concept__title">{ch.titleAr}</h4>
-
-                      {/* Mini Progress */}
-                      <div className="lv-concept__bar">
-                        <div className="lv-concept__bar-fill" style={{ width: `${chProgress}%` }} />
-                      </div>
-
-                      {/* Expanded Details */}
-                      {isExpanded && (
-                        <div className="lv-concept__details" onClick={e => e.stopPropagation()}>
-                          <p className="lv-concept__desc">{ch.descAr}</p>
-                          <div className="lv-concept__terms">
-                            <span className="lv-concept__terms-label">
-                              {lang === 'ar' ? 'المصطلحات المحورية:' : 'Key Terms:'}
-                            </span>
-                            {ch.keyTerms.map(t => (
-                              <span key={t} className="lv-concept__term">{t}</span>
-                            ))}
-                          </div>
-                          <div className="lv-concept__actions">
-                            <button
-                              className="lv-concept__jump"
-                              onClick={() => {
-                                seekTo(ch.startSec);
-                                setShowKM(false);
-                                setIsPlaying(true);
-                              }}
-                            >
-                              <Play size={12} fill="currentColor" />
-                              <span>{lang === 'ar' ? `انتقل لهذا الجزء في الحصة (${fmt(ch.startSec)})` : `Jump to ${fmt(ch.startSec)}`}</span>
-                            </button>
-
-                            <button
-                              className={`lv-concept__mastery ${isMastered ? 'mastered' : ''}`}
-                              onClick={() => setMasteredConcepts(p => ({ ...p, [ch.id]: !p[ch.id] }))}
-                            >
-                              {isMastered ? <CheckSquare size={14} /> : <Square size={14} />}
-                              <span>{isMastered ? (lang === 'ar' ? 'تم استيعاب المفهوم' : 'Mastered') : (lang === 'ar' ? 'تأكيد الاستيعاب' : 'Mark Mastered')}</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <ChevronDown size={15} className={`lv-concept__chevron ${isExpanded ? 'open' : ''}`} />
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Learning Outcomes Checklist */}
-            <div className="lv-km__outcomes">
-              <h3 className="lv-km__outcomes-title">
-                <Target size={16} />
-                <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
-              </h3>
-              {[
-                'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
-                'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
-                'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
-              ].map((outcome, i) => (
-                <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
-                  <Check size={14} className="lv-km__outcome-icon" />
-                  <span>{outcome}</span>
                 </div>
               ))}
             </div>
@@ -1272,4 +1427,5 @@ export const StudentLessonView = () => {
     </div>
   );
 };
+
 export default StudentLessonView;

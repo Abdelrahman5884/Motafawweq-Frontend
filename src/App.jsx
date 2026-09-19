@@ -227,6 +227,7 @@ export default function App() {
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
                 {/* Teacher Routes */}
+                <Route path="/teacher" element={<Navigate to="/teacher/dashboard" replace />} />
                 <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
                 <Route path="/teacher/studio" element={<RecordingStudio />} />
                 <Route path="/teacher/workspace" element={<LessonWorkspace />} />
@@ -236,6 +237,7 @@ export default function App() {
                 <Route path="/teacher/processing" element={<AIProcessingScreen />} />
 
                 {/* Student Routes */}
+                <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
                 <Route path="/student/dashboard" element={<StudentDashboard />} />
                 <Route path="/student/courses" element={<StudentCoursesView />} />
                 <Route path="/student/lesson" element={<StudentLessonView />} />
@@ -251,12 +253,15 @@ export default function App() {
                 <Route path="/student/weak-areas" element={<WeakAreasHub />} />
 
                 {/* Parent Portal Route */}
+                <Route path="/parent" element={<Navigate to="/parent/dashboard" replace />} />
                 <Route path="/parent/dashboard" element={<ParentDashboard />} />
 
                 {/* Center Portal Route */}
+                <Route path="/center" element={<Navigate to="/center/dashboard" replace />} />
                 <Route path="/center/dashboard" element={<CenterDashboard />} />
 
                 {/* Admin Portal Route */}
+                <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
                 {/* Fallback Catch-all Route */}

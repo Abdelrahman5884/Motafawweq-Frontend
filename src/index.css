@@ -2286,7 +2286,15 @@ button, input, select, textarea {
   animation: lvFadeIn 0.25s ease;
 }
 
-/* ─── Breadcrumbs ─── */
+/* ─── Breadcrumbs & Top Bar ─── */
+.lv-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
 .lv-crumb {
   display: flex;
   align-items: center;
@@ -2309,10 +2317,10 @@ button, input, select, textarea {
   align-items: center;
 }
 .lv-crumb-link:hover {
-  color: var(--accent, #0284C7);
+  color: #6C4DFF;
 }
 [data-theme="dark"] .lv-crumb-link:hover {
-  color: #38BDF8;
+  color: #8166FF;
 }
 
 .lv-crumb-sep {
@@ -2321,7 +2329,7 @@ button, input, select, textarea {
 }
 
 .lv-crumb-current {
-  color: var(--accent, #0284C7);
+  color: #6C4DFF;
   font-weight: 700;
   max-width: 480px;
   overflow: hidden;
@@ -2329,14 +2337,14 @@ button, input, select, textarea {
   white-space: nowrap;
 }
 [data-theme="dark"] .lv-crumb-current {
-  color: #38BDF8;
+  color: #8166FF;
 }
 
 /* ─── Main 2-Column Layout ─── */
 .lv-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 22px;
   align-items: start;
 }
 
@@ -2784,27 +2792,30 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 4px 0 8px;
+  padding: 4px 0 10px;
 }
 
-.lv-info__top {
+.lv-info__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  flex-wrap: wrap-reverse;
-  gap: 14px;
+  gap: 20px;
+  width: 100%;
 }
 
-.lv-info__title-wrap {
+.lv-info__main {
   flex: 1;
-  min-width: 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .lv-info__title {
   font-size: 21px;
   font-weight: 800;
   color: var(--text-primary);
-  margin: 0 0 6px;
+  margin: 0;
   line-height: 1.35;
   font-family: var(--font-heading), var(--font-arabic, sans-serif);
 }
@@ -2844,16 +2855,31 @@ button, input, select, textarea {
 }
 
 .lv-info__badge {
-  background: rgba(56, 189, 248, 0.1);
-  color: #0284C7;
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: rgba(108, 77, 255, 0.1);
+  color: #6C4DFF;
+  border: 1px solid rgba(108, 77, 255, 0.22);
   padding: 1px 8px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: 700;
 }
 [data-theme="dark"] .lv-info__badge {
-  color: #38BDF8;
+  color: #A78BFA;
+}
+
+.lv-info__status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.lv-info__status-pill.completed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .lv-info__desc {
@@ -2883,18 +2909,17 @@ button, input, select, textarea {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  background: linear-gradient(135deg, #0284C7, #2563EB);
+  background: linear-gradient(135deg, #6C4DFF, #5538EE);
   color: #FFFFFF;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 4px 14px rgba(108, 77, 255, 0.35);
   transition: all 0.2s ease;
 }
 [data-theme="dark"] .lv-info__complete-btn {
-  background: linear-gradient(135deg, #0284C7, #38BDF8);
-  color: #070B14;
+  background: linear-gradient(135deg, #6C4DFF, #8166FF);
 }
 .lv-info__complete-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 6px 18px rgba(108, 77, 255, 0.45);
 }
 .lv-info__complete-btn.completed {
   background: #10B981 !important;
@@ -2918,7 +2943,7 @@ button, input, select, textarea {
   transition: all 0.15s ease;
 }
 .lv-info__summary-btn:hover {
-  border-color: rgba(56, 189, 248, 0.4);
+  border-color: rgba(108, 77, 255, 0.4);
   background: var(--bg-subtle);
 }
 
@@ -2937,7 +2962,7 @@ button, input, select, textarea {
   transition: all 0.15s ease;
 }
 .lv-info__bm-btn:hover {
-  border-color: rgba(56, 189, 248, 0.3);
+  border-color: rgba(108, 77, 255, 0.3);
   color: var(--text-primary);
 }
 .lv-info__bm-btn.active {
@@ -2947,51 +2972,56 @@ button, input, select, textarea {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TABS (.lv-tabs)
+   TABS (.lv-tabs - Matching Image 1 Exactly)
    ═══════════════════════════════════════════════════════════ */
 .lv-tabs {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 .lv-tabs__header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
+  gap: 2px;
+  padding: 4px 12px 0;
   border-bottom: 1px solid var(--border-subtle);
   overflow-x: auto;
+  scrollbar-width: none;
+}
+.lv-tabs__header::-webkit-scrollbar {
+  display: none;
 }
 
 .lv-tabs__btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 10px;
+  gap: 8px;
+  padding: 12px 18px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
   white-space: nowrap;
+  position: relative;
+  border-bottom: 2.5px solid transparent;
 }
 .lv-tabs__btn:hover {
   color: var(--text-primary);
-  background: var(--bg-subtle);
 }
 .lv-tabs__btn.active {
-  background: rgba(56, 189, 248, 0.1);
-  color: #0284C7;
-  font-weight: 700;
+  color: #6C4DFF;
+  font-weight: 800;
+  border-bottom-color: #6C4DFF;
 }
 [data-theme="dark"] .lv-tabs__btn.active {
-  color: #38BDF8;
-  background: rgba(56, 189, 248, 0.12);
+  color: #8166FF;
+  border-bottom-color: #8166FF;
 }
 
 .lv-tabs__badge {
@@ -3376,26 +3406,329 @@ button, input, select, textarea {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   COURSE PLAYLIST SIDEBAR (.lv-sidebar)
-   Matching Reference Screenshot
+   TAB 2: TRANSCRIPT (نص الحصة الذكي)
    ═══════════════════════════════════════════════════════════ */
-.lv-sidebar {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 16px;
+.lv-transcript {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.lv-transcript__search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.lv-transcript__search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.lv-transcript__search-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.lv-transcript__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.lv-transcript__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.lv-transcript__item:hover {
+  border-color: rgba(108, 77, 255, 0.35);
+  background: var(--bg-surface);
+  transform: translateY(-1px);
+}
+.lv-transcript__item.active {
+  background: rgba(108, 77, 255, 0.08);
+  border-color: #6C4DFF;
+  border-inline-end: 3px solid #6C4DFF;
+}
+[data-theme="dark"] .lv-transcript__item.active {
+  background: rgba(108, 77, 255, 0.14);
+  border-color: #8166FF;
+  border-inline-end: 3px solid #8166FF;
+}
+
+.lv-transcript__time-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(108, 77, 255, 0.25);
+  background: rgba(108, 77, 255, 0.1);
+  color: #6C4DFF;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+[data-theme="dark"] .lv-transcript__time-btn {
+  color: #A78BFA;
+  border-color: rgba(167, 139, 250, 0.3);
+  background: rgba(167, 139, 250, 0.12);
+}
+.lv-transcript__time-btn:hover {
+  background: rgba(108, 77, 255, 0.22);
+}
+
+.lv-transcript__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.lv-transcript__speaker {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #6C4DFF;
+  margin-bottom: 3px;
+}
+[data-theme="dark"] .lv-transcript__speaker {
+  color: #A78BFA;
+}
+
+.lv-transcript__p {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB 3: ROADMAP (خريطة الحصة داخل التبويب)
+   ═══════════════════════════════════════════════════════════ */
+.lv-roadmap-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COURSE PLAYLIST SIDEBAR (.lv-sidebar)
+   Includes "درس اليوم" Card (Exact Match to User Image 2)
+   ═══════════════════════════════════════════════════════════ */
+.lv-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   position: sticky;
   top: 80px;
   animation: lvSlideIn 0.3s ease;
+}
+
+/* ── "درس اليوم" Card (Matching Image 2) ── */
+.lv-today-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.lv-today-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lv-today-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lv-today-card__title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.lv-today-card__icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(108, 77, 255, 0.1);
+  color: #6C4DFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+[data-theme="dark"] .lv-today-card__icon-wrap {
+  background: rgba(129, 102, 255, 0.15);
+  color: #8166FF;
+}
+
+.lv-today-card__subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Gauge Row with Circular Donut */
+.lv-today-card__gauge-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.lv-today-card__circle-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lv-today-card__circle-text {
+  position: absolute;
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--text-primary);
+  font-family: var(--font-heading);
+}
+
+.lv-today-card__gauge-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lv-today-card__status-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.lv-today-card__remaining-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Interactive Checklist */
+.lv-today-card__checklist {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lv-today-card__check-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.lv-today-card__check-item:hover .lv-today-card__check-label {
+  color: var(--text-primary);
+}
+
+.lv-today-card__check-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.lv-today-card__check-icon {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+.lv-today-card__check-icon.checked {
+  color: #10B981;
+}
+
+/* Prominent Action Button: متابعة الدرس ▶ */
+.lv-today-card__btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #6C4DFF, #5538EE);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(108, 77, 255, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lv-today-card__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(108, 77, 255, 0.5);
+}
+.lv-today-card__btn:active {
+  transform: translateY(0);
+}
+
+/* ── Course Playlist Box ── */
+.lv-sidebar__playlist-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
 
 .lv-sidebar__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 10px;
 }
 
 .lv-sidebar__title {
@@ -3409,32 +3742,6 @@ button, input, select, textarea {
   font-size: 11.5px;
   font-weight: 700;
   color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.lv-sidebar__pct {
-  color: var(--accent, #0284C7);
-  font-weight: 800;
-}
-[data-theme="dark"] .lv-sidebar__pct {
-  color: #38BDF8;
-}
-
-.lv-sidebar__bar {
-  width: 100%;
-  height: 5px;
-  border-radius: 99px;
-  background: var(--bg-subtle);
-  overflow: hidden;
-}
-
-.lv-sidebar__bar-fill {
-  height: 100%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, #10B981, #34D399);
-  transition: width 0.3s ease;
 }
 
 /* Playlist List */
@@ -3442,7 +3749,7 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: calc(100vh - 280px);
+  max-height: 420px;
   overflow-y: auto;
   padding-inline-end: 2px;
 }
@@ -3469,16 +3776,16 @@ button, input, select, textarea {
   background: var(--bg-subtle);
 }
 
-/* Active Playlist Item (Matching Reference) */
+/* Active Playlist Item */
 .lv-playlist__item.active {
-  background: rgba(2, 132, 199, 0.08);
-  border: 1px solid rgba(2, 132, 199, 0.3);
-  border-inline-end: 3px solid #0284C7;
+  background: rgba(108, 77, 255, 0.08);
+  border: 1px solid rgba(108, 77, 255, 0.3);
+  border-inline-end: 3px solid #6C4DFF;
 }
 [data-theme="dark"] .lv-playlist__item.active {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.35);
-  border-inline-end: 3px solid #38BDF8;
+  background: rgba(129, 102, 255, 0.12);
+  border-color: rgba(129, 102, 255, 0.35);
+  border-inline-end: 3px solid #8166FF;
 }
 
 .lv-playlist__icon {
@@ -3486,10 +3793,10 @@ button, input, select, textarea {
   color: var(--text-muted);
 }
 .lv-playlist__item.active .lv-playlist__icon {
-  color: #0284C7;
+  color: #6C4DFF;
 }
 [data-theme="dark"] .lv-playlist__item.active .lv-playlist__icon {
-  color: #38BDF8;
+  color: #8166FF;
 }
 .lv-playlist__item.done .lv-playlist__icon {
   color: #10B981;
@@ -3525,43 +3832,15 @@ button, input, select, textarea {
 }
 .lv-playlist__item.active .lv-playlist__title {
   font-weight: 700;
-  color: var(--accent, #0284C7);
+  color: #6C4DFF;
 }
 [data-theme="dark"] .lv-playlist__item.active .lv-playlist__title {
-  color: #38BDF8;
+  color: #8166FF;
 }
 
 .lv-playlist__time {
   font-size: 11px;
   color: var(--text-muted);
-}
-
-/* Roadmap Button (Matching Reference Screenshot) */
-.lv-km-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 11px;
-  border-radius: 12px;
-  border: none;
-  background: linear-gradient(135deg, #0284C7, #2563EB);
-  color: #FFFFFF;
-  font-size: 13.5px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
-  transition: all 0.2s ease;
-  margin-top: 4px;
-}
-[data-theme="dark"] .lv-km-btn {
-  background: linear-gradient(135deg, #0284C7, #38BDF8);
-  color: #070B14;
-}
-.lv-km-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -4030,43 +4309,209 @@ button, input, select, textarea {
 
 .lv-modal__primary {
   width: 100%;
-  padding: 11px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #0284C7, #2563EB);
+  background: linear-gradient(135deg, #6C4DFF, #5538EE);
   color: #FFFFFF;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 4px 16px rgba(108, 77, 255, 0.4);
   transition: all 0.15s ease;
-}
-[data-theme="dark"] .lv-modal__primary {
-  background: linear-gradient(135deg, #0284C7, #38BDF8);
-  color: #070B14;
 }
 .lv-modal__primary:hover {
   transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(108, 77, 255, 0.5);
 }
 
 .lv-modal__secondary {
   width: 100%;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 11px;
+  border-radius: 12px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-subtle);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
+.lv-modal__secondary:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-medium);
+}
+
+/* Confirmation Modal Variations */
+.lv-modal--confirm {
+  max-width: 440px;
+  padding: 28px 24px;
+}
+
+.lv-modal__icon--emerald {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+}
+
+.lv-modal__icon--amber {
+  background: rgba(245, 158, 11, 0.12);
+  color: #F59E0B;
+}
+
+.lv-modal__icon--rose {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+}
+
+.lv-modal__buttons--row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-modal__action-btn {
+  flex: 1;
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #FFFFFF;
+}
+
+.lv-modal__action-btn--emerald {
+  background: linear-gradient(135deg, #10B981, #059669);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+.lv-modal__action-btn--emerald:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+}
+
+.lv-modal__action-btn--amber {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+.lv-modal__action-btn--amber:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45);
+}
+
+.lv-modal__action-btn--rose {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+.lv-modal__action-btn--rose:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+}
+
+.animate-pop {
+  animation: popIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════
-   RESPONSIVENESS
+   MOBILE FLOATING BAR & DRAWER
+   ═══════════════════════════════════════════════════════════ */
+.lv-mobile-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 99px;
+  padding: 6px 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  z-index: 996;
+}
+
+.lv-mobile-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 99px;
+  border: none;
+  background: linear-gradient(135deg, #6C4DFF, #5538EE);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(108, 77, 255, 0.35);
+}
+
+.lv-mobile-bar__count {
+  background: rgba(255, 255, 255, 0.24);
+  color: #FFFFFF;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+}
+
+.lv-mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(5px);
+  z-index: 99999;
+  display: flex;
+  align-items: flex-end;
+}
+
+.lv-mobile-drawer {
+  width: 100%;
+  background: var(--bg-surface);
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  padding: 20px 16px 32px;
+  border-top: 1px solid var(--border-subtle);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lv-mobile-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVENESS & ADAPTIVE LAYOUT
    ═══════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
   .lv-layout {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
   .lv-sidebar {
     position: static;
@@ -4075,25 +4520,47 @@ button, input, select, textarea {
 
 @media (max-width: 768px) {
   .lv {
-    padding: 12px 14px 36px;
-    gap: 12px;
+    padding: 10px 12px 64px;
+    gap: 14px;
+  }
+  .lv-info__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
   }
   .lv-info__title {
     font-size: 17px;
   }
-  .lv-info__top {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
   .lv-info__actions {
     width: 100%;
-    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .lv-info__complete-btn {
+    flex: 1;
+    min-height: 42px;
+    justify-content: center;
+  }
+  .lv-info__summary-btn {
+    min-height: 42px;
+  }
+  .lv-info__bm-btn {
+    min-height: 42px;
+    min-width: 42px;
   }
   .lv-controls__row {
     gap: 6px;
+    flex-wrap: wrap;
   }
   .lv-vol {
-    width: 45px;
+    width: 50px;
+  }
+  .lv-today-card {
+    padding: 16px 14px;
+  }
+  .lv-tabs__btn {
+    padding: 10px 14px;
+    font-size: 13px;
   }
 }
 
