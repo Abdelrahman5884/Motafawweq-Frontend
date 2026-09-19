@@ -153,15 +153,18 @@ export const StudentHomeworkView = () => {
           flexWrap: 'wrap',
           gap: '16px',
           paddingBottom: '20px',
-          borderBottom: '1px solid var(--border-subtle)'
+          borderBottom: '1px solid var(--border-subtle)',
+          width: '100%',
+          boxSizing: 'border-box'
         }}>
-          <div>
+          <div style={{ maxWidth: '100%', minWidth: 0, flex: 1 }}>
             <h1 style={{
-              fontSize: '24px',
+              fontSize: 'clamp(20px, 4vw, 24px)',
               fontWeight: '800',
               color: 'var(--text-primary)',
               margin: '0 0 6px 0',
-              letterSpacing: '-0.01em'
+              letterSpacing: '-0.01em',
+              wordBreak: 'break-word'
             }}>
               {lang === 'ar' ? 'الواجبات والتكليفات' : 'Homework & Assignments'}
             </h1>
@@ -169,7 +172,8 @@ export const StudentHomeworkView = () => {
               fontSize: '13.5px',
               color: 'var(--text-secondary)',
               margin: 0,
-              lineHeight: 1.5
+              lineHeight: 1.5,
+              wordBreak: 'break-word'
             }}>
               {lang === 'ar'
                 ? 'استعراض شيتات وملفات الواجبات المرفقة من المعلمين وتسليم الحلول ومتابعة التقييم'
@@ -187,13 +191,14 @@ export const StudentHomeworkView = () => {
             border: '1px solid var(--border-subtle)',
             fontSize: '12.5px',
             fontWeight: '700',
-            color: 'var(--text-secondary)'
+            color: 'var(--text-secondary)',
+            flexShrink: 0
           }}>
             <span>{pendingCount} {lang === 'ar' ? 'واجبات قيد التسليم' : 'pending assignments'}</span>
           </div>
         </div>
 
-        {/* Clean Filter Tabs */}
+        {/* Clean Filter Tabs (Scrollable on Mobile, No Overflow) */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -201,8 +206,13 @@ export const StudentHomeworkView = () => {
           backgroundColor: 'var(--bg-subtle)',
           padding: '4px',
           borderRadius: '14px',
-          width: 'fit-content',
-          border: '1px solid var(--border-subtle)'
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          border: '1px solid var(--border-subtle)',
+          boxSizing: 'border-box',
+          WebkitOverflowScrolling: 'touch'
         }}>
           {[
             { id: 'all', label: lang === 'ar' ? 'جميع الواجبات' : 'All', count: HOMEWORK_LIST.length },
@@ -228,7 +238,9 @@ export const StudentHomeworkView = () => {
                   fontSize: '13px',
                   cursor: 'pointer',
                   boxShadow: isActive ? 'var(--shadow-xs)' : 'none',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
                 }}
               >
                 <span>{tab.label}</span>
@@ -249,8 +261,11 @@ export const StudentHomeworkView = () => {
         {/* Homework Cards Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+          gap: '18px',
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
           animation: 'tabFadeIn 0.2s ease-out'
         }}>
           {filteredList.map((hw) => {
@@ -266,11 +281,15 @@ export const StudentHomeworkView = () => {
                   backgroundColor: 'var(--bg-surface-elevated)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: '20px',
-                  padding: '22px',
+                  padding: '20px 18px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  boxShadow: 'var(--shadow-xs)'
+                  boxShadow: 'var(--shadow-xs)',
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden'
                 }}
               >
                 <div>
@@ -340,7 +359,8 @@ export const StudentHomeworkView = () => {
                     color: 'var(--text-primary)',
                     margin: '0 0 10px 0',
                     lineHeight: 1.45,
-                    minHeight: '44px'
+                    minHeight: '44px',
+                    wordBreak: 'break-word'
                   }}>
                     {hw.titleAr}
                   </h3>
@@ -361,26 +381,46 @@ export const StudentHomeworkView = () => {
                     </span>
                   </div>
 
-                  {/* PDF Attachment Notice (if teacher attached PDF) */}
+                  {/* PDF Attachment Notice (Calm & Harmonious Brand Style - NO RED) */}
                   {hw.teacherAttachmentPdf && (
                     <div style={{
-                      backgroundColor: 'rgba(239, 68, 68, 0.06)',
-                      border: '1px solid rgba(239, 68, 68, 0.15)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-subtle)',
                       padding: '8px 12px',
                       borderRadius: '10px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
                       fontSize: '12px',
-                      color: '#B91C1C',
+                      color: 'var(--text-primary)',
                       fontWeight: '700',
-                      marginBottom: '14px'
+                      marginBottom: '14px',
+                      boxSizing: 'border-box'
                     }}>
-                      <FileText size={14} />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        شيت الأسئلة مرفق بصيغة PDF
+                      <div style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--primary-surface)',
+                        color: 'var(--primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <FileText size={13} />
+                      </div>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                        {lang === 'ar' ? 'شيت الأسئلة مرفق بصيغة PDF' : 'Attached Assignment PDF'}
                       </span>
-                      <span style={{ fontSize: '11px', opacity: 0.85 }}>
+                      <span style={{
+                        fontSize: '11px',
+                        padding: '1px 6px',
+                        borderRadius: '5px',
+                        backgroundColor: 'var(--bg-hover)',
+                        color: 'var(--text-secondary)',
+                        fontWeight: '600'
+                      }}>
                         {hw.teacherAttachmentPdf.fileSize}
                       </span>
                     </div>
@@ -453,13 +493,14 @@ export const StudentHomeworkView = () => {
           <div style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
             backdropFilter: 'blur(5px)',
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px'
+            padding: '16px',
+            boxSizing: 'border-box'
           }}>
             <div style={{
               backgroundColor: 'var(--bg-surface-elevated)',
@@ -469,10 +510,11 @@ export const StudentHomeworkView = () => {
               width: '100%',
               maxHeight: '90vh',
               overflowY: 'auto',
-              padding: '28px',
+              padding: '24px 18px',
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)',
               position: 'relative',
-              animation: 'modalFadeIn 0.2s ease-out'
+              animation: 'modalFadeIn 0.2s ease-out',
+              boxSizing: 'border-box'
             }}>
               {/* Close Button */}
               <button
@@ -533,14 +575,15 @@ export const StudentHomeworkView = () => {
                 </div>
               </div>
 
-              {/* 📄 TEACHER ATTACHED PDF CARD (Key User Request) */}
+              {/* 📄 TEACHER ATTACHED PDF CARD (Calm & Elegant Brand Style - NO RED) */}
               {selectedHw.teacherAttachmentPdf && (
                 <div style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                  border: '1.5px solid rgba(239, 68, 68, 0.2)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: '16px',
                   padding: '16px',
-                  marginBottom: '18px'
+                  marginBottom: '18px',
+                  boxSizing: 'border-box'
                 }}>
                   <div style={{
                     display: 'flex',
@@ -550,13 +593,13 @@ export const StudentHomeworkView = () => {
                     gap: '12px',
                     marginBottom: showPdfPreview ? '12px' : '0'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                       <div style={{
                         width: '38px',
                         height: '38px',
                         borderRadius: '10px',
-                        backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                        color: '#DC2626',
+                        backgroundColor: 'var(--primary-surface)',
+                        color: 'var(--primary)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -564,17 +607,26 @@ export const StudentHomeworkView = () => {
                       }}>
                         <FileText size={20} />
                       </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          fontSize: '13.5px',
+                          fontWeight: '800',
+                          color: 'var(--text-primary)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
                           {selectedHw.teacherAttachmentPdf.fileName}
                         </div>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                          ملف الأسئلة المرفق من الأستاذ • {selectedHw.teacherAttachmentPdf.fileSize} • {selectedHw.teacherAttachmentPdf.pagesCount} صفحات
+                          {lang === 'ar'
+                            ? `ملف الأسئلة المرفق من الأستاذ • ${selectedHw.teacherAttachmentPdf.fileSize} • ${selectedHw.teacherAttachmentPdf.pagesCount} صفحات`
+                            : `Teacher PDF Sheet • ${selectedHw.teacherAttachmentPdf.fileSize} • ${selectedHw.teacherAttachmentPdf.pagesCount} pages`}
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <button
                         onClick={() => setShowPdfPreview(!showPdfPreview)}
                         style={{
@@ -592,7 +644,7 @@ export const StudentHomeworkView = () => {
                         }}
                       >
                         {showPdfPreview ? <EyeOff size={13} /> : <Eye size={13} />}
-                        <span>{showPdfPreview ? 'إخفاء المعاينة' : 'معاينة الأسئلة'}</span>
+                        <span>{showPdfPreview ? (lang === 'ar' ? 'إخفاء المعاينة' : 'Hide Preview') : (lang === 'ar' ? 'معاينة الأسئلة' : 'Preview Questions')}</span>
                       </button>
 
                       <a
@@ -605,18 +657,19 @@ export const StudentHomeworkView = () => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '5px',
-                          padding: '7px 12px',
+                          padding: '7px 14px',
                           borderRadius: '8px',
-                          backgroundColor: '#DC2626',
+                          backgroundColor: 'var(--primary)',
                           color: '#FFFFFF',
                           textDecoration: 'none',
                           fontSize: '12px',
                           fontWeight: '700',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(108, 77, 255, 0.28)'
                         }}
                       >
                         <Download size={13} />
-                        <span>تحميل PDF</span>
+                        <span>{lang === 'ar' ? 'تحميل PDF' : 'Download PDF'}</span>
                       </a>
                     </div>
                   </div>
@@ -627,18 +680,19 @@ export const StudentHomeworkView = () => {
                       backgroundColor: 'var(--bg-surface-elevated)',
                       border: '1px solid var(--border-subtle)',
                       borderRadius: '12px',
-                      padding: '12px 14px',
+                      padding: '14px',
                       fontSize: '12.5px',
-                      lineHeight: 1.6
+                      lineHeight: 1.6,
+                      boxSizing: 'border-box'
                     }}>
-                      <div style={{ fontSize: '11.5px', fontWeight: '800', color: '#DC2626', marginBottom: '8px' }}>
-                        مقتطفات من أسئلة شيت الواجب:
+                      <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)', marginBottom: '8px' }}>
+                        {lang === 'ar' ? 'مقتطفات من أسئلة شيت الواجب:' : 'Sample Questions from Teacher Sheet:'}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', color: 'var(--text-primary)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--text-primary)' }}>
                         {selectedHw.teacherAttachmentPdf.previewQuestions.map((q, qIdx) => (
-                          <div key={qIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                            <span style={{ color: '#DC2626', fontWeight: '700' }}>•</span>
-                            <span>{q}</span>
+                          <div key={qIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <span style={{ color: 'var(--primary)', fontWeight: '700' }}>•</span>
+                            <span style={{ wordBreak: 'break-word' }}>{q}</span>
                           </div>
                         ))}
                       </div>

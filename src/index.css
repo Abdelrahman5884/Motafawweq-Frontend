@@ -856,7 +856,9 @@ html[dir="rtl"] .sidebar-nav-item.active::before {
     transform: translateX(-110%) !important;
   }
 
-  .app-sidebar.sidebar-mobile-open {
+  .app-sidebar.sidebar-mobile-open,
+  html[dir="ltr"] .app-sidebar.sidebar-mobile-open,
+  html[dir="rtl"] .app-sidebar.sidebar-mobile-open {
     transform: translateX(0) !important;
   }
 
