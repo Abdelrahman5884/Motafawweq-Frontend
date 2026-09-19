@@ -172,6 +172,73 @@ export const COURSES_CATALOG = [
   }
 ];
 
+export const MINISTRY_CURRICULUM = [
+  {
+    id: 'min-bio-3',
+    titleAr: 'الأحياء - الصف الثالث الثانوي',
+    subjectAr: 'الأحياء',
+    subjectId: 'sub-bio',
+    gradeAr: 'الثانوية العامة (شعبة علمي علوم)',
+    sourceAr: 'وزارة التربية والتعليم والتعليم الفني',
+    unitsCount: 4,
+    chaptersCount: 12,
+    progressPercent: 78,
+    activeUnitAr: 'الوحدة الأولى: التركيب والوظيفة في الكائنات الحية',
+    topics: ['الدعامة والحركة', 'التنسيق الهرموني', 'التكاثر في الكائنات الحية', 'المناعة والبيولوجيا الجزيئية'],
+    hasTextbookPdf: true,
+    hasQuestionBank: true,
+    cover: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'min-phy-3',
+    titleAr: 'الفيزياء - الصف الثالث الثانوي',
+    subjectAr: 'الفيزياء',
+    subjectId: 'sub-phy',
+    gradeAr: 'الثانوية العامة (علمي علوم وعلمي رياضة)',
+    sourceAr: 'وزارة التربية والتعليم والتعليم الفني',
+    unitsCount: 4,
+    chaptersCount: 14,
+    progressPercent: 64,
+    activeUnitAr: 'الوحدة الأولى: التيار الكهربي وقانون أوم وقوانين كيرشوف',
+    topics: ['التيار الكهربي وقانون أوم', 'التأثير المغناطيسي وأجهزة القياس', 'الحث الكهرومغناطيسي', 'مقدمة في الفيزياء الحديثة'],
+    hasTextbookPdf: true,
+    hasQuestionBank: true,
+    cover: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=600&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'min-chem-3',
+    titleAr: 'الكيمياء - الصف الثالث الثانوي',
+    subjectAr: 'الكيمياء',
+    subjectId: 'sub-chem',
+    gradeAr: 'الثانوية العامة (علمي علوم وعلمي رياضة)',
+    sourceAr: 'وزارة التربية والتعليم والتعليم الفني',
+    unitsCount: 5,
+    chaptersCount: 15,
+    progressPercent: 50,
+    activeUnitAr: 'الباب الأول: العناصر الانتقالية والسلسلة الانتقالية الأولى',
+    topics: ['العناصر الانتقالية', 'التحليل الكيميائي الوصفي والكمي', 'الاتزان الكيميائي والأيوني', 'الكيمياء الكهربية والخلايا الجلفانية', 'الكيمياء العضوية'],
+    hasTextbookPdf: true,
+    hasQuestionBank: true,
+    cover: 'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?w=600&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'min-ar-3',
+    titleAr: 'اللغة العربية - الصف الثالث الثانوي',
+    subjectAr: 'اللغة العربية',
+    subjectId: 'sub-ar',
+    gradeAr: 'الثانوية العامة (كافة الشعب)',
+    sourceAr: 'وزارة التربية والتعليم والتعليم الفني',
+    unitsCount: 7,
+    chaptersCount: 22,
+    progressPercent: 82,
+    activeUnitAr: 'الوحدة الثانية: المشتقات وإعمالها والمصادر في النحو',
+    topics: ['قواعد النحو العربي السبع', 'البلاغة والتذوق الأدبي', 'النصوص الشعرية والنثرية المتحررة', 'الأدب والمدارس الشعرية', 'التعبير والقراءة المتحررة'],
+    hasTextbookPdf: true,
+    hasQuestionBank: true,
+    cover: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&auto=format&fit=crop&q=80'
+  }
+];
+
 export const TODAY_TASKS = [
   {
     id: 'task-1',

@@ -3,30 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { SUBJECTS_LIST, COURSES_CATALOG } from '../../data/studentData';
+import { COURSES_CATALOG, MINISTRY_CURRICULUM } from '../../data/studentData';
 import {
   Search,
   BookOpen,
-  Star,
   Clock,
   CheckCircle2,
   Play,
   FileText,
   X,
-  Users,
   GraduationCap,
   Sparkles,
-  ArrowRight,
   ArrowLeft,
-  Filter,
+  ArrowRight,
+  Download,
   Check,
   Award,
   Video,
-  FileDown,
   Layers,
-  HelpCircle,
-  TrendingUp,
-  Flame
+  ChevronLeft,
+  Users
 } from 'lucide-react';
 import { SPage } from '../../components/student/ui';
 
@@ -35,14 +31,12 @@ export const StudentCoursesView = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
 
-  // Active filters
-  const [selectedSubject, setSelectedSubject] = useState('all');
+  // Category Tab: 'ministry' (مقررات وزارة التربية والتعليم) | 'teachers' (حصص وكورسات المعلمين)
+  const [activeCategory, setActiveCategory] = useState('ministry');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'enrolled' | 'available' | 'top_rated'
-  const [selectedCourseModal, setSelectedCourseModal] = useState(null);
-  const [modalActiveTab, setModalActiveTab] = useState('syllabus'); // 'syllabus' | 'about'
+  const [selectedCurriculumModal, setSelectedCurriculumModal] = useState(null);
 
-  // Local state for enrolled courses to support instant enrollment (US-18)
+  // Local state for enrolled courses
   const [enrolledCourses, setEnrolledCourses] = useState(() => {
     const initial = {};
     COURSES_CATALOG.forEach(c => {
@@ -51,10 +45,8 @@ export const StudentCoursesView = () => {
     return initial;
   });
 
-  // Toast feedback state
   const [enrollToast, setEnrollToast] = useState(null);
 
-  // US-18: One-Click Course Enrollment Flow with Celebration
   const handleEnroll = (course) => {
     setEnrolledCourses(prev => ({ ...prev, [course.id]: true }));
     try {
@@ -67,1135 +59,829 @@ export const StudentCoursesView = () => {
       // ignore
     }
 
-    setEnrollToast({
-      titleAr: course.titleAr,
-      titleEn: course.title,
-      subjectAr: course.subjectAr
-    });
-
+    setEnrollToast(course.titleAr);
     setTimeout(() => {
       setEnrollToast(null);
-    }, 4500);
-
-    if (selectedCourseModal?.id === course.id) {
-      setSelectedCourseModal(prev => ({ ...prev, isEnrolled: true }));
-    }
+    }, 4000);
   };
 
-  // US-16: Real-time multi-criteria filtering (search, subject, enrollment status)
-  const filteredCourses = COURSES_CATALOG.filter(course => {
-    // Subject filter (US-14)
-    const matchesSubject = selectedSubject === 'all' || course.subjectId === selectedSubject;
-
-    // Search query (US-16)
+  // Filter Ministry curriculum
+  const filteredMinistry = MINISTRY_CURRICULUM.filter(item => {
     const q = searchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      course.titleAr.toLowerCase().includes(q) ||
-      course.title.toLowerCase().includes(q) ||
-      course.teacher.nameAr.toLowerCase().includes(q) ||
-      course.teacher.name.toLowerCase().includes(q) ||
-      course.subjectAr.toLowerCase().includes(q) ||
-      (course.tags && course.tags.some(t => t.toLowerCase().includes(q)));
-
-    // Status filter
-    const isEnrolled = !!enrolledCourses[course.id];
-    let matchesStatus = true;
-    if (statusFilter === 'enrolled') matchesStatus = isEnrolled;
-    if (statusFilter === 'available') matchesStatus = !isEnrolled;
-    if (statusFilter === 'top_rated') matchesStatus = course.rating >= 4.93;
-
-    return matchesSubject && matchesSearch && matchesStatus;
+    if (!q) return true;
+    return (
+      item.titleAr.toLowerCase().includes(q) ||
+      item.subjectAr.toLowerCase().includes(q) ||
+      item.gradeAr.toLowerCase().includes(q)
+    );
   });
 
-  // Calculate course counts per subject
-  const getSubjectCount = (subjectId) => {
-    if (subjectId === 'all') return COURSES_CATALOG.length;
-    return COURSES_CATALOG.filter(c => c.subjectId === subjectId).length;
-  };
-
-  // Generate a rich, realistic syllabus for course details modal (US-17)
-  const getCourseSyllabus = (course) => {
-    return [
-      {
-        chapterNumber: 1,
-        titleAr: 'الوحدة الأولى: البنية التأسيسية ومخرجات التعلم الأساسية',
-        lessons: [
-          { id: 1, titleAr: 'مقدمة شاملة وخريطة المفاهيم الأساسية', duration: '28 دقيقة', hasVideo: true, hasPdf: true, hasQuiz: false, isPreview: true },
-          { id: 2, titleAr: 'الآليات الدقيقة وتفسير التجارب العلمية', duration: '42 دقيقة', hasVideo: true, hasPdf: true, hasQuiz: true, isPreview: false },
-          { id: 3, titleAr: 'العلاقات الرياضية والبيانية في المنهج', duration: '35 دقيقة', hasVideo: true, hasPdf: true, hasQuiz: true, isPreview: false }
-        ]
-      },
-      {
-        chapterNumber: 2,
-        titleAr: 'الوحدة الثانية: تطبيقات مستويات التفكير العليا وبنك الأسئلة',
-        lessons: [
-          { id: 4, titleAr: 'حل وتفكيك أفكار بنك المعرفة وأسئلة الوزارة', duration: '48 دقيقة', hasVideo: true, hasPdf: true, hasQuiz: true, isPreview: false },
-          { id: 5, titleAr: 'ورشة عمل البابل شيت والتدريب على الاختبارات المقالية', duration: '55 دقيقة', hasVideo: true, hasPdf: true, hasQuiz: true, isPreview: false }
-        ]
-      }
-    ];
-  };
+  // Filter Teacher courses
+  const filteredTeacherCourses = COURSES_CATALOG.filter(course => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      course.titleAr.toLowerCase().includes(q) ||
+      course.subjectAr.toLowerCase().includes(q) ||
+      course.teacher.nameAr.toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <SPage maxWidth={1240}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <SPage maxWidth={1120}>
+      {/* Subtle & Calm Styles */}
+      <style>{`
+        @keyframes tabFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes modalFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.96) translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        .clean-course-card {
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .clean-course-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
+          border-color: var(--border-medium);
+        }
+        .clean-btn {
+          transition: all 0.15s ease;
+        }
+        .clean-btn:hover {
+          opacity: 0.92;
+          transform: translateY(-1px);
+        }
+        .clean-btn:active {
+          transform: translateY(0);
+        }
+      `}</style>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'var(--font-arabic, sans-serif)' }}>
         
-        {/* ── Toast Notification for Successful Enrollment ── */}
+        {/* Toast Notification */}
         {enrollToast && (
           <div style={{
             position: 'fixed',
-            bottom: '28px',
+            bottom: '24px',
             left: '50%',
             transform: 'translateX(-50%)',
             backgroundColor: '#10B981',
             color: '#FFFFFF',
-            padding: '12px 24px',
+            padding: '12px 22px',
             borderRadius: '12px',
-            boxShadow: '0 12px 32px rgba(16, 185, 129, 0.4)',
+            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.35)',
             zIndex: 99999,
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            fontSize: '14px',
+            gap: '10px',
+            fontSize: '13.5px',
             fontWeight: '700',
-            fontFamily: 'var(--font-arabic)',
-            animation: 'fadeInArea 0.25s ease'
+            animation: 'modalFadeIn 0.2s ease'
           }}>
-            <CheckCircle2 size={20} />
-            <span>
-              {lang === 'ar'
-                ? `مبروك! تم تسجيلك بنجاح في ${enrollToast.titleAr}. يمكنك الآن بدء المذاكرة!`
-                : `Successfully enrolled in ${enrollToast.titleEn}!`
-              }
-            </span>
-            <button
-              onClick={() => navigate('/student/lesson')}
-              style={{
-                background: '#FFFFFF',
-                color: '#065F46',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                marginInlineStart: '8px'
-              }}
-            >
-              {lang === 'ar' ? 'بدء الحصة الآن' : 'Start Lesson'}
-            </button>
+            <CheckCircle2 size={18} />
+            <span>تم التسجيل بنجاح في: {enrollToast}</span>
           </div>
         )}
 
-        {/* ── Header Row (US-14 / US-15 Intro) ── */}
+        {/* Clean Header */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '16px'
+          gap: '16px',
+          paddingBottom: '20px',
+          borderBottom: '1px solid var(--border-subtle)'
         }}>
           <div>
             <h1 style={{
-              fontSize: '26px',
+              fontSize: '24px',
               fontWeight: '800',
               color: 'var(--text-primary)',
-              margin: 0,
-              fontFamily: 'var(--font-heading), var(--font-arabic)',
-              letterSpacing: '-0.02em',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
+              margin: '0 0 6px 0',
+              letterSpacing: '-0.01em'
             }}>
-              <span>{lang === 'ar' ? 'اكتشاف الكورسات والحصص' : 'Course Discovery'}</span>
+              {lang === 'ar' ? 'المقررات الدراسية' : 'Curriculum & Courses'}
             </h1>
             <p style={{
-              fontSize: '14px',
+              fontSize: '13.5px',
               color: 'var(--text-secondary)',
-              margin: '4px 0 0',
-              fontWeight: '400'
+              margin: 0,
+              lineHeight: 1.5
             }}>
               {lang === 'ar'
-                ? 'تصفح مناهج الصف الثالث الثانوي وتعلّم مع نخبة كبار معلمي الجمهورية.'
-                : 'Browse 3rd Secondary curriculum and learn from top elite instructors.'
-              }
+                ? 'مناهج وزارة التربية والتعليم الرسمية، وباقات وحصص كبار معلمي الجمهورية'
+                : 'Official Ministry of Education curriculum and top registered teacher courses'}
             </p>
           </div>
 
-          {/* Quick Enrolled Stats Banner */}
+          {/* Quick Search */}
           <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '12px',
-            background: isDark ? 'rgba(56, 189, 248, 0.08)' : 'rgba(2, 132, 199, 0.08)',
-            border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.2)' : 'rgba(2, 132, 199, 0.2)'}`,
-            padding: '8px 16px',
-            borderRadius: '12px'
+            position: 'relative',
+            width: '100%',
+            maxWidth: '320px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={16} style={{ color: isDark ? '#38BDF8' : '#0284C7' }} />
-              <span style={{ fontSize: '13px', fontWeight: '700', color: isDark ? '#38BDF8' : '#0284C7' }}>
-                {Object.keys(enrolledCourses).length} {lang === 'ar' ? 'كورسات مسجلة' : 'Enrolled Courses'}
-              </span>
-            </div>
-            <span style={{ color: 'var(--text-muted)' }}>•</span>
-            <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-              {COURSES_CATALOG.length} {lang === 'ar' ? 'كورس متاح' : 'Available'}
-            </span>
-          </div>
-        </div>
-
-        {/* ── US-16: Search Bar & Quick Status Filter Tabs ── */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '16px',
-          padding: '16px 20px'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}>
-            {/* Search Input Box */}
-            <div style={{
-              position: 'relative',
-              flex: 1,
-              minWidth: '280px',
-              maxWidth: '560px'
-            }}>
-              <Search
-                size={18}
+            <Search
+              size={16}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                insetInlineStart: '12px',
+                color: 'var(--text-muted)'
+              }}
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={lang === 'ar' ? 'بحث في المقرارات أو المعلمين...' : 'Search curriculum or teacher...'}
+              style={{
+                width: '100%',
+                height: '40px',
+                paddingInlineStart: '36px',
+                paddingInlineEnd: searchQuery ? '32px' : '12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontFamily: 'var(--font-arabic)',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
                 style={{
                   position: 'absolute',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  insetInlineStart: '14px',
-                  color: 'var(--text-muted)'
+                  insetInlineEnd: '10px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: 0
                 }}
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={lang === 'ar' ? 'ابحث باسم الكورس، المعلم، المادة، أو الكلمات المفتاحية...' : 'Search course, teacher, or subject...'}
-                style={{
-                  width: '100%',
-                  height: '44px',
-                  paddingInlineStart: '42px',
-                  paddingInlineEnd: searchQuery ? '38px' : '14px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                  background: isDark ? '#0A0F1D' : '#F8FAFC',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  fontFamily: 'var(--font-arabic)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'border-color 0.15s ease'
-                }}
-                onFocus={(e) => e.target.style.borderColor = isDark ? '#38BDF8' : '#0284C7'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    insetInlineEnd: '12px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                  title={lang === 'ar' ? 'مسح البحث' : 'Clear search'}
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-
-            {/* Quick Status Filter Tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {[
-                { id: 'all', labelAr: 'جميع الكورسات', labelEn: 'All' },
-                { id: 'enrolled', labelAr: 'كورساتي المسجلة', labelEn: 'Enrolled' },
-                { id: 'available', labelAr: 'متاح للاشتراك', labelEn: 'Available' },
-                { id: 'top_rated', labelAr: 'الأعلى تقييماً ★', labelEn: 'Top Rated ★' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setStatusFilter(tab.id)}
-                  style={{
-                    background: statusFilter === tab.id
-                      ? (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.12)')
-                      : 'transparent',
-                    color: statusFilter === tab.id
-                      ? (isDark ? '#38BDF8' : '#0284C7')
-                      : 'var(--text-secondary)',
-                    border: `1px solid ${statusFilter === tab.id ? (isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.35)') : 'var(--border-subtle)'}`,
-                    borderRadius: '8px',
-                    padding: '8px 14px',
-                    fontSize: '12.5px',
-                    fontWeight: statusFilter === tab.id ? '700' : '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    minHeight: '38px'
-                  }}
-                >
-                  {lang === 'ar' ? tab.labelAr : tab.labelEn}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── US-14: Subject Filter Chips ── */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            overflowX: 'auto',
-            paddingBottom: '4px',
-            borderTop: '1px solid var(--border-subtle)',
-            paddingTop: '12px'
-          }}>
-            <button
-              onClick={() => setSelectedSubject('all')}
-              className="executive-chip"
-              style={{
-                background: selectedSubject === 'all'
-                  ? (isDark ? '#38BDF8' : '#0284C7')
-                  : 'var(--bg-subtle)',
-                color: selectedSubject === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
-                border: selectedSubject === 'all' ? 'none' : '1px solid var(--border-subtle)'
-              }}
-            >
-              <span>{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</span>
-              <span style={{
-                fontSize: '11px',
-                padding: '1px 6px',
-                borderRadius: '99px',
-                background: selectedSubject === 'all' ? 'rgba(0,0,0,0.2)' : 'var(--border-subtle)'
-              }}>
-                {getSubjectCount('all')}
-              </span>
-            </button>
-
-            {SUBJECTS_LIST.map(sub => {
-              const isSelected = selectedSubject === sub.id;
-              const count = getSubjectCount(sub.id);
-              return (
-                <button
-                  key={sub.id}
-                  onClick={() => setSelectedSubject(sub.id)}
-                  className="executive-chip"
-                  style={{
-                    background: isSelected
-                      ? sub.color
-                      : isDark ? 'rgba(255, 255, 255, 0.04)' : 'var(--bg-subtle)',
-                    color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
-                    border: `1px solid ${isSelected ? sub.color : 'var(--border-subtle)'}`
-                  }}
-                >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isSelected ? '#FFFFFF' : sub.color }} />
-                  <span>{lang === 'ar' ? sub.nameAr : sub.name}</span>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '1px 6px',
-                    borderRadius: '99px',
-                    background: isSelected ? 'rgba(0,0,0,0.2)' : 'var(--border-subtle)'
-                  }}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* ── Courses Count & Active Query Indicator ── */}
+        {/* ── Calm Category Segment Switcher ── */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '13px',
-          color: 'var(--text-secondary)'
+          gap: '8px',
+          backgroundColor: 'var(--bg-subtle)',
+          padding: '4px',
+          borderRadius: '14px',
+          width: 'fit-content',
+          border: '1px solid var(--border-subtle)'
         }}>
-          <div>
-            {lang === 'ar' ? 'عرض' : 'Showing'} <strong style={{ color: 'var(--text-primary)' }}>{filteredCourses.length}</strong> {lang === 'ar' ? 'كورس متاح' : 'courses'}
-            {selectedSubject !== 'all' && (
-              <span style={{ marginInlineStart: '6px' }}>
-                في مادة <strong style={{ color: isDark ? '#38BDF8' : '#0284C7' }}>{SUBJECTS_LIST.find(s => s.id === selectedSubject)?.nameAr}</strong>
-              </span>
-            )}
-          </div>
+          <button
+            onClick={() => setActiveCategory('ministry')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 20px',
+              borderRadius: '10px',
+              border: 'none',
+              backgroundColor: activeCategory === 'ministry' ? 'var(--bg-surface-elevated)' : 'transparent',
+              color: activeCategory === 'ministry' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontWeight: activeCategory === 'ministry' ? '800' : '600',
+              fontSize: '13.5px',
+              cursor: 'pointer',
+              boxShadow: activeCategory === 'ministry' ? 'var(--shadow-xs)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <GraduationCap size={16} color={activeCategory === 'ministry' ? 'var(--primary)' : 'var(--text-muted)'} />
+            <span>{lang === 'ar' ? 'مقررات وزارة التربية والتعليم' : 'Ministry Curriculum'}</span>
+            <span style={{
+              fontSize: '11px',
+              padding: '1px 6px',
+              borderRadius: '6px',
+              backgroundColor: activeCategory === 'ministry' ? 'var(--primary-surface)' : 'var(--bg-hover)',
+              color: activeCategory === 'ministry' ? 'var(--primary)' : 'var(--text-muted)'
+            }}>
+              {MINISTRY_CURRICULUM.length}
+            </span>
+          </button>
 
-          {(searchQuery || selectedSubject !== 'all' || statusFilter !== 'all') && (
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedSubject('all');
-                setStatusFilter('all');
-              }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: isDark ? '#38BDF8' : '#0284C7',
-                fontSize: '12.5px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <span>{lang === 'ar' ? 'إعادة ضبط الفلاتر' : 'Reset filters'}</span>
-            </button>
-          )}
+          <button
+            onClick={() => setActiveCategory('teachers')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 20px',
+              borderRadius: '10px',
+              border: 'none',
+              backgroundColor: activeCategory === 'teachers' ? 'var(--bg-surface-elevated)' : 'transparent',
+              color: activeCategory === 'teachers' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontWeight: activeCategory === 'teachers' ? '800' : '600',
+              fontSize: '13.5px',
+              cursor: 'pointer',
+              boxShadow: activeCategory === 'teachers' ? 'var(--shadow-xs)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Users size={16} color={activeCategory === 'teachers' ? 'var(--primary)' : 'var(--text-muted)'} />
+            <span>{lang === 'ar' ? 'حصص وكورسات المعلمين' : 'Teacher Courses'}</span>
+            <span style={{
+              fontSize: '11px',
+              padding: '1px 6px',
+              borderRadius: '6px',
+              backgroundColor: activeCategory === 'teachers' ? 'var(--primary-surface)' : 'var(--bg-hover)',
+              color: activeCategory === 'teachers' ? 'var(--primary)' : 'var(--text-muted)'
+            }}>
+              {COURSES_CATALOG.length}
+            </span>
+          </button>
         </div>
 
-        {/* ── US-15: Courses Grid ── */}
-        {filteredCourses.length === 0 ? (
-          <div style={{
-            padding: '60px 20px',
-            textAlign: 'center',
-            background: 'var(--bg-surface)',
-            borderRadius: '16px',
-            border: '1px solid var(--border-subtle)'
-          }}>
+        {/* =========================================================================
+            SECTION 1: مقررات وزارة التربية والتعليم (MINISTRY CURRICULUM)
+           ========================================================================= */}
+        {activeCategory === 'ministry' && (
+          <div style={{ animation: 'tabFadeIn 0.22s ease-out' }}>
             <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '14px',
-              background: 'rgba(56, 189, 248, 0.1)',
-              color: isDark ? '#38BDF8' : '#0284C7',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '16px'
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+              gap: '20px'
             }}>
-              <BookOpen size={26} />
-            </div>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 6px' }}>
-              {lang === 'ar' ? 'لم يتم العثور على كورسات مطابقة' : 'No matching courses found'}
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 16px' }}>
-              {lang === 'ar' ? 'جرب البحث باسم مادة أخرى أو مسح شريط البحث لعرض كافة الكورسات المتاحة.' : 'Try changing your search query or reset filters.'}
-            </p>
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedSubject('all');
-                setStatusFilter('all');
-              }}
-              style={{
-                background: isDark ? '#38BDF8' : '#0284C7',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '8px 18px',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              {lang === 'ar' ? 'عرض كافة الكورسات' : 'Show all courses'}
-            </button>
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
-            gap: '20px'
-          }}>
-            {filteredCourses.map(course => {
-              const isEnrolled = !!enrolledCourses[course.id];
-              return (
-                <div key={course.id} className="executive-course-card">
-                  {/* Cover Image & Overlay */}
-                  <div className="executive-course-cover">
-                    <img src={course.cover} alt={course.titleAr} />
-                    <div className="executive-course-cover-overlay" />
-
-                    {/* Top Badges */}
+              {filteredMinistry.map((item) => (
+                <div
+                  key={item.id}
+                  className="clean-course-card"
+                  style={{
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '20px',
+                    padding: '22px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: 'var(--shadow-xs)'
+                  }}
+                >
+                  <div>
+                    {/* Top Row: Subject & Source */}
                     <div style={{
-                      position: 'absolute',
-                      top: '12px',
-                      insetInlineStart: '12px',
-                      insetInlineEnd: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      pointerEvents: 'none'
+                      marginBottom: '12px'
                     }}>
-                      {/* Subject Tag */}
                       <span style={{
-                        background: 'rgba(10, 15, 29, 0.85)',
-                        backdropFilter: 'blur(4px)',
-                        color: '#FFFFFF',
-                        fontSize: '11px',
+                        fontSize: '12px',
                         fontWeight: '700',
-                        padding: '3px 9px',
-                        borderRadius: '6px',
-                        border: '1px solid rgba(255, 255, 255, 0.15)'
+                        padding: '3px 10px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-subtle)'
                       }}>
-                        {course.subjectAr}
+                        {item.subjectAr}
                       </span>
 
-                      {/* Enrolled Status Badge */}
-                      {isEnrolled ? (
-                        <span style={{
-                          background: '#10B981',
-                          color: '#FFFFFF',
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          padding: '3px 10px',
-                          borderRadius: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)'
-                        }}>
-                          <CheckCircle2 size={12} />
-                          <span>{lang === 'ar' ? 'أنت مسجل' : 'Enrolled'}</span>
-                        </span>
-                      ) : (
-                        <span style={{
-                          background: 'rgba(56, 189, 248, 0.9)',
-                          color: '#0A0F1D',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          padding: '3px 9px',
-                          borderRadius: '6px'
-                        }}>
-                          {lang === 'ar' ? 'متاح للتسجيل' : 'Available'}
-                        </span>
-                      )}
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        color: 'var(--text-secondary)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                        color: '#059669',
+                        padding: '3px 8px',
+                        borderRadius: '6px'
+                      }}>
+                        معتمد وزارياً
+                      </span>
                     </div>
 
-                    {/* Instructor on Cover */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      insetInlineStart: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <img
-                        src={course.teacher.avatar}
-                        alt={course.teacher.nameAr}
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          border: '2px solid #FFFFFF'
-                        }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#FFFFFF', lineHeight: 1.2 }}>
-                          {course.teacher.nameAr}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.75)' }}>
-                          {course.teacher.titleAr.split(' ومؤلفة')[0]}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Body Info */}
-                  <div style={{
-                    padding: '16px 18px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    flex: 1,
-                    gap: '12px'
-                  }}>
-                    {/* Course Title */}
+                    {/* Title */}
                     <h3 style={{
-                      fontSize: '15px',
-                      fontWeight: '700',
+                      fontSize: '17px',
+                      fontWeight: '800',
                       color: 'var(--text-primary)',
-                      margin: 0,
-                      lineHeight: 1.45,
-                      minHeight: '44px'
+                      margin: '0 0 6px 0',
+                      lineHeight: 1.45
                     }}>
-                      {course.titleAr}
+                      {item.titleAr}
                     </h3>
 
-                    {/* Metadata Row */}
+                    {/* Grade Track */}
+                    <div style={{
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '14px'
+                    }}>
+                      {item.gradeAr}
+                    </div>
+
+                    {/* Current Unit */}
+                    <div style={{
+                      backgroundColor: 'var(--bg-subtle)',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      color: 'var(--text-primary)',
+                      marginBottom: '16px',
+                      lineHeight: 1.4
+                    }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '2px' }}>الوحدة الحالية:</div>
+                      <strong>{item.activeUnitAr}</strong>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div style={{ marginBottom: '18px' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '6px'
+                      }}>
+                        <span>إنجاز المنهج الدراسي</span>
+                        <strong style={{ color: 'var(--text-primary)' }}>{item.progressPercent}%</strong>
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        height: '6px',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${item.progressPercent}%`,
+                          height: '100%',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--primary)',
+                          transition: 'width 0.5s ease'
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Curriculum Specs */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '14px',
                       fontSize: '12px',
                       color: 'var(--text-secondary)',
-                      flexWrap: 'wrap'
+                      marginBottom: '18px'
                     }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <BookOpen size={13} style={{ color: isDark ? '#38BDF8' : '#0284C7' }} />
-                        <span>{course.lessonsCount} {lang === 'ar' ? 'حصة' : 'lessons'}</span>
+                        <Layers size={13} color="var(--text-muted)" />
+                        {item.unitsCount} وحدات
                       </span>
-
+                      <span>•</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={13} style={{ color: 'var(--text-muted)' }} />
-                        <span>{course.durationHours}</span>
+                        <FileText size={13} color="var(--text-muted)" />
+                        {item.chaptersCount} درساً
                       </span>
-
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Star size={13} fill="#F5A623" color="#F5A623" />
-                        <strong style={{ color: 'var(--text-primary)' }}>{course.rating}</strong>
-                        <span style={{ color: 'var(--text-muted)' }}>({course.reviewsCount})</span>
-                      </span>
-
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Users size={13} style={{ color: 'var(--text-muted)' }} />
-                        <span>{course.teacher.studentsCount.toLocaleString()}</span>
-                      </span>
-                    </div>
-
-                    {/* Enrolled Progress Bar */}
-                    {isEnrolled && (
-                      <div style={{
-                        background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(15, 23, 42, 0.03)',
-                        borderRadius: '8px',
-                        padding: '8px 10px',
-                        border: '1px solid var(--border-subtle)'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '4px' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'نسبة تقدمك في المنهج' : 'Course Progress'}</span>
-                          <strong style={{ color: '#10B981' }}>{course.progressPercent}%</strong>
-                        </div>
-                        <div style={{ height: '5px', background: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)', borderRadius: '99px', overflow: 'hidden' }}>
-                          <div style={{ width: `${course.progressPercent}%`, height: '100%', background: '#10B981', borderRadius: '99px' }} />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Card Footer: Price & Action Buttons */}
-                    <div style={{
-                      marginTop: 'auto',
-                      paddingTop: '12px',
-                      borderTop: '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '10px'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {isEnrolled ? (lang === 'ar' ? 'الاشتراك' : 'Status') : (lang === 'ar' ? 'سعر الكورس' : 'Price')}
-                        </div>
-                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                          {isEnrolled ? (
-                            <span style={{ color: '#10B981', fontSize: '14px' }}>{lang === 'ar' ? 'اشتراك نشط' : 'Active'}</span>
-                          ) : (
-                            <>
-                              {course.priceEgp} <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-muted)' }}>{lang === 'ar' ? 'ج.م' : 'EGP'}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {/* US-17: View Course Details Button */}
-                        <button
-                          onClick={() => {
-                            setSelectedCourseModal(course);
-                            setModalActiveTab('syllabus');
-                          }}
-                          style={{
-                            background: 'transparent',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-primary)',
-                            borderRadius: '8px',
-                            padding: '8px 12px',
-                            fontSize: '12.5px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.borderColor = isDark ? '#38BDF8' : '#0284C7'}
-                          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                        >
-                          {lang === 'ar' ? 'تفاصيل' : 'Details'}
-                        </button>
-
-                        {/* US-18: Instant Enroll or Resume Button */}
-                        {isEnrolled ? (
-                          <button
-                            onClick={() => navigate(`/student/lesson?course=${course.id}`)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              background: isDark ? '#38BDF8' : '#0284C7',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '8px 14px',
-                              fontSize: '12.5px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              boxShadow: `0 4px 12px ${isDark ? 'rgba(56, 189, 248, 0.3)' : 'rgba(2, 132, 199, 0.25)'}`,
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <Play size={13} fill="#FFFFFF" />
-                            <span>{lang === 'ar' ? 'متابعة' : 'Resume'}</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleEnroll(course)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              background: '#10B981',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '8px 14px',
-                              fontSize: '12.5px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <CheckCircle2 size={13} />
-                            <span>{lang === 'ar' ? 'تسجيل' : 'Enroll'}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════════════
-            US-17: عرض تفاصيل الكورس (Course Details & Curriculum Modal)
-            ══════════════════════════════════════════════════════════════════════ */}
-        {selectedCourseModal && (
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(6px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px'
-          }}>
-            <div style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: '20px',
-              maxWidth: '680px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              position: 'relative',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedCourseModal(null)}
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  insetInlineEnd: '16px',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                  backdropFilter: 'blur(4px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#FFFFFF',
-                  zIndex: 20
-                }}
-              >
-                <X size={16} />
-              </button>
-
-              {/* Modal Hero Cover */}
-              <div style={{ position: 'relative', height: '180px', overflow: 'hidden' }}>
-                <img
-                  src={selectedCourseModal.cover}
-                  alt={selectedCourseModal.titleAr}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'linear-gradient(to top, rgba(14, 23, 38, 0.95) 0%, rgba(14, 23, 38, 0.3) 100%)'
-                }} />
-
-                <div style={{
-                  position: 'absolute',
-                  bottom: '16px',
-                  insetInlineStart: '20px',
-                  insetInlineEnd: '20px'
-                }}>
-                  <span style={{
-                    backgroundColor: '#38BDF8',
-                    color: '#0A0F1D',
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    display: 'inline-block',
-                    marginBottom: '6px'
-                  }}>
-                    {selectedCourseModal.subjectAr}
-                  </span>
-                  <h2 style={{
-                    fontSize: '18px',
-                    fontWeight: '800',
-                    color: '#FFFFFF',
-                    margin: 0,
-                    lineHeight: 1.35
-                  }}>
-                    {selectedCourseModal.titleAr}
-                  </h2>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
-                {/* Instructor Card */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  backgroundColor: 'var(--bg-subtle)',
-                  border: '1px solid var(--border-subtle)',
-                  flexWrap: 'wrap',
-                  gap: '12px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <img
-                      src={selectedCourseModal.teacher.avatar}
-                      alt={selectedCourseModal.teacher.nameAr}
-                      style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }}
-                    />
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                        {selectedCourseModal.teacher.nameAr}
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                        {selectedCourseModal.teacher.titleAr}
-                      </div>
+                      <span>•</span>
+                      <span>بنك أسئلة الوزارة</span>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#F5A623', fontWeight: '700' }}>
-                      <Star size={13} fill="#F5A623" />
-                      <span>{selectedCourseModal.teacher.rating}</span>
-                    </span>
-                    <span style={{ color: 'var(--text-secondary)' }}>
-                      {selectedCourseModal.teacher.studentsCount.toLocaleString()} {lang === 'ar' ? 'طالب' : 'students'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Tabs Selector: Syllabus (فهرس الحصص) vs About (عن الكورس) */}
-                <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
-                  <button
-                    onClick={() => setModalActiveTab('syllabus')}
-                    style={{
-                      background: modalActiveTab === 'syllabus' ? (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
-                      color: modalActiveTab === 'syllabus' ? (isDark ? '#38BDF8' : '#0284C7') : 'var(--text-secondary)',
-                      border: `1px solid ${modalActiveTab === 'syllabus' ? (isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.35)') : 'transparent'}`,
-                      borderRadius: '8px',
-                      padding: '7px 14px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {lang === 'ar' ? 'فهرس الحصص والفصول' : 'Course Syllabus'}
-                  </button>
-
-                  <button
-                    onClick={() => setModalActiveTab('about')}
-                    style={{
-                      background: modalActiveTab === 'about' ? (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
-                      color: modalActiveTab === 'about' ? (isDark ? '#38BDF8' : '#0284C7') : 'var(--text-secondary)',
-                      border: `1px solid ${modalActiveTab === 'about' ? (isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.35)') : 'transparent'}`,
-                      borderRadius: '8px',
-                      padding: '7px 14px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {lang === 'ar' ? 'عن الكورس ومخرجات التعلم' : 'About Course'}
-                  </button>
-                </div>
-
-                {/* Tab 1: Syllabus Content */}
-                {modalActiveTab === 'syllabus' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {getCourseSyllabus(selectedCourseModal).map((chapter, idx) => (
-                      <div key={idx} style={{
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => navigate('/student/lesson')}
+                      className="clean-btn"
+                      style={{
+                        flex: 1,
+                        padding: '11px 16px',
                         borderRadius: '12px',
+                        backgroundColor: 'var(--primary)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '13px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 8px rgba(108, 77, 255, 0.25)'
+                      }}
+                    >
+                      <Play size={14} fill="#FFFFFF" />
+                      <span>{lang === 'ar' ? 'متابعة المذاكرة' : 'Continue'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedCurriculumModal(item)}
+                      style={{
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        backgroundColor: 'var(--bg-subtle)',
                         border: '1px solid var(--border-subtle)',
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{
-                          padding: '10px 14px',
-                          background: 'var(--bg-subtle)',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          color: 'var(--text-primary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}>
-                          <Layers size={15} style={{ color: isDark ? '#38BDF8' : '#0284C7' }} />
-                          <span>{chapter.titleAr}</span>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          {chapter.lessons.map(lesson => (
-                            <div
-                              key={lesson.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '10px 14px',
-                                borderTop: '1px solid var(--border-subtle)',
-                                fontSize: '12.5px',
-                                background: 'var(--bg-surface)'
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{
-                                  width: '24px',
-                                  height: '24px',
-                                  borderRadius: '50%',
-                                  background: 'var(--bg-subtle)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '11px',
-                                  fontWeight: '700',
-                                  color: 'var(--text-secondary)'
-                                }}>
-                                  {lesson.id}
-                                </div>
-                                <div>
-                                  <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
-                                    {lesson.titleAr}
-                                  </div>
-                                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '2px' }}>
-                                    <span>{lesson.duration}</span>
-                                    {lesson.hasVideo && <span>• فيديو 4K</span>}
-                                    {lesson.hasPdf && <span>• ملزمة PDF</span>}
-                                    {lesson.hasQuiz && <span>• كويز تفاعلي</span>}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {lesson.isPreview ? (
-                                <span style={{
-                                  fontSize: '11px',
-                                  fontWeight: '700',
-                                  color: '#10B981',
-                                  background: 'rgba(16, 185, 129, 0.12)',
-                                  padding: '2px 8px',
-                                  borderRadius: '6px'
-                                }}>
-                                  {lang === 'ar' ? 'معاينة مجانية' : 'Free Preview'}
-                                </span>
-                              ) : (
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  {enrolledCourses[selectedCourseModal.id] ? (lang === 'ar' ? 'متاح الآن' : 'Available') : (lang === 'ar' ? 'يتطلب التسجيل' : 'Locked')}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Tab 2: About & Outcomes Content */}
-                {modalActiveTab === 'about' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    <p style={{
-                      fontSize: '13.5px',
-                      color: 'var(--text-secondary)',
-                      lineHeight: 1.7,
-                      margin: 0
-                    }}>
-                      {selectedCourseModal.descriptionAr}
-                    </p>
-
-                    <div style={{
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      background: 'var(--bg-subtle)',
-                      border: '1px solid var(--border-subtle)'
-                    }}>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                        {lang === 'ar' ? 'ماذا ستتعلم في هذا الكورس؟' : 'What you will learn:'}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {[
-                          'إتقان مخرجات التعلم وفهم أدق التفاصيل في منهج الثانوية العامة.',
-                          'التدريب على حل أحدث أفكار امتحانات الأعوام السابقة ونماذج الوزارة الاسترشادية.',
-                          'حل أسئلة البابل شيت بنظام الاستبعاد وإدارة وقت الامتحان بكفاءة.',
-                          'ملازم وملخصات خرائط ذهنية PDF حصرية جاهزة للطباعة مع كل حصة.'
-                        ].map((point, pIdx) => (
-                          <div key={pIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                            <Check size={14} style={{ color: '#10B981', flexShrink: 0, marginTop: '3px' }} />
-                            <span>{point}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Stats Summary Grid */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '8px',
-                  paddingTop: '8px',
-                  borderTop: '1px solid var(--border-subtle)'
-                }}>
-                  {[
-                    { label: lang === 'ar' ? 'عدد الحصص' : 'Lessons', val: `${selectedCourseModal.lessonsCount} حصة` },
-                    { label: lang === 'ar' ? 'ساعات الشرح' : 'Hours', val: selectedCourseModal.durationHours },
-                    { label: lang === 'ar' ? 'ملفات مرفقة' : 'Files', val: `${selectedCourseModal.attachmentsCount} ملف` },
-                    { label: lang === 'ar' ? 'التقييم العام' : 'Rating', val: `${selectedCourseModal.rating} ★` }
-                  ].map((s, sIdx) => (
-                    <div key={sIdx} style={{
-                      padding: '8px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-subtle)',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.label}</div>
-                      <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>{s.val}</div>
-                    </div>
-                  ))}
-                </div>
-
-              </div>
-
-              {/* Modal Sticky Bottom Action Footer */}
-              <div style={{
-                marginTop: 'auto',
-                padding: '16px 20px',
-                borderTop: '1px solid var(--border-subtle)',
-                background: 'var(--bg-surface)',
-                borderRadius: '0 0 20px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '16px'
-              }}>
-                <div>
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                    {enrolledCourses[selectedCourseModal.id] ? (lang === 'ar' ? 'حالة الاشتراك' : 'Status') : (lang === 'ar' ? 'السعر الشامل' : 'Total Price')}
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                    {enrolledCourses[selectedCourseModal.id] ? (
-                      <span style={{ color: '#10B981', fontSize: '15px' }}>{lang === 'ar' ? 'أنت مسجل في الكورس' : 'Enrolled'}</span>
-                    ) : (
-                      <>
-                        {selectedCourseModal.priceEgp} <span style={{ fontSize: '13px', fontWeight: '400', color: 'var(--text-muted)' }}>{lang === 'ar' ? 'ج.م' : 'EGP'}</span>
-                      </>
-                    )}
+                        color: 'var(--text-primary)',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {lang === 'ar' ? 'كتاب الوزارة' : 'Textbook'}
+                    </button>
                   </div>
                 </div>
-
-                {enrolledCourses[selectedCourseModal.id] ? (
-                  <button
-                    onClick={() => {
-                      setSelectedCourseModal(null);
-                      navigate(`/student/lesson?course=${selectedCourseModal.id}`);
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      background: isDark ? '#38BDF8' : '#0284C7',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '10px',
-                      padding: '10px 20px',
-                      fontSize: '13.5px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      boxShadow: `0 4px 16px ${isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.25)'}`
-                    }}
-                  >
-                    <Play size={16} fill="#FFFFFF" />
-                    <span>{lang === 'ar' ? 'الانتقال إلى مشغل الحصة' : 'Go to Lesson Player'}</span>
-                    {isRtl ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleEnroll(selectedCourseModal)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      background: '#10B981',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '10px',
-                      padding: '10px 22px',
-                      fontSize: '13.5px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)'
-                    }}
-                  >
-                    <CheckCircle2 size={16} />
-                    <span>{lang === 'ar' ? 'التسجيل في الكورس الآن' : 'Enroll Now'}</span>
-                    {isRtl ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}
-                  </button>
-                )}
-              </div>
+              ))}
             </div>
           </div>
         )}
 
+        {/* =========================================================================
+            SECTION 2: كورسات وحصص المعلمين (TEACHER COURSES)
+           ========================================================================= */}
+        {activeCategory === 'teachers' && (
+          <div style={{ animation: 'tabFadeIn 0.22s ease-out' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+              gap: '20px'
+            }}>
+              {filteredTeacherCourses.map((course) => {
+                const isEnrolled = !!enrolledCourses[course.id];
+
+                return (
+                  <div
+                    key={course.id}
+                    className="clean-course-card"
+                    style={{
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '20px',
+                      padding: '22px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-xs)'
+                    }}
+                  >
+                    <div>
+                      {/* Top Row: Subject & Enrollment status */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '12px'
+                      }}>
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          padding: '3px 10px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--bg-subtle)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border-subtle)'
+                        }}>
+                          {course.subjectAr}
+                        </span>
+
+                        {isEnrolled ? (
+                          <span style={{
+                            fontSize: '11.5px',
+                            fontWeight: '700',
+                            color: '#059669',
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            <Check size={12} />
+                            <span>مشترك به</span>
+                          </span>
+                        ) : (
+                          <span style={{
+                            fontSize: '11.5px',
+                            fontWeight: '600',
+                            color: 'var(--text-secondary)',
+                            backgroundColor: 'var(--bg-subtle)',
+                            padding: '3px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            {course.priceEgp} ج.م
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Course Title */}
+                      <h3 style={{
+                        fontSize: '16.5px',
+                        fontWeight: '800',
+                        color: 'var(--text-primary)',
+                        margin: '0 0 10px 0',
+                        lineHeight: 1.45,
+                        minHeight: '44px'
+                      }}>
+                        {course.titleAr}
+                      </h3>
+
+                      {/* Teacher Row */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginBottom: '16px',
+                        paddingBottom: '12px',
+                        borderBottom: '1px solid var(--border-subtle)'
+                      }}>
+                        <img
+                          src={course.teacher.avatar}
+                          alt={course.teacher.nameAr}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                        <div>
+                          <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            {course.teacher.nameAr}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {course.teacher.titleAr}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar if enrolled */}
+                      {isEnrolled && (
+                        <div style={{ marginBottom: '16px' }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: '11.5px',
+                            fontWeight: '700',
+                            color: 'var(--text-secondary)',
+                            marginBottom: '6px'
+                          }}>
+                            <span>تقدمك في الحصص</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>{course.progressPercent}%</strong>
+                          </div>
+                          <div style={{
+                            width: '100%',
+                            height: '6px',
+                            borderRadius: '6px',
+                            backgroundColor: 'var(--bg-subtle)',
+                            overflow: 'hidden'
+                          }}>
+                            <div style={{
+                              width: `${course.progressPercent}%`,
+                              height: '100%',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--primary)',
+                              transition: 'width 0.5s ease'
+                            }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Course Specs */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '18px'
+                      }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Video size={13} color="var(--text-muted)" />
+                          {course.lessonsCount} حصة
+                        </span>
+                        <span>•</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={13} color="var(--text-muted)" />
+                          {course.durationHours}
+                        </span>
+                        <span>•</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          ★ {course.rating}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div>
+                      {isEnrolled ? (
+                        <button
+                          onClick={() => navigate('/student/lesson')}
+                          className="clean-btn"
+                          style={{
+                            width: '100%',
+                            padding: '11px 16px',
+                            borderRadius: '12px',
+                            backgroundColor: 'var(--primary)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            fontSize: '13px',
+                            fontWeight: '800',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            boxShadow: '0 2px 8px rgba(108, 77, 255, 0.25)'
+                          }}
+                        >
+                          <Play size={14} fill="#FFFFFF" />
+                          <span>{lang === 'ar' ? 'متابعة الحصة الآن' : 'Continue Lesson'}</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleEnroll(course)}
+                          className="clean-btn"
+                          style={{
+                            width: '100%',
+                            padding: '11px 16px',
+                            borderRadius: '12px',
+                            backgroundColor: 'var(--bg-subtle)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: '13px',
+                            fontWeight: '800',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <span>{lang === 'ar' ? `الاشتراك بالكورس (${course.priceEgp} ج.م)` : 'Enroll in Course'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            CLEAN MODAL: MINISTRY TEXTBOOK & TOPICS PREVIEW
+           ========================================================================= */}
+        {selectedCurriculumModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: '20px',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '26px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)',
+              position: 'relative',
+              animation: 'modalFadeIn 0.2s ease-out'
+            }}>
+              {/* Close */}
+              <button
+                onClick={() => setSelectedCurriculumModal(null)}
+                style={{
+                  position: 'absolute',
+                  top: '18px',
+                  left: isRtl ? '18px' : 'auto',
+                  right: isRtl ? 'auto' : '18px',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={15} />
+              </button>
+
+              <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', marginBottom: '4px' }}>
+                {selectedCurriculumModal.sourceAr}
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                {selectedCurriculumModal.titleAr}
+              </h3>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
+                {selectedCurriculumModal.gradeAr}
+              </p>
+
+              {/* Topics List */}
+              <div style={{
+                backgroundColor: 'var(--bg-subtle)',
+                borderRadius: '14px',
+                padding: '14px',
+                marginBottom: '18px'
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px' }}>
+                  الأبواب والوحدات المقررة رسمياً:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedCurriculumModal.topics.map((t, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                      <span style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--bg-surface)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        color: 'var(--primary)',
+                        flexShrink: 0
+                      }}>
+                        {idx + 1}
+                      </span>
+                      <span>{t}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  onClick={() => setSelectedCurriculumModal(null)}
+                  style={{
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  إغلاق
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedCurriculumModal(null);
+                    navigate('/student/lesson');
+                  }}
+                  style={{
+                    padding: '9px 20px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontWeight: '800',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(108, 77, 255, 0.3)'
+                  }}
+                >
+                  بدء مذاكرة المنهج
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </SPage>
   );
