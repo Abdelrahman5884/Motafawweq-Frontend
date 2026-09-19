@@ -10,27 +10,24 @@ import {
   Headphones, Video, ChevronDown, X, Maximize2, Minimize2,
   Send, Trash2, Check, Award, Star, Map, ChevronRight,
   Zap, Target, Brain, Lock, Unlock, ExternalLink, CheckSquare, Square,
-  AlertCircle, ChevronLeft, Calendar, Folder, AlignLeft, Search
+  AlertCircle, ChevronLeft, Calendar, Folder, AlignLeft, Search,
+  RotateCw, Share2, Network, GitBranch, Layers
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════
    World-Class Student Lesson Study Workspace
-   Matching Reference Layout & User Design Specs:
-   1. 5 Specific Header Tabs (Image 1):
-      - ملاحظات الدرس (Notes)
-      - نص الحصة (Interactive Synced Transcript)
-      - خريطة الحصة (NotebookLM Concept Map)
-      - الملفات (Files & PDFs)
-      - الأسئلة (Q&A & Practice)
-   2. "درس اليوم" Card (Image 2):
-      - Calendar Icon + "درس اليوم" + "أكمل تقدمك في هذا الدرس"
-      - Large Donut Progress Ring with 78% / dynamic percentage
-      - "تم إكمال الدرس" + "الوقت المتبقي: 10:25 دقيقة"
-      - Interactive Checklist (مشاهدة الفيديو, مراجعة الملاحظات, حل الأسئلة, إكمال مصادر إضافية)
-      - Primary CTA Button: "متابعة الدرس ▶"
-   3. Course Content Playlist (Permanently open, no collapse button)
-   4. Interactive Confirmation Dialogs with smooth spring pop animations
-   5. 100% Mobile Responsive & Adaptive
+   Features:
+   1. Clean 5 Header Tabs (Exact Match to Reference Image):
+      - ملاحظات الدرس
+      - نص الحصة
+      - خريطة الحصة (مع خريطة البطاقات + الرسم البياني الشبكي Interactive Graph)
+      - الملفات
+      - الأسئلة
+   2. "درس اليوم" Card with circular donut progress (Image 2)
+   3. "محتوى الدورة" with explicit percentage (Image 2)
+   4. Universal Confirmation Modals for all buttons on page
+   5. Landscape / horizontal playback for mobile
+   6. Premium animations & micro-interactions
    ═══════════════════════════════════════════════════════════ */
 
 export const StudentLessonView = () => {
@@ -171,6 +168,7 @@ export const StudentLessonView = () => {
   const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayerFS, setIsPlayerFS] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   // Statuses
   const isCompleted = !!lessonStatuses[activeLessonId];
@@ -194,26 +192,72 @@ export const StudentLessonView = () => {
     }));
   };
 
-  // ─── Confirmation Modal State ─────────────────────────────
+  // ─── Universal Confirmation Modal State ───────────────────
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
-    type: null, // 'complete' | 'uncomplete' | 'delete_note'
     title: '',
     message: '',
     confirmText: '',
     cancelText: '',
     confirmColor: 'emerald',
-    payload: null
+    action: null
   });
+
+  const triggerConfirm = ({ title, message, confirmText, cancelText, confirmColor, onConfirm }) => {
+    setConfirmDialog({
+      open: true,
+      title,
+      message,
+      confirmText: confirmText || (lang === 'ar' ? 'تأكيد' : 'Confirm'),
+      cancelText: cancelText || (lang === 'ar' ? 'إلغاء' : 'Cancel'),
+      confirmColor: confirmColor || 'emerald',
+      action: onConfirm
+    });
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmDialog.action) {
+      confirmDialog.action();
+    }
+    setConfirmDialog(p => ({ ...p, open: false }));
+  };
 
   // ─── 5 Tabs State (Matching Image 1) ──────────────────────
   // 'notes' | 'transcript' | 'roadmap' | 'materials' | 'questions'
   const [activeTab, setActiveTab] = useState('notes');
 
-  // NotebookLM Knowledge Map State
+  // ─── Knowledge Map & Graph Sub-Mode ───────────────────────
+  const [roadmapViewMode, setRoadmapViewMode] = useState('cards'); // 'cards' | 'graph'
   const [isKMFS, setIsKMFS] = useState(false);
   const [expandedConcept, setExpandedConcept] = useState(2);
   const [masteredConcepts, setMasteredConcepts] = useState({ 1: true });
+  const [selectedGraphNode, setSelectedGraphNode] = useState('gn4');
+
+  // Interactive Graph Nodes (الرسم البياني الشبكي)
+  const graphNodes = [
+    { id: 'gn1', label: 'البلاستيدة الخضراء', tag: 'التركيب العام والستروما', x: 120, y: 180, startSec: 0, color: '#10B981', r: 34, desc: 'البنية الدقيقة والغشاء المزدوج وحشوة الستروما ومراكز الطاقة.' },
+    { id: 'gn2', label: 'أقراص الجرانا (الثيلاكويد)', tag: 'أغشية الامتصاص', x: 280, y: 90, startSec: 240, color: '#06B6D4', r: 30, desc: 'حبيبات الجرانا المرتبة لزيادة مساحة امتصاص الفوتونات الضوئية.' },
+    { id: 'gn3', label: 'أصباغ الكلوروفيل أ وب', tag: 'مركز التفاعل الضوئي', x: 280, y: 270, startSec: 360, color: '#6C4DFF', r: 30, desc: 'ذرة المغنيسيوم المركزية واستثارة الإلكترونات إلى مدارات عليا.' },
+    { id: 'gn4', label: 'انشطار الماء الضوئي H2O', tag: 'تفاعل التحلل الضوئي', x: 480, y: 90, startSec: 480, color: '#38BDF8', r: 32, desc: 'تحلل جزيء الماء إلى بروتونات وإلكترونات نشطة وانطلاق غاز الأكسجين O2.' },
+    { id: 'gn5', label: 'نظائر الأكسجين O18', tag: 'تجربة فان نيل', x: 670, y: 50, startSec: 720, color: '#EC4899', r: 28, desc: 'البرهان العلمي المعملي القاطع على أن الماء هو المصدر الحقيقي للأكسجين وليس CO2.' },
+    { id: 'gn6', label: 'سلسلة الإلكترون Z-Scheme', tag: 'انحدار الطاقة الحركية', x: 640, y: 190, startSec: 1020, color: '#F59E0B', r: 30, desc: 'انتقال الإلكترونات المستثارة لضخ البروتونات وتوليد فرق جهد كيميائي أسموزي.' },
+    { id: 'gn7', label: 'تكوين NADPH2 و ATP', tag: 'مركبا الطاقة التثبيتية', x: 810, y: 190, startSec: 1260, color: '#10B981', r: 32, desc: 'اختزال مرافق الإنزيم NADP+ وتخليق وحدات ATP عبر إنزيم بناء ATP Synthase.' },
+    { id: 'gn8', label: 'دورة كالفن اللاضوئية', tag: 'تثبيت ثاني أكسيد الكربون', x: 960, y: 240, startSec: 1560, color: '#8B5CF6', r: 34, desc: 'التفاعلات الإنزيمية في الستروما دون الحاجة المباشرة للضوء وتثبيت غاز CO2.' },
+    { id: 'gn9', label: 'تخليق مركب PGAL', tag: 'أول مركب كيميائي ثابت', x: 1110, y: 240, startSec: 1800, color: '#2563EB', r: 36, desc: 'فوسفوجليسرالدهيد ثلاثي الكربون لتخليق الجلوكوز والنشا والدهون بعد ثانيتين فقط.' }
+  ];
+
+  const graphEdges = [
+    { from: 'gn1', to: 'gn2' },
+    { from: 'gn1', to: 'gn3' },
+    { from: 'gn2', to: 'gn4' },
+    { from: 'gn3', to: 'gn4' },
+    { from: 'gn4', to: 'gn5' },
+    { from: 'gn4', to: 'gn6' },
+    { from: 'gn6', to: 'gn7' },
+    { from: 'gn7', to: 'gn8' },
+    { from: 'gn1', to: 'gn8' },
+    { from: 'gn8', to: 'gn9' },
+  ];
 
   // Transcript Search State
   const [transcriptSearch, setTranscriptSearch] = useState('');
@@ -317,11 +361,12 @@ export const StudentLessonView = () => {
   }));
 
   const completedCount = playlist.filter(l => l.completed).length;
+  const courseCompletionPct = Math.round((completedCount / playlist.length) * 100);
   const currentCh = lesson.chapters.find(c => currentTime >= c.startSec && currentTime < c.endSec) || lesson.chapters[0];
   const progress = Math.min(100, Math.max(0, ((currentTime / lesson.durationSec) * 100))).toFixed(1);
   const remainingSec = Math.max(0, lesson.durationSec - currentTime);
 
-  // ─── Lesson Switching ─────────────────────────────────────
+  // ─── Lesson Switching with Confirmation ───────────────────
   const switchLesson = (lid) => {
     setActiveLessonId(lid);
     setIsPlaying(false);
@@ -329,6 +374,24 @@ export const StudentLessonView = () => {
     setCurrentTime(s ? parseInt(s, 10) : 0);
     setIsBookmarked(localStorage.getItem(`mtfq_bm_${lid}`) === 'true');
     setMobilePlaylistOpen(false);
+  };
+
+  const handlePlaylistLessonClick = (targetLesson) => {
+    if (targetLesson.id === activeLessonId) return;
+    if (isPlaying || currentTime > 60) {
+      triggerConfirm({
+        title: lang === 'ar' ? 'الانتقال إلى درس آخر' : 'Switch Lesson',
+        message: lang === 'ar'
+          ? `أنت تذاكر حالياً "${lesson.titleAr}". هل تريد الانتقال إلى "${targetLesson.titleAr}" وحفظ موضع توقفك الحالي؟`
+          : `Switch to "${targetLesson.titleAr}"? Your current progress will be preserved.`,
+        confirmText: lang === 'ar' ? 'نعم، انتقل للدرس' : 'Yes, Switch',
+        cancelText: lang === 'ar' ? 'البقاء في الدرس' : 'Stay Here',
+        confirmColor: 'primary',
+        onConfirm: () => switchLesson(targetLesson.id)
+      });
+    } else {
+      switchLesson(targetLesson.id);
+    }
   };
 
   // ─── Video Time Simulation ────────────────────────────────
@@ -340,7 +403,10 @@ export const StudentLessonView = () => {
           if (prev >= lesson.durationSec) {
             setIsPlaying(false);
             if (!lessonStatuses[activeLessonId]) {
-              handleMarkComplete(true);
+              const nextStatuses = { ...lessonStatuses, [activeLessonId]: true };
+              setLessonStatuses(nextStatuses);
+              localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
+              setShowCelebrationModal(true);
             }
             return lesson.durationSec;
           }
@@ -351,7 +417,7 @@ export const StudentLessonView = () => {
       }, 1000 / speed);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, speed, lesson.durationSec, activeLessonId]);
+  }, [isPlaying, speed, lesson.durationSec, activeLessonId, lessonStatuses]);
 
   const fmt = (sec) => {
     const m = Math.floor(sec / 60);
@@ -367,81 +433,129 @@ export const StudentLessonView = () => {
 
   const seekBy = (sec) => seekTo(currentTime + sec);
 
-  // ─── Confirmation Handlers ────────────────────────────────
+  // ─── Universal Button Confirmation Triggers ───────────────
   const handleCompleteButtonClick = () => {
     if (!isCompleted) {
-      setConfirmDialog({
-        open: true,
-        type: 'complete',
+      triggerConfirm({
         title: lang === 'ar' ? 'تأكيد إكمال الحصة' : 'Confirm Lesson Completion',
         message: lang === 'ar'
-          ? 'هل أنت متأكد من تحديد هذه الحصة كمكتملة؟ سيتم منحك +50 XP وتحديث نسبة إنجازك في المقرر الدراسي.'
-          : 'Are you sure you want to mark this lesson as completed? You will earn +50 XP.',
+          ? 'هل أنت متأكد من تحديد هذه الحصة كمكتملة؟ سيتم منحك +50 XP وتحديث نسبة تقدمك العامة في المنهج.'
+          : 'Are you sure you want to mark this lesson as completed? You will receive +50 XP.',
         confirmText: lang === 'ar' ? 'نعم، أتممت الحصة' : 'Yes, Complete',
-        cancelText: lang === 'ar' ? 'تراجع' : 'Cancel',
         confirmColor: 'emerald',
-        payload: null
+        onConfirm: () => {
+          const nextStatuses = { ...lessonStatuses, [activeLessonId]: true };
+          setLessonStatuses(nextStatuses);
+          localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
+          try {
+            confetti({
+              particleCount: 85,
+              spread: 75,
+              origin: { y: 0.6 }
+            });
+          } catch (e) {}
+          setShowCelebrationModal(true);
+        }
       });
     } else {
-      setConfirmDialog({
-        open: true,
-        type: 'uncomplete',
+      triggerConfirm({
         title: lang === 'ar' ? 'إلغاء إتمام الحصة' : 'Revert Completion',
         message: lang === 'ar'
-          ? 'هل تريد إرجاع حالة الحصة إلى "قيد المذاكرة"؟ لن تفقد أي من ملاحظاتك أو إجاباتك.'
+          ? 'هل تريد إرجاع حالة الحصة إلى "قيد المذاكرة"؟ لن يتم حذف أي من ملاحظاتك أو إجاباتك.'
           : 'Do you want to revert this lesson status to in-progress?',
         confirmText: lang === 'ar' ? 'نعم، إلغاء الإتمام' : 'Yes, Revert',
-        cancelText: lang === 'ar' ? 'إلغاء' : 'Cancel',
         confirmColor: 'amber',
-        payload: null
+        onConfirm: () => {
+          const nextStatuses = { ...lessonStatuses, [activeLessonId]: false };
+          setLessonStatuses(nextStatuses);
+          localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
+        }
       });
     }
   };
 
-  const handleDeleteNoteClick = (note) => {
-    setConfirmDialog({
-      open: true,
-      type: 'delete_note',
-      title: lang === 'ar' ? 'تأكيد حذف الملاحظة' : 'Delete Note',
+  const handleSummaryClick = () => {
+    triggerConfirm({
+      title: lang === 'ar' ? 'تأكيد تحميل ملخص الحصة' : 'Download Summary PDF',
       message: lang === 'ar'
-        ? `هل تريد بالتأكيد حذف الملاحظة المسجلة عند التوقيت (${note.ts})؟ لا يمكن استرجاعها بعد الحذف.`
-        : 'Are you sure you want to delete this note? This action cannot be undone.',
-      confirmText: lang === 'ar' ? 'حذف نهائياً' : 'Delete',
-      cancelText: lang === 'ar' ? 'تراجع' : 'Cancel',
-      confirmColor: 'rose',
-      payload: note.id
+        ? `هل تريد بدء تحميل ملخص المحاضرة الشامل بصيغة PDF (${courseInfo.summaryPdf})؟`
+        : 'Do you want to download the comprehensive lesson summary PDF?',
+      confirmText: lang === 'ar' ? 'نعم، ابدأ التحميل' : 'Yes, Download',
+      confirmColor: 'primary',
+      onConfirm: () => handleDL({ id: 'summary', titleAr: courseInfo.summaryPdf })
     });
   };
 
-  const handleConfirmAction = () => {
-    if (confirmDialog.type === 'complete') {
-      const nextStatuses = { ...lessonStatuses, [activeLessonId]: true };
-      setLessonStatuses(nextStatuses);
-      localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
-      setConfirmDialog(p => ({ ...p, open: false }));
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (e) {}
-      setShowCelebrationModal(true);
-    } else if (confirmDialog.type === 'uncomplete') {
-      const nextStatuses = { ...lessonStatuses, [activeLessonId]: false };
-      setLessonStatuses(nextStatuses);
-      localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
-      setConfirmDialog(p => ({ ...p, open: false }));
-    } else if (confirmDialog.type === 'delete_note') {
-      setNotes(notes.filter(x => x.id !== confirmDialog.payload));
-      setConfirmDialog(p => ({ ...p, open: false }));
-    }
+  const handleBookmarkClick = () => {
+    triggerConfirm({
+      title: isBookmarked
+        ? (lang === 'ar' ? 'إلغاء حفظ الحصة' : 'Remove Bookmark')
+        : (lang === 'ar' ? 'تأكيد حفظ الحصة' : 'Bookmark Lesson'),
+      message: isBookmarked
+        ? (lang === 'ar' ? 'هل تريد إزالة هذه الحصة من قائمة المحفوظات للمراجعة السريعة؟' : 'Remove from bookmarked lessons?')
+        : (lang === 'ar' ? 'هل تريد إضافة هذه الحصة إلى قائمة المحفوظات للرجوع إليها قبل الامتحانات؟' : 'Bookmark this lesson for quick revision?'),
+      confirmText: isBookmarked ? (lang === 'ar' ? 'نعم، إزالة' : 'Remove') : (lang === 'ar' ? 'نعم، حفظ الحصة' : 'Bookmark'),
+      confirmColor: isBookmarked ? 'amber' : 'emerald',
+      onConfirm: () => {
+        const next = !isBookmarked;
+        setIsBookmarked(next);
+        localStorage.setItem(`mtfq_bm_${activeLessonId}`, next.toString());
+      }
+    });
   };
 
-  const toggleBookmark = () => {
-    const next = !isBookmarked;
-    setIsBookmarked(next);
-    localStorage.setItem(`mtfq_bm_${activeLessonId}`, next.toString());
+  const handleDeleteNoteClick = (note) => {
+    triggerConfirm({
+      title: lang === 'ar' ? 'تأكيد حذف الملاحظة' : 'Delete Note',
+      message: lang === 'ar'
+        ? `هل أنت متأكد من حذف الملاحظة المسجلة عند التوقيت (${note.ts})؟ لا يمكن التراجع عن هذا الإجراء.`
+        : 'Are you sure you want to delete this note? This cannot be undone.',
+      confirmText: lang === 'ar' ? 'حذف نهائياً' : 'Delete',
+      confirmColor: 'rose',
+      onConfirm: () => {
+        setNotes(notes.filter(x => x.id !== note.id));
+      }
+    });
+  };
+
+  const handleAttachmentDownloadClick = (att) => {
+    triggerConfirm({
+      title: lang === 'ar' ? `تحميل ملف: ${att.titleAr}` : `Download: ${att.titleAr}`,
+      message: lang === 'ar'
+        ? `هل تريد تحميل ملف "${att.titleAr}" (${att.size} • ${att.pages}) إلى جهازك؟`
+        : `Download "${att.titleAr}" (${att.size})?`,
+      confirmText: lang === 'ar' ? 'بدء التنزيل' : 'Download Now',
+      confirmColor: 'emerald',
+      onConfirm: () => handleDL(att)
+    });
+  };
+
+  const handleSaveQuestionClick = (q) => {
+    const isSaved = savedQ[q.id];
+    triggerConfirm({
+      title: isSaved ? (lang === 'ar' ? 'إلغاء حفظ السؤال' : 'Unsave Question') : (lang === 'ar' ? 'حفظ السؤال للمراجعة' : 'Save Question'),
+      message: isSaved
+        ? (lang === 'ar' ? 'هل تريد إزالة هذا السؤال من بنك أسئلتك المحفوظة؟' : 'Remove this question from saved list?')
+        : (lang === 'ar' ? 'سيتم حفظ هذا السؤال في بنك أسئلتك المخصصة للتدريب الذكي قبل الامتحانات.' : 'Save this question to your practice bank?'),
+      confirmText: isSaved ? (lang === 'ar' ? 'نعم، إزالة' : 'Remove') : (lang === 'ar' ? 'تأكيد الحفظ' : 'Save'),
+      confirmColor: isSaved ? 'amber' : 'emerald',
+      onConfirm: () => setSavedQ(p => ({ ...p, [q.id]: !p[q.id] }))
+    });
+  };
+
+  const handleToggleMasteredClick = (ch) => {
+    const isMastered = !!masteredConcepts[ch.id];
+    triggerConfirm({
+      title: isMastered
+        ? (lang === 'ar' ? 'إلغاء تأكيد استيعاب المفهوم' : 'Unmark Concept')
+        : (lang === 'ar' ? `تأكيد استيعاب: ${ch.titleAr}` : 'Confirm Concept Mastery'),
+      message: isMastered
+        ? (lang === 'ar' ? 'هل تريد إرجاع هذا المفهوم إلى قائمة المفاهيم الجاري مراجعتها؟' : 'Revert this concept to review status?')
+        : (lang === 'ar' ? 'سيتم تسجيل هذا المفهوم ضمن المفاهيم المتقنة في سجلك التعليمي لرفع نسبة التحصيل.' : 'Mark this concept as mastered in your learning report?'),
+      confirmText: isMastered ? (lang === 'ar' ? 'نعم، إلغاء التأكيد' : 'Unmark') : (lang === 'ar' ? 'نعم، أتقنت المفهوم' : 'Confirm Mastery'),
+      confirmColor: isMastered ? 'amber' : 'emerald',
+      onConfirm: () => setMasteredConcepts(p => ({ ...p, [ch.id]: !p[ch.id] }))
+    });
   };
 
   const addNote = (e) => {
@@ -465,6 +579,32 @@ export const StudentLessonView = () => {
       setDlToast(att.titleAr);
       setTimeout(() => setDlToast(null), 3500);
     }, 1000);
+  };
+
+  // ─── Mobile Landscape Fullscreen Controller ──────────────
+  const toggleLandscape = async () => {
+    if (!playerRef.current) return;
+    try {
+      if (!isLandscape) {
+        if (playerRef.current.requestFullscreen) {
+          await playerRef.current.requestFullscreen();
+        }
+        if (window.screen.orientation && window.screen.orientation.lock) {
+          await window.screen.orientation.lock('landscape').catch(() => {});
+        }
+        setIsLandscape(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen().catch(() => {});
+        }
+        if (window.screen.orientation && window.screen.orientation.unlock) {
+          window.screen.orientation.unlock();
+        }
+        setIsLandscape(false);
+      }
+    } catch (e) {
+      setIsLandscape(!isLandscape);
+    }
   };
 
   const togglePlayerFS = async () => {
@@ -497,13 +637,13 @@ export const StudentLessonView = () => {
     }
   };
 
-  // ─── 5 Tabs Configuration (Exact Match to User Image 1) ───
+  // ─── 5 Clean Tabs (Exact Match to User Reference Image) ───
   const tabs = [
-    { id: 'notes', label: lang === 'ar' ? 'ملاحظات الدرس' : 'Lesson Notes', icon: FileText, badge: notes.length },
+    { id: 'notes', label: lang === 'ar' ? 'ملاحظات الدرس' : 'Lesson Notes', icon: FileText },
     { id: 'transcript', label: lang === 'ar' ? 'نص الحصة' : 'Transcript', icon: AlignLeft },
     { id: 'roadmap', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Map', icon: Map },
-    { id: 'materials', label: lang === 'ar' ? 'الملفات' : 'Files', icon: Folder, badge: attachments.length },
-    { id: 'questions', label: lang === 'ar' ? 'الأسئلة' : 'Questions', icon: HelpCircle, badge: questions.length },
+    { id: 'materials', label: lang === 'ar' ? 'الملفات' : 'Files', icon: Folder },
+    { id: 'questions', label: lang === 'ar' ? 'الأسئلة' : 'Questions', icon: HelpCircle },
   ];
 
   // Donut progress calculation for Image 2 Card
@@ -511,6 +651,8 @@ export const StudentLessonView = () => {
   const donutRadius = 36;
   const donutCircumference = 2 * Math.PI * donutRadius;
   const donutDashoffset = donutCircumference - (donutProgressVal / 100) * donutCircumference;
+
+  const activeGraphNodeObj = graphNodes.find(n => n.id === selectedGraphNode) || graphNodes[3];
 
   return (
     <div className="lv">
@@ -544,7 +686,7 @@ export const StudentLessonView = () => {
         <main className="lv-content">
 
           {/* ══ MEDIA PLAYER ══ */}
-          <div className={`lv-player ${isPlayerFS ? 'lv-player--fs' : ''}`} ref={playerRef}>
+          <div className={`lv-player ${isPlayerFS || isLandscape ? 'lv-player--fs' : ''}`} ref={playerRef}>
             {mediaMode === 'video' ? (
               /* Video Screen */
               <div className="lv-player__screen">
@@ -573,14 +715,24 @@ export const StudentLessonView = () => {
                   )}
                 </button>
 
-                {/* Fullscreen Button */}
-                <button
-                  className="lv-player__fs-btn"
-                  onClick={togglePlayerFS}
-                  title={isPlayerFS ? 'إنهاء وضع الشاشة الكاملة' : 'شاشة كاملة'}
-                >
-                  {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                </button>
+                {/* Fullscreen & Landscape Buttons */}
+                <div className="lv-player__top-actions">
+                  <button
+                    className="lv-player__fs-btn lv-player__rotate-btn"
+                    onClick={toggleLandscape}
+                    title={lang === 'ar' ? 'تشغيل بالعرض (Landscape للتليفون)' : 'Landscape Orientation'}
+                  >
+                    <RotateCw size={15} />
+                  </button>
+
+                  <button
+                    className="lv-player__fs-btn"
+                    onClick={togglePlayerFS}
+                    title={isPlayerFS ? 'إنهاء وضع الشاشة الكاملة' : 'شاشة كاملة'}
+                  >
+                    {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                </div>
               </div>
             ) : (
               /* Audio Studio (Adaptive Mode) */
@@ -710,6 +862,15 @@ export const StudentLessonView = () => {
                     ))}
                   </select>
 
+                  {/* Mobile Landscape Quick Switcher */}
+                  <button
+                    className="lv-ctrl-btn lv-mobile-rot-btn mobile-only"
+                    onClick={toggleLandscape}
+                    title="تشغيل بالعرض (Landscape)"
+                  >
+                    <RotateCw size={15} />
+                  </button>
+
                   {/* Adaptive Media Switcher (Video vs Audio) */}
                   <button
                     className={`lv-ctrl-btn lv-mode-toggle ${mediaMode === 'audio' ? 'active' : ''}`}
@@ -753,7 +914,7 @@ export const StudentLessonView = () => {
                 <p className="lv-info__desc">{lesson.descAr}</p>
               </div>
 
-              {/* Left Side in RTL: Action Buttons */}
+              {/* Left Side in RTL: Action Buttons (With Universal Confirmation) */}
               <div className="lv-info__actions">
                 <button
                   className={`lv-info__complete-btn ${isCompleted ? 'completed' : ''}`}
@@ -766,7 +927,7 @@ export const StudentLessonView = () => {
 
                 <button
                   className="lv-info__summary-btn"
-                  onClick={() => handleDL({ id: 'summary', titleAr: courseInfo.summaryPdf })}
+                  onClick={handleSummaryClick}
                   title="تحميل ملخص الحصة"
                 >
                   <Download size={15} />
@@ -775,7 +936,7 @@ export const StudentLessonView = () => {
 
                 <button
                   className={`lv-info__bm-btn ${isBookmarked ? 'active' : ''}`}
-                  onClick={toggleBookmark}
+                  onClick={handleBookmarkClick}
                   title="حفظ للمراجعة اللاحقة"
                 >
                   {isBookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
@@ -784,7 +945,7 @@ export const StudentLessonView = () => {
             </div>
           </div>
 
-          {/* ══ TABS NAVIGATION (Matching Image 1 Exactly) ══ */}
+          {/* ══ TABS NAVIGATION (Matching Image 1 Reference Exactly) ══ */}
           <div className="lv-tabs">
             <div className="lv-tabs__header" role="tablist">
               {tabs.map(t => {
@@ -800,7 +961,6 @@ export const StudentLessonView = () => {
                   >
                     <Icon size={16} />
                     <span>{t.label}</span>
-                    {t.badge > 0 && <span className="lv-tabs__badge">{t.badge}</span>}
                   </button>
                 );
               })}
@@ -918,7 +1078,7 @@ export const StudentLessonView = () => {
                 </div>
               )}
 
-              {/* ── TAB 3: ROADMAP (خريطة الحصة - NotebookLM Concept Map) ── */}
+              {/* ── TAB 3: ROADMAP (خريطة الحصة + الرسم البياني الشبكي ك جراف) ── */}
               {activeTab === 'roadmap' && (
                 <div className="lv-roadmap-tab" ref={kmRef}>
                   <div className="lv-km__header">
@@ -926,133 +1086,304 @@ export const StudentLessonView = () => {
                       <div className="lv-km__header-icon"><Brain size={20} /></div>
                       <div>
                         <h2 className="lv-km__title">
-                          {lang === 'ar' ? 'خارطة المفاهيم التفاعلية (NotebookLM)' : 'Interactive Knowledge Roadmap'}
+                          {lang === 'ar' ? 'خارطة المفاهيم وشبكة المعرفة التفاعلية' : 'Interactive Knowledge Roadmap & Graph'}
                         </h2>
                         <p className="lv-km__sub">
                           {courseInfo.subjectAr} • {lesson.titleAr}
                         </p>
                       </div>
                     </div>
+
                     <div className="lv-km__header-actions">
+                      {/* Sub-mode Switcher: Cards vs Graph */}
+                      <div className="lv-roadmap-toggle-group">
+                        <button
+                          className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'cards' ? 'active' : ''}`}
+                          onClick={() => setRoadmapViewMode('cards')}
+                        >
+                          <Layers size={13} />
+                          <span>{lang === 'ar' ? 'بطاقات الشرح' : 'Cards View'}</span>
+                        </button>
+
+                        <button
+                          className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'graph' ? 'active' : ''}`}
+                          onClick={() => setRoadmapViewMode('graph')}
+                        >
+                          <Network size={13} />
+                          <span>{lang === 'ar' ? 'الرسم البياني (Graph)' : 'Network Graph'}</span>
+                        </button>
+                      </div>
+
                       <button className="lv-km__action" onClick={toggleKMFS} title="شاشة كاملة">
                         {isKMFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                       </button>
                     </div>
                   </div>
 
-                  {/* Overall Lesson Progress */}
-                  <div className="lv-km__progress">
-                    <div className="lv-km__progress-bar">
-                      <div className="lv-km__progress-fill" style={{ width: `${progress}%` }} />
-                    </div>
-                    <span className="lv-km__progress-text">
-                      {progress}% {lang === 'ar' ? 'مكتمل من المعرفة التراكمية لهذه الحصة' : 'completed of roadmap'}
-                    </span>
-                  </div>
-
-                  {/* Central Node Badge */}
-                  <div className="lv-km__center-badge">
-                    <Sparkles size={14} />
-                    <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
-                  </div>
-
-                  {/* Concept Roadmap Cards */}
-                  <div className="lv-km__grid">
-                    {lesson.chapters.map((ch, i) => {
-                      const isDone = currentTime >= ch.endSec;
-                      const isCurrent = currentCh.id === ch.id;
-                      const isExpanded = expandedConcept === ch.id;
-                      const isMastered = !!masteredConcepts[ch.id];
-                      const chProgress = isCurrent
-                        ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
-                        : isDone ? 100 : 0;
-
-                      return (
-                        <div
-                          key={ch.id}
-                          className={`lv-concept ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`}
-                          style={{ animationDelay: `${i * 0.08}s` }}
-                          onClick={() => setExpandedConcept(isExpanded ? null : ch.id)}
-                        >
-                          <div className="lv-concept__status">
-                            {isDone ? (
-                              <CheckCircle2 size={18} />
-                            ) : isCurrent ? (
-                              <Play size={14} fill="currentColor" />
-                            ) : (
-                              <Lock size={14} />
-                            )}
-                          </div>
-
-                          <div className="lv-concept__body">
-                            <div className="lv-concept__head">
-                              <span className="lv-concept__num">{lang === 'ar' ? `المحطة ${ch.id}` : `Node ${ch.id}`}</span>
-                              <span className="lv-concept__time">{fmt(ch.startSec)} — {fmt(ch.endSec)}</span>
-                            </div>
-                            <h4 className="lv-concept__title">{ch.titleAr}</h4>
-
-                            <div className="lv-concept__bar">
-                              <div className="lv-concept__bar-fill" style={{ width: `${chProgress}%` }} />
-                            </div>
-
-                            {isExpanded && (
-                              <div className="lv-concept__details" onClick={e => e.stopPropagation()}>
-                                <p className="lv-concept__desc">{ch.descAr}</p>
-                                <div className="lv-concept__terms">
-                                  <span className="lv-concept__terms-label">
-                                    {lang === 'ar' ? 'المصطلحات المحورية:' : 'Key Terms:'}
-                                  </span>
-                                  {ch.keyTerms.map(t => (
-                                    <span key={t} className="lv-concept__term">{t}</span>
-                                  ))}
-                                </div>
-                                <div className="lv-concept__actions">
-                                  <button
-                                    className="lv-concept__jump"
-                                    onClick={() => {
-                                      seekTo(ch.startSec);
-                                      setIsPlaying(true);
-                                    }}
-                                  >
-                                    <Play size={12} fill="currentColor" />
-                                    <span>{lang === 'ar' ? `انتقل لهذا الجزء في الحصة (${fmt(ch.startSec)})` : `Jump to ${fmt(ch.startSec)}`}</span>
-                                  </button>
-
-                                  <button
-                                    className={`lv-concept__mastery ${isMastered ? 'mastered' : ''}`}
-                                    onClick={() => setMasteredConcepts(p => ({ ...p, [ch.id]: !p[ch.id] }))}
-                                  >
-                                    {isMastered ? <CheckSquare size={14} /> : <Square size={14} />}
-                                    <span>{isMastered ? (lang === 'ar' ? 'تم استيعاب المفهوم' : 'Mastered') : (lang === 'ar' ? 'تأكيد الاستيعاب' : 'Mark Mastered')}</span>
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <ChevronDown size={15} className={`lv-concept__chevron ${isExpanded ? 'open' : ''}`} />
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Learning Outcomes Checklist */}
-                  <div className="lv-km__outcomes">
-                    <h3 className="lv-km__outcomes-title">
-                      <Target size={16} />
-                      <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
-                    </h3>
-                    {[
-                      'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
-                      'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
-                      'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
-                    ].map((outcome, i) => (
-                      <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
-                        <Check size={14} className="lv-km__outcome-icon" />
-                        <span>{outcome}</span>
+                  {/* ── SUB-MODE 1: Interactive Network Graph (خريطة ك جراف) ── */}
+                  {roadmapViewMode === 'graph' && (
+                    <div className="lv-graph-container">
+                      <div className="lv-graph-hint">
+                        <Sparkles size={14} />
+                        <span>{lang === 'ar' ? 'اضغط على أي عقدة (Node) لاستكشاف العلاقات والانتقال المباشر لتوقيتها في الحصة' : 'Click any node to explore connections & jump in video'}</span>
                       </div>
-                    ))}
-                  </div>
+
+                      {/* SVG Network Graph */}
+                      <div className="lv-graph-svg-wrap">
+                        <svg viewBox="0 0 1260 360" className="lv-graph-svg">
+                          <defs>
+                            <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <stop offset="0%" stopColor="#6C4DFF" stopOpacity="0.8" />
+                              <stop offset="50%" stopColor="#06B6D4" stopOpacity="0.8" />
+                              <stop offset="100%" stopColor="#10B981" stopOpacity="0.8" />
+                            </linearGradient>
+
+                            <filter id="glow">
+                              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                              <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                          </defs>
+
+                          {/* Render Connecting Edges (Bezier Curves with Flow Animation) */}
+                          {graphEdges.map((e, idx) => {
+                            const source = graphNodes.find(n => n.id === e.from);
+                            const target = graphNodes.find(n => n.id === e.to);
+                            if (!source || !target) return null;
+                            const midX = (source.x + target.x) / 2;
+                            const pathData = `M ${source.x} ${source.y} C ${midX} ${source.y}, ${midX} ${target.y}, ${target.x} ${target.y}`;
+                            return (
+                              <g key={idx}>
+                                <path
+                                  d={pathData}
+                                  stroke="var(--border-subtle)"
+                                  strokeWidth="3"
+                                  fill="none"
+                                />
+                                <path
+                                  d={pathData}
+                                  stroke="url(#edgeGrad)"
+                                  strokeWidth="2.5"
+                                  strokeDasharray="8 6"
+                                  className="lv-graph-edge-flow"
+                                  fill="none"
+                                />
+                              </g>
+                            );
+                          })}
+
+                          {/* Render Graph Nodes */}
+                          {graphNodes.map(node => {
+                            const isSelected = selectedGraphNode === node.id;
+                            const isCurrent = currentTime >= node.startSec && currentTime < (node.startSec + 300);
+                            return (
+                              <g
+                                key={node.id}
+                                transform={`translate(${node.x}, ${node.y})`}
+                                className={`lv-graph-node ${isSelected ? 'selected' : ''} ${isCurrent ? 'current' : ''}`}
+                                onClick={() => setSelectedGraphNode(node.id)}
+                              >
+                                {isCurrent && (
+                                  <circle
+                                    r={node.r + 10}
+                                    fill="none"
+                                    stroke={node.color}
+                                    strokeWidth="2"
+                                    className="lv-graph-node-pulse"
+                                  />
+                                )}
+
+                                <circle
+                                  r={node.r}
+                                  fill="var(--bg-surface)"
+                                  stroke={isSelected ? '#6C4DFF' : node.color}
+                                  strokeWidth={isSelected ? 3.5 : 2}
+                                  filter="url(#glow)"
+                                />
+
+                                <circle
+                                  r={node.r - 5}
+                                  fill={node.color}
+                                  fillOpacity="0.16"
+                                />
+
+                                <text
+                                  y="-6"
+                                  textAnchor="middle"
+                                  fill="var(--text-primary)"
+                                  fontSize="12.5"
+                                  fontWeight="800"
+                                  fontFamily="var(--font-heading)"
+                                >
+                                  {node.label}
+                                </text>
+
+                                <text
+                                  y="12"
+                                  textAnchor="middle"
+                                  fill="var(--text-secondary)"
+                                  fontSize="9.5"
+                                  fontWeight="600"
+                                >
+                                  {node.tag}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </svg>
+                      </div>
+
+                      {/* Selected Node Details Bar */}
+                      {activeGraphNodeObj && (
+                        <div className="lv-graph-card animate-pop">
+                          <div className="lv-graph-card__head">
+                            <div className="lv-graph-card__title-group">
+                              <span
+                                className="lv-graph-card__dot"
+                                style={{ backgroundColor: activeGraphNodeObj.color }}
+                              />
+                              <h4 className="lv-graph-card__title">{activeGraphNodeObj.label}</h4>
+                              <span className="lv-graph-card__tag">{activeGraphNodeObj.tag}</span>
+                            </div>
+
+                            <button
+                              className="lv-graph-card__jump-btn"
+                              onClick={() => {
+                                seekTo(activeGraphNodeObj.startSec);
+                                setIsPlaying(true);
+                              }}
+                            >
+                              <Play size={13} fill="currentColor" />
+                              <span>{lang === 'ar' ? `تشغيل الحصة من هذه النقطة (${fmt(activeGraphNodeObj.startSec)})` : `Play from ${fmt(activeGraphNodeObj.startSec)}`}</span>
+                            </button>
+                          </div>
+
+                          <p className="lv-graph-card__desc">{activeGraphNodeObj.desc}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── SUB-MODE 2: Concept Cards Roadmap (خريطة البطاقات) ── */}
+                  {roadmapViewMode === 'cards' && (
+                    <>
+                      {/* Overall Lesson Progress */}
+                      <div className="lv-km__progress">
+                        <div className="lv-km__progress-bar">
+                          <div className="lv-km__progress-fill" style={{ width: `${progress}%` }} />
+                        </div>
+                        <span className="lv-km__progress-text">
+                          {progress}% {lang === 'ar' ? 'مكتمل من المعرفة التراكمية لهذه الحصة' : 'completed of roadmap'}
+                        </span>
+                      </div>
+
+                      {/* Central Node Badge */}
+                      <div className="lv-km__center-badge">
+                        <Sparkles size={14} />
+                        <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
+                      </div>
+
+                      {/* Concept Roadmap Cards */}
+                      <div className="lv-km__grid">
+                        {lesson.chapters.map((ch, i) => {
+                          const isDone = currentTime >= ch.endSec;
+                          const isCurrent = currentCh.id === ch.id;
+                          const isExpanded = expandedConcept === ch.id;
+                          const isMastered = !!masteredConcepts[ch.id];
+                          const chProgress = isCurrent
+                            ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
+                            : isDone ? 100 : 0;
+
+                          return (
+                            <div
+                              key={ch.id}
+                              className={`lv-concept ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`}
+                              style={{ animationDelay: `${i * 0.08}s` }}
+                              onClick={() => setExpandedConcept(isExpanded ? null : ch.id)}
+                            >
+                              <div className="lv-concept__status">
+                                {isDone ? (
+                                  <CheckCircle2 size={18} />
+                                ) : isCurrent ? (
+                                  <Play size={14} fill="currentColor" />
+                                ) : (
+                                  <Lock size={14} />
+                                )}
+                              </div>
+
+                              <div className="lv-concept__body">
+                                <div className="lv-concept__head">
+                                  <span className="lv-concept__num">{lang === 'ar' ? `المحطة ${ch.id}` : `Node ${ch.id}`}</span>
+                                  <span className="lv-concept__time">{fmt(ch.startSec)} — {fmt(ch.endSec)}</span>
+                                </div>
+                                <h4 className="lv-concept__title">{ch.titleAr}</h4>
+
+                                <div className="lv-concept__bar">
+                                  <div className="lv-concept__bar-fill" style={{ width: `${chProgress}%` }} />
+                                </div>
+
+                                {isExpanded && (
+                                  <div className="lv-concept__details" onClick={e => e.stopPropagation()}>
+                                    <p className="lv-concept__desc">{ch.descAr}</p>
+                                    <div className="lv-concept__terms">
+                                      <span className="lv-concept__terms-label">
+                                        {lang === 'ar' ? 'المصطلحات المحورية:' : 'Key Terms:'}
+                                      </span>
+                                      {ch.keyTerms.map(t => (
+                                        <span key={t} className="lv-concept__term">{t}</span>
+                                      ))}
+                                    </div>
+                                    <div className="lv-concept__actions">
+                                      <button
+                                        className="lv-concept__jump"
+                                        onClick={() => {
+                                          seekTo(ch.startSec);
+                                          setIsPlaying(true);
+                                        }}
+                                      >
+                                        <Play size={12} fill="currentColor" />
+                                        <span>{lang === 'ar' ? `انتقل لهذا الجزء في الحصة (${fmt(ch.startSec)})` : `Jump to ${fmt(ch.startSec)}`}</span>
+                                      </button>
+
+                                      <button
+                                        className={`lv-concept__mastery ${isMastered ? 'mastered' : ''}`}
+                                        onClick={() => handleToggleMasteredClick(ch)}
+                                      >
+                                        {isMastered ? <CheckSquare size={14} /> : <Square size={14} />}
+                                        <span>{isMastered ? (lang === 'ar' ? 'تم استيعاب المفهوم' : 'Mastered') : (lang === 'ar' ? 'تأكيد الاستيعاب' : 'Mark Mastered')}</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              <ChevronDown size={15} className={`lv-concept__chevron ${isExpanded ? 'open' : ''}`} />
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Learning Outcomes Checklist */}
+                      <div className="lv-km__outcomes">
+                        <h3 className="lv-km__outcomes-title">
+                          <Target size={16} />
+                          <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
+                        </h3>
+                        {[
+                          'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
+                          'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
+                          'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
+                        ].map((outcome, i) => (
+                          <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
+                            <Check size={14} className="lv-km__outcome-icon" />
+                            <span>{outcome}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1070,7 +1401,7 @@ export const StudentLessonView = () => {
                       </div>
                       <button
                         className="lv-att__dl"
-                        onClick={() => handleDL(a)}
+                        onClick={() => handleAttachmentDownloadClick(a)}
                         disabled={dlId === a.id}
                       >
                         <Download size={14} />
@@ -1093,7 +1424,7 @@ export const StudentLessonView = () => {
                         <span className="lv-q__src">{q.src}</span>
                         <button
                           className={`lv-q__save ${savedQ[q.id] ? 'on' : ''}`}
-                          onClick={() => setSavedQ(p => ({ ...p, [q.id]: !p[q.id] }))}
+                          onClick={() => handleSaveQuestionClick(q)}
                           title="حفظ السؤال للمراجعة"
                         >
                           <Star size={14} fill={savedQ[q.id] ? 'currentColor' : 'transparent'} />
@@ -1262,22 +1593,36 @@ export const StudentLessonView = () => {
             </button>
           </div>
 
-          {/* ══════════ COURSE PLAYLIST ITEMS ══════════ */}
+          {/* ══════════ COURSE PLAYLIST ITEMS (Matching User Image 2 Request) ══════════ */}
           <div className="lv-sidebar__playlist-box">
             <div className="lv-sidebar__head">
-              <h3 className="lv-sidebar__title">{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</h3>
+              <div className="lv-sidebar__title-row">
+                <h3 className="lv-sidebar__title">{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</h3>
+                {/* Course Completion Percentage Badge Requested by User */}
+                <span className="lv-sidebar__pct-badge">{courseCompletionPct}%</span>
+              </div>
+
               <span className="lv-sidebar__progress-text">
                 {completedCount} {lang === 'ar' ? `من أصل ${playlist.length} درساً مكتمل` : `of ${playlist.length} done`}
               </span>
             </div>
 
+            {/* Visual Progress Bar for the Course */}
+            <div className="lv-sidebar__bar">
+              <div
+                className="lv-sidebar__bar-fill"
+                style={{ width: `${courseCompletionPct}%` }}
+              />
+            </div>
+
+            {/* Playlist List */}
             <div className="lv-playlist">
               {playlist.map((item, i) => (
                 <div
                   key={item.id}
                   className={`lv-playlist__item ${item.active ? 'active' : ''} ${item.completed ? 'done' : ''}`}
                   style={{ animationDelay: `${i * 0.04}s` }}
-                  onClick={() => switchLesson(item.id)}
+                  onClick={() => handlePlaylistLessonClick(item)}
                 >
                   <div className="lv-playlist__icon">
                     {item.completed ? (
@@ -1311,7 +1656,7 @@ export const StudentLessonView = () => {
         >
           <BookOpen size={16} />
           <span>{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</span>
-          <span className="lv-mobile-bar__count">{completedCount}/{playlist.length}</span>
+          <span className="lv-mobile-bar__count">{courseCompletionPct}%</span>
         </button>
       </div>
 
@@ -1321,9 +1666,12 @@ export const StudentLessonView = () => {
           <div className="lv-mobile-drawer" onClick={e => e.stopPropagation()}>
             <div className="lv-mobile-drawer__head">
               <div>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>
-                  {lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>
+                    {lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}
+                  </h3>
+                  <span className="lv-sidebar__pct-badge">{courseCompletionPct}%</span>
+                </div>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                   {completedCount} {lang === 'ar' ? `من أصل ${playlist.length} درساً مكتمل` : `of ${playlist.length} done`}
                 </span>
@@ -1338,7 +1686,7 @@ export const StudentLessonView = () => {
                 <div
                   key={item.id}
                   className={`lv-playlist__item ${item.active ? 'active' : ''} ${item.completed ? 'done' : ''}`}
-                  onClick={() => switchLesson(item.id)}
+                  onClick={() => handlePlaylistLessonClick(item)}
                 >
                   <div className="lv-playlist__icon">
                     {item.completed ? <CheckCircle2 size={16} /> : item.active ? <Play size={13} fill="currentColor" /> : <Circle size={14} />}
@@ -1357,7 +1705,7 @@ export const StudentLessonView = () => {
         </div>
       )}
 
-      {/* ══════════ ANIMATED CONFIRMATION MODAL ("الموافقة وكدا") ══════════ */}
+      {/* ══════════ UNIVERSAL ANIMATED CONFIRMATION MODAL ══════════ */}
       {confirmDialog.open && (
         <div className="lv-modal-bg" onClick={() => setConfirmDialog(p => ({ ...p, open: false }))}>
           <div className="lv-modal lv-modal--confirm animate-pop" onClick={e => e.stopPropagation()}>
@@ -1366,8 +1714,10 @@ export const StudentLessonView = () => {
                 <CheckCircle2 size={34} />
               ) : confirmDialog.confirmColor === 'amber' ? (
                 <RotateCcw size={34} />
-              ) : (
+              ) : confirmDialog.confirmColor === 'rose' ? (
                 <Trash2 size={34} />
+              ) : (
+                <Sparkles size={34} />
               )}
             </div>
 
