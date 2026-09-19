@@ -28,7 +28,8 @@ import {
   ClipboardList,
   TrendingUp,
   Medal,
-  Sparkles
+  Sparkles,
+  PlayCircle
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -64,7 +65,8 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             group: lang === 'ar' ? 'الرئيسية' : 'Main',
             items: [
               { id: 'student-dashboard', path: '/student/dashboard', label: lang === 'ar' ? 'الرئيسية' : 'Home', icon: LayoutDashboard },
-              { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'حصصي' : 'My Courses', icon: BookOpen },
+              { id: 'my-lessons', path: '/student/lesson', label: lang === 'ar' ? 'حصصي' : 'My Lessons', icon: PlayCircle },
+              { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
               { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات' : 'Exams', icon: ClipboardList },
               { id: 'homework', path: '/student/homework', label: lang === 'ar' ? 'الواجبات' : 'Homework', icon: FileText },
               { id: 'analytics', path: '/student/analytics', label: lang === 'ar' ? 'مستواي' : 'My Level', icon: TrendingUp },
@@ -144,7 +146,9 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             </span>
           )}
           {!isCollapsed && item.badge && (
-            <span className="sidebar-badge-ai">
+            <span
+              className="sidebar-badge-ai"
+            >
               {item.badge}
             </span>
           )}

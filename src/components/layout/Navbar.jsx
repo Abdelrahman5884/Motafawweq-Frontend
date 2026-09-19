@@ -64,7 +64,8 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
 
   const getPageTitle = () => {
     if (currentPath.startsWith('/student/dashboard')) return lang === 'ar' ? 'الرئيسية' : 'Overview';
-    if (currentPath.startsWith('/student/courses')) return lang === 'ar' ? 'حصصي' : 'My Courses';
+    if (currentPath.startsWith('/student/lesson')) return lang === 'ar' ? 'حصصي ومذاكرتي' : 'Lesson Study';
+    if (currentPath.startsWith('/student/courses')) return lang === 'ar' ? 'المقررات' : 'Courses';
     if (currentPath.startsWith('/student/exam')) return lang === 'ar' ? 'الاختبارات' : 'Exams';
     if (currentPath.startsWith('/student/homework')) return lang === 'ar' ? 'الواجبات' : 'Homework';
     if (currentPath.startsWith('/student/analytics')) return lang === 'ar' ? 'مستواي والتحليلات' : 'Analytics';
@@ -415,39 +416,35 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
           {/* Desktop Authentication Actions */}
           {isAuthenticated ? (
             <div className="desktop-only" style={{ alignItems: 'center', gap: '8px' }}>
-              <div 
-                onClick={() => navigate(getDashboardPath())}
-                title={currentUser.email}
+              <button 
+                onClick={() => navigate(currentRole === 'student' ? '/student/analytics' : getDashboardPath())}
+                title={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
+                aria-label={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  padding: '4px 10px 4px 4px',
-                  borderRadius: 'var(--radius-full)',
+                  justifyContent: 'center',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
                   backgroundColor: 'var(--bg-subtle)',
-                  border: '1px solid var(--border-subtle)',
-                  cursor: 'pointer'
+                  border: '1.5px solid var(--border-subtle)',
+                  padding: 0,
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  transition: 'all 0.18s ease'
                 }}
               >
                 <img
                   src={currentUser.avatar}
                   alt={currentUser.name}
                   style={{
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
+                    width: '100%',
+                    height: '100%',
                     objectFit: 'cover'
                   }}
                 />
-                <div style={{ textAlign: isRtl ? 'right' : 'left' }}>
-                  <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1.1 }}>
-                    {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
-                  </div>
-                  <div style={{ fontSize: '9.5px', color: 'var(--primary)', fontWeight: '600' }}>
-                    {lang === 'ar' ? (currentUser.roleLabelAr || currentUser.roleLabel) : currentUser.roleLabel}
-                  </div>
-                </div>
-              </div>
+              </button>
 
               <button
                 onClick={() => {

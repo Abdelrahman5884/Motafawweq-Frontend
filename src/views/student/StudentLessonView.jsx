@@ -1,1126 +1,1269 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../../context/LanguageContext';
-import { MOCK_LESSON } from '../../data/mockData';
-import { AudioPlayer } from '../../components/audio/AudioPlayer';
-import { KnowledgeMapCanvas } from '../../components/knowledge-map/KnowledgeMapCanvas';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import confetti from 'canvas-confetti';
-import { 
-  BookOpen, 
-  Play, 
-  Pause,
-  RotateCcw,
-  FastForward,
-  Rewind,
-  Volume2,
-  FileText, 
-  Download, 
-  Bookmark, 
-  BookmarkCheck,
-  CheckCircle2, 
-  ArrowRight, 
-  ArrowLeft,
-  Sparkles,
-  MessageSquare,
-  Send,
-  HelpCircle,
-  AlertOctagon,
-  Settings,
-  Maximize2,
-  ListOrdered,
-  Layers,
-  Clock
+import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
+import {
+  Play, Pause, RotateCcw, FastForward, Volume2, VolumeX,
+  FileText, Download, Bookmark, BookmarkCheck, CheckCircle2, Circle,
+  ArrowRight, ArrowLeft, Sparkles, HelpCircle, Clock, BookOpen,
+  Headphones, Video, ChevronDown, X, Maximize2, Minimize2,
+  Send, Trash2, Check, Award, Star, Map, ChevronRight,
+  Zap, Target, Brain, Lock, Unlock, ExternalLink, CheckSquare, Square,
+  PanelRightClose, PanelRightOpen, AlertCircle, ChevronLeft
 } from 'lucide-react';
+
+/* ═══════════════════════════════════════════════════════════
+   World-Class Student Lesson Study Workspace
+   Matching Reference Layout with:
+   - Clean 2-column layout (content + collapsible playlist)
+   - Collapsible & expandable course content playlist
+   - In-header action buttons with smooth confirmation dialogs
+   - NotebookLM Interactive Knowledge Map with Fullscreen
+   - Adaptive video / audio single player with real fullscreen
+   - Fully responsive & adaptive for mobile phones and tablets
+   ═══════════════════════════════════════════════════════════ */
 
 export const StudentLessonView = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { lang, isRtl } = useLanguage();
-  const lesson = MOCK_LESSON;
+  const { isDark } = useTheme();
 
-  // Media & Study state (US-19, US-20, US-21, US-22, US-23)
-  const [mediaMode, setMediaMode] = useState('video'); // 'video' | 'audio' | 'map'
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(() => {
-    const saved = localStorage.getItem(`lesson_time_${lesson.id}`);
-    return saved ? parseInt(saved, 10) : 320; // 05:20
-  });
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [isCompleted, setIsCompleted] = useState(() => {
-    return localStorage.getItem(`lesson_completed_${lesson.id}`) === 'true';
-  });
-  const [isBookmarked, setIsBookmarked] = useState(() => {
-    return localStorage.getItem(`lesson_bookmarked_${lesson.id}`) === 'true';
-  });
+  // ─── Refs ─────────────────────────────────────────────────
+  const playerRef = useRef(null);
+  const kmRef = useRef(null);
 
-  // Tabs: 'overview' | 'notes' | 'attachments' | 'discussions'
-  const [activeTab, setActiveTab] = useState('overview');
+  // ─── Course Info ──────────────────────────────────────────
+  const courseInfo = {
+    titleAr: 'ماستر كلاس الأحياء: البناء الضوئي وحركية الخلية والوراثة',
+    subjectAr: 'الأحياء',
+    gradeAr: 'الصف الثالث الثانوي',
+    teacherAr: 'د. سلمى السيد',
+    teacherImg: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80',
+    summaryPdf: 'ملخص_البناء_الضوئي_الشامل.pdf'
+  };
 
-  // Notes state (US-27, US-30)
-  const [newNoteText, setNewNoteText] = useState('');
-  const [notesList, setNotesList] = useState([
-    {
-      id: 'note-1',
-      timestamp: '05:20',
-      timeSeconds: 320,
-      textAr: 'التفاعلات الضوئية تحدث على أغشية الثيلاكويد حيث يمتص كلوروفيل أ الفوتونات.',
-      createdAt: 'اليوم 03:15 م'
+  // ─── Lessons Database for Playlist ────────────────────────
+  const lessonsDatabase = {
+    l1: {
+      id: 'l1',
+      titleAr: 'مقدمة البناء الضوئي وتركيب البلاستيدة الخضراء',
+      descAr: 'دراسة تشريح البلاستيدة الخضراء، أغشية الثيلاكويد، والستروما، وأهمية صبغة الكلوروفيل أ وب في امتصاص الطيف الضوئي.',
+      durationSec: 1500,
+      durationFmt: '25:00',
+      time: '25 دقيقة',
+      videoUrl: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=1400&auto=format&fit=crop&q=80',
+      completed: true,
+      chapters: [
+        { id: 1, titleAr: 'تركيب البلاستيدة وأقراص الجرانا', startSec: 0, endSec: 450, keyTerms: ['جرانا', 'ستروما', 'ثيلاكويد'], descAr: 'البنية الدقيقة للبلاستيدة وخصائص الغشاء المزدوج.' },
+        { id: 2, titleAr: 'أصباغ التمثيل الضوئي ومطياف الامتصاص', startSec: 450, endSec: 950, keyTerms: ['كلوروفيل أ', 'كلوروفيل ب', 'زانثوفيل'], descAr: 'طيف امتصاص الضوء الأزرق والأحمر وعلاقة الكاروتين بحماية الأصباغ.' },
+        { id: 3, titleAr: 'المقارنة بين كفاءة الأصباغ الأساسية والإضافية', startSec: 950, endSec: 1500, keyTerms: ['مطياف', 'امتصاص ضوئي'], descAr: 'تحليل المنحنيات البيانية لامتصاص الضوء وكفاءة التمثيل.' }
+      ]
     },
-    {
-      id: 'note-2',
-      timestamp: '08:10',
-      timeSeconds: 490,
-      textAr: 'سؤال امتحان مهم: تجربة فان نيل ببكتيريا الكبريت أثبتت أن الماء هو مصدر الأكسجين وليس CO2!',
-      createdAt: 'أمس 06:40 م'
-    }
-  ]);
-
-  // Discussion / Ask Teacher state (US-90, US-91, US-92, US-93)
-  const [newCommentText, setNewCommentText] = useState('');
-  const [commentType, setCommentType] = useState('question'); // 'question' | 'comment'
-  const [commentsList, setCommentsList] = useState([
-    {
-      id: 'comm-1',
-      authorNameAr: 'عمر طارق (أنت)',
-      authorAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80',
-      isTeacher: false,
-      textAr: 'يا دكتورة، هل انشطار الماء بيحدث في التفاعلات الضوئية فقط ولا بيستمر في اللاضوئية؟',
-      timestamp: '08:10',
-      timeAgo: 'منذ ساعتين',
-      replies: [
-        {
-          id: 'rep-1',
-          authorNameAr: 'د. سلمى السيد (المعلمة)',
-          authorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&auto=format&fit=crop&q=80',
-          isTeacher: true,
-          textAr: 'أهلاً يا عمر، انشطار الماء الضوئي (Photolysis) يحدث حصراً على أغشية الثيلاكويد أثناء التفاعلات الضوئية بوجود الطاقة الضوئية والكلوروفيل المثار، ولا يحدث إطلاقاً في الستروما.',
-          timeAgo: 'منذ ساعة'
-        }
+    l2: {
+      id: 'l2',
+      titleAr: 'الأصباغ النباتية ومطياف الامتصاص والطاقة الضوئية',
+      descAr: 'تحليل امتصاص الفوتونات الضوئية بواسطة الإلكترونات في ذرة المغنيسيوم الموجودة بمركز جزيء الكلوروفيل أ.',
+      durationSec: 1800,
+      durationFmt: '30:00',
+      time: '30 دقيقة',
+      videoUrl: 'https://images.unsplash.com/photo-1518152006812-edab29b069ac?w=1400&auto=format&fit=crop&q=80',
+      completed: true,
+      chapters: [
+        { id: 1, titleAr: 'ذرة المغنيسيوم في الكلوروفيل ونظرية الاستثارة', startSec: 0, endSec: 600, keyTerms: ['مغنيسيوم', 'فوتون', 'إثارة إلكترونية'], descAr: 'دور ذرة المغنيسيوم المركزية في حبس الطاقة الضوئية.' },
+        { id: 2, titleAr: 'الأنظمة الضوئية PSI و PSII', startSec: 600, endSec: 1200, keyTerms: ['نظام ضوئي 1', 'نظام ضوئي 2', 'P680', 'P700'], descAr: 'مجمع اصطياد الضوء ومسار الإلكترونات النشطة.' },
+        { id: 3, titleAr: 'تحويل الطاقة الضوئية إلى طاقة وضع كيميائية', startSec: 1200, endSec: 1800, keyTerms: ['طاقة وضع', 'كيميائية'], descAr: 'كيف تختزن البلاستيدة الطاقة في صورة روابط جزيئية أولية.' }
+      ]
+    },
+    l3: {
+      id: 'l3',
+      titleAr: 'Lecture 3: البناء الضوئي وحركية الطاقة في الخلايا النباتية',
+      descAr: 'Feature maps, photosynthesis architecture, Van Niel isotope experiment, Z-scheme electron transport, and Calvin cycle synthesis.',
+      durationSec: 2100,
+      durationFmt: '35:00',
+      time: '35 دقيقة',
+      videoUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=1400&auto=format&fit=crop&q=80',
+      completed: false,
+      chapters: [
+        { id: 1, titleAr: 'مقدمة التفاعلات الضوئية وامتصاص الكلوروفيل', startSec: 0, endSec: 480, keyTerms: ['كلوروفيل', 'ثيلاكويد', 'نظام ضوئي'], descAr: 'تعرف على البنية الدقيقة للبلاستيدة الخضراء ودور صبغة الكلوروفيل في امتصاص الطاقة الضوئية وتحويلها إلى طاقة كيميائية مستثارة.' },
+        { id: 2, titleAr: 'انشطار الماء وتجربة فان نيل بالأكسجين المشع (O18)', startSec: 480, endSec: 1020, keyTerms: ['O18', 'فان نيل', 'انشطار ضوئي', 'بكتيريا الكبريت'], descAr: 'إثبات تجريبي بالبراهين المعملية أن الأكسجين المتصاعد مصدره جزيئات الماء وليس ثاني أكسيد الكربون عبر نظائر الأكسجين المشعة.' },
+        { id: 3, titleAr: 'تكوين NADPH2 والفسفرة الضوئية لإنتاج ATP', startSec: 1020, endSec: 1560, keyTerms: ['NADPH2', 'ATP', 'فسفرة ضوئية', 'سلسلة الإلكترون'], descAr: 'آلية تكوين مركبات الطاقة التثبيتية عبر انحدار الإلكترونات وضخ البروتونات عبر إنزيم بناء ATP Synthase.' },
+        { id: 4, titleAr: 'التفاعلات اللاضوئية ودورة كالفن وتكوين PGAL', startSec: 1560, endSec: 2100, keyTerms: ['كالفن', 'PGAL', 'ستروما', 'تثبيت CO2'], descAr: 'تثبيت غاز ثاني أكسيد الكربون في ستروما البلاستيدة وتخليق أول مركب كيميائي عضوي ثابت فوسفوجليسرالدهيد (PGAL) بعد ثانيتين فقط.' }
+      ]
+    },
+    l4: {
+      id: 'l4',
+      titleAr: 'Lecture 4: التنفس الخلوي وانشطار الجلوكوز في السيتوسول',
+      descAr: 'مراحل تحلل الجلوكوز، إنتاج حمض البيروفيك، وحساب صافي مركبات ATP و NADH قبل دخول الميتوكوندريا.',
+      durationSec: 2400,
+      durationFmt: '40:00',
+      time: '40 دقيقة',
+      videoUrl: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?w=1400&auto=format&fit=crop&q=80',
+      completed: false,
+      chapters: [
+        { id: 1, titleAr: 'تنشيط الجلوكوز واستهلاك جزيئي ATP', startSec: 0, endSec: 700, keyTerms: ['جلوكوز 6 فوسفات', 'فركتوز 1-6 ثنائي الفوسفات'], descAr: 'خطوات استثمار الطاقة الأولية لتحويل السكر السداسي.' },
+        { id: 2, titleAr: 'انشطار الجزيء إلى مركبين PGAL', startSec: 700, endSec: 1500, keyTerms: ['انشطار', 'PGAL'], descAr: 'أكسدة السكر الثلاثي واختزال مرافقات الإنزيم NAD+.' },
+        { id: 3, titleAr: 'إنتاج حمض البيروفيك وصافي الطاقة (2 ATP + 2 NADH)', startSec: 1500, endSec: 2400, keyTerms: ['بيروفيك', 'صافي ATP'], descAr: 'حساب الحصيلة النهائية من التحلل السكري في السيتوسول.' }
+      ]
+    },
+    l5: {
+      id: 'l5',
+      titleAr: 'Lecture 5: دورة كريبس وسلسلة نقل الإلكترون التنافسية',
+      descAr: 'أكسدة أستيل كو-أ، دورات حمض الستريك، والأكسدة الفسفورية لإنتاج 38 جزيء ATP لكل جزيء جلوكوز.',
+      durationSec: 2700,
+      durationFmt: '45:00',
+      time: '45 دقيقة',
+      videoUrl: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?w=1400&auto=format&fit=crop&q=80',
+      completed: false,
+      chapters: [
+        { id: 1, titleAr: 'تحول البيروفيك إلى أستيل كوانزيم أ', startSec: 0, endSec: 800, keyTerms: ['أستيل كو-أ', 'نزع كربون'], descAr: 'دخول نواتج التحلل إلى حشوة الميتوكوندريا.' },
+        { id: 2, titleAr: 'تفاعلات دورة كريبس والتعاقب الإنزيمي', startSec: 800, endSec: 1800, keyTerms: ['حمض الستريك', 'FADH2', 'NADH'], descAr: 'دورتان متتاليتان لكل جزيء جلوكوز وتكوين مركبات الطاقة.' },
+        { id: 3, titleAr: 'السيتوكرومات وتكوين الماء وحساب 38 ATP', startSec: 1800, endSec: 2700, keyTerms: ['سيتوكرومات', 'أكسجين مستقبل أخير'], descAr: 'دور الأكسجين كمستقبل أخير للإلكترونات والبروتونات.' }
+      ]
+    },
+    l6: {
+      id: 'l6',
+      titleAr: 'Lecture 6: التخمر اللاهوائي والتطبيقات الحيوية المعاصرة',
+      descAr: 'التخمر الحمضي في العضلات والتخمر الكحولي في فطر الخميرة، وأضرار الإجهاد العضلي وتراكم حمض اللاكتيك.',
+      durationSec: 1680,
+      durationFmt: '28:00',
+      time: '28 دقيقة',
+      videoUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1400&auto=format&fit=crop&q=80',
+      completed: false,
+      chapters: [
+        { id: 1, titleAr: 'ميكانيكية التخمر عند غياب الأكسجين', startSec: 0, endSec: 500, keyTerms: ['غياب O2', 'تخمر'], descAr: 'إعادة تدوير مرافق الإنزيم NAD+ لضمان استمرار إنتاج 2 ATP.' },
+        { id: 2, titleAr: 'التخمر الحمضي وحمض اللاكتيك في الخلايا العضلية', startSec: 500, endSec: 1100, keyTerms: ['لاكتيك', 'شد عضلي'], descAr: 'أسباب الإجهاد العضلي ومعادلة الاختزال.' },
+        { id: 3, titleAr: 'التخمر الكحولي والصناعات الدوائية والغذائية', startSec: 1100, endSec: 1680, keyTerms: ['كحول إيثيلي', 'خميرة', 'CO2'], descAr: 'تطبيقات التخمر في المخابز وتصنيع المواد الحيوية.' }
       ]
     }
+  };
+
+  // ─── Active Lesson State ──────────────────────────────────
+  const [activeLessonId, setActiveLessonId] = useState('l3');
+  const [lessonStatuses, setLessonStatuses] = useState(() => {
+    const saved = localStorage.getItem('mtfq_lesson_statuses');
+    return saved ? JSON.parse(saved) : { l1: true, l2: true, l3: false, l4: false, l5: false, l6: false };
+  });
+
+  const lesson = lessonsDatabase[activeLessonId] || lessonsDatabase.l3;
+
+  // ─── Collapsible Course Content Sidebar ───────────────────
+  const [isPlaylistCollapsed, setIsPlaylistCollapsed] = useState(false);
+  const [mobilePlaylistOpen, setMobilePlaylistOpen] = useState(false);
+
+  // ─── Media State ──────────────────────────────────────────
+  const [mediaMode, setMediaMode] = useState('video'); // 'video' | 'audio'
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => {
+    const s = localStorage.getItem(`mtfq_pos_${activeLessonId}`);
+    return s ? parseInt(s, 10) : 480;
+  });
+  const [speed, setSpeed] = useState(1);
+  const [volume, setVolume] = useState(0.85);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isPlayerFS, setIsPlayerFS] = useState(false);
+
+  // Statuses
+  const isCompleted = !!lessonStatuses[activeLessonId];
+  const [isBookmarked, setIsBookmarked] = useState(() =>
+    localStorage.getItem(`mtfq_bm_${activeLessonId}`) === 'true'
+  );
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+
+  // ─── Confirmation Modal State ─────────────────────────────
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    type: null, // 'complete' | 'uncomplete' | 'delete_note'
+    title: '',
+    message: '',
+    confirmText: '',
+    cancelText: '',
+    confirmColor: 'primary',
+    payload: null
+  });
+
+  // Active Tab
+  const [activeTab, setActiveTab] = useState('notes');
+
+  // NotebookLM Knowledge Map State
+  const [showKM, setShowKM] = useState(false);
+  const [isKMFS, setIsKMFS] = useState(false);
+  const [expandedConcept, setExpandedConcept] = useState(2);
+  const [masteredConcepts, setMasteredConcepts] = useState({ 1: true });
+
+  // Notes State
+  const [notes, setNotes] = useState([
+    { id: 'n1', ts: '08:00', sec: 480, text: 'انشطار الماء الضوئي (H2O) هو المصدر الحقيقي للأكسجين المتصاعد، وليس CO2 طبقاً لتجربة فان نيل بالأكسجين المشع O18.', date: 'اليوم 12:30 م' },
+    { id: 'n2', ts: '12:45', sec: 765, text: 'مركب PGAL (فوسفوجليسرالدهيد) هو أول مركب كيميائي ثابت ينتج عن البناء الضوئي بعد ثانيتين فقط.', date: 'أمس 04:15 م' },
   ]);
+  const [noteInput, setNoteInput] = useState('');
 
-  // Report Issue Modal
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportSuccess, setReportSuccess] = useState(false);
-
-  // Attachments List (US-24, US-25)
-  const attachments = [
-    { id: 'att-1', nameAr: 'مذكرة شرح البناء الضوئي وحركية الطاقة (PDF ملون)', size: '4.8 MB', pages: '18 صفحة' },
-    { id: 'att-2', nameAr: 'مخطط كورنيل التلخيصي للثيلاكويد ودورة كالفن (High Res)', size: '2.1 MB', pages: '3 صفحات' },
-    { id: 'att-3', nameAr: 'بنك أسئلة الوزارة ومصائد الثانوية العامة للدرس', size: '3.4 MB', pages: '12 صفحة' }
+  // Questions State
+  const [savedQ, setSavedQ] = useState({ q1: true, q2: false, q3: true });
+  const [revealedA, setRevealedA] = useState({ q1: true });
+  const questions = [
+    {
+      id: 'q1',
+      q: 'ما هو المركب الكيميائي الأول الثابت الناتج عن التفاعلات اللاضوئية وفق تجربة ملفن كالفن باستخدام طحلب الكلوريلا؟',
+      diff: 'متوسط',
+      a: 'مركب فوسفوجليسرالدهيد (PGAL) المكون من 3 ذرات كربون، والذي يتكون بعد ثانيتين فقط من التعرض للضوء.',
+      src: 'امتحان ثانوية عامة 2024'
+    },
+    {
+      id: 'q2',
+      q: 'أين تحدث التفاعلات الضوئية تحديداً داخل البلاستيدة الخضراء، وما هو الدور الحاسم لأقراص الجرانا؟',
+      diff: 'سهل',
+      a: 'تحدث حصراً على أغشية الثيلاكويد (أقراص الجرانا) لوجود جزيئات صبغة الكلوروفيل والأنظمة الضوئية وإنزيمات بناء ATP.',
+      src: 'بنك أسئلة الوزارة'
+    },
+    {
+      id: 'q3',
+      q: 'ماذا يحدث في نواتج البناء الضوئي إذا تم إمداد النبات بماء طبيعي H2O وغاز CO2 يحتوي على نظير الأكسجين المشع O18؟',
+      diff: 'صعب',
+      a: 'يظهر الأكسجين المشع O18 في جزيئات الجلوكوز والماء الناتج، بينما يتصاعد غاز الأكسجين O2 خالي تماماً من الإشعاع لأن مصدره انشطار الماء.',
+      src: 'نماذج الوزارة الاسترشادية'
+    },
   ];
 
-  // Save playback time to localStorage (US-23)
+  // Attachments State
+  const [dlId, setDlId] = useState(null);
+  const [dlToast, setDlToast] = useState(null);
+  const attachments = [
+    { id: 'a1', titleAr: 'مذكرة الشرح الشاملة والخرائط المفاهيمية للدرس', size: '4.8 MB', pages: '18 صفحة', type: 'PDF' },
+    { id: 'a2', titleAr: 'مخطط كورنيل التلخيصي لتفاعلات انشطار الماء وحلقة كالفن', size: '2.1 MB', pages: '4 صفحات', type: 'PDF' },
+    { id: 'a3', titleAr: 'بنك أسئلة الوزارة وتدريبات البابل شيت مع نماذج الإجابة', size: '3.4 MB', pages: '12 صفحة', type: 'PDF' },
+  ];
+
+  // ─── Playlist Array ───────────────────────────────────────
+  const playlist = Object.keys(lessonsDatabase).map(key => ({
+    id: key,
+    titleAr: lessonsDatabase[key].titleAr,
+    time: lessonsDatabase[key].time,
+    completed: !!lessonStatuses[key],
+    active: key === activeLessonId
+  }));
+
+  const completedCount = playlist.filter(l => l.completed).length;
+  const currentCh = lesson.chapters.find(c => currentTime >= c.startSec && currentTime < c.endSec) || lesson.chapters[0];
+  const progress = Math.min(100, Math.max(0, ((currentTime / lesson.durationSec) * 100))).toFixed(1);
+
+  // ─── Lesson Switching ─────────────────────────────────────
+  const switchLesson = (lid) => {
+    setActiveLessonId(lid);
+    setIsPlaying(false);
+    const s = localStorage.getItem(`mtfq_pos_${lid}`);
+    setCurrentTime(s ? parseInt(s, 10) : 0);
+    setIsBookmarked(localStorage.getItem(`mtfq_bm_${lid}`) === 'true');
+    setMobilePlaylistOpen(false);
+  };
+
+  // ─── Playback Tick ────────────────────────────────────────
   useEffect(() => {
-    localStorage.setItem(`lesson_time_${lesson.id}`, currentTime.toString());
-  }, [currentTime, lesson.id]);
-
-  // Handle Mark Lesson as Complete (US-26)
-  const handleToggleComplete = () => {
-    const nextState = !isCompleted;
-    setIsCompleted(nextState);
-    localStorage.setItem(`lesson_completed_${lesson.id}`, nextState ? 'true' : 'false');
-
-    if (nextState) {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
+    if (!isPlaying) return;
+    const iv = setInterval(() => {
+      setCurrentTime(p => {
+        if (p >= lesson.durationSec) {
+          setIsPlaying(false);
+          return lesson.durationSec;
+        }
+        const n = p + 1;
+        localStorage.setItem(`mtfq_pos_${activeLessonId}`, n.toString());
+        return n;
       });
-    }
-  };
+    }, 1000 / speed);
+    return () => clearInterval(iv);
+  }, [isPlaying, speed, lesson.durationSec, activeLessonId]);
 
-  // Handle Bookmark (US-28)
-  const handleToggleBookmark = () => {
-    const next = !isBookmarked;
-    setIsBookmarked(next);
-    localStorage.setItem(`lesson_bookmarked_${lesson.id}`, next ? 'true' : 'false');
-  };
-
-  // Add note (US-27)
-  const handleAddNote = (e) => {
-    e.preventDefault();
-    if (!newNoteText.trim()) return;
-
-    const mins = Math.floor(currentTime / 60).toString().padStart(2, '0');
-    const secs = (currentTime % 60).toString().padStart(2, '0');
-    const timeFormatted = `${mins}:${secs}`;
-
-    const newNote = {
-      id: `note-${Date.now()}`,
-      timestamp: timeFormatted,
-      timeSeconds: currentTime,
-      textAr: newNoteText.trim(),
-      createdAt: 'الآن'
+  // ─── Keyboard Shortcuts ───────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying(p => !p);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        seekBy(isRtl ? -10 : 10);
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        seekBy(isRtl ? 10 : -10);
+      } else if (e.code === 'KeyM') {
+        setIsMuted(m => !m);
+      } else if (e.code === 'Escape') {
+        setShowKM(false);
+        setIsKMFS(false);
+        setConfirmDialog(p => ({ ...p, open: false }));
+        setShowCelebrationModal(false);
+      }
     };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isRtl]);
 
-    setNotesList([newNote, ...notesList]);
-    setNewNoteText('');
-  };
-
-  // Add Comment / Question (US-90, US-91)
-  const handleAddComment = (e) => {
-    e.preventDefault();
-    if (!newCommentText.trim()) return;
-
-    const mins = Math.floor(currentTime / 60).toString().padStart(2, '0');
-    const secs = (currentTime % 60).toString().padStart(2, '0');
-
-    const newComm = {
-      id: `comm-${Date.now()}`,
-      authorNameAr: 'عمر طارق (أنت)',
-      authorAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80',
-      isTeacher: false,
-      textAr: newCommentText.trim(),
-      timestamp: `${mins}:${secs}`,
-      timeAgo: 'الآن',
-      replies: []
+  // ─── Fullscreen Event Listener ────────────────────────────
+  useEffect(() => {
+    const handler = () => {
+      if (!document.fullscreenElement) {
+        setIsPlayerFS(false);
+        setIsKMFS(false);
+      }
     };
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
-    setCommentsList([newComm, ...commentsList]);
-    setNewCommentText('');
+  // ─── Playback Actions ─────────────────────────────────────
+  const seekBy = (s) => {
+    setCurrentTime(p => {
+      const n = Math.max(0, Math.min(lesson.durationSec, p + s));
+      localStorage.setItem(`mtfq_pos_${activeLessonId}`, n.toString());
+      return n;
+    });
   };
 
-  // Format seconds into MM:SS
-  const formatSecs = (s) => {
+  const seekTo = (s) => {
+    setCurrentTime(s);
+    localStorage.setItem(`mtfq_pos_${activeLessonId}`, s.toString());
+  };
+
+  const fmt = (s) => {
     const m = Math.floor(s / 60).toString().padStart(2, '0');
     const sec = (s % 60).toString().padStart(2, '0');
     return `${m}:${sec}`;
   };
 
+  // ─── Confirmation Handlers ────────────────────────────────
+  const handleCompleteButtonClick = () => {
+    if (isCompleted) {
+      // Prompt for uncomplete confirmation
+      setConfirmDialog({
+        open: true,
+        type: 'uncomplete',
+        title: lang === 'ar' ? 'إلغاء تحديد إتمام الحصة' : 'Reset Completion',
+        message: lang === 'ar'
+          ? `هل ترغب في إعادة تعيين حالة درس "${lesson.titleAr}" إلى غير مكتمل لمتابعة المذاكرة من جديد؟`
+          : 'Do you want to reset this lesson status to uncompleted?',
+        confirmText: lang === 'ar' ? 'نعم، إعادة التعيين' : 'Yes, Reset',
+        cancelText: lang === 'ar' ? 'تراجع' : 'Cancel',
+        confirmColor: 'amber',
+        payload: null
+      });
+    } else {
+      // Prompt for completion confirmation with enthusiasm
+      setConfirmDialog({
+        open: true,
+        type: 'complete',
+        title: lang === 'ar' ? 'تأكيد إتمام الحصة التعليمية' : 'Complete Lesson',
+        message: lang === 'ar'
+          ? `هل أتممت استيعاب ومذاكرة "${lesson.titleAr}"؟ سيتم تسجيل إنجازك ومنحك +50 نقطة خبرة XP!`
+          : 'Confirm that you finished studying this lesson? You will earn +50 XP!',
+        confirmText: lang === 'ar' ? 'نعم، أتممت الحصة والحمد لله 🎉' : 'Yes, Complete! 🎉',
+        cancelText: lang === 'ar' ? 'متابعة المذاكرة' : 'Keep Studying',
+        confirmColor: 'emerald',
+        payload: null
+      });
+    }
+  };
+
+  const handleDeleteNoteClick = (note) => {
+    setConfirmDialog({
+      open: true,
+      type: 'delete_note',
+      title: lang === 'ar' ? 'تأكيد حذف الملاحظة' : 'Delete Note',
+      message: lang === 'ar'
+        ? `هل أنت متأكد من رغبتك في حذف الملاحظة المسجلة عند التوقيت (${note.ts})؟ لا يمكن التراجع عن هذا الإجراء.`
+        : `Are you sure you want to delete note at (${note.ts})?`,
+      confirmText: lang === 'ar' ? 'تأكيد الحذف' : 'Delete',
+      cancelText: lang === 'ar' ? 'إلغاء' : 'Cancel',
+      confirmColor: 'rose',
+      payload: note.id
+    });
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmDialog.type === 'complete') {
+      const nextStatuses = { ...lessonStatuses, [activeLessonId]: true };
+      setLessonStatuses(nextStatuses);
+      localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
+      setConfirmDialog(p => ({ ...p, open: false }));
+      try {
+        confetti({
+          particleCount: 150,
+          spread: 90,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {}
+      setShowCelebrationModal(true);
+    } else if (confirmDialog.type === 'uncomplete') {
+      const nextStatuses = { ...lessonStatuses, [activeLessonId]: false };
+      setLessonStatuses(nextStatuses);
+      localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
+      setConfirmDialog(p => ({ ...p, open: false }));
+    } else if (confirmDialog.type === 'delete_note') {
+      setNotes(notes.filter(x => x.id !== confirmDialog.payload));
+      setConfirmDialog(p => ({ ...p, open: false }));
+    }
+  };
+
+  const toggleBookmark = () => {
+    const next = !isBookmarked;
+    setIsBookmarked(next);
+    localStorage.setItem(`mtfq_bm_${activeLessonId}`, next.toString());
+  };
+
+  const addNote = (e) => {
+    e.preventDefault();
+    if (!noteInput.trim()) return;
+    const newNote = {
+      id: `n${Date.now()}`,
+      ts: fmt(currentTime),
+      sec: currentTime,
+      text: noteInput.trim(),
+      date: lang === 'ar' ? 'الآن' : 'Just now'
+    };
+    setNotes([newNote, ...notes]);
+    setNoteInput('');
+  };
+
+  const handleDL = (att) => {
+    setDlId(att.id);
+    setTimeout(() => {
+      setDlId(null);
+      setDlToast(att.titleAr);
+      setTimeout(() => setDlToast(null), 3500);
+    }, 1000);
+  };
+
+  const togglePlayerFS = async () => {
+    if (!playerRef.current) return;
+    try {
+      if (!document.fullscreenElement) {
+        await playerRef.current.requestFullscreen();
+        setIsPlayerFS(true);
+      } else {
+        await document.exitFullscreen();
+        setIsPlayerFS(false);
+      }
+    } catch (e) {
+      setIsPlayerFS(!isPlayerFS);
+    }
+  };
+
+  const toggleKMFS = async () => {
+    if (!kmRef.current) return;
+    try {
+      if (!document.fullscreenElement) {
+        await kmRef.current.requestFullscreen();
+        setIsKMFS(true);
+      } else {
+        await document.exitFullscreen();
+        setIsKMFS(false);
+      }
+    } catch (e) {
+      setIsKMFS(!isKMFS);
+    }
+  };
+
+  // ─── Tab Configuration ────────────────────────────────────
+  const tabs = [
+    { id: 'notes', label: lang === 'ar' ? 'ملاحظات الدرس' : 'Lesson Notes', icon: Sparkles, badge: notes.length },
+    { id: 'questions', label: lang === 'ar' ? 'الأسئلة والأجوبة' : 'Q&A', icon: HelpCircle, badge: questions.length },
+    { id: 'materials', label: lang === 'ar' ? 'المصادر الإضافية' : 'Materials', icon: FileText, badge: attachments.length },
+  ];
+
   return (
-    <div style={{
-      maxWidth: '1280px',
-      margin: '0 auto',
-      padding: '24px 20px 80px'
-    }}>
-      {/* Top Breadcrumb & Controls */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '14px',
-        marginBottom: '20px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => navigate('/student/dashboard')}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--text-primary)'
-            }}
-          >
-            {isRtl ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}
-          </button>
-
-          <div>
-            <div style={{ fontSize: '11.5px', color: 'var(--primary)', fontWeight: '800' }}>
-              {lesson.subjectAr} • {lesson.gradeAr}
-            </div>
-            <h1 style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
-              {lesson.titleAr}
-            </h1>
-          </div>
+    <div className="lv">
+      {/* ── Feedback Toast ── */}
+      {dlToast && (
+        <div className="lv-toast">
+          <CheckCircle2 size={16} />
+          <span>{lang === 'ar' ? `تم تحميل "${dlToast}" بنجاح` : `Downloaded "${dlToast}"`}</span>
         </div>
+      )}
 
-        {/* Action Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Bookmark Button (US-28) */}
-          <button
-            onClick={handleToggleBookmark}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '12px',
-              backgroundColor: isBookmarked ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-surface)',
-              border: '1px solid',
-              borderColor: isBookmarked ? '#F59E0B' : 'var(--border-subtle)',
-              color: isBookmarked ? '#D97706' : 'var(--text-secondary)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            {isBookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-            <span>{isBookmarked ? (lang === 'ar' ? 'محفوظ للمراجعة ⭐' : 'Bookmarked') : (lang === 'ar' ? 'حفظ للمراجعة' : 'Bookmark')}</span>
+      {/* ══════════ BREADCRUMB & CONTROLS BAR ══════════ */}
+      <div className="lv-top-bar">
+        <nav className="lv-crumb" aria-label="Breadcrumb">
+          <button className="lv-crumb-link" onClick={() => navigate('/student/courses')}>
+            {lang === 'ar' ? 'مقرراتي (حصصي)' : 'My Courses'}
           </button>
+          <ChevronRight size={13} className="lv-crumb-sep" />
+          <span className="lv-crumb-link" onClick={() => navigate('/student/courses')}>
+            {courseInfo.titleAr}
+          </span>
+          <ChevronRight size={13} className="lv-crumb-sep" />
+          <span className="lv-crumb-current">{lesson.titleAr}</span>
+        </nav>
 
-          {/* Mark Complete Button (US-26) */}
+        {/* Collapsed Playlist Re-open Button */}
+        {isPlaylistCollapsed && (
           <button
-            onClick={handleToggleComplete}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              backgroundColor: isCompleted ? '#10B981' : 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              boxShadow: isCompleted ? '0 4px 12px rgba(16, 185, 129, 0.3)' : '0 4px 12px rgba(108, 77, 255, 0.3)'
-            }}
+            className="lv-playlist-expand-btn desktop-only"
+            onClick={() => setIsPlaylistCollapsed(false)}
+            title="إظهار محتوى الدورة"
           >
-            <CheckCircle2 size={16} />
-            <span>{isCompleted ? (lang === 'ar' ? 'مكتمل بنجاح (+50 XP)' : 'Completed') : (lang === 'ar' ? 'تسجيل كدرس مكتمل' : 'Mark Complete')}</span>
+            <BookOpen size={15} />
+            <span>{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</span>
+            <span className="lv-playlist-expand-badge">{completedCount}/{playlist.length}</span>
+            <PanelRightOpen size={15} />
           </button>
-
-          {/* Report Issue Button (US-94) */}
-          <button
-            onClick={() => setReportModalOpen(true)}
-            title={lang === 'ar' ? 'إبلاغ عن مشكلة في الحصة' : 'Report an issue'}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--text-muted)'
-            }}
-          >
-            <AlertOctagon size={16} />
-          </button>
-        </div>
+        )}
       </div>
 
-      {/* Media Player Container (US-20, US-21, US-22) */}
-      <div style={{
-        backgroundColor: '#0F172A',
-        borderRadius: '24px',
-        overflow: 'hidden',
-        border: '1.5px solid var(--border-medium)',
-        marginBottom: '24px',
-        boxShadow: '0 12px 36px rgba(0,0,0,0.4)'
-      }}>
-        {/* Media Switcher Bar: Video vs Audio Mode vs Knowledge Map */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 20px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-          backgroundColor: '#090D16'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={() => setMediaMode('video')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '20px',
-                backgroundColor: mediaMode === 'video' ? 'var(--primary)' : 'transparent',
-                color: mediaMode === 'video' ? '#FFFFFF' : '#94A3B8',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-            >
-              🎥 {lang === 'ar' ? 'مشغل الفيديو (HD)' : 'Video Mode'}
-            </button>
+      {/* ══════════ MAIN 2-COLUMN LAYOUT ══════════ */}
+      <div className={`lv-layout ${isPlaylistCollapsed ? 'lv-layout--collapsed' : ''}`}>
 
-            <button
-              onClick={() => setMediaMode('audio')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '20px',
-                backgroundColor: mediaMode === 'audio' ? '#06B6D4' : 'transparent',
-                color: mediaMode === 'audio' ? '#FFFFFF' : '#94A3B8',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-            >
-              🎧 {lang === 'ar' ? 'وضع الاستماع الصوتي (Podcast)' : 'Audio Mode'}
-            </button>
+        {/* ─── MAIN COLUMN: Content Area ─── */}
+        <main className="lv-content">
 
-            <button
-              onClick={() => setMediaMode('map')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '20px',
-                backgroundColor: mediaMode === 'map' ? '#8B5CF6' : 'transparent',
-                color: mediaMode === 'map' ? '#FFFFFF' : '#94A3B8',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-            >
-              🧠 {lang === 'ar' ? 'خريطة المفاهيم التفاعلية' : 'Mindmap'}
-            </button>
-          </div>
+          {/* ══ MEDIA PLAYER ══ */}
+          <div className={`lv-player ${isPlayerFS ? 'lv-player--fs' : ''}`} ref={playerRef}>
+            {mediaMode === 'video' ? (
+              /* Video Screen */
+              <div className="lv-player__screen">
+                <img src={lesson.videoUrl} alt={lesson.titleAr} className="lv-player__video" />
+                <div className="lv-player__video-gradient" />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* Speed selector (US-22) */}
-            <select
-              value={playbackSpeed}
-              onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                color: '#FFFFFF',
-                border: '1px solid rgba(255,255,255,0.15)',
-                borderRadius: '8px',
-                padding: '4px 8px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              <option value="0.75">0.75x</option>
-              <option value="1">1.0x (طبيعي)</option>
-              <option value="1.25">1.25x</option>
-              <option value="1.5">1.5x</option>
-              <option value="1.75">1.75x</option>
-              <option value="2">2.0x (مضاعف)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Media Viewport */}
-        {mediaMode === 'video' && (
-          <div style={{
-            position: 'relative',
-            width: '100%',
-            height: 'clamp(280px, 50vw, 500px)',
-            backgroundColor: '#000000',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <img
-              src="https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=1200&auto=format&fit=crop&q=80"
-              alt="Lecture Stream"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.65 }}
-            />
-
-            {/* Simulated Live Blackboard overlay */}
-            <div style={{
-              position: 'absolute',
-              top: '20px',
-              right: isRtl ? '24px' : 'auto',
-              left: isRtl ? 'auto' : '24px',
-              backgroundColor: 'rgba(0,0,0,0.65)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: '12px',
-              padding: '10px 16px',
-              color: '#FFFFFF',
-              border: '1px solid rgba(255,255,255,0.15)'
-            }}>
-              <div style={{ fontSize: '13px', fontWeight: '800', color: '#38BDF8' }}>
-                {lesson.chapters.find(c => currentTime >= c.startSeconds)?.titleAr || lesson.chapters[0].titleAr}
-              </div>
-              <div style={{ fontSize: '11px', color: '#94A3B8' }}>
-                المعادلة: 6CO2 + 12H2O + Light ➔ C6H12O6 + 6H2O + 6O2
-              </div>
-            </div>
-
-            {/* Play / Pause Big Center Button */}
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              style={{
-                position: 'absolute',
-                width: '72px',
-                height: '72px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(108, 77, 255, 0.85)',
-                backdropFilter: 'blur(10px)',
-                border: '2px solid rgba(255,255,255,0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 0 30px rgba(108, 77, 255, 0.6)',
-                color: '#FFFFFF'
-              }}
-            >
-              {isPlaying ? <Pause size={32} fill="#FFFFFF" /> : <Play size={32} fill="#FFFFFF" style={{ marginLeft: isRtl ? 0 : '4px', marginRight: isRtl ? '4px' : 0 }} />}
-            </button>
-
-            {/* Video Controls Bar (US-22) */}
-            <div style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              backgroundColor: 'rgba(9, 13, 22, 0.95)',
-              backdropFilter: 'blur(12px)',
-              padding: '12px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              {/* Progress scrubber */}
-              <input
-                type="range"
-                min="0"
-                max={lesson.durationSeconds}
-                value={currentTime}
-                onChange={(e) => setCurrentTime(parseInt(e.target.value, 10))}
-                style={{
-                  width: '100%',
-                  cursor: 'pointer',
-                  accentColor: 'var(--primary)'
-                }}
-              />
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#FFFFFF' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <button
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer' }}
-                  >
-                    {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-                  </button>
-
-                  <button
-                    onClick={() => setCurrentTime(prev => Math.max(0, prev - 10))}
-                    title={lang === 'ar' ? 'تأخير 10 ثوانٍ' : 'Rewind 10s'}
-                    style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11.5px' }}
-                  >
-                    <Rewind size={16} /> 10s
-                  </button>
-
-                  <button
-                    onClick={() => setCurrentTime(prev => Math.min(lesson.durationSeconds, prev + 10))}
-                    title={lang === 'ar' ? 'تقديم 10 ثوانٍ' : 'Fast forward 10s'}
-                    style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11.5px' }}
-                  >
-                    <FastForward size={16} /> 10s
-                  </button>
-
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#E2E8F0' }}>
-                    {formatSecs(currentTime)} / {lesson.durationFormatted}
+                {/* Chapter Pill */}
+                <div className="lv-player__chapter-pill">
+                  <span className="lv-player__chapter-num">
+                    {lang === 'ar' ? `المحطة ${currentCh.id} من 4` : `Part ${currentCh.id}/4`}
                   </span>
+                  <span className="lv-player__chapter-title">{currentCh.titleAr}</span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '11px', color: '#38BDF8', fontWeight: '700' }}>
-                    ⚡ {playbackSpeed}x
-                  </span>
-                  <Volume2 size={18} color="#94A3B8" />
-                  <Maximize2 size={18} color="#94A3B8" style={{ cursor: 'pointer' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {mediaMode === 'audio' && (
-          <div style={{ padding: '32px 24px', backgroundColor: '#090D16' }}>
-            <AudioPlayer
-              title={lesson.titleAr}
-              teacherName={lesson.teacher.nameAr}
-              currentTime={currentTime}
-              duration={lesson.durationSeconds}
-              onSeek={(s) => setCurrentTime(s)}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-            />
-          </div>
-        )}
-
-        {mediaMode === 'map' && (
-          <div style={{ height: '420px', width: '100%', backgroundColor: 'var(--bg-app)' }}>
-            <KnowledgeMapCanvas
-              knowledgeMap={lesson.knowledgeMap}
-              onNodeSelect={(node) => {
-                if (node.seconds) {
-                  setCurrentTime(node.seconds);
-                  setMediaMode('video');
-                  setIsPlaying(true);
-                }
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Chapters Quick Jump Strip */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        overflowX: 'auto',
-        paddingBottom: '14px',
-        marginBottom: '24px'
-      }}>
-        {lesson.chapters.map((ch, idx) => {
-          const isActive = currentTime >= ch.startSeconds && (idx === lesson.chapters.length - 1 || currentTime < lesson.chapters[idx + 1].startSeconds);
-          return (
-            <button
-              key={ch.id}
-              onClick={() => {
-                setCurrentTime(ch.startSeconds);
-                setIsPlaying(true);
-              }}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '14px',
-                backgroundColor: isActive ? 'var(--primary)' : 'var(--bg-surface-elevated)',
-                color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                border: '1px solid',
-                borderColor: isActive ? 'var(--primary)' : 'var(--border-subtle)',
-                fontSize: '12px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>{ch.timestamp}</span>
-              <span>{ch.titleAr}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Lesson Details & Interactive Work Area Tabs (US-24, US-27, US-30, US-90, US-91) */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1px solid var(--border-medium)',
-        borderRadius: '24px',
-        overflow: 'hidden'
-      }}>
-        {/* Tabs Bar */}
-        <div style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--border-subtle)',
-          padding: '0 20px',
-          overflowX: 'auto'
-        }}>
-          {[
-            { id: 'overview', labelAr: 'ملخص الحصة وأهم النقاط', icon: BookOpen },
-            { id: 'notes', labelAr: `ملاحظاتي على الدرس (${notesList.length})`, icon: FileText },
-            { id: 'attachments', labelAr: `الملازم والملفات (${attachments.length})`, icon: Download },
-            { id: 'discussions', labelAr: `أسئلة ومناقشات الطلاب (${commentsList.length})`, icon: MessageSquare }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '16px 20px',
-                backgroundColor: 'transparent',
-                border: 'none',
-                borderBottom: activeTab === tab.id ? '2.5px solid var(--primary)' : '2.5px solid transparent',
-                color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
-                fontSize: '13.5px',
-                fontWeight: activeTab === tab.id ? '800' : '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <tab.icon size={16} />
-              <span>{tab.labelAr}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tab 1: Overview */}
-        {activeTab === 'overview' && (
-          <div style={{ padding: '28px' }}>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
-              {lang === 'ar' ? 'فكرة الحصة ونقاط الفهم الأساسية:' : 'Lecture Overview:'}
-            </h3>
-            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '24px' }}>
-              {lesson.summary.overviewAr}
-            </p>
-
-            {/* Key Definitions Grid */}
-            <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
-              {lang === 'ar' ? 'المفاهيم المحورية في البابل شيت:' : 'Key Concepts:'}
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginBottom: '28px' }}>
-              {lesson.summary.keyDefinitions.map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: '14px',
-                    borderRadius: '16px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)'
-                  }}
+                {/* Center Play/Pause Overlay */}
+                <button
+                  className="lv-player__center-btn"
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  title={isPlaying ? 'إيقاف' : 'تشغيل'}
                 >
-                  <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px' }}>
-                    {item.termAr}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {item.defAr}
-                  </div>
-                </div>
-              ))}
-            </div>
+                  <span className="lv-player__center-ring" />
+                  {isPlaying ? (
+                    <Pause size={28} />
+                  ) : (
+                    <Play size={28} fill="currentColor" style={{ marginInlineStart: '3px' }} />
+                  )}
+                </button>
 
-            {/* Action CTA: Go to Quiz */}
-            <div style={{
-              backgroundColor: 'rgba(108, 77, 255, 0.08)',
-              border: '1.5px solid rgba(108, 77, 255, 0.3)',
-              borderRadius: '20px',
-              padding: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px'
-            }}>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: '900', color: 'var(--primary)' }}>
-                  {lang === 'ar' ? 'هل أنهيت استيعاب الحصة؟ اختبر نفسك الآن!' : 'Finished this lesson? Test your mastery!'}
+                {/* Fullscreen Button */}
+                <button
+                  className="lv-player__fs-btn"
+                  onClick={togglePlayerFS}
+                  title={isPlayerFS ? 'إنهاء وضع الشاشة الكاملة' : 'شاشة كاملة'}
+                >
+                  {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+              </div>
+            ) : (
+              /* Audio Studio (Adaptive Mode) */
+              <div className="lv-player__audio-studio">
+                <div className="lv-player__audio-glow" />
+                <div className="lv-player__audio-avatar-wrap">
+                  <img src={courseInfo.teacherImg} alt={courseInfo.teacherAr} className="lv-player__audio-avatar" />
+                  <div className="lv-player__audio-badge"><Headphones size={13} /></div>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  {lang === 'ar' ? 'كويز سريع مكون من 12 سؤالاً بنظام البابل شيت الحديث مع نقاط XP ودوري المتفوقين.' : 'Take a 12-question quiz to lock in your score and earn league XP.'}
+                <p className="lv-player__audio-label">
+                  {lang === 'ar' ? 'تسجيل الحصة الصوتي عالي النقاء (HD Podcast)' : 'HD Master Audio'}
+                </p>
+                <h3 className="lv-player__audio-title">{lesson.titleAr}</h3>
+                <p className="lv-player__audio-sub">{courseInfo.teacherAr} • {currentCh.titleAr}</p>
+
+                {/* Pulsing Audio Waveform */}
+                <div className="lv-waveform">
+                  {Array.from({ length: 32 }, (_, i) => (
+                    <div
+                      key={i}
+                      className="lv-waveform__bar"
+                      style={{
+                        animationDelay: `${(i % 8) * 0.12}s`,
+                        animationPlayState: isPlaying ? 'running' : 'paused'
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div className="lv-player__audio-footer">
+                  <span className="lv-player__data-badge">
+                    {lang === 'ar' ? '⚡ يوفر 85% من باقة الإنترنت' : '⚡ 85% Data Saved'}
+                  </span>
+                  <button className="lv-player__fs-btn" onClick={togglePlayerFS} title="شاشة كاملة">
+                    {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
                 </div>
               </div>
+            )}
 
-              <button
-                onClick={() => navigate('/student/quiz')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 20px',
-                  borderRadius: '14px',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(108, 77, 255, 0.35)'
+            {/* ══ Player Scrubber & Controls ══ */}
+            <div className="lv-controls">
+              {/* Scrub Track */}
+              <div
+                className="lv-scrub"
+                onClick={e => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+                  seekTo(Math.round(pct * lesson.durationSec));
                 }}
               >
-                <Sparkles size={16} />
-                <span>{lang === 'ar' ? 'بدء كويز الحصة' : 'Start Quiz'}</span>
-              </button>
-            </div>
-          </div>
-        )}
+                <div className="lv-scrub__track">
+                  {lesson.chapters.map((c, i) => i > 0 && (
+                    <div
+                      key={c.id}
+                      className="lv-scrub__mark"
+                      style={{ left: `${(c.startSec / lesson.durationSec) * 100}%` }}
+                      title={c.titleAr}
+                    />
+                  ))}
+                  <div className="lv-scrub__fill" style={{ width: `${progress}%` }} />
+                  <div className="lv-scrub__thumb" style={{ left: `${progress}%` }} />
+                </div>
+              </div>
 
-        {/* Tab 2: Notes (US-27, US-30) */}
-        {activeTab === 'notes' && (
-          <div style={{ padding: '28px' }}>
-            {/* Add Note Form */}
-            <form onSubmit={handleAddNote} style={{ marginBottom: '24px' }}>
-              <div style={{
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1.5px solid var(--border-medium)',
-                borderRadius: '16px',
-                padding: '14px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '12px', color: 'var(--primary)', fontWeight: '800' }}>
-                  <Clock size={14} />
-                  <span>{lang === 'ar' ? `تسجيل ملاحظة عند التوقيت: ${formatSecs(currentTime)}` : `Note at ${formatSecs(currentTime)}`}</span>
+              {/* Controls Row */}
+              <div className="lv-controls__row">
+                <div className="lv-controls__left">
+                  <button className="lv-ctrl-btn" onClick={() => seekBy(-10)} title="-10s">
+                    <RotateCcw size={16} />
+                  </button>
+                  <button className="lv-ctrl-btn" onClick={() => seekBy(10)} title="+10s">
+                    <FastForward size={16} />
+                  </button>
+                  <div className="lv-time">
+                    <span className="lv-time__curr">{fmt(currentTime)}</span>
+                    <span className="lv-time__sep">/</span>
+                    <span className="lv-time__tot">{lesson.durationFmt}</span>
+                  </div>
                 </div>
 
-                <textarea
-                  rows="3"
-                  placeholder={lang === 'ar' ? 'اكتب ملاحظتك الخاصة هنا لحفظها مع توقيت الحصة...' : 'Write your private note with timestamp...'}
-                  value={newNoteText}
-                  onChange={(e) => setNewNoteText(e.target.value)}
-                  style={{
-                    width: '100%',
-                    border: 'none',
-                    background: 'transparent',
-                    outline: 'none',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    resize: 'none'
-                  }}
-                />
+                {/* Primary Play Button */}
+                <button
+                  className="lv-play-btn"
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  title={isPlaying ? 'إيقاف' : 'تشغيل'}
+                >
+                  {isPlaying ? (
+                    <Pause size={19} />
+                  ) : (
+                    <Play size={19} fill="currentColor" style={{ marginInlineStart: '2px' }} />
+                  )}
+                </button>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <div className="lv-controls__right">
+                  {/* Mute / Volume */}
                   <button
-                    type="submit"
-                    style={{
-                      padding: '8px 18px',
-                      borderRadius: '10px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      fontSize: '12.5px',
-                      fontWeight: '800',
-                      cursor: 'pointer'
-                    }}
+                    className="lv-ctrl-btn"
+                    onClick={() => setIsMuted(!isMuted)}
+                    title={isMuted ? 'إلغاء الكتم' : 'كتم'}
                   >
-                    {lang === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}
+                    {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isMuted ? 0 : volume}
+                    onChange={e => {
+                      setVolume(parseFloat(e.target.value));
+                      setIsMuted(false);
+                    }}
+                    className="lv-vol"
+                    title="مستوى الصوت"
+                  />
+
+                  {/* Playback Speed */}
+                  <select
+                    value={speed}
+                    onChange={e => setSpeed(parseFloat(e.target.value))}
+                    className="lv-speed"
+                    title="سرعة التشغيل"
+                  >
+                    {[0.75, 1, 1.25, 1.5, 1.75, 2].map(s => (
+                      <option key={s} value={s}>{s === 1 ? '1.0x' : `${s}x`}</option>
+                    ))}
+                  </select>
+
+                  {/* Adaptive Media Switcher (Video vs Audio) */}
+                  <button
+                    className={`lv-ctrl-btn lv-mode-toggle ${mediaMode === 'audio' ? 'active' : ''}`}
+                    onClick={() => setMediaMode(m => m === 'video' ? 'audio' : 'video')}
+                    title={mediaMode === 'video' ? 'التحويل للاستماع الصوتي (Podcast)' : 'التحويل للفيديو'}
+                  >
+                    {mediaMode === 'video' ? <Headphones size={16} /> : <Video size={16} />}
                   </button>
                 </div>
               </div>
-            </form>
-
-            {/* Notes List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {notesList.map((note) => (
-                <div
-                  key={note.id}
-                  style={{
-                    padding: '14px 18px',
-                    borderRadius: '16px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: '16px'
-                  }}
-                >
-                  <div>
-                    <button
-                      onClick={() => {
-                        setCurrentTime(note.timeSeconds);
-                        setIsPlaying(true);
-                      }}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        backgroundColor: 'var(--primary-surface)',
-                        color: 'var(--primary)',
-                        border: 'none',
-                        fontSize: '11.5px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        marginBottom: '6px'
-                      }}
-                    >
-                      <Play size={10} fill="var(--primary)" />
-                      {note.timestamp}
-                    </button>
-                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                      {note.textAr}
-                    </p>
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    {note.createdAt}
-                  </span>
-                </div>
-              ))}
             </div>
           </div>
-        )}
 
-        {/* Tab 3: Attachments & Handouts (US-24, US-25) */}
-        {activeTab === 'attachments' && (
-          <div style={{ padding: '28px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '16px' }}>
-              {lang === 'ar' ? 'المذكرات والملفات المرفقة للدرس:' : 'Lesson Attachments & PDFs:'}
-            </h3>
+          {/* ══ LESSON HEADER (Clean, Professional, Exactly Matching Reference) ══ */}
+          <div className="lv-info">
+            <div className="lv-info__header">
+              {/* Right Side in RTL: Title, Meta, and Description */}
+              <div className="lv-info__main">
+                <h1 className="lv-info__title">{lesson.titleAr}</h1>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {attachments.map((file) => (
-                <div
-                  key={file.id}
-                  style={{
-                    padding: '16px 20px',
-                    borderRadius: '16px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '16px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '12px',
-                      backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#EF4444'
-                    }}>
-                      <FileText size={22} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                        {file.nameAr}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        {file.size} • {file.pages}
-                      </div>
-                    </div>
+                <div className="lv-info__meta">
+                  <div className="lv-info__teacher">
+                    <img src={courseInfo.teacherImg} alt={courseInfo.teacherAr} className="lv-info__avatar" />
+                    <span>{courseInfo.teacherAr}</span>
                   </div>
-
-                  <a
-                    href={`#download-${file.id}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert(lang === 'ar' ? `جاري تحميل ملف: ${file.nameAr}` : `Downloading ${file.nameAr}...`);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 16px',
-                      borderRadius: '12px',
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--border-medium)',
-                      color: 'var(--primary)',
-                      fontSize: '12.5px',
-                      fontWeight: '800',
-                      textDecoration: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Download size={14} />
-                    <span>{lang === 'ar' ? 'تحميل الملزمة' : 'Download'}</span>
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tab 4: Discussions & Ask Teacher (US-90, US-91, US-92, US-93) */}
-        {activeTab === 'discussions' && (
-          <div style={{ padding: '28px' }}>
-            {/* New Comment / Question Input */}
-            <form onSubmit={handleAddComment} style={{ marginBottom: '28px' }}>
-              <div style={{
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1.5px solid var(--border-medium)',
-                borderRadius: '16px',
-                padding: '14px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                    {lang === 'ar' ? 'نوع المشاركة:' : 'Type:'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCommentType('question')}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: commentType === 'question' ? 'var(--primary)' : 'transparent',
-                      color: commentType === 'question' ? '#FFFFFF' : 'var(--text-secondary)',
-                      border: 'none',
-                      fontSize: '11.5px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ❓ {lang === 'ar' ? 'سؤال للمعلم' : 'Ask Teacher'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCommentType('comment')}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: commentType === 'comment' ? 'var(--primary)' : 'transparent',
-                      color: commentType === 'comment' ? '#FFFFFF' : 'var(--text-secondary)',
-                      border: 'none',
-                      fontSize: '11.5px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    💬 {lang === 'ar' ? 'تعليق عام' : 'Comment'}
-                  </button>
+                  <span className="lv-info__dot">•</span>
+                  <div className="lv-info__duration">
+                    <Clock size={13} />
+                    <span>{lesson.durationFmt.replace(':', ' دقيقة و ')} ثانية</span>
+                  </div>
+                  <span className="lv-info__dot">•</span>
+                  <span className="lv-info__badge">{courseInfo.subjectAr}</span>
+                  {isCompleted && (
+                    <span className="lv-info__status-pill completed">
+                      <CheckCircle2 size={12} />
+                      <span>{lang === 'ar' ? 'مكتملة' : 'Completed'}</span>
+                    </span>
+                  )}
                 </div>
 
-                <textarea
-                  rows="3"
-                  placeholder={commentType === 'question' ? (lang === 'ar' ? 'اكتب سؤالك بوضوح وسيقوم المعلم بالرد عليك...' : 'Ask the instructor...') : (lang === 'ar' ? 'شارك رأيك أو استفسارك مع زملائك...' : 'Share a thought...')}
-                  value={newCommentText}
-                  onChange={(e) => setNewCommentText(e.target.value)}
-                  style={{
-                    width: '100%',
-                    border: 'none',
-                    background: 'transparent',
-                    outline: 'none',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    resize: 'none'
-                  }}
-                />
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-                  <button
-                    type="submit"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 18px',
-                      borderRadius: '10px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      fontSize: '12.5px',
-                      fontWeight: '800',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Send size={14} />
-                    <span>{lang === 'ar' ? 'إرسال السؤال' : 'Post'}</span>
-                  </button>
-                </div>
+                <p className="lv-info__desc">{lesson.descAr}</p>
               </div>
-            </form>
 
-            {/* Comments Stream */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {commentsList.map((comm) => (
-                <div
-                  key={comm.id}
-                  style={{
-                    padding: '18px',
-                    borderRadius: '16px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)'
-                  }}
+              {/* Left Side in RTL: Action Buttons */}
+              <div className="lv-info__actions">
+                <button
+                  className={`lv-info__complete-btn ${isCompleted ? 'completed' : ''}`}
+                  onClick={handleCompleteButtonClick}
+                  title={isCompleted ? 'إلغاء الإتمام' : 'تحديد كمكتمل'}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img
-                        src={comm.authorAvatar}
-                        alt={comm.authorNameAr}
-                        style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                          {comm.authorNameAr}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {comm.timeAgo} • توقيت: {comm.timestamp}
-                        </div>
-                      </div>
+                  <CheckCircle2 size={16} />
+                  <span>{isCompleted ? (lang === 'ar' ? 'مكتمل بنجاح' : 'Completed') : (lang === 'ar' ? 'تحديد كمكتمل' : 'Mark Complete')}</span>
+                </button>
+
+                <button
+                  className="lv-info__summary-btn"
+                  onClick={() => handleDL({ id: 'summary', titleAr: courseInfo.summaryPdf })}
+                  title="تحميل ملخص الحصة"
+                >
+                  <Download size={15} />
+                  <span>{lang === 'ar' ? 'تحميل الملخص (PDF)' : 'Summary PDF'}</span>
+                </button>
+
+                <button
+                  className={`lv-info__bm-btn ${isBookmarked ? 'active' : ''}`}
+                  onClick={toggleBookmark}
+                  title="حفظ للمراجعة اللاحقة"
+                >
+                  {isBookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ══ TABS NAVIGATION ══ */}
+          <div className="lv-tabs">
+            <div className="lv-tabs__header" role="tablist">
+              {tabs.map(t => {
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    role="tab"
+                    aria-selected={activeTab === t.id}
+                    className={`lv-tabs__btn ${activeTab === t.id ? 'active' : ''}`}
+                    onClick={() => setActiveTab(t.id)}
+                  >
+                    <Icon size={15} />
+                    <span>{t.label}</span>
+                    {t.badge > 0 && <span className="lv-tabs__badge">{t.badge}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="lv-tabs__body">
+              {/* ── TAB 1: NOTES ── */}
+              {activeTab === 'notes' && (
+                <div className="lv-notes">
+                  <div className="lv-notes__head">
+                    <div className="lv-notes__title-group">
+                      <h3 className="lv-notes__heading">{lang === 'ar' ? 'مفكرة الطالب' : 'Student Notebook'}</h3>
+                      <span className="lv-notes__saved">
+                        <span className="lv-notes__saved-dot" />
+                        {lang === 'ar' ? `تم الحفظ تلقائياً: ${fmt(currentTime)}` : `Auto-saved: ${fmt(currentTime)}`}
+                      </span>
                     </div>
                   </div>
 
-                  <p style={{ margin: '0 0 14px 0', fontSize: '13.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                    {comm.textAr}
-                  </p>
+                  <form onSubmit={addNote} className="lv-notes__form">
+                    <textarea
+                      rows={3}
+                      value={noteInput}
+                      onChange={e => setNoteInput(e.target.value)}
+                      placeholder={lang === 'ar' ? 'اكتب ملاحظاتك هنا... سيتم ربط الملاحظة بالوقت الحالي للمقطع' : 'Type your notes here... linked to current video timestamp.'}
+                      className="lv-notes__input"
+                    />
+                    <div className="lv-notes__form-footer">
+                      <span className="lv-notes__hint">
+                        {lang === 'ar' ? `سيتم تسجيل الملاحظة عند الدقيقة ${fmt(currentTime)}` : `Linked at ${fmt(currentTime)}`}
+                      </span>
+                      <button type="submit" disabled={!noteInput.trim()} className="lv-notes__submit">
+                        <Sparkles size={13} />
+                        <span>{lang === 'ar' ? 'حفظ الملاحظة' : 'Save Note'}</span>
+                      </button>
+                    </div>
+                  </form>
 
-                  {/* Teacher Replies (US-93) */}
-                  {comm.replies && comm.replies.length > 0 && (
-                    <div style={{
-                      backgroundColor: 'rgba(108, 77, 255, 0.08)',
-                      borderRight: isRtl ? '3px solid var(--primary)' : 'none',
-                      borderLeft: isRtl ? 'none' : '3px solid var(--primary)',
-                      borderRadius: '12px',
-                      padding: '12px 16px',
-                      marginTop: '10px'
-                    }}>
-                      {comm.replies.map((rep) => (
-                        <div key={rep.id}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                            <img
-                              src={rep.authorAvatar}
-                              alt={rep.authorNameAr}
-                              style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}
-                            />
-                            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>
-                              {rep.authorNameAr}
-                            </span>
-                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                              • {rep.timeAgo}
-                            </span>
+                  {notes.length > 0 && (
+                    <div className="lv-notes__list">
+                      {notes.map((n, i) => (
+                        <div key={n.id} className="lv-note" style={{ animationDelay: `${i * 0.05}s` }}>
+                          <div className="lv-note__top">
+                            <button
+                              className="lv-note__ts"
+                              onClick={() => seekTo(n.sec)}
+                              title="انتقل لهذا التوقيت في الفيديو"
+                            >
+                              <Play size={10} fill="currentColor" />
+                              <span>{n.ts}</span>
+                            </button>
+                            <div className="lv-note__actions">
+                              <span className="lv-note__date">{n.date}</span>
+                              <button
+                                className="lv-note__del"
+                                onClick={() => handleDeleteNoteClick(n)}
+                                title="حذف الملاحظة"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
-                          <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                            {rep.textAr}
-                          </p>
+                          <p className="lv-note__text">{n.text}</p>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              ))}
+              )}
+
+              {/* ── TAB 2: QUESTIONS ── */}
+              {activeTab === 'questions' && (
+                <div className="lv-questions">
+                  {questions.map((q, i) => (
+                    <div key={q.id} className="lv-q" style={{ animationDelay: `${i * 0.06}s` }}>
+                      <div className="lv-q__head">
+                        <span className={`lv-q__diff ${q.diff === 'صعب' ? 'hard' : q.diff === 'سهل' ? 'easy' : 'med'}`}>
+                          {q.diff}
+                        </span>
+                        <span className="lv-q__src">{q.src}</span>
+                        <button
+                          className={`lv-q__save ${savedQ[q.id] ? 'on' : ''}`}
+                          onClick={() => setSavedQ(p => ({ ...p, [q.id]: !p[q.id] }))}
+                          title="حفظ السؤال للمراجعة"
+                        >
+                          <Star size={14} fill={savedQ[q.id] ? 'currentColor' : 'transparent'} />
+                        </button>
+                      </div>
+
+                      <p className="lv-q__text">{q.q}</p>
+
+                      <div className="lv-q__reveal-action">
+                        <button
+                          className="lv-q__toggle-btn"
+                          onClick={() => setRevealedA(p => ({ ...p, [q.id]: !p[q.id] }))}
+                        >
+                          {revealedA[q.id] ? (lang === 'ar' ? 'إخفاء الإجابة النموذجية' : 'Hide Answer') : (lang === 'ar' ? 'عرض الإجابة النموذجية والتفسير' : 'Show Model Answer')}
+                        </button>
+                      </div>
+
+                      {revealedA[q.id] && (
+                        <div className="lv-q__answer">
+                          <div className="lv-q__answer-bar" />
+                          <div className="lv-q__answer-content">
+                            <strong>{lang === 'ar' ? 'الإجابة المعتمدة: ' : 'Official Answer: '}</strong>
+                            <span>{q.a}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── TAB 3: MATERIALS ── */}
+              {activeTab === 'materials' && (
+                <div className="lv-materials">
+                  {attachments.map((a, i) => (
+                    <div key={a.id} className="lv-att" style={{ animationDelay: `${i * 0.06}s` }}>
+                      <div className="lv-att__icon">
+                        <FileText size={22} />
+                      </div>
+                      <div className="lv-att__info">
+                        <div className="lv-att__name">{a.titleAr}</div>
+                        <div className="lv-att__meta">{a.size} • {a.pages} • ملف {a.type}</div>
+                      </div>
+                      <button
+                        className="lv-att__dl"
+                        onClick={() => handleDL(a)}
+                        disabled={dlId === a.id}
+                      >
+                        <Download size={14} />
+                        <span>{dlId === a.id ? (lang === 'ar' ? 'جاري التحميل...' : 'Downloading...') : (lang === 'ar' ? 'تحميل' : 'Download')}</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
+        </main>
+
+        {/* ─── RIGHT COLUMN: Course Playlist Sidebar (Collapsible) ─── */}
+        {!isPlaylistCollapsed && (
+          <aside className="lv-sidebar">
+            {/* Header */}
+            <div className="lv-sidebar__head">
+              <div>
+                <h3 className="lv-sidebar__title">{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</h3>
+                <span className="lv-sidebar__progress-text">
+                  <span className="lv-sidebar__pct">{Math.round((completedCount / playlist.length) * 100)}%</span>
+                  {' '}
+                  {completedCount} {lang === 'ar' ? `من أصل ${playlist.length} درساً مكتمل` : `of ${playlist.length} done`}
+                </span>
+              </div>
+
+              {/* Collapse Button */}
+              <button
+                className="lv-sidebar__collapse-btn desktop-only"
+                onClick={() => setIsPlaylistCollapsed(true)}
+                title={lang === 'ar' ? 'طي قائمة الحصص' : 'Collapse Playlist'}
+              >
+                <PanelRightClose size={16} />
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="lv-sidebar__bar">
+              <div
+                className="lv-sidebar__bar-fill"
+                style={{ width: `${(completedCount / playlist.length) * 100}%` }}
+              />
+            </div>
+
+            {/* Playlist Items */}
+            <div className="lv-playlist">
+              {playlist.map((item, i) => (
+                <div
+                  key={item.id}
+                  className={`lv-playlist__item ${item.active ? 'active' : ''} ${item.completed ? 'done' : ''}`}
+                  style={{ animationDelay: `${i * 0.04}s` }}
+                  onClick={() => switchLesson(item.id)}
+                >
+                  <div className="lv-playlist__icon">
+                    {item.completed ? (
+                      <CheckCircle2 size={16} />
+                    ) : item.active ? (
+                      <Play size={13} fill="currentColor" />
+                    ) : (
+                      <Circle size={14} />
+                    )}
+                  </div>
+
+                  <div className="lv-playlist__body">
+                    <div className="lv-playlist__top-line">
+                      <span className="lv-playlist__num">.{i + 1}</span>
+                      <span className="lv-playlist__title">{item.titleAr}</span>
+                    </div>
+                    <span className="lv-playlist__time">{item.time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Knowledge Map Roadmap Button */}
+            <button className="lv-km-btn" onClick={() => setShowKM(true)}>
+              <Map size={17} />
+              <span>{lang === 'ar' ? 'خارطة الطريق التعليمية' : 'Learning Roadmap'}</span>
+            </button>
+          </aside>
         )}
       </div>
 
-      {/* Report Issue Modal (US-94) */}
-      {reportModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(6px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface-elevated)',
-            border: '1.5px solid var(--border-medium)',
-            borderRadius: '24px',
-            maxWidth: '480px',
-            width: '100%',
-            padding: '24px'
-          }}>
-            <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '8px' }}>
-              {lang === 'ar' ? 'الإبلاغ عن مشكلة في الحصة' : 'Report an Issue'}
-            </h3>
-            <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              {lang === 'ar' ? 'هل لاحظت أي خلل في الصوت أو الفيديو أو خطأ في الأسئلة؟ سيقوم فريق الدعم الفني بمراجعته فوراً.' : 'Report video, audio or quiz issues to our technical team.'}
-            </p>
+      {/* ══════════ MOBILE FLOATING PLAYLIST TRIGGER ══════════ */}
+      <div className="lv-mobile-bar mobile-only">
+        <button
+          className="lv-mobile-bar__btn"
+          onClick={() => setMobilePlaylistOpen(true)}
+        >
+          <BookOpen size={16} />
+          <span>{lang === 'ar' ? 'قائمة الحصص' : 'Playlist'}</span>
+          <span className="lv-mobile-bar__count">{completedCount}/{playlist.length}</span>
+        </button>
 
-            <select style={{ width: '100%', padding: '10px', borderRadius: '12px', backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', marginBottom: '12px', outline: 'none' }}>
-              <option>{lang === 'ar' ? 'مشكلة في تشغيل الفيديو أو الصوت' : 'Video/Audio playback issue'}</option>
-              <option>{lang === 'ar' ? 'خطأ في صياغة سؤال أو معلومة علمية' : 'Scientific or question error'}</option>
-              <option>{lang === 'ar' ? 'الملف المرفق لا يفتح' : 'Attachment won\'t open'}</option>
-              <option>{lang === 'ar' ? 'أخرى' : 'Other'}</option>
-            </select>
+        <button
+          className="lv-mobile-bar__btn lv-mobile-bar__btn--km"
+          onClick={() => setShowKM(true)}
+        >
+          <Map size={16} />
+          <span>{lang === 'ar' ? 'خريطة المفاهيم' : 'Roadmap'}</span>
+        </button>
+      </div>
 
-            <textarea
-              rows="3"
-              placeholder={lang === 'ar' ? 'صف المشكلة بالتفصيل...' : 'Describe the issue...'}
-              style={{ width: '100%', padding: '10px', borderRadius: '12px', backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none', resize: 'none', marginBottom: '18px' }}
-            />
+      {/* ══════════ MOBILE PLAYLIST DRAWER ══════════ */}
+      {mobilePlaylistOpen && (
+        <div className="lv-mobile-drawer-overlay mobile-only" onClick={() => setMobilePlaylistOpen(false)}>
+          <div className="lv-mobile-drawer" onClick={e => e.stopPropagation()}>
+            <div className="lv-mobile-drawer__head">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>
+                  {lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}
+                </h3>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                  {completedCount} {lang === 'ar' ? `من أصل ${playlist.length} درساً مكتمل` : `of ${playlist.length} done`}
+                </span>
+              </div>
+              <button className="lv-km__action" onClick={() => setMobilePlaylistOpen(false)}>
+                <X size={16} />
+              </button>
+            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <div className="lv-playlist" style={{ maxHeight: '60vh' }}>
+              {playlist.map((item, i) => (
+                <div
+                  key={item.id}
+                  className={`lv-playlist__item ${item.active ? 'active' : ''} ${item.completed ? 'done' : ''}`}
+                  onClick={() => switchLesson(item.id)}
+                >
+                  <div className="lv-playlist__icon">
+                    {item.completed ? <CheckCircle2 size={16} /> : item.active ? <Play size={13} fill="currentColor" /> : <Circle size={14} />}
+                  </div>
+                  <div className="lv-playlist__body">
+                    <div className="lv-playlist__top-line">
+                      <span className="lv-playlist__num">.{i + 1}</span>
+                      <span className="lv-playlist__title">{item.titleAr}</span>
+                    </div>
+                    <span className="lv-playlist__time">{item.time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ NOTEBOOKLM KNOWLEDGE MAP MODAL ══════════ */}
+      {showKM && (
+        <div className="lv-km-overlay" onClick={() => { setShowKM(false); setIsKMFS(false); }}>
+          <div
+            className={`lv-km ${isKMFS ? 'lv-km--fs' : ''}`}
+            ref={kmRef}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="lv-km__header">
+              <div className="lv-km__header-left">
+                <div className="lv-km__header-icon"><Brain size={20} /></div>
+                <div>
+                  <h2 className="lv-km__title">
+                    {lang === 'ar' ? 'خارطة الطريق التعليمية — خريطة المفاهيم (NotebookLM)' : 'Interactive Knowledge Roadmap'}
+                  </h2>
+                  <p className="lv-km__sub">
+                    {courseInfo.subjectAr} • {lesson.titleAr}
+                  </p>
+                </div>
+              </div>
+              <div className="lv-km__header-actions">
+                <button className="lv-km__action" onClick={toggleKMFS} title="شاشة كاملة">
+                  {isKMFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+                <button className="lv-km__action" onClick={() => { setShowKM(false); setIsKMFS(false); }} title="إغلاق">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Overall Lesson Progress */}
+            <div className="lv-km__progress">
+              <div className="lv-km__progress-bar">
+                <div className="lv-km__progress-fill" style={{ width: `${progress}%` }} />
+              </div>
+              <span className="lv-km__progress-text">
+                {progress}% {lang === 'ar' ? 'مكتمل من المعرفة التراكمية لهذه الحصة' : 'completed of this lesson roadmap'}
+              </span>
+            </div>
+
+            {/* Central Node Badge */}
+            <div className="lv-km__center-badge">
+              <Sparkles size={14} />
+              <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
+            </div>
+
+            {/* Concept Roadmap Cards */}
+            <div className="lv-km__grid">
+              {lesson.chapters.map((ch, i) => {
+                const isDone = currentTime >= ch.endSec;
+                const isCurrent = currentCh.id === ch.id;
+                const isExpanded = expandedConcept === ch.id;
+                const isMastered = !!masteredConcepts[ch.id];
+                const chProgress = isCurrent
+                  ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
+                  : isDone ? 100 : 0;
+
+                return (
+                  <div
+                    key={ch.id}
+                    className={`lv-concept ${isCurrent ? 'current' : ''} ${isDone ? 'done' : ''} ${isExpanded ? 'expanded' : ''}`}
+                    style={{ animationDelay: `${i * 0.08}s` }}
+                    onClick={() => setExpandedConcept(isExpanded ? null : ch.id)}
+                  >
+                    {/* Status indicator */}
+                    <div className="lv-concept__status">
+                      {isDone ? (
+                        <CheckCircle2 size={18} />
+                      ) : isCurrent ? (
+                        <Play size={14} fill="currentColor" />
+                      ) : (
+                        <Lock size={14} />
+                      )}
+                    </div>
+
+                    {/* Body */}
+                    <div className="lv-concept__body">
+                      <div className="lv-concept__head">
+                        <span className="lv-concept__num">{lang === 'ar' ? `المحطة ${ch.id}` : `Node ${ch.id}`}</span>
+                        <span className="lv-concept__time">{fmt(ch.startSec)} — {fmt(ch.endSec)}</span>
+                      </div>
+                      <h4 className="lv-concept__title">{ch.titleAr}</h4>
+
+                      {/* Mini Progress */}
+                      <div className="lv-concept__bar">
+                        <div className="lv-concept__bar-fill" style={{ width: `${chProgress}%` }} />
+                      </div>
+
+                      {/* Expanded Details */}
+                      {isExpanded && (
+                        <div className="lv-concept__details" onClick={e => e.stopPropagation()}>
+                          <p className="lv-concept__desc">{ch.descAr}</p>
+                          <div className="lv-concept__terms">
+                            <span className="lv-concept__terms-label">
+                              {lang === 'ar' ? 'المصطلحات المحورية:' : 'Key Terms:'}
+                            </span>
+                            {ch.keyTerms.map(t => (
+                              <span key={t} className="lv-concept__term">{t}</span>
+                            ))}
+                          </div>
+                          <div className="lv-concept__actions">
+                            <button
+                              className="lv-concept__jump"
+                              onClick={() => {
+                                seekTo(ch.startSec);
+                                setShowKM(false);
+                                setIsPlaying(true);
+                              }}
+                            >
+                              <Play size={12} fill="currentColor" />
+                              <span>{lang === 'ar' ? `انتقل لهذا الجزء في الحصة (${fmt(ch.startSec)})` : `Jump to ${fmt(ch.startSec)}`}</span>
+                            </button>
+
+                            <button
+                              className={`lv-concept__mastery ${isMastered ? 'mastered' : ''}`}
+                              onClick={() => setMasteredConcepts(p => ({ ...p, [ch.id]: !p[ch.id] }))}
+                            >
+                              {isMastered ? <CheckSquare size={14} /> : <Square size={14} />}
+                              <span>{isMastered ? (lang === 'ar' ? 'تم استيعاب المفهوم' : 'Mastered') : (lang === 'ar' ? 'تأكيد الاستيعاب' : 'Mark Mastered')}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <ChevronDown size={15} className={`lv-concept__chevron ${isExpanded ? 'open' : ''}`} />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Learning Outcomes Checklist */}
+            <div className="lv-km__outcomes">
+              <h3 className="lv-km__outcomes-title">
+                <Target size={16} />
+                <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
+              </h3>
+              {[
+                'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
+                'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
+                'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
+              ].map((outcome, i) => (
+                <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
+                  <Check size={14} className="lv-km__outcome-icon" />
+                  <span>{outcome}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ ANIMATED CONFIRMATION MODAL ("الموافقة وكدا") ══════════ */}
+      {confirmDialog.open && (
+        <div className="lv-modal-bg" onClick={() => setConfirmDialog(p => ({ ...p, open: false }))}>
+          <div className="lv-modal lv-modal--confirm animate-pop" onClick={e => e.stopPropagation()}>
+            <div className={`lv-modal__icon lv-modal__icon--${confirmDialog.confirmColor}`}>
+              {confirmDialog.confirmColor === 'emerald' ? (
+                <CheckCircle2 size={34} />
+              ) : confirmDialog.confirmColor === 'amber' ? (
+                <RotateCcw size={34} />
+              ) : (
+                <Trash2 size={34} />
+              )}
+            </div>
+
+            <h3 className="lv-modal__title">{confirmDialog.title}</h3>
+            <p className="lv-modal__desc">{confirmDialog.message}</p>
+
+            <div className="lv-modal__buttons lv-modal__buttons--row">
               <button
-                onClick={() => setReportModalOpen(false)}
-                style={{ padding: '8px 16px', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                className={`lv-modal__action-btn lv-modal__action-btn--${confirmDialog.confirmColor}`}
+                onClick={handleConfirmAction}
               >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                {confirmDialog.confirmText}
               </button>
               <button
-                onClick={() => {
-                  alert(lang === 'ar' ? 'تم استلام بلاغك وسيقوم الدعم بالرد خلال دقائق!' : 'Report submitted!');
-                  setReportModalOpen(false);
-                }}
-                style={{ padding: '8px 20px', borderRadius: '10px', backgroundColor: '#EF4444', border: 'none', color: '#FFFFFF', fontWeight: '800', cursor: 'pointer' }}
+                className="lv-modal__secondary"
+                onClick={() => setConfirmDialog(p => ({ ...p, open: false }))}
               >
-                {lang === 'ar' ? 'إرسال البلاغ' : 'Submit'}
+                {confirmDialog.cancelText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ LESSON COMPLETION CELEBRATION MODAL ══════════ */}
+      {showCelebrationModal && (
+        <div className="lv-modal-bg" onClick={() => setShowCelebrationModal(false)}>
+          <div className="lv-modal animate-pop" onClick={e => e.stopPropagation()}>
+            <div className="lv-modal__icon lv-modal__icon--emerald"><Award size={38} /></div>
+            <div className="lv-modal__xp">+50 XP مكتسبة</div>
+            <h3 className="lv-modal__title">{lang === 'ar' ? 'أحسنت يا بطل! أتممت الحصة' : 'Outstanding Achievement!'}</h3>
+            <p className="lv-modal__desc">
+              {lang === 'ar'
+                ? `تم تحديث نسبة إنجازك في مادة ${courseInfo.subjectAr}. يمكنك الآن تثبيت معلوماتك بحل كويز فوري أو الاستمرار في الحصة التالية.`
+                : 'Your curriculum progress has been updated! Test your knowledge now or continue.'}
+            </p>
+            <div className="lv-modal__buttons">
+              <button
+                className="lv-modal__primary"
+                onClick={() => {
+                  setShowCelebrationModal(false);
+                  navigate('/student/quiz');
+                }}
+              >
+                {lang === 'ar' ? 'حل كويز تثبيت الفهم' : 'Take Practice Quiz'}
+              </button>
+              <button
+                className="lv-modal__secondary"
+                onClick={() => setShowCelebrationModal(false)}
+              >
+                {lang === 'ar' ? 'متابعة المذاكرة هنا' : 'Stay Here'}
               </button>
             </div>
           </div>
@@ -1129,3 +1272,4 @@ export const StudentLessonView = () => {
     </div>
   );
 };
+export default StudentLessonView;
