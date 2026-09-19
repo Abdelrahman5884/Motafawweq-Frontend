@@ -376,6 +376,7 @@ export const HOMEWORK_LIST = [
     courseId: 'course-bio-301',
     subjectAr: 'الأحياء',
     teacherNameAr: 'د. سلمى السيد',
+    teacherAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&auto=format&fit=crop&q=80',
     deadline: '2026-09-19 23:59',
     deadlineTextAr: 'ينتهي اليوم خلال 6 ساعات',
     status: 'pending', // 'pending' | 'submitted' | 'graded'
@@ -385,24 +386,17 @@ export const HOMEWORK_LIST = [
     submissionText: '',
     submittedFileUrl: null,
     teacherFeedbackAr: '',
-    instructionsAr: 'قم بحل المسائل في كشكولك وتصوير الحل أو كتابة التحليل العلمي لخطوات تفاعل الضوء في خانة الإجابة، مع ذكر دور مركب NADPH.'
-  },
-  {
-    id: 'hw-bio-02',
-    titleAr: 'واجب مقارنة أقراص الثيلاكويد بالستروما ومسارات الطاقة',
-    courseId: 'course-bio-301',
-    subjectAr: 'الأحياء',
-    teacherNameAr: 'د. سلمى السيد',
-    deadline: '2026-09-15 23:59',
-    deadlineTextAr: 'تم التسليم والتصحيح',
-    status: 'graded',
-    questionsCount: 8,
-    maxScore: 20,
-    earnedScore: 19,
-    submissionText: 'تم شرح دور التفاعلات الضوئية بدقة وإرفاق الرسم البياني لامتصاص أطياف الضوء.',
-    submittedFileUrl: 'homework-omar-bio-week1.pdf',
-    teacherFeedbackAr: 'إجابة ممتازة جداً يا عمر! صياغتك العلمية لدور إنزيم روبيسكو دقيقة، والدرجة 19 من 20.',
-    gradedDate: '2026-09-16'
+    instructionsAr: 'قم بحل المسائل في كشكولك وتصوير الحل أو كتابة التحليل العلمي لخطوات تفاعل الضوء في خانة الإجابة، مع ذكر دور مركب NADPH.',
+    teacherAttachmentPdf: {
+      fileName: 'شيت-واجب-الأحياء-انشطار-الماء-د-سلمى.pdf',
+      fileSize: '2.4 MB',
+      pagesCount: 3,
+      previewQuestions: [
+        'السؤال الأول: فسر تجربة فان نيل وأثر نظير الأكسجين O18 على معادلة البناء الضوئي.',
+        'السؤال الثاني: ما هو مصير جزيئات PGAL المتكونة بعد ثانيتين من التعريض للضوء في طحلب الكلوريلا؟',
+        'السؤال الثالث: وضح برسم تخطيطي مبسط مسار الإلكترونات في الفسفرة الضوئية.'
+      ]
+    }
   },
   {
     id: 'hw-phy-01',
@@ -410,8 +404,9 @@ export const HOMEWORK_LIST = [
     courseId: 'course-phy-302',
     subjectAr: 'الفيزياء',
     teacherNameAr: 'د. هاني الشناوي',
+    teacherAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80',
     deadline: '2026-09-22 18:00',
-    deadlineTextAr: 'باقي 4 أيام',
+    deadlineTextAr: 'باقي 3 أيام',
     status: 'pending',
     questionsCount: 5,
     maxScore: 25,
@@ -419,7 +414,70 @@ export const HOMEWORK_LIST = [
     submissionText: '',
     submittedFileUrl: null,
     teacherFeedbackAr: '',
-    instructionsAr: 'طبق القانون الأول على العقدة (A) والقانون الثاني على الحلقتين (I) و (II) وأوجد شدة التيارات I1, I2, I3.'
+    instructionsAr: 'طبق القانون الأول على العقدة (A) والقانون الثاني على الحلقتين (I) و (II) وأوجد شدة التيارات المارة في كل فرع بدقة.',
+    teacherAttachmentPdf: {
+      fileName: 'مسائل-كيرشوف-المعقدة-نماذج-الوزارة-د-هاني.pdf',
+      fileSize: '3.8 MB',
+      pagesCount: 4,
+      previewQuestions: [
+        'المسألة الأولى: في الدائرة الكهربية الموضحة بالرسم، احسب فرق الجهد بين النقطتين (A) و (B).',
+        'المسألة الثانية: أوجد القوة الدافعة الكهربية للبطارية المجهولة بتطبيق قانون كيرشوف الثاني في المسار المغلق.',
+        'المسألة الثالثة: احسب القدرة المستهلكة في المقاومة 4 أوم.'
+      ]
+    }
+  },
+  {
+    id: 'hw-bio-02',
+    titleAr: 'واجب مقارنة أقراص الثيلاكويد بالستروما ومسارات الطاقة',
+    courseId: 'course-bio-301',
+    subjectAr: 'الأحياء',
+    teacherNameAr: 'د. سلمى السيد',
+    teacherAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&auto=format&fit=crop&q=80',
+    deadline: '2026-09-15 23:59',
+    deadlineTextAr: 'تم التسليم والتصحيح',
+    status: 'graded',
+    questionsCount: 8,
+    maxScore: 20,
+    earnedScore: 19,
+    submissionText: 'تم شرح دور التفاعلات الضوئية بدقة وإرفاق الرسم البياني لامتصاص أطياف الضوء ودور حاملات الطاقة ATP و NADPH.',
+    submittedFileUrl: 'حل-واجب-عمر-طارق-الأحياء.pdf',
+    teacherFeedbackAr: 'إجابة نموذجية ومبهرة يا عمر! تحليلك لدور إنزيم روبيسكو واختزال CO2 في الستروما دقيق جداً ويدل على فهم عميق. تم منحك 19 من 20.',
+    gradedDate: '2026-09-16',
+    teacherAttachmentPdf: {
+      fileName: 'ورقة-أسئلة-الثيلاكويد-والستروما.pdf',
+      fileSize: '1.9 MB',
+      pagesCount: 2,
+      previewQuestions: [
+        'قارن في جدول بين التفاعلات الضوئية واللاضوئية من حيث مكان الحدوث والنواتج.',
+        'ما الدور الفسيولوجي لصبغة الزانثوفيل والكاروتين في توجيه الطاقة الضوئية؟'
+      ]
+    }
+  },
+  {
+    id: 'hw-chem-01',
+    titleAr: 'تطبيقات قاعدة لوشاتيليه ومسائل ثابت الاتزان Kc و Kp',
+    courseId: 'course-chem-303',
+    subjectAr: 'الكيمياء',
+    teacherNameAr: 'أ. محمود راضي',
+    teacherAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80',
+    deadline: '2026-09-20 20:00',
+    deadlineTextAr: 'تم التسليم • بانتظار التصحيح',
+    status: 'submitted',
+    questionsCount: 6,
+    maxScore: 20,
+    earnedScore: null,
+    submissionText: 'تم حساب قيمة ثابت الاتزان بدقة مع رسم المنحنيات البيانية لتأثير زيادة الضغط على موضع الاتزان.',
+    submittedFileUrl: 'حل-مسائل-الاتزان-الكيميائي.pdf',
+    teacherFeedbackAr: 'الواجب قيد المراجعة بواسطة أ. محمود راضي.',
+    teacherAttachmentPdf: {
+      fileName: 'تدريبات-الاتزان-الكيميائي-أ-محمود-راضي.pdf',
+      fileSize: '2.1 MB',
+      pagesCount: 3,
+      previewQuestions: [
+        'المسألة الأولى: احسب قيمة Kc للتفاعل الغازي عند درجة حرارة 400 كلفن.',
+        'المسألة الثانية: وضح أثر إضافة عامل حفاز على موضع الاتزان وقيمة ثابت الاتزان.'
+      ]
+    }
   }
 ];
 
