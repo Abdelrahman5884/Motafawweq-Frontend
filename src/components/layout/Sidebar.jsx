@@ -40,13 +40,13 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
 
   // Role accent color
   const roleAccent = {
-    teacher: '#6C4BFF',
-    student: '#6C4BFF',
-    parent: '#14B87A',
-    center: '#F5A623',
-    admin: '#6C4BFF',
+    teacher: '#1588C7',
+    student: '#1588C7',
+    parent: '#16A34A',
+    center: '#F59E0B',
+    admin: '#1588C7',
   };
-  const accent = roleAccent[currentRole] || '#6C4BFF';
+  const accent = roleAccent[currentRole] || '#1588C7';
 
   const getMenuItems = () => {
     switch (currentRole) {
@@ -69,7 +69,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
               { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات' : 'Exams', icon: ClipboardList },
               { id: 'homework', path: '/student/homework', label: lang === 'ar' ? 'الواجبات' : 'Homework', icon: FileText },
-              { id: 'analytics', path: '/student/analytics', label: lang === 'ar' ? 'مستواي' : 'My Level', icon: TrendingUp },
+              { id: 'league', path: '/student/league', label: lang === 'ar' ? 'الدوري' : 'League', icon: Trophy },
             ]
           },
           {
@@ -77,7 +77,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             items: [
               { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic, badge: 'AI' },
               { id: 'revision', path: '/student/revision', label: lang === 'ar' ? 'المراجعة الذكية' : 'Smart Revision', icon: RotateCcw },
-              { id: 'quiz', path: '/student/quiz', label: lang === 'ar' ? 'الكويزات والتدريب' : 'Quizzes', icon: Trophy },
+              { id: 'quiz', path: '/student/quiz', label: lang === 'ar' ? 'الكويزات والتدريب' : 'Quizzes', icon: Sparkles },
               { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal },
               { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
               { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription', icon: CreditCard },

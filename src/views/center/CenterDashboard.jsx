@@ -20,7 +20,7 @@ export const CenterDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'branding'
   const [centerName, setCenterName] = useState('أكاديمية الرواد التعليمية');
   const [customDomain, setCustomDomain] = useState('alrowad.learnora.me');
-  const [primaryBrandColor, setPrimaryBrandColor] = useState('#6C4DFF');
+  const [primaryBrandColor, setPrimaryBrandColor] = useState('#1588C7');
   const [savedBranding, setSavedBranding] = useState(false);
 
   const center = MOCK_CENTER_DATA;

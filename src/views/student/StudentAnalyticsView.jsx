@@ -1,29 +1,28 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { STUDENT_PROFILE, COURSES_CATALOG } from '../../data/studentData';
+import { STUDENT_PROFILE } from '../../data/studentData';
 import {
-  TrendingUp,
   Clock,
   CheckCircle2,
   AlertTriangle,
-  BookOpen,
   Award,
   Target
 } from 'lucide-react';
 import {
   SPage,
   SPageHeader,
-  SSection,
   SCard,
-  SProgress,
   SButton,
   SStatBlock,
   SIconBox,
   SBadge,
-  SDivider,
   S
 } from '../../components/student/ui';
+import {
+  SubjectPerformanceGrid,
+  WeeklyPerformanceChart
+} from '../../features/student/analytics';
 
 export const StudentAnalyticsView = () => {
   const navigate = useNavigate();
@@ -103,93 +102,73 @@ export const StudentAnalyticsView = () => {
         </div>
       </SCard>
 
-      {/* Subject progress */}
-      <SSection title={lang === 'ar' ? 'التقدم في المواد' : 'Subject Progress'}>
-        <SCard>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {subjectAverages.map((s, i) => (
-              <div key={i}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', fontFamily: 'var(--font-arabic)' }}>
-                    {s.subjectAr}
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                      {s.lessonsDone}/{s.lessonsTotal} {lang === 'ar' ? 'حصة' : 'lessons'}
-                    </span>
-                    <SBadge variant={s.avg >= 90 ? 'success' : s.avg >= 75 ? 'primary' : 'warning'} size="xs">
-                      {s.avg}%
-                    </SBadge>
-                  </div>
-                </div>
-                <SProgress
-                  value={s.lessonsDone}
-                  max={s.lessonsTotal}
-                  showPercent={false}
-                  color={s.avg >= 90 ? S.success : s.avg >= 75 ? S.primary : S.warning}
-                  height={5}
-                />
-              </div>
-            ))}
-          </div>
-        </SCard>
-      </SSection>
+      {/* Subject performance breakdown */}
+      <SubjectPerformanceGrid subjectAverages={subjectAverages} lang={lang} />
 
-      {/* Weekly score progression — simple bar chart */}
-      <SSection title={lang === 'ar' ? 'تطور الدرجات الأسبوعي' : 'Weekly Score Trend'}>
-        <SCard>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', height: '100px' }}>
-            {weeklyScores.map((w, i) => (
-              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '10px', fontWeight: '600', color: w.score === maxScore ? S.success : 'var(--text-secondary)' }}>
-                  {w.score}%
-                </span>
-                <div style={{
-                  width: '100%', borderRadius: '4px 4px 0 0',
-                  backgroundColor: w.score === maxScore ? S.success : S.primary,
-                  opacity: 0.8,
-                  height: `${(w.score / 100) * 72}px`,
-                  transition: 'height 0.4s ease'
-                }} />
-                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'var(--font-arabic)' }}>
-                  {w.week.replace('الأسبوع ', 'أ')}
-                </span>
-              </div>
-            ))}
-          </div>
-        </SCard>
-      </SSection>
+      {/* Weekly performance chart */}
+      <WeeklyPerformanceChart weeklyScores={weeklyScores} maxScore={maxScore} lang={lang} />
 
-      {/* Weak areas */}
-      <SSection title={lang === 'ar' ? 'يحتاج إلى مراجعة' : 'Review Needed'}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {/* Weak areas warning card */}
+      <SCard>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <SIconBox icon={<AlertTriangle size={18} />} color={S.danger} />
+            <h3 style={{ fontSize: '15px', fontWeight: '700', color: S.textPrimary, margin: 0 }}>
+              {lang === 'ar' ? 'نقاط تحتاج مراجعة' : 'Areas needing review'}
+            </h3>
+          </div>
+          <SButton
+            variant="subtle"
+            size="sm"
+            onClick={() => navigate('/student/revision')}
+          >
+            {lang === 'ar' ? 'عرض الكل' : 'View all'}
+          </SButton>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {weakAreas.map((area, i) => (
-            <SCard key={i}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <SIconBox icon={<AlertTriangle size={16} />} size={34} color={S.warning} bg={S.warningLight} radius={8} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', fontFamily: 'var(--font-arabic)' }}>
-                      {area.topicAr}
-                    </div>
-                    <SBadge variant="warning" size="xs">{area.mastery}% {lang === 'ar' ? 'إتقان' : 'mastery'}</SBadge>
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', fontFamily: 'var(--font-arabic)' }}>
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: S.radiusMd,
+                backgroundColor: S.bgSubtle,
+                gap: '12px'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '13.5px', fontWeight: '700', color: S.textPrimary }}>
+                    {area.topicAr}
+                  </span>
+                  <SBadge color={S.primary} style={{ fontSize: '10.5px' }}>
                     {area.subjectAr}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6, marginBottom: '10px', fontFamily: 'var(--font-arabic)' }}>
-                    {area.adviceAr}
-                  </div>
-                  <SProgress value={area.mastery} height={4} color={S.warning} showPercent={false} />
+                  </SBadge>
                 </div>
-                <SButton size="sm" variant="ghost" onClick={() => navigate('/student/revision')}>
-                  {lang === 'ar' ? 'مراجعة' : 'Review'}
-                </SButton>
+                <p style={{ fontSize: '12px', color: S.textSecondary, margin: 0, lineHeight: 1.5 }}>
+                  {area.adviceAr}
+                </p>
               </div>
-            </SCard>
+
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <span style={{ fontSize: '14px', fontWeight: '800', color: S.danger }}>
+                  {area.mastery}%
+                </span>
+                <div style={{ fontSize: '11px', color: S.textMuted }}>إتقان</div>
+              </div>
+            </div>
           ))}
         </div>
-      </SSection>
+      </SCard>
     </SPage>
   );
 };

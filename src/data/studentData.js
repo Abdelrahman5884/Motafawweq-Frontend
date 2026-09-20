@@ -20,7 +20,7 @@ export const STUDENT_PROFILE = {
   xp: 3450,
   level: 9,
   levelTitle: 'Senior Scholar',
-  levelTitleAr: 'متفوّق عبقري ⭐',
+  levelTitleAr: 'متفوّق عبقري',
   streakDays: 16,
   examStreak: 8,
   studyMinutesToday: 55,
@@ -33,12 +33,12 @@ export const STUDENT_PROFILE = {
 };
 
 export const SUBJECTS_LIST = [
-  { id: 'sub-bio', name: 'Biology', nameAr: 'الأحياء', icon: '🧬', color: '#10B981', count: 6 },
-  { id: 'sub-phy', name: 'Physics', nameAr: 'الفيزياء', icon: '⚡', color: '#06B6D4', count: 5 },
-  { id: 'sub-chem', name: 'Chemistry', nameAr: 'الكيمياء', icon: '🧪', color: '#8B5CF6', count: 5 },
-  { id: 'sub-ar', name: 'Arabic Language', nameAr: 'اللغة العربية والبلاغة', icon: '📜', color: '#F59E0B', count: 8 },
-  { id: 'sub-math', name: 'Pure & Applied Math', nameAr: 'الرياضيات التطبيقية والبحته', icon: '📐', color: '#EC4899', count: 7 },
-  { id: 'sub-en', name: 'English First Language', nameAr: 'اللغة الإنجليزية المتقدمة', icon: '🌍', color: '#3B82F6', count: 4 }
+  { id: 'sub-bio', name: 'Biology', nameAr: 'الأحياء', icon: 'Dna', color: '#10B981', count: 6 },
+  { id: 'sub-phy', name: 'Physics', nameAr: 'الفيزياء', icon: 'Zap', color: '#06B6D4', count: 5 },
+  { id: 'sub-chem', name: 'Chemistry', nameAr: 'الكيمياء', icon: 'FlaskConical', color: '#0284C7', count: 5 },
+  { id: 'sub-ar', name: 'Arabic Language', nameAr: 'اللغة العربية والبلاغة', icon: 'BookOpen', color: '#F59E0B', count: 8 },
+  { id: 'sub-math', name: 'Pure & Applied Math', nameAr: 'الرياضيات التطبيقية والبحته', icon: 'Compass', color: '#EC4899', count: 7 },
+  { id: 'sub-en', name: 'English First Language', nameAr: 'اللغة الإنجليزية المتقدمة', icon: 'Globe', color: '#3B82F6', count: 4 }
 ];
 
 export const COURSES_CATALOG = [
@@ -284,7 +284,7 @@ export const UPCOMING_EXAMS = [
     titleAr: 'امتحان نصف الفصل الدراسي في الأحياء (شامل الوحدة الأولى)',
     subjectAr: 'الأحياء',
     subjectId: 'sub-bio',
-    subjectIcon: '🧬',
+    subjectIcon: 'Dna',
     subjectColor: '#10B981',
     teacherNameAr: 'د. سلمى السيد',
     teacherAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80',
@@ -306,7 +306,7 @@ export const UPCOMING_EXAMS = [
     titleAr: 'امتحان كيرشوف والدوائر المعقدة الأسبوعي',
     subjectAr: 'الفيزياء',
     subjectId: 'sub-phy',
-    subjectIcon: '⚡',
+    subjectIcon: 'Zap',
     subjectColor: '#06B6D4',
     teacherNameAr: 'د. هاني الشناوي',
     teacherAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
@@ -328,8 +328,8 @@ export const UPCOMING_EXAMS = [
     titleAr: 'اختبار الاتزان الكيميائي والعوامل المؤثرة على لوشاتيليه',
     subjectAr: 'الكيمياء',
     subjectId: 'sub-chem',
-    subjectIcon: '🧪',
-    subjectColor: '#8B5CF6',
+    subjectIcon: 'FlaskConical',
+    subjectColor: '#0284C7',
     teacherNameAr: 'أ. محمود الكردي',
     teacherAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
     date: 'الخميس القادم',
@@ -350,7 +350,7 @@ export const UPCOMING_EXAMS = [
     titleAr: 'امتحان النحو الشامل: المشتقات وإعراب المصادر والممنوع من الصرف',
     subjectAr: 'اللغة العربية',
     subjectId: 'sub-ar',
-    subjectIcon: '📜',
+    subjectIcon: 'BookOpen',
     subjectColor: '#F59E0B',
     teacherNameAr: 'د. وليد محسن',
     teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80',
@@ -483,12 +483,99 @@ export const HOMEWORK_LIST = [
 
 // Competitive League (دوري المتفوقين)
 export const LEAGUE_LEADERBOARD = [
-  { rank: 1, nameAr: 'سارة خالد منصور', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80', score: 3920, streak: 24, badge: '👑 بطلة الأسبوع', tier: 'Diamond' },
-  { rank: 2, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80', score: 3450, streak: 16, badge: '🔥 صاعد بقوة', tier: 'Diamond', isMe: true },
-  { rank: 3, nameAr: 'مريم عادل شنودة', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=80', score: 3280, streak: 12, badge: '⭐ متفوقة', tier: 'Gold' },
-  { rank: 4, nameAr: 'كريم مصطفى بدوي', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80', score: 2950, streak: 9, badge: '🚀 مثابر', tier: 'Gold' },
-  { rank: 5, nameAr: 'زياد هشام فهمي', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&auto=format&fit=crop&q=80', score: 2710, streak: 7, badge: '⚡ نشط', tier: 'Silver' }
+  { rank: 1, nameAr: 'سارة خالد منصور', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80', score: 3920, streak: 24, badge: 'بطلة الأسبوع', tier: 'Diamond', schoolAr: 'المتفوقات STEM كفر الشيخ', perfectQuizzes: 14, change: 0 },
+  { rank: 2, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80', score: 3450, streak: 16, badge: 'صاعد بقوة', tier: 'Diamond', isMe: true, schoolAr: 'السعيدية الثانوية العسكرية، الجيزة', perfectQuizzes: 11, change: 2 },
+  { rank: 3, nameAr: 'مريم عادل شنودة', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=80', score: 3280, streak: 12, badge: 'متفوقة', tier: 'Diamond', schoolAr: 'القومية لغات بالإسكندرية', perfectQuizzes: 9, change: -1 },
+  { rank: 4, nameAr: 'كريم مصطفى بدوي', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80', score: 2950, streak: 9, badge: 'مثابر', tier: 'Gold', schoolAr: 'الأورمان النموذجية، الدقي', perfectQuizzes: 7, change: 1 },
+  { rank: 5, nameAr: 'زياد هشام فهمي', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&auto=format&fit=crop&q=80', score: 2710, streak: 7, badge: 'نشط', tier: 'Gold', schoolAr: 'عباس العقاد الرسمية، مدينة نصر', perfectQuizzes: 6, change: 3 },
+  { rank: 6, nameAr: 'نور الهدى عثمان', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&auto=format&fit=crop&q=80', score: 2540, streak: 6, badge: 'دقيقة', tier: 'Gold', schoolAr: 'المنصورة الثانوية بنات', perfectQuizzes: 5, change: -2 },
+  { rank: 7, nameAr: 'أحمد وائل حجازي', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&auto=format&fit=crop&q=80', score: 2390, streak: 5, badge: 'متألق', tier: 'Silver', schoolAr: 'طنطا الثانوية بنين', perfectQuizzes: 4, change: 1 },
+  { rank: 8, nameAr: 'ياسمين حسام النجار', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&auto=format&fit=crop&q=80', score: 2210, streak: 4, badge: 'صاعدة', tier: 'Silver', schoolAr: 'الزهراء الرسمية، أسيوط', perfectQuizzes: 3, change: 0 }
 ];
+
+export const LEAGUE_TIERS = [
+  { id: 'Diamond', nameAr: 'دوري النخبة الماسي', color: '#1588C7', minScore: 3000, descriptionAr: 'أقوى 5% من طلاب الثانوية العامة على مستوى الجمهورية' },
+  { id: 'Gold', nameAr: 'الدوري الذهبي', color: '#F59E0B', minScore: 2500, descriptionAr: 'المنافسة على بطاقات التأهل لدوري النخبة' },
+  { id: 'Silver', nameAr: 'الدوري الفضي', color: '#64748B', minScore: 1800, descriptionAr: 'مرحلة حصد النقاط وتثبيت الاستريك الأسبوعي' }
+];
+
+export const LEAGUE_RULES = [
+  {
+    titleAr: 'سؤال الاختيار من متعدد: نقطة واحدة',
+    descAr: 'تحصل على نقطة واحدة (1 pt) عن كل إجابة صحيحة في أي سؤال اختيار من متعدد.'
+  },
+  {
+    titleAr: 'تقفيل الامتحان: 3 نقاط إضافية',
+    descAr: 'عند إحراز الدرجة النهائية كاملة (100%) في أي اختبار تحصل على 3 نقاط بونص للتقفيل.'
+  },
+  {
+    titleAr: 'استريك المذاكرة: نقطة يومياً',
+    descAr: 'الحفاظ على الاستريك اليومي يمنحك نقطة إضافية تضاف إلى رصيدك عن كل يوم متواصل.'
+  }
+];
+
+export const LEAGUE_PRIZES = [
+  { rankAr: 'المركز الأول', titleAr: 'درع المتفوق الذهبي + اشتراك مجاني كامل للشهر التالي + جلسة توجيه فردية مع كبار الأساتذة' },
+  { rankAr: 'المركز الثاني', titleAr: 'وسام التميز الفضي + خصم 50% على جميع باقات المراجعة النهائية والكتب الرقمية' },
+  { rankAr: 'المركز الثالث', titleAr: 'وسام التفوق البرونزي + شارة حصرية في الملف الشخصي وباقة بنوك الأسئلة الوزارية' },
+  { rankAr: 'المراكز 4 إلى 10', titleAr: 'شهادات تفوق وتقدير رقمية معتمدة قابلة للتحميل والطباعة فوراً' }
+];
+
+export const AI_LECTURE_QUESTIONS_BANK = [
+  {
+    id: 'ai-gen-1',
+    questionAr: 'طبقاً للتفريغ الصوتي للمحاضرة: ما هو المستقبل النهائي للإلكترونات في التفاعلات الضوئية للبناء الضوئي؟',
+    optionsAr: [
+      'جزيئات الماء (H2O)',
+      'مستقبل الإنزيم المساعد NADP+ ليتحول إلى NADPH',
+      'غاز ثاني أكسيد الكربون (CO2) في الستروما',
+      'مركب ثنائي فوسفات الأدينوزين (ADP)'
+    ],
+    correctIndex: 1,
+    explanationAr: 'ذكرت د. سلمى في الدقيقة 14:15 أن NADP+ هو المستقبل النهائي للإلكترونات والبروتونات الناتجة من انشطار جزيء الماء داخل أغشية الثيلاكويد لمنع هدر الطاقة.',
+    conceptId: 'nadp-electron-acceptor'
+  },
+  {
+    id: 'ai-gen-2',
+    questionAr: 'من تفريغ تجربة كالفن الإشعاعية: لماذا استخدم كالفن طحلب الكلوريلا بالتحديد في اختباره؟',
+    optionsAr: [
+      'لأنه كائن وحيد الخلية سريع البناء الضوئي ويسهل التحكم في بيئته وتعريضه للضوء بدقة',
+      'لأنه لا يحتاج إلى غاز ثاني أكسيد الكربون إطلاقاً',
+      'لأنه ينتج غاز الأكسجين في الظلام فقط دون الضوء',
+      'لأن جدار خلويته مصنوع من الجلوكوز النقي'
+    ],
+    correctIndex: 0,
+    explanationAr: 'طحلب الكلوريلا الأخضر وحيد الخلية هو النموذج المثالي للتجارب السريعة لدراسة مسار الكربون المشع C14 أثناء الثواني الأولى من التفاعلات الكيميائية.',
+    conceptId: 'chlorella-calvin'
+  },
+  {
+    id: 'ai-gen-3',
+    questionAr: 'حسابياً: كم دورة كالفن كاملة وكم جزيء CO2 يلزم لتكوين جزيء واحد من الجلوكوز؟',
+    optionsAr: [
+      'دورة واحدة و 3 جزيئات CO2',
+      'دورتان و 6 جزيئات CO2 (تثبيت 6 جزيئات كربون)',
+      '4 دورات و 12 جزيء CO2',
+      '6 دورات و جزيء واحد CO2'
+    ],
+    correctIndex: 1,
+    explanationAr: 'لتكوين جزيء جلوكوز واحد سداسي الكربون (C6H12O6)، يلزم تثبيت 6 جزيئات CO2 من خلال دورتين كاملتين لمسار كالفن لإنتاج جزيئي PGAL.',
+    conceptId: 'calvin-stoichiometry'
+  },
+  {
+    id: 'ai-gen-4',
+    questionAr: 'ما العامل المحدد الأساسي لسرعة التفاعلات اللاضوئية (تفاعلات الستروما والإنزيمات)؟',
+    optionsAr: [
+      'شدة الضوء وحدها',
+      'درجة الحرارة لأنها تفاعلات إنزيمية حساسة للحرارة',
+      'كمية الماء الممتصة من التربة فقط',
+      'سمك الغشاء المزدوج للبلاستيدة'
+    ],
+    correctIndex: 1,
+    explanationAr: 'التفاعلات اللاضوئية تعتمد كلياً على نشاط الإنزيمات في الستروما (مثل إنزيم الروبيسكو)، وبالتالي تعتبر درجة الحرارة هي العامل المحدد لسرعتها.',
+    conceptId: 'temp-enzymes-stroma'
+  }
+];
+
 
 // Mistake Bank (بنك الأسئلة الخاطئة للمراجعة)
 export const MISTAKE_BANK = [
@@ -574,12 +661,12 @@ export const generateActivityStreakGrid = () => {
 };
 
 export const STUDENT_BADGES = [
-  { id: 'b1', titleAr: 'سيد البناء الضوئي 🧬', descAr: 'إتقان جميع مفاهيم النبات بدرجة 90%+', unlocked: true, icon: '🧬', date: '2026-09-12' },
-  { id: 'b2', titleAr: 'شعلة الالتزام (16 يوم) 🔥', descAr: 'المذاكرة المتواصلة دون انقطاع', unlocked: true, icon: '🔥', date: '2026-09-18' },
-  { id: 'b3', titleAr: 'قناص الامتحانات 🎯', descAr: 'الحصول على الدرجة النهائية في 3 اختبارات', unlocked: true, icon: '🎯', date: '2026-09-08' },
-  { id: 'b4', titleAr: 'صائد الأخطاء 🛡️', descAr: 'حل 15 سؤالاً من بنك الأخطاء وتصحيحها', unlocked: true, icon: '🛡️', date: '2026-09-14' },
-  { id: 'b5', titleAr: 'بطل دوري النخبة 👑', descAr: 'الوصول لقائمة أفضل 3 طلاب على مستوى الجمهورية', unlocked: true, icon: '👑', date: '2026-09-17' },
-  { id: 'b6', titleAr: 'عبقري الذكاء الاصطناعي 🧠', descAr: 'توليد 10 كويزات ذكية من المحاضرات الصوتية', unlocked: false, icon: '🧠', date: null }
+  { id: 'b1', titleAr: 'سيد البناء الضوئي', descAr: 'إتقان جميع مفاهيم النبات بدرجة 90%+', unlocked: true, icon: 'Dna', date: '2026-09-12' },
+  { id: 'b2', titleAr: 'شعلة الالتزام (16 يوم)', descAr: 'المذاكرة المتواصلة دون انقطاع', unlocked: true, icon: 'Flame', date: '2026-09-18' },
+  { id: 'b3', titleAr: 'قناص الامتحانات', descAr: 'الحصول على الدرجة النهائية في 3 اختبارات', unlocked: true, icon: 'Target', date: '2026-09-08' },
+  { id: 'b4', titleAr: 'صائد الأخطاء', descAr: 'حل 15 سؤالاً من بنك الأخطاء وتصحيحها', unlocked: true, icon: 'Shield', date: '2026-09-14' },
+  { id: 'b5', titleAr: 'بطل دوري النخبة', descAr: 'الوصول لقائمة أفضل 3 طلاب على مستوى الجمهورية', unlocked: true, icon: 'Trophy', date: '2026-09-17' },
+  { id: 'b6', titleAr: 'عبقري الذكاء الاصطناعي', descAr: 'توليد 10 كويزات ذكية من المحاضرات الصوتية', unlocked: false, icon: 'Brain', date: null }
 ];
 
 export const CERTIFICATES_LIST = [
@@ -632,8 +719,8 @@ export const SUBSCRIPTION_PLANS = [
       'شهادة إتمام معتمدة بكود توثيق رسمي'
     ],
     popular: true,
-    badgeAr: 'الأكثر اختياراً من الأوائل ⭐',
-    color: '#6C4DFF'
+    badgeAr: 'الأكثر اختياراً من الأوائل',
+    color: '#1588C7'
   },
   {
     id: 'plan-annual',

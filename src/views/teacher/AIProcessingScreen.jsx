@@ -3,8 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { 
   Sparkles, 
-  CheckCircle2, 
-  Loader2, 
   Mic, 
   FileText, 
   Share2, 
@@ -12,6 +10,7 @@ import {
   Zap, 
   ArrowRight
 } from 'lucide-react';
+import { ProcessingStepper } from '../../features/teacher/ai-processing';
 
 export const AIProcessingScreen = () => {
   const { navigate } = useAuth();
@@ -155,7 +154,7 @@ export const AIProcessingScreen = () => {
             <div style={{
               width: `${progress}%`,
               height: '100%',
-              background: 'linear-gradient(90deg, #6C4DFF 0%, #4C8DFF 50%, #06B6D4 100%)',
+              background: 'linear-gradient(90deg, #1588C7 0%, #5CB6DB 50%, #06254E 100%)',
               borderRadius: '5px',
               transition: 'width 0.4s ease'
             }} />
@@ -163,63 +162,13 @@ export const AIProcessingScreen = () => {
         </div>
 
         {/* 6 Step Pipeline Status List */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          textAlign: isRtl ? 'right' : 'left',
-          marginBottom: '36px'
-        }}>
-          {steps.map((step, idx) => {
-            const StepIcon = step.icon;
-            const isFinished = progress >= step.threshold;
-            const isCurrent = currentStepIndex === idx && !isComplete;
-
-            return (
-              <div
-                key={step.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: isCurrent ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                  border: isCurrent ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <div style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: isFinished ? '#10B981' : (isCurrent ? 'var(--primary)' : 'var(--border-medium)'),
-                  color: '#FFFFFF',
-                  flexShrink: 0
-                }}>
-                  {isFinished ? (
-                    <CheckCircle2 size={16} />
-                  ) : isCurrent ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <StepIcon size={14} />
-                  )}
-                </div>
-
-                <span style={{
-                  fontSize: '13.5px',
-                  fontWeight: isCurrent || isFinished ? '700' : '500',
-                  color: isFinished ? 'var(--text-primary)' : (isCurrent ? 'var(--primary)' : 'var(--text-muted)')
-                }}>
-                  {step.title}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <ProcessingStepper
+          steps={steps}
+          progress={progress}
+          currentStepIndex={currentStepIndex}
+          isComplete={isComplete}
+          isRtl={isRtl}
+        />
 
         {/* Action Button */}
         {isComplete ? (
@@ -237,7 +186,7 @@ export const AIProcessingScreen = () => {
               fontSize: '15px',
               fontWeight: '800',
               cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(108, 77, 255, 0.4)',
+              boxShadow: '0 8px 24px rgba(21, 136, 199, 0.35)',
               transition: 'transform 0.15s ease'
             }}
             className="animate-scale-in"

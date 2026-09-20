@@ -25,7 +25,7 @@ export const FeaturesPage = () => {
         ? 'تم تدريب نماذج الذكاء الاصطناعي لدينا على آلاف الساعات من شروحات المدرسين المصريين، مما يضمن دقة لا مثيل لها في فهم المصطلحات العلمية الإنجليزية الممتزجة باللهجة العامية.'
         : 'Engineered specifically for Egyptian educators. Effortlessly transcribes mixed Egyptian Arabic dialect and advanced English terminology.',
       icon: Mic,
-      color: '#6C4DFF'
+      color: 'var(--primary, #1588C7)'
     },
     {
       title: lang === 'ar' ? 'التوليد التلقائي لخرائط المعرفة' : 'Automated Concept Graphing',
@@ -173,7 +173,7 @@ export const FeaturesPage = () => {
             fontSize: '14px',
             fontWeight: '700',
             cursor: 'pointer',
-            boxShadow: '0 6px 20px rgba(108, 77, 255, 0.35)'
+            boxShadow: '0 6px 20px rgba(21, 136, 199, 0.35)'
           }}
         >
           {lang === 'ar' ? 'فتح مساحة الدرس التفاعلية' : 'Open Interactive Lesson Workspace'}

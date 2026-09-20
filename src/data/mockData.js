@@ -557,8 +557,8 @@ export const MOCK_CENTER_DATA = {
   monthlyRevenueEgp: 485000,
   avgAttendanceRate: 93.8,
   branding: {
-    primaryColor: '#6C4DFF',
-    accentColor: '#4C8DFF',
+    primaryColor: '#1588C7',
+    accentColor: '#5CB6DB',
     logoText: 'Al-Rowad / الرواد',
     customDomain: 'alrowad.learnora.me'
   }

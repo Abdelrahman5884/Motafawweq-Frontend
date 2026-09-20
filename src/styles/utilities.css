@@ -1,0 +1,79 @@
+/**
+ * Motafawweq — Utility CSS Classes
+ * Reusable helper classes using design tokens from theme.css
+ */
+
+/* ─── Typography Utilities ────────────────────────────────────────────────── */
+.text-primary     { color: var(--text-primary) !important; }
+.text-secondary   { color: var(--text-secondary) !important; }
+.text-muted       { color: var(--text-muted) !important; }
+.text-brand       { color: var(--primary) !important; }
+.text-success     { color: var(--success) !important; }
+.text-warning     { color: var(--warning) !important; }
+.text-danger      { color: var(--danger) !important; }
+
+.font-arabic      { font-family: var(--font-arabic) !important; }
+.font-latin       { font-family: var(--font-latin) !important; }
+.font-mono        { font-family: var(--font-mono) !important; }
+
+/* ─── Layout Utilities ────────────────────────────────────────────────────── */
+.flex-center  { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-col     { display: flex; flex-direction: column; }
+.flex-wrap    { flex-wrap: wrap; }
+.flex-1       { flex: 1; }
+.flex-shrink-0 { flex-shrink: 0; }
+
+/* ─── Spacing ──────────────────────────────────────────────────────────────── */
+.gap-4  { gap: 4px; }
+.gap-8  { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-24 { gap: 24px; }
+
+/* ─── Border Radius ───────────────────────────────────────────────────────── */
+.rounded-sm   { border-radius: var(--radius-xs); }
+.rounded-md   { border-radius: var(--radius-sm); }
+.rounded-lg   { border-radius: var(--radius-md); }
+.rounded-xl   { border-radius: var(--radius-lg); }
+.rounded-2xl  { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: var(--radius-full); }
+
+/* ─── Backgrounds ──────────────────────────────────────────────────────────── */
+.bg-surface  { background-color: var(--bg-surface); }
+.bg-subtle   { background-color: var(--bg-subtle); }
+.bg-primary  { background-color: var(--primary); }
+.bg-success  { background-color: var(--success); }
+.bg-danger   { background-color: var(--danger); }
+
+/* ─── Shadows ──────────────────────────────────────────────────────────────── */
+.shadow-xs  { box-shadow: var(--shadow-xs); }
+.shadow-sm  { box-shadow: var(--shadow-sm); }
+.shadow-md  { box-shadow: var(--shadow-md); }
+.shadow-lg  { box-shadow: var(--shadow-lg); }
+
+/* ─── Borders ──────────────────────────────────────────────────────────────── */
+.border       { border: 1px solid var(--border-subtle); }
+.border-md    { border: 1px solid var(--border-medium); }
+.border-brand { border: 1px solid var(--primary); }
+
+/* ─── Accessibility ──────────────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ─── Overflow ────────────────────────────────────────────────────────────── */
+.overflow-hidden  { overflow: hidden; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Pointer ─────────────────────────────────────────────────────────────── */
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }

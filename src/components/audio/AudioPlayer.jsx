@@ -236,7 +236,7 @@ export const AudioPlayer = ({
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(108, 77, 255, 0.4)',
+              boxShadow: '0 4px 14px rgba(21, 136, 199, 0.4)',
               transition: 'transform 0.1s ease'
             }}
             onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.94)'}

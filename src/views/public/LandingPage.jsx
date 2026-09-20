@@ -47,7 +47,7 @@ export const LandingPage = () => {
       title: lang === 'ar' ? '1. تسجيل صوتي أو رفع' : '1. Record or Upload',
       subtitle: lang === 'ar' ? 'سجل حصتك حتى 90 دقيقة بنقاء فائق وعزل للضوضاء' : 'Live mic or upload lesson audio up to 90 mins',
       icon: Mic,
-      color: '#6C4DFF',
+      color: 'var(--primary, #1588C7)',
       badge: lang === 'ar' ? 'المدخل الصوتي المباشر' : 'Live Audio Input',
       headline: lang === 'ar' ? 'حصة الأحياء: البناء الضوئي وحركية الطاقة' : 'Biology: Photosynthesis & Energy Dynamics',
       desc: lang === 'ar' ? 'تسجيل مباشر بصوت د. سلمى السيد (42 دقيقة و 18 ثانية) مع خوارزمية عزل ضوضاء القاعات المدرسية وسنتر الدروس.' : 'Direct classroom recording (42m 18s) with Egyptian classroom noise suppression.'
@@ -65,12 +65,12 @@ export const LandingPage = () => {
     {
       id: 2,
       title: lang === 'ar' ? '3. خريطة معرفية ثلاثية الأبعاد' : '3. 3D Concept Map',
-      subtitle: lang === 'ar' ? 'تحويل الشرح لشبكة مفاهيمية ذكية تكشف العلاقات وروابط الامتحانات' : 'Interactive concept network with draggable nodes & deep links',
+      subtitle: lang === 'ar' ? 'تنظيم الشرح في شبكة مفاهيمية ذكية تكشف العلاقات وروابط الامتحانات' : 'Interactive concept network with draggable nodes & deep links',
       icon: Share2,
-      color: '#A855F7',
+      color: '#1588C7',
       badge: lang === 'ar' ? 'قلب متفوّق الثوري' : 'The Motafawweq Flagship',
       headline: lang === 'ar' ? '14 مفهوماً علمياً مترابطاً ومربوطاً بالصوت والامتحانات' : '14 Interconnected Concepts Mapped in 3D',
-      desc: lang === 'ar' ? 'يستخرج الذكاء الاصطناعي المفاهيم الرئيسية والفرعية، ويبني شبكة ترابطية تكشف فوراً أين تقع نقاط صعوبة الفهم لدى الطلاب.' : 'Extracts root and child concepts with mastery ratings, enabling non-linear revision and targeted diagnostics.'
+      desc: lang === 'ar' ? 'تنظيم وترتيب المفاهيم الرئيسية والفرعية في شبكة بصرية واضحة، تكشف بدقة ترابط أجزاء المنهج ونقاط التركيز في الامتحانات.' : 'Extracts root and child concepts with mastery ratings, enabling non-linear revision and targeted diagnostics.'
     },
     {
       id: 3,
@@ -138,7 +138,7 @@ export const LandingPage = () => {
         <div style={{ maxWidth: '1080px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
 
           {/* Floating EdTech Badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '22px' }} className="animate-float">
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '22px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -146,21 +146,21 @@ export const LandingPage = () => {
               padding: '8px 18px',
               borderRadius: 'var(--radius-full)',
               backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid rgba(108, 77, 255, 0.35)',
-              boxShadow: '0 8px 24px rgba(108, 77, 255, 0.15)',
+              border: '1px solid var(--border-medium)',
+              boxShadow: 'var(--shadow-sm)',
               backdropFilter: 'blur(12px)'
             }}>
               <span style={{
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: '#10B981',
-                boxShadow: '0 0 10px #10B981'
+                backgroundColor: 'var(--primary)',
+                boxShadow: '0 0 10px var(--primary)'
               }} />
               <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
                 {lang === 'ar'
-                  ? 'منصة الذكاء الاصطناعي التعليمي لجميع المراحل الدراسية في مصر'
-                  : 'Egypt\'s Leading AI EdTech Platform for All Educational Stages'}
+                  ? 'المنصة التعليمية المتكاملة لجميع المراحل الدراسية في مصر 🇪🇬'
+                  : 'Egypt\'s Leading Comprehensive EdTech Platform for All Educational Stages'}
               </span>
             </div>
           </div>
@@ -193,8 +193,8 @@ export const LandingPage = () => {
               50% { opacity: 1; transform: scale(1.6); }
             }
             @keyframes heroLogoGlow {
-              0%, 100% { filter: drop-shadow(0 0 18px rgba(108,77,255,0.6)) drop-shadow(0 0 8px rgba(6,182,212,0.2)); }
-              50% { filter: drop-shadow(0 0 36px rgba(108,77,255,0.95)) drop-shadow(0 0 20px rgba(6,182,212,0.5)); }
+              0%, 100% { filter: drop-shadow(0 0 16px rgba(21,136,199,0.5)) drop-shadow(0 0 8px rgba(92,182,219,0.3)); }
+              50% { filter: drop-shadow(0 0 28px rgba(21,136,199,0.8)) drop-shadow(0 0 16px rgba(92,182,219,0.6)); }
             }
             @keyframes heroLogoEntrance {
               from { opacity: 0; transform: scale(0.6); }
@@ -221,28 +221,28 @@ export const LandingPage = () => {
               position: absolute;
               inset: 0;
               border-radius: 50%;
-              border: 1.5px solid rgba(108,77,255,0.45);
+              border: 1.5px solid rgba(21,136,199,0.4);
               animation: heroRingPulse 2.8s ease-in-out infinite;
             }
             .hero-ring-2 {
               position: absolute;
               inset: -18px;
               border-radius: 50%;
-              border: 1px dashed rgba(108,77,255,0.25);
+              border: 1px dashed rgba(21,136,199,0.25);
               animation: heroOrbitSpin 12s linear infinite;
             }
             .hero-ring-3 {
               position: absolute;
               inset: -36px;
               border-radius: 50%;
-              border: 1px dashed rgba(6,182,212,0.2);
+              border: 1px dashed rgba(92,182,219,0.25);
               animation: heroOrbitSpinReverse 18s linear infinite;
             }
             .hero-ring-4 {
               position: absolute;
               inset: -54px;
               border-radius: 50%;
-              border: 1px solid rgba(168,85,247,0.12);
+              border: 1px solid rgba(21,136,199,0.1);
               animation: heroRingPulse2 3.5s ease-in-out infinite 0.8s;
             }
             .hero-orbit-dot {
@@ -261,8 +261,8 @@ export const LandingPage = () => {
                 {/* Orbiting particle on ring 2 */}
                 <div className="hero-orbit-dot" style={{
                   top: '-4px', left: '50%', marginLeft: '-4px',
-                  backgroundColor: '#6C4DFF',
-                  boxShadow: '0 0 10px 3px rgba(108,77,255,0.8)'
+                  backgroundColor: 'var(--primary)',
+                  boxShadow: '0 0 10px 3px rgba(21, 136, 199, 0.8)'
                 }} />
               </div>
               <div className="hero-ring-3">
@@ -270,15 +270,15 @@ export const LandingPage = () => {
                 <div className="hero-orbit-dot" style={{
                   top: '10%', right: '-4px',
                   width: '6px', height: '6px',
-                  backgroundColor: '#06B6D4',
-                  boxShadow: '0 0 8px 3px rgba(6,182,212,0.8)',
+                  backgroundColor: '#5CB6DB',
+                  boxShadow: '0 0 8px 3px rgba(92,182,219,0.8)',
                   animationDelay: '0.5s'
                 }} />
                 <div className="hero-orbit-dot" style={{
                   bottom: '10%', left: '-3px',
                   width: '5px', height: '5px',
-                  backgroundColor: '#A855F7',
-                  boxShadow: '0 0 8px 3px rgba(168,85,247,0.8)',
+                  backgroundColor: '#1588C7',
+                  boxShadow: '0 0 8px 3px rgba(21,136,199,0.8)',
                   animationDelay: '1s'
                 }} />
               </div>
@@ -340,7 +340,7 @@ export const LandingPage = () => {
                 fontSize: '16px',
                 fontWeight: '800',
                 borderRadius: 'var(--radius-full)',
-                boxShadow: '0 12px 32px rgba(108, 77, 255, 0.4)',
+                boxShadow: '0 10px 25px rgba(21, 136, 199, 0.35)',
                 textDecoration: 'none'
               }}
             >
@@ -625,7 +625,7 @@ export const LandingPage = () => {
                     <div className="audio-bar" style={{ animationDelay: '0.3s', height: '22px' }} />
                     <div className="audio-bar" style={{ animationDelay: '0.15s', height: '44px' }} />
                   </div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#6C4DFF' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
                     {lang === 'ar' ? '🔴 جاري التسجيل الحي والمزامنة الفورية' : '🔴 Live Recording Active'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -686,11 +686,11 @@ export const LandingPage = () => {
                   <div style={{
                     padding: '9px 20px',
                     borderRadius: 'var(--radius-full)',
-                    backgroundColor: '#6C4DFF',
+                    backgroundColor: 'var(--primary)',
                     color: '#ffffff',
                     fontWeight: '800',
                     fontSize: '13px',
-                    boxShadow: '0 8px 24px rgba(108,77,255,0.4)',
+                    boxShadow: '0 8px 24px rgba(21, 136, 199, 0.4)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
@@ -776,8 +776,8 @@ export const LandingPage = () => {
                 width: '46px',
                 height: '46px',
                 borderRadius: '12px',
-                backgroundColor: 'rgba(108,77,255,0.15)',
-                color: '#6C4DFF',
+                backgroundColor: 'rgba(21, 136, 199, 0.15)',
+                color: 'var(--primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -800,7 +800,7 @@ export const LandingPage = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                color: '#6C4DFF',
+                color: 'var(--primary)',
                 fontWeight: '700',
                 fontSize: '13px',
                 textDecoration: 'none'
@@ -1070,7 +1070,7 @@ export const LandingPage = () => {
             {lang === 'ar' ? 'جاهز للانطلاق نحو القمة في دراستك وتدريسك؟' : 'Ready to Transform Your Teaching and Learning?'}
           </h2>
           <p style={{ fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '32px' }}>
-            {lang === 'ar' ? 'انضم الآن مجاناً وابدأ تجربة محرك الذكاء الاصطناعي الأقوى في مصر.' : 'Join free today and experience Egypt’s most powerful educational AI engine.'}
+            {lang === 'ar' ? 'انضم الآن مجاناً وابدأ تجربة المنظومة التعليمية الأقوى والأشمل في مصر.' : 'Join free today and experience Egypt’s premier educational platform.'}
           </p>
           <Link
             to="/register"
@@ -1081,7 +1081,7 @@ export const LandingPage = () => {
               fontWeight: '800',
               borderRadius: 'var(--radius-full)',
               textDecoration: 'none',
-              boxShadow: '0 12px 32px rgba(108,77,255,0.4)',
+              boxShadow: '0 10px 25px rgba(21, 136, 199, 0.35)',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '10px'

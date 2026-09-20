@@ -1,38 +1,50 @@
-/**
+﻿/**
  * Motafawweq — Student UI Design System
  * Shared reusable components for all Student pages.
  * Use these components consistently across every student view.
+ *
+ * IMPORTANT: NO hardcoded hex values allowed here.
+ * All colors reference CSS variables defined in src/index.css (single source of truth).
  */
 
 import React from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+// JavaScript token bridge — exposes CSS variable names only. No hex duplication.
 export const S = {
-  // Colors
-  primary: '#6C4BFF',
-  primaryLight: '#F0EEFF',
-  success: '#14B87A',
-  successLight: '#EDFAF3',
-  warning: '#F5A623',
-  warningLight: '#FFF8EC',
-  error: '#F25C5C',
-  errorLight: '#FFF0F0',
-  textPrimary: '#171725',
-  textSecondary: '#77778A',
-  border: '#E8E7F0',
-  surface: '#FFFFFF',
-  bg: '#F7F7FC',
+  // Spacing helper: 4px base unit → sp(2)=8px, sp(3)=12px, sp(4)=16px, sp(6)=24px
+  sp: (n) => `${n * 4}px`,
 
-  // Spacing
-  sp: (n) => `${n * 4}px`,  // 4px base unit → sp(2)=8px, sp(3)=12px, sp(4)=16px, sp(6)=24px
-
-  // Radius
+  // Radius scale
   radius: {
-    sm: '8px',    // badge, chip
-    md: '12px',   // button, small card
-    lg: '16px',   // card
-    xl: '24px',   // large card / section
+    sm: 'var(--radius-xs)',   // 6px  — badge, chip
+    md: 'var(--radius-sm)',   // 10px — button, small card
+    lg: 'var(--radius-md)',   // 14px — card
+    xl: 'var(--radius-lg)',   // 20px — large card / section
+  },
+
+  // Named semantic color CSS variables (no hex duplication)
+  color: {
+    primary:        'var(--primary)',
+    primaryLight:   'var(--primary-light)',
+    primarySurface: 'var(--primary-surface)',
+    brandDark:      'var(--deep-indigo)',
+    brandLight:     'var(--accent-cyan)',
+    success:        'var(--success)',
+    successLight:   'var(--success-light)',
+    warning:        'var(--warning)',
+    warningLight:   'var(--warning-light)',
+    error:          'var(--error)',
+    errorLight:     'var(--error-light)',
+    textPrimary:    'var(--text-primary)',
+    textSecondary:  'var(--text-secondary)',
+    textMuted:      'var(--text-muted)',
+    surface:        'var(--bg-surface)',
+    bg:             'var(--bg-app)',
+    subtle:         'var(--bg-subtle)',
+    border:         'var(--border-subtle)',
+    borderMedium:   'var(--border-medium)',
   }
 };
 
@@ -144,10 +156,10 @@ export const SCard = ({ children, style = {}, onClick, padding = 20 }) => (
 export const SPrimaryCard = ({ children, style = {} }) => (
   <div style={{
     backgroundColor: 'var(--bg-surface)',
-    border: `1.5px solid ${S.primary}28`,
+    border: '1.5px solid rgba(21, 136, 199, 0.16)',
     borderRadius: S.radius.xl,
     padding: '24px',
-    boxShadow: `0 2px 12px ${S.primary}10`,
+    boxShadow: '0 2px 12px rgba(21, 136, 199, 0.06)',
     ...style
   }}>
     {children}
@@ -156,7 +168,6 @@ export const SPrimaryCard = ({ children, style = {} }) => (
 
 // ─── LIST ROW ──────────────────────────────────────────────────────────────────
 export const SRowItem = ({ icon, title, subtitle, meta, badge, action, onClick, style = {} }) => {
-  const isRtl = document.documentElement.dir === 'rtl';
   return (
     <div
       onClick={onClick}
@@ -165,7 +176,7 @@ export const SRowItem = ({ icon, title, subtitle, meta, badge, action, onClick, 
         alignItems: 'center',
         gap: '12px',
         padding: '12px 16px',
-        borderRadius: '10px',
+        borderRadius: S.radius.md,
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
         cursor: onClick ? 'pointer' : undefined,
@@ -178,7 +189,7 @@ export const SRowItem = ({ icon, title, subtitle, meta, badge, action, onClick, 
         <div style={{
           width: '36px',
           height: '36px',
-          borderRadius: '8px',
+          borderRadius: S.radius.sm,
           backgroundColor: 'var(--bg-subtle)',
           display: 'flex',
           alignItems: 'center',
@@ -231,16 +242,17 @@ export const SRowItem = ({ icon, title, subtitle, meta, badge, action, onClick, 
 // ─── BADGE ─────────────────────────────────────────────────────────────────────
 export const SBadge = ({ children, variant = 'default', size = 'sm' }) => {
   const variants = {
-    default: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)' },
-    primary: { bg: S.primaryLight, color: S.primary },
-    success: { bg: S.successLight, color: S.success },
-    warning: { bg: S.warningLight, color: S.warning },
-    error: { bg: S.errorLight, color: S.error },
+    default: { bg: 'var(--bg-subtle)',       color: 'var(--text-secondary)' },
+    primary: { bg: 'var(--primary-light)',    color: 'var(--primary)' },
+    success: { bg: 'var(--success-light)',    color: 'var(--success)' },
+    warning: { bg: 'var(--warning-light)',    color: 'var(--warning)' },
+    error:   { bg: 'var(--error-light)',      color: 'var(--error)' },
+    danger:  { bg: 'var(--error-light)',      color: 'var(--danger)' },
     outline: { bg: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' },
   };
   const v = variants[variant] || variants.default;
   const fontSize = size === 'xs' ? '11px' : size === 'sm' ? '12px' : '13px';
-  const padding = size === 'xs' ? '2px 6px' : size === 'sm' ? '3px 8px' : '4px 10px';
+  const padding  = size === 'xs' ? '2px 6px' : size === 'sm' ? '3px 8px' : '4px 10px';
 
   return (
     <span style={{
@@ -252,7 +264,7 @@ export const SBadge = ({ children, variant = 'default', size = 'sm' }) => {
       backgroundColor: v.bg,
       color: v.color,
       fontSize,
-      fontWeight: '500',
+      fontWeight: '600',
       border: v.border || 'none',
       lineHeight: 1.4,
       whiteSpace: 'nowrap',
@@ -266,15 +278,15 @@ export const SBadge = ({ children, variant = 'default', size = 'sm' }) => {
 // ─── STATUS BADGE ──────────────────────────────────────────────────────────────
 export const SStatusBadge = ({ status }) => {
   const map = {
-    pending:   { label: 'لم يُحَل', variant: 'default' },
-    in_progress: { label: 'جارٍ', variant: 'primary' },
-    submitted:  { label: 'تم التسليم', variant: 'success' },
-    graded:    { label: 'مُصحَّح', variant: 'success' },
-    completed:  { label: 'مكتمل', variant: 'success' },
-    upcoming:  { label: 'قادم', variant: 'warning' },
-    ready:    { label: 'متاح', variant: 'primary' },
-    locked:   { label: 'مقفول', variant: 'default' },
-    overdue:  { label: 'منتهي', variant: 'error' },
+    pending:     { label: 'لم يُحَل',    variant: 'default' },
+    in_progress: { label: 'جارٍ',        variant: 'primary' },
+    submitted:   { label: 'تم التسليم', variant: 'success' },
+    graded:      { label: 'مُصحَّح',    variant: 'success' },
+    completed:   { label: 'مكتمل',      variant: 'success' },
+    upcoming:    { label: 'قادم',        variant: 'warning' },
+    ready:       { label: 'متاح',        variant: 'primary' },
+    locked:      { label: 'مقفول',       variant: 'default' },
+    overdue:     { label: 'منتهي',       variant: 'error'   },
   };
   const s = map[status] || { label: status, variant: 'default' };
   return <SBadge variant={s.variant} size="xs">{s.label}</SBadge>;
@@ -283,7 +295,7 @@ export const SStatusBadge = ({ status }) => {
 // ─── PROGRESS BAR ─────────────────────────────────────────────────────────────
 export const SProgress = ({ value, max = 100, label, showPercent = true, color, height = 6, style = {} }) => {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
-  const barColor = color || S.primary;
+  const barColor = color || 'var(--primary)';
 
   return (
     <div style={{ ...style }}>
@@ -339,40 +351,40 @@ export const SButton = ({
 }) => {
   const variants = {
     primary: {
-      background: S.primary,
-      color: '#fff',
+      background: 'var(--primary)',
+      color: 'var(--text-inverse)',
       border: 'none',
-      hoverBg: '#5939F0'
     },
     ghost: {
       background: 'transparent',
       color: 'var(--text-primary)',
-      border: '1px solid var(--border-subtle)',
-      hoverBg: 'var(--bg-subtle)'
+      border: '1px solid var(--border-medium)',
     },
     subtle: {
-      background: S.primaryLight,
-      color: S.primary,
+      background: 'var(--primary-light)',
+      color: 'var(--primary)',
       border: 'none',
-      hoverBg: '#E4DFFF'
     },
     danger: {
-      background: S.errorLight,
-      color: S.error,
+      background: 'var(--error-light)',
+      color: 'var(--danger)',
       border: 'none',
-      hoverBg: '#FFE4E4'
     },
     success: {
-      background: S.successLight,
-      color: S.success,
+      background: 'var(--success-light)',
+      color: 'var(--success)',
       border: 'none',
-      hoverBg: '#D4F5E7'
+    },
+    dark: {
+      background: 'var(--deep-indigo)',
+      color: 'var(--text-inverse)',
+      border: 'none',
     },
   };
 
   const sizes = {
-    sm: { padding: '7px 14px', fontSize: '13px', height: '34px' },
-    md: { padding: '9px 18px', fontSize: '14px', height: '40px' },
+    sm: { padding: '7px 14px',  fontSize: '13px', height: '34px' },
+    md: { padding: '9px 18px',  fontSize: '14px', height: '40px' },
     lg: { padding: '11px 24px', fontSize: '15px', height: '46px' },
   };
 
@@ -399,7 +411,7 @@ export const SButton = ({
         fontWeight: '600',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.55 : 1,
-        transition: 'background-color 0.15s ease, opacity 0.15s ease',
+        transition: 'opacity 0.15s ease, filter 0.15s ease',
         width: fullWidth ? '100%' : undefined,
         fontFamily: 'var(--font-arabic)',
         whiteSpace: 'nowrap',
@@ -420,7 +432,7 @@ export const STextLink = ({ children, onClick, href, style = {} }) => (
   href ? (
     <a href={href} style={{
       fontSize: '13px',
-      color: S.primary,
+      color: 'var(--primary)',
       fontWeight: '500',
       textDecoration: 'none',
       cursor: 'pointer',
@@ -429,7 +441,7 @@ export const STextLink = ({ children, onClick, href, style = {} }) => (
   ) : (
     <button onClick={onClick} style={{
       fontSize: '13px',
-      color: S.primary,
+      color: 'var(--primary)',
       fontWeight: '500',
       background: 'none',
       border: 'none',
@@ -560,10 +572,10 @@ export const STabs = ({ tabs, active, onChange, style = {} }) => (
           padding: '10px 16px',
           fontSize: '13px',
           fontWeight: active === tab.id ? '600' : '400',
-          color: active === tab.id ? S.primary : 'var(--text-secondary)',
+          color: active === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
           background: 'none',
           border: 'none',
-          borderBottom: active === tab.id ? `2px solid ${S.primary}` : '2px solid transparent',
+          borderBottom: active === tab.id ? '2px solid var(--primary)' : '2px solid transparent',
           cursor: 'pointer',
           marginBottom: '-1px',
           transition: 'color 0.15s ease, border-color 0.15s ease',
@@ -576,8 +588,8 @@ export const STabs = ({ tabs, active, onChange, style = {} }) => (
           <span style={{
             marginInlineStart: '6px',
             fontSize: '11px',
-            color: active === tab.id ? S.primary : 'var(--text-secondary)',
-            backgroundColor: active === tab.id ? S.primaryLight : 'var(--bg-subtle)',
+            color: active === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
+            backgroundColor: active === tab.id ? 'var(--primary-light)' : 'var(--bg-subtle)',
             padding: '1px 6px',
             borderRadius: '99px'
           }}>
@@ -589,7 +601,7 @@ export const STabs = ({ tabs, active, onChange, style = {} }) => (
   </div>
 );
 
-// ─── ICON WRAPPER ─────────────────────────────────────────────────────────────
+// ─── ICON BOX ─────────────────────────────────────────────────────────────────
 export const SIconBox = ({ icon, size = 36, color, bg, radius = 8, style = {} }) => (
   <div style={{
     width: `${size}px`,
@@ -606,3 +618,76 @@ export const SIconBox = ({ icon, size = 36, color, bg, radius = 8, style = {} })
     {icon}
   </div>
 );
+
+// ─── MODAL OVERLAY ────────────────────────────────────────────────────────────
+export const SModal = ({ children, onClose, maxWidth = 520 }) => (
+  <div
+    onClick={onClose}
+    style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      backdropFilter: 'blur(6px)',
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px'
+    }}
+  >
+    <div
+      onClick={e => e.stopPropagation()}
+      style={{
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border-medium)',
+        borderRadius: S.radius.xl,
+        maxWidth: `${maxWidth}px`,
+        width: '100%',
+        padding: '28px',
+        boxShadow: 'var(--shadow-lg)'
+      }}
+    >
+      {children}
+    </div>
+  </div>
+);
+
+// ─── INFO CALLOUT ─────────────────────────────────────────────────────────────
+export const SCallout = ({ icon, title, description, variant = 'primary', style = {} }) => {
+  const variantMap = {
+    primary: { border: 'rgba(21, 136, 199, 0.3)',  bg: 'var(--primary-surface)',  color: 'var(--primary)' },
+    success: { border: 'rgba(22, 163, 74, 0.3)',   bg: 'var(--success-light)',    color: 'var(--success)' },
+    warning: { border: 'rgba(245, 158, 11, 0.35)', bg: 'var(--warning-light)',    color: 'var(--warning)' },
+    error:   { border: 'rgba(220, 38, 38, 0.3)',   bg: 'var(--error-light)',      color: 'var(--error)' },
+  };
+  const v = variantMap[variant] || variantMap.primary;
+
+  return (
+    <div style={{
+      display: 'flex',
+      gap: '12px',
+      padding: '14px 18px',
+      borderRadius: S.radius.md,
+      backgroundColor: v.bg,
+      border: `1px solid ${v.border}`,
+      ...style
+    }}>
+      {icon && (
+        <div style={{ color: v.color, flexShrink: 0, marginTop: '1px' }}>{icon}</div>
+      )}
+      <div>
+        {title && (
+          <div style={{ fontSize: '13.5px', fontWeight: '700', color: v.color, marginBottom: description ? '3px' : 0 }}>
+            {title}
+          </div>
+        )}
+        {description && (
+          <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            {description}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+

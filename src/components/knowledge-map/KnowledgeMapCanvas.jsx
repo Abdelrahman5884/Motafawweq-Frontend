@@ -50,7 +50,7 @@ export const KnowledgeMapCanvas = ({
   const selectedNode = nodes.find(n => n.id === selectedNodeId) || nodes[0];
 
   const categoryColors = {
-    core: '#6C4DFF',
+    core: 'var(--primary, #1588C7)',
     structure: '#4C8DFF',
     process: '#06B6D4',
     energy: '#F59E0B'
@@ -247,7 +247,7 @@ export const KnowledgeMapCanvas = ({
       >
         <defs>
           <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#6C4DFF" stopOpacity="0.4" />
+            <stop offset="0%" stopColor="var(--primary, #1588C7)" stopOpacity="0.4" />
             <stop offset="100%" stopColor="#4C8DFF" stopOpacity="0.8" />
           </linearGradient>
           <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
@@ -467,7 +467,7 @@ export const KnowledgeMapCanvas = ({
                 fontWeight: '700',
                 fontSize: '12px',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(108, 77, 255, 0.3)'
+                boxShadow: '0 4px 12px rgba(21, 136, 199, 0.3)'
               }}
             >
               <Play size={13} fill="#FFFFFF" />

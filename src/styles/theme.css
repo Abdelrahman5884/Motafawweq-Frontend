@@ -1,0 +1,187 @@
+/**
+ * Motafawweq — Single Source of Truth for Design Tokens
+ * ═══════════════════════════════════════════════════════
+ *
+ * ⚠️  TO CHANGE THE BRAND COLOR: edit ONLY this file.
+ *     The entire application updates automatically.
+ *
+ * DO NOT duplicate these hex values anywhere else in the codebase.
+ * Use var(--color-primary), var(--primary), etc. in all components.
+ */
+
+/* ── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LIGHT MODE (default)
+   ══════════════════════════════════════════════════════════════════════════════ */
+:root {
+
+  /* ── 1. BRAND IDENTITY (the 3 core brand hexes — change here only) ── */
+  --color-primary:        #1588C7;
+  --color-primary-light:  #5CB6DB;
+  --color-brand-dark:     #06254E;
+
+  /* ── 2. SEMANTIC STATUS COLORS ── */
+  --color-success:        #16A34A;
+  --color-warning:        #F59E0B;
+  --color-danger:         #DC2626;
+  --color-info:           #1588C7;
+
+  /* ── 3. BACKGROUNDS ── */
+  --color-bg:             #F7FAFC;
+  --color-surface:        #FFFFFF;
+  --color-subtle:         #F1F5F9;
+  --color-hover:          #E2E8F0;
+
+  /* ── 4. TEXT ── */
+  --color-text-primary:   #06254E;
+  --color-text-secondary: #64748B;
+  --color-text-muted:     #94A3B8;
+  --color-text-inverse:   #FFFFFF;
+
+  /* ── 5. BORDERS ── */
+  --color-border:         #E2E8F0;
+  --color-border-medium:  #CBD5E1;
+  --color-border-active:  #1588C7;
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     ALIASES — backwards-compatible variable names used throughout codebase.
+     All point to the canonical --color-* vars above.
+     ═════════════════════════════════════════════════════════════════════════ */
+
+  /* Primary / brand */
+  --brand-primary:          var(--color-primary);
+  --brand-primary-light:    var(--color-primary-light);
+  --brand-dark:             var(--color-brand-dark);
+  --primary:                var(--color-primary);
+  --primary-hover:          #0E6FA4;
+  --primary-light:          rgba(92, 182, 219, 0.15);
+  --primary-surface:        #F0F7FB;
+  --primary-glow:           rgba(21, 136, 199, 0.25);
+  --deep-indigo:            var(--color-brand-dark);
+  --indigo-dark:            #041935;
+  --accent-blue:            var(--color-primary);
+  --accent-cyan:            var(--color-primary-light);
+  --lavender:               #EBF6FA;
+  --lavender-soft:          #F0F7FB;
+
+  /* Semantic */
+  --success:                var(--color-success);
+  --success-light:          #ECFDF5;
+  --warning:                var(--color-warning);
+  --warning-light:          #FFFBEB;
+  --error:                  var(--color-danger);
+  --danger:                 var(--color-danger);
+  --error-light:            #FEF2F2;
+  --info:                   var(--color-info);
+  --info-light:             #F0F7FB;
+
+  /* Backgrounds */
+  --bg-app:                 var(--color-bg);
+  --bg-surface:             var(--color-surface);
+  --bg-surface-elevated:    var(--color-surface);
+  --bg-subtle:              var(--color-subtle);
+  --bg-hover:               var(--color-hover);
+
+  /* Borders */
+  --border-subtle:          var(--color-border);
+  --border-medium:          var(--color-border-medium);
+  --border-active:          var(--color-border-active);
+
+  /* Text */
+  --text-primary:           var(--color-text-primary);
+  --text-secondary:         var(--color-text-secondary);
+  --text-muted:             var(--color-text-muted);
+  --text-inverse:           var(--color-text-inverse);
+
+  /* Typography */
+  --font-latin:   'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Outfit', 'Inter', sans-serif;
+  --font-arabic:  'Cairo', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  /* Shadows */
+  --shadow-xs:      0 1px 2px rgba(6, 37, 78, 0.04);
+  --shadow-sm:      0 2px 8px rgba(6, 37, 78, 0.06);
+  --shadow-md:      0 8px 24px rgba(6, 37, 78, 0.08);
+  --shadow-lg:      0 16px 36px rgba(6, 37, 78, 0.12);
+  --shadow-primary: 0 8px 25px rgba(21, 136, 199, 0.25);
+  --shadow-glow:    0 0 35px rgba(21, 136, 199, 0.28);
+
+  /* Radius */
+  --radius-xs:   6px;
+  --radius-sm:   10px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --radius-full: 9999px;
+
+  /* Layout */
+  --sidebar-width:           260px;
+  --sidebar-collapsed-width: 76px;
+  --topbar-height:           70px;
+  --max-content-width:       1440px;
+}
+
+/* ── Mobile layout overrides ── */
+@media (max-width: 767px) {
+  :root {
+    --topbar-height: 60px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   DARK MODE
+   ══════════════════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+
+  /* Brand (inverted lightness for dark bg) */
+  --color-primary:        #5CB6DB;
+  --color-primary-light:  #1588C7;
+  --color-brand-dark:     #06254E;
+
+  /* Backgrounds */
+  --color-bg:             #041427;
+  --color-surface:        #081D37;
+  --color-subtle:         #112F55;
+  --color-hover:          #173B68;
+
+  /* Text */
+  --color-text-primary:   #F0F7FB;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted:     #64748B;
+  --color-text-inverse:   #06254E;
+
+  /* Borders */
+  --color-border:         rgba(255, 255, 255, 0.08);
+  --color-border-medium:  rgba(255, 255, 255, 0.15);
+  --color-border-active:  #5CB6DB;
+
+  /* Aliases overrides */
+  --brand-primary:        #5CB6DB;
+  --brand-primary-light:  #1588C7;
+  --primary:              #5CB6DB;
+  --primary-hover:        #1588C7;
+  --primary-light:        rgba(92, 182, 219, 0.2);
+  --primary-surface:      #0B192C;
+  --primary-glow:         rgba(92, 182, 219, 0.3);
+  --accent-blue:          #5CB6DB;
+  --lavender:             #0D223D;
+  --lavender-soft:        #091A30;
+  --bg-surface-elevated:  #0C2545;
+  --indigo-dark:          #03132B;
+
+  /* Semantic light variants for dark mode */
+  --success-light:        rgba(22, 163, 74, 0.15);
+  --warning-light:        rgba(245, 158, 11, 0.15);
+  --error-light:          rgba(220, 38, 38, 0.15);
+  --info-light:           rgba(21, 136, 199, 0.15);
+
+  /* Shadows */
+  --shadow-xs:      0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm:      0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md:      0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-lg:      0 16px 36px rgba(0, 0, 0, 0.6);
+  --shadow-primary: 0 8px 30px rgba(21, 136, 199, 0.35);
+}

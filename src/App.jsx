@@ -39,6 +39,7 @@ import { StudentHomeworkView } from './views/student/StudentHomeworkView';
 import { ExamTakingView } from './views/student/ExamTakingView';
 import { StudentSmartLectureView } from './views/student/StudentSmartLectureView';
 import { StudentRevisionView } from './views/student/StudentRevisionView';
+import { StudentLeagueView } from './views/student/StudentLeagueView';
 import { StudentAnalyticsView } from './views/student/StudentAnalyticsView';
 import { StudentGamificationView } from './views/student/StudentGamificationView';
 import { StudentCertificatesView } from './views/student/StudentCertificatesView';
@@ -170,7 +171,7 @@ function AppShell({ children }) {
                   display: 'none',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 8px 24px rgba(108,77,255,0.4)',
+                  boxShadow: '0 8px 24px rgba(21, 136, 199, 0.35)',
                   cursor: 'pointer'
                 }}
               >
@@ -246,7 +247,8 @@ export default function App() {
                 <Route path="/student/exam" element={<ExamTakingView />} />
                 <Route path="/student/smart-lecture" element={<StudentSmartLectureView />} />
                 <Route path="/student/revision" element={<StudentRevisionView />} />
-                <Route path="/student/analytics" element={<StudentAnalyticsView />} />
+                <Route path="/student/league" element={<StudentLeagueView />} />
+                <Route path="/student/analytics" element={<Navigate to="/student/league" replace />} />
                 <Route path="/student/gamification" element={<StudentGamificationView />} />
                 <Route path="/student/certificates" element={<StudentCertificatesView />} />
                 <Route path="/student/billing" element={<StudentBillingView />} />

@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { 
-  Users, 
-  CheckCircle2, 
-  Award, 
-  Calendar, 
-  AlertCircle, 
-  MessageSquare, 
-  ArrowRight,
-  TrendingUp,
-  Clock
-} from 'lucide-react';
+import {
+  ChildSwitcher,
+  ChildSummaryCard,
+  ChildSessionAndFeedback
+} from '../../features/parent';
 
 export const ParentDashboard = () => {
   const { lang, isRtl } = useLanguage();
@@ -83,151 +76,26 @@ export const ParentDashboard = () => {
         </div>
 
         {/* Child Switcher Pills */}
-        <div style={{
-          display: 'inline-flex',
-          backgroundColor: 'var(--bg-subtle)',
-          padding: '4px',
-          borderRadius: 'var(--radius-full)',
-          border: '1px solid var(--border-subtle)'
-        }}>
-          {children.map(child => (
-            <button
-              key={child.id}
-              onClick={() => setSelectedChild(child.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-full)',
-                border: 'none',
-                backgroundColor: selectedChild === child.id ? 'var(--primary)' : 'transparent',
-                color: selectedChild === child.id ? '#FFFFFF' : 'var(--text-secondary)',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              <img src={child.avatar} alt="" style={{ width: '20px', height: '20px', borderRadius: '50%' }} />
-              <span>{lang === 'ar' ? child.nameAr.split(' ')[0] : child.name.split(' ')[0]}</span>
-            </button>
-          ))}
-        </div>
+        <ChildSwitcher
+          children={children}
+          selectedChild={selectedChild}
+          onSelectChild={setSelectedChild}
+          lang={lang}
+        />
       </div>
 
       {/* Child Summary Card */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1px solid var(--border-medium)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '28px',
-        marginBottom: '28px',
-        boxShadow: 'var(--shadow-sm)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '20px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-          <img
-            src={activeChild.avatar}
-            alt=""
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '3px solid var(--primary-light)'
-            }}
-          />
-          <div>
-            <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-              {lang === 'ar' ? activeChild.nameAr : activeChild.name}
-            </h2>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              {lang === 'ar' ? activeChild.gradeAr : activeChild.grade}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{lang === 'ar' ? 'نسبة الحضور بالسنتر' : 'Attendance'}</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#10B981', fontFamily: 'var(--font-heading)' }}>
-              {activeChild.attendanceRate}%
-            </div>
-          </div>
-
-          <div style={{ width: '1px', height: '36px', backgroundColor: 'var(--border-subtle)' }} />
-
-          <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{lang === 'ar' ? 'متوسط الامتحانات' : 'Exam Average'}</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>
-              {activeChild.avgQuizScore}%
-            </div>
-          </div>
-        </div>
-      </div>
+      <ChildSummaryCard
+        activeChild={activeChild}
+        lang={lang}
+        isRtl={isRtl}
+      />
 
       {/* Next Session & Teacher Notes */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '20px'
-      }}>
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-medium)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '24px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-            <Calendar size={18} color="var(--primary)" />
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-              {lang === 'ar' ? 'الحصة القادمة وجدول الحضور' : 'Upcoming Session'}
-            </h3>
-          </div>
-          <div style={{
-            padding: '16px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--bg-subtle)',
-            fontSize: '14px',
-            fontWeight: '700',
-            color: 'var(--text-primary)'
-          }}>
-            {lang === 'ar' ? activeChild.nextSessionAr : activeChild.nextSession}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', marginTop: '10px' }}>
-            <CheckCircle2 size={14} />
-            <span>{lang === 'ar' ? 'تم تأكيد حجز مقعد القاعة' : 'Seat reservation confirmed'}</span>
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-medium)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '24px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-            <MessageSquare size={18} color="#06B6D4" />
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-              {lang === 'ar' ? 'ملاحظات المعلمين الأسبوعية' : 'Teacher Weekly Feedback'}
-            </h3>
-          </div>
-          <div style={{
-            padding: '16px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--bg-subtle)',
-            fontSize: '13.5px',
-            lineHeight: 1.6,
-            color: 'var(--text-secondary)'
-          }}>
-            "{lang === 'ar' ? activeChild.teacherNotesAr : activeChild.teacherNotes}"
-          </div>
-        </div>
-      </div>
+      <ChildSessionAndFeedback
+        activeChild={activeChild}
+        lang={lang}
+      />
     </div>
   );
 };

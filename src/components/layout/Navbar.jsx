@@ -20,7 +20,6 @@ import {
   ChevronRight,
   ChevronLeft
 } from 'lucide-react';
-import { SpiderManWeb } from '../common/SpiderManWeb';
 import { STUDENT_PROFILE } from '../../data/studentData';
 
 export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, hasSidebar }) => {
@@ -68,7 +67,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
     if (currentPath.startsWith('/student/courses')) return lang === 'ar' ? 'المقررات' : 'Courses';
     if (currentPath.startsWith('/student/exam')) return lang === 'ar' ? 'الاختبارات' : 'Exams';
     if (currentPath.startsWith('/student/homework')) return lang === 'ar' ? 'الواجبات' : 'Homework';
-    if (currentPath.startsWith('/student/analytics')) return lang === 'ar' ? 'مستواي والتحليلات' : 'Analytics';
+    if (currentPath.startsWith('/student/league') || currentPath.startsWith('/student/analytics')) return lang === 'ar' ? 'دوري المتفوقين' : 'League';
     if (currentPath.startsWith('/student/smart-lecture')) return lang === 'ar' ? 'تحويل المحاضرة الذكية' : 'Smart Lecture Tool';
     if (currentPath.startsWith('/student/revision')) return lang === 'ar' ? 'المراجعة الذكية' : 'Smart Revision';
     if (currentPath.startsWith('/student/quiz')) return lang === 'ar' ? 'الكويزات والتدريبات' : 'Quizzes';
@@ -99,9 +98,6 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
       width: '100%',
       maxWidth: '100vw'
     }}>
-      {/* Spider-Man descending on web from behind the navbar */}
-      <SpiderManWeb />
-
       <div className={`navbar-container ${isDashboardLayout ? 'navbar-dashboard' : ''}`}>
         {/* ── LEFT / START AREA ── */}
         {isDashboardLayout ? (
@@ -185,7 +181,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                   width: '38px',
                   height: '38px',
                   objectFit: 'contain',
-                  filter: 'drop-shadow(0 4px 10px rgba(108, 77, 255, 0.35))'
+                  filter: 'drop-shadow(0 4px 10px rgba(21, 136, 199, 0.35))'
                 }}
               />
               <div>
@@ -311,7 +307,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                   color: 'var(--text-primary)'
                 }}
               >
-                <Trophy size={14} color="#6C4BFF" />
+                <Trophy size={14} color="#1588C7" />
                 <span>{STUDENT_PROFILE.xp.toLocaleString()} XP</span>
               </div>
             </div>
@@ -417,7 +413,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
           {isAuthenticated ? (
             <div className="desktop-only" style={{ alignItems: 'center', gap: '8px' }}>
               <button 
-                onClick={() => navigate(currentRole === 'student' ? '/student/analytics' : getDashboardPath())}
+                onClick={() => navigate(currentRole === 'student' ? '/student/league' : getDashboardPath())}
                 title={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
                 aria-label={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
                 style={{

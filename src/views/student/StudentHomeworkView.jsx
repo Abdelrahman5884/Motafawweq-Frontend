@@ -3,25 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { HOMEWORK_LIST } from '../../data/studentData';
 import confetti from 'canvas-confetti';
-import {
-  FileText,
-  UploadCloud,
-  CheckCircle2,
-  Clock,
-  Calendar,
-  X,
-  Send,
-  Paperclip,
-  Download,
-  Eye,
-  EyeOff,
-  Award,
-  AlertCircle,
-  FileCheck,
-  ChevronDown,
-  ChevronUp
-} from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { SPage } from '../../components/student/ui';
+import { HomeworkCard, HomeworkSubmissionModal } from '../../features/student/homework';
 
 export const StudentHomeworkView = () => {
   const navigate = useNavigate();
@@ -76,7 +60,6 @@ export const StudentHomeworkView = () => {
 
   return (
     <SPage maxWidth={1060}>
-      {/* Subtle & Calm Styles */}
       <style>{`
         @keyframes modalFadeIn {
           from {
@@ -119,7 +102,6 @@ export const StudentHomeworkView = () => {
       `}</style>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'var(--font-arabic, sans-serif)' }}>
-        
         {/* Toast Notification */}
         {confirmationToast && (
           <div style={{
@@ -127,11 +109,11 @@ export const StudentHomeworkView = () => {
             bottom: '24px',
             left: '50%',
             transform: 'translateX(-50%)',
-            backgroundColor: '#10B981',
+            backgroundColor: 'var(--success)',
             color: '#FFFFFF',
             padding: '12px 22px',
             borderRadius: '12px',
-            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.35)',
+            boxShadow: '0 10px 30px rgba(22, 163, 74, 0.35)',
             zIndex: 99999,
             display: 'flex',
             alignItems: 'center',
@@ -191,682 +173,99 @@ export const StudentHomeworkView = () => {
             border: '1px solid var(--border-subtle)',
             fontSize: '12.5px',
             fontWeight: '700',
-            color: 'var(--text-secondary)',
-            flexShrink: 0
+            color: 'var(--text-secondary)'
           }}>
-            <span>{pendingCount} {lang === 'ar' ? 'واجبات قيد التسليم' : 'pending assignments'}</span>
+            <span>{pendingCount} واجبات تنتظر تسليمك</span>
           </div>
         </div>
 
-        {/* Clean Filter Tabs (Scrollable on Mobile, No Overflow) */}
+        {/* Clean Filter Tabs Strip */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          backgroundColor: 'var(--bg-subtle)',
-          padding: '4px',
-          borderRadius: '14px',
-          width: '100%',
-          maxWidth: '100%',
           overflowX: 'auto',
-          scrollbarWidth: 'none',
-          border: '1px solid var(--border-subtle)',
-          boxSizing: 'border-box',
-          WebkitOverflowScrolling: 'touch'
+          paddingBottom: '4px',
+          maxWidth: '100%',
+          boxSizing: 'border-box'
         }}>
           {[
-            { id: 'all', label: lang === 'ar' ? 'جميع الواجبات' : 'All', count: HOMEWORK_LIST.length },
-            { id: 'pending', label: lang === 'ar' ? 'مطلوب تسليمه' : 'Pending', count: pendingCount },
-            { id: 'submitted', label: lang === 'ar' ? 'تم التسليم' : 'Submitted', count: HOMEWORK_LIST.filter(h => h.status === 'submitted').length },
-            { id: 'graded', label: lang === 'ar' ? 'مصحح ومعتمد' : 'Graded', count: HOMEWORK_LIST.filter(h => h.status === 'graded').length }
-          ].map(tab => {
-            const isActive = filterTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setFilterTab(tab.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
-                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontWeight: isActive ? '800' : '600',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  boxShadow: isActive ? 'var(--shadow-xs)' : 'none',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0
-                }}
-              >
-                <span>{tab.label}</span>
-                <span style={{
-                  fontSize: '11px',
-                  padding: '1px 6px',
-                  borderRadius: '6px',
-                  backgroundColor: isActive ? 'var(--primary-surface)' : 'var(--bg-hover)',
-                  color: isActive ? 'var(--primary)' : 'var(--text-muted)'
-                }}>
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
+            { id: 'all', labelAr: 'جميع التكليفات', labelEn: 'All', count: HOMEWORK_LIST.length },
+            { id: 'pending', labelAr: 'مطلوب تسليمه', labelEn: 'Pending', count: pendingCount },
+            { id: 'submitted', labelAr: 'قيد المراجعة', labelEn: 'In Review', count: HOMEWORK_LIST.filter(h => h.status === 'submitted').length },
+            { id: 'graded', labelAr: 'تم التصحيح', labelEn: 'Graded', count: HOMEWORK_LIST.filter(h => h.status === 'graded').length }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setFilterTab(tab.id)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '12px',
+                backgroundColor: filterTab === tab.id ? 'var(--primary)' : 'var(--bg-subtle)',
+                color: filterTab === tab.id ? '#FFFFFF' : 'var(--text-secondary)',
+                border: '1px solid',
+                borderColor: filterTab === tab.id ? 'var(--primary)' : 'var(--border-subtle)',
+                fontSize: '13px',
+                fontWeight: filterTab === tab.id ? '800' : '600',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+            >
+              <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
+              <span style={{
+                fontSize: '11px',
+                padding: '1px 6px',
+                borderRadius: '6px',
+                backgroundColor: filterTab === tab.id ? 'rgba(255,255,255,0.25)' : 'var(--border-subtle)',
+                color: filterTab === tab.id ? '#FFFFFF' : 'var(--text-muted)',
+                fontWeight: '700'
+              }}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
 
-        {/* Homework Cards Grid */}
+        {/* Homework Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
-          gap: '18px',
-          width: '100%',
-          maxWidth: '100%',
-          boxSizing: 'border-box',
-          animation: 'tabFadeIn 0.2s ease-out'
+          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+          gap: '20px',
+          animation: 'tabFadeIn 0.25s ease'
         }}>
-          {filteredList.map((hw) => {
-            const isPending = hw.status === 'pending';
-            const isGraded = hw.status === 'graded';
-            const isSubmitted = hw.status === 'submitted';
-
-            return (
-              <div
-                key={hw.id}
-                className="clean-hw-card"
-                style={{
-                  backgroundColor: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '20px',
-                  padding: '20px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  boxShadow: 'var(--shadow-xs)',
-                  width: '100%',
-                  maxWidth: '100%',
-                  boxSizing: 'border-box',
-                  overflow: 'hidden'
-                }}
-              >
-                <div>
-                  {/* Top Row: Subject & Status */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '12px'
-                  }}>
-                    <span style={{
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      padding: '3px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--bg-subtle)',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-subtle)'
-                    }}>
-                      {hw.subjectAr}
-                    </span>
-
-                    {isPending && (
-                      <span style={{
-                        fontSize: '11.5px',
-                        fontWeight: '700',
-                        color: '#B45309',
-                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                        padding: '3px 9px',
-                        borderRadius: '8px'
-                      }}>
-                        مطلوب تسليمه
-                      </span>
-                    )}
-
-                    {isSubmitted && (
-                      <span style={{
-                        fontSize: '11.5px',
-                        fontWeight: '700',
-                        color: '#2563EB',
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                        padding: '3px 9px',
-                        borderRadius: '8px'
-                      }}>
-                        تم التسليم • قيد المراجعة
-                      </span>
-                    )}
-
-                    {isGraded && (
-                      <span style={{
-                        fontSize: '11.5px',
-                        fontWeight: '800',
-                        color: '#059669',
-                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                        padding: '3px 9px',
-                        borderRadius: '8px'
-                      }}>
-                        تم التصحيح ({hw.earnedScore}/{hw.maxScore})
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Title */}
-                  <h3 style={{
-                    fontSize: '16.5px',
-                    fontWeight: '800',
-                    color: 'var(--text-primary)',
-                    margin: '0 0 10px 0',
-                    lineHeight: 1.45,
-                    minHeight: '44px',
-                    wordBreak: 'break-word'
-                  }}>
-                    {hw.titleAr}
-                  </h3>
-
-                  {/* Teacher & Deadline */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '14px'
-                  }}>
-                    <span style={{ fontWeight: '600' }}>{hw.teacherNameAr}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isPending ? '#B45309' : 'var(--text-muted)' }}>
-                      <Clock size={12} />
-                      {hw.deadlineTextAr}
-                    </span>
-                  </div>
-
-                  {/* PDF Attachment Notice (Calm & Harmonious Brand Style - NO RED) */}
-                  {hw.teacherAttachmentPdf && (
-                    <div style={{
-                      backgroundColor: 'var(--bg-subtle)',
-                      border: '1px solid var(--border-subtle)',
-                      padding: '8px 12px',
-                      borderRadius: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '12px',
-                      color: 'var(--text-primary)',
-                      fontWeight: '700',
-                      marginBottom: '14px',
-                      boxSizing: 'border-box'
-                    }}>
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '6px',
-                        backgroundColor: 'var(--primary-surface)',
-                        color: 'var(--primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        <FileText size={13} />
-                      </div>
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>
-                        {lang === 'ar' ? 'شيت الأسئلة مرفق بصيغة PDF' : 'Attached Assignment PDF'}
-                      </span>
-                      <span style={{
-                        fontSize: '11px',
-                        padding: '1px 6px',
-                        borderRadius: '5px',
-                        backgroundColor: 'var(--bg-hover)',
-                        color: 'var(--text-secondary)',
-                        fontWeight: '600'
-                      }}>
-                        {hw.teacherAttachmentPdf.fileSize}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Specs row */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '18px'
-                  }}>
-                    <span>{hw.questionsCount} أسئلة</span>
-                    <span>•</span>
-                    <span>الدرجة: {hw.maxScore} درجة</span>
-                  </div>
-                </div>
-
-                {/* Action Button */}
-                <div>
-                  <button
-                    onClick={() => handleOpenHw(hw)}
-                    className="clean-btn"
-                    style={{
-                      width: '100%',
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      backgroundColor: isPending ? 'var(--primary)' : 'var(--bg-subtle)',
-                      color: isPending ? '#FFFFFF' : 'var(--text-primary)',
-                      border: isPending ? 'none' : '1px solid var(--border-subtle)',
-                      fontSize: '13px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      boxShadow: isPending ? '0 2px 8px rgba(108, 77, 255, 0.25)' : 'none'
-                    }}
-                  >
-                    {isPending ? (
-                      <>
-                        <UploadCloud size={15} />
-                        <span>{lang === 'ar' ? 'عرض الأسئلة والحل' : 'View & Submit'}</span>
-                      </>
-                    ) : isGraded ? (
-                      <>
-                        <Award size={15} />
-                        <span>{lang === 'ar' ? 'عرض التقييم والملاحظات' : 'View Feedback'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Eye size={15} />
-                        <span>{lang === 'ar' ? 'عرض الحل المسلّم' : 'View Submission'}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {filteredList.map((hw) => (
+            <HomeworkCard
+              key={hw.id}
+              hw={hw}
+              handleOpenHw={handleOpenHw}
+              lang={lang}
+            />
+          ))}
         </div>
 
-        {/* =========================================================================
-            CALM HOMEWORK DETAILS & PDF VIEW MODAL
-           ========================================================================= */}
-        {selectedHw && (
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(5px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            boxSizing: 'border-box'
-          }}>
-            <div style={{
-              backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-medium)',
-              borderRadius: '22px',
-              maxWidth: '620px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              padding: '24px 18px',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)',
-              position: 'relative',
-              animation: 'modalFadeIn 0.2s ease-out',
-              boxSizing: 'border-box'
-            }}>
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedHw(null)}
-                style={{
-                  position: 'absolute',
-                  top: '20px',
-                  left: isRtl ? '20px' : 'auto',
-                  right: isRtl ? 'auto' : '20px',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={15} />
-              </button>
-
-              {/* Header */}
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <span style={{
-                    fontSize: '11.5px',
-                    fontWeight: '700',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    {selectedHw.subjectAr}
-                  </span>
-                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                    المعلم: {selectedHw.teacherNameAr}
-                  </span>
-                </div>
-
-                <h2 style={{
-                  fontSize: '18px',
-                  fontWeight: '800',
-                  color: 'var(--text-primary)',
-                  margin: '0 0 6px 0',
-                  lineHeight: 1.4
-                }}>
-                  {selectedHw.titleAr}
-                </h2>
-
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Clock size={13} />
-                  <span>الموعد النهائي: {selectedHw.deadlineTextAr}</span>
-                  <span>•</span>
-                  <span>الدرجة: {selectedHw.maxScore} درجة</span>
-                </div>
-              </div>
-
-              {/* 📄 TEACHER ATTACHED PDF CARD (Calm & Elegant Brand Style - NO RED) */}
-              {selectedHw.teacherAttachmentPdf && (
-                <div style={{
-                  backgroundColor: 'var(--bg-subtle)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  marginBottom: '18px',
-                  boxSizing: 'border-box'
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                    marginBottom: showPdfPreview ? '12px' : '0'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '10px',
-                        backgroundColor: 'var(--primary-surface)',
-                        color: 'var(--primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        <FileText size={20} />
-                      </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{
-                          fontSize: '13.5px',
-                          fontWeight: '800',
-                          color: 'var(--text-primary)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {selectedHw.teacherAttachmentPdf.fileName}
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                          {lang === 'ar'
-                            ? `ملف الأسئلة المرفق من الأستاذ • ${selectedHw.teacherAttachmentPdf.fileSize} • ${selectedHw.teacherAttachmentPdf.pagesCount} صفحات`
-                            : `Teacher PDF Sheet • ${selectedHw.teacherAttachmentPdf.fileSize} • ${selectedHw.teacherAttachmentPdf.pagesCount} pages`}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <button
-                        onClick={() => setShowPdfPreview(!showPdfPreview)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '7px 12px',
-                          borderRadius: '8px',
-                          backgroundColor: 'var(--bg-surface-elevated)',
-                          border: '1px solid var(--border-subtle)',
-                          color: 'var(--text-primary)',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {showPdfPreview ? <EyeOff size={13} /> : <Eye size={13} />}
-                        <span>{showPdfPreview ? (lang === 'ar' ? 'إخفاء المعاينة' : 'Hide Preview') : (lang === 'ar' ? 'معاينة الأسئلة' : 'Preview Questions')}</span>
-                      </button>
-
-                      <a
-                        href="#download"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          alert(lang === 'ar' ? 'تم بدء تحميل ملف أسئلة الواجب بصيغة PDF.' : 'Downloading PDF file.');
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '7px 14px',
-                          borderRadius: '8px',
-                          backgroundColor: 'var(--primary)',
-                          color: '#FFFFFF',
-                          textDecoration: 'none',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 8px rgba(108, 77, 255, 0.28)'
-                        }}
-                      >
-                        <Download size={13} />
-                        <span>{lang === 'ar' ? 'تحميل PDF' : 'Download PDF'}</span>
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Interactive Question Preview Inside Modal */}
-                  {showPdfPreview && (
-                    <div style={{
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: '12px',
-                      padding: '14px',
-                      fontSize: '12.5px',
-                      lineHeight: 1.6,
-                      boxSizing: 'border-box'
-                    }}>
-                      <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)', marginBottom: '8px' }}>
-                        {lang === 'ar' ? 'مقتطفات من أسئلة شيت الواجب:' : 'Sample Questions from Teacher Sheet:'}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--text-primary)' }}>
-                        {selectedHw.teacherAttachmentPdf.previewQuestions.map((q, qIdx) => (
-                          <div key={qIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                            <span style={{ color: 'var(--primary)', fontWeight: '700' }}>•</span>
-                            <span style={{ wordBreak: 'break-word' }}>{q}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Instructions */}
-              {selectedHw.instructionsAr && (
-                <div style={{
-                  backgroundColor: 'var(--bg-subtle)',
-                  borderRadius: '14px',
-                  padding: '12px 14px',
-                  marginBottom: '18px',
-                  fontSize: '12.5px',
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.5
-                }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '3px', fontWeight: '700' }}>
-                    تعليمات المعلم للحل:
-                  </div>
-                  {selectedHw.instructionsAr}
-                </div>
-              )}
-
-              {/* Graded Feedback Card (if graded) */}
-              {selectedHw.status === 'graded' && (
-                <div style={{
-                  backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                  border: '1.5px solid rgba(16, 185, 129, 0.25)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  marginBottom: '20px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '800', color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <CheckCircle2 size={16} />
-                      <span>تقييم المعلم والدرجة</span>
-                    </span>
-                    <strong style={{ fontSize: '15px', fontWeight: '900', color: '#059669' }}>
-                      {selectedHw.earnedScore} / {selectedHw.maxScore} درجة
-                    </strong>
-                  </div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-primary)', margin: '0 0 6px 0', lineHeight: 1.6 }}>
-                    {selectedHw.teacherFeedbackAr}
-                  </p>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    تاريخ التصحيح: {selectedHw.gradedDate}
-                  </div>
-                </div>
-              )}
-
-              {/* Solution Submission Form (for pending / submitted) */}
-              {selectedHw.status !== 'graded' ? (
-                <form onSubmit={handleSubmitHomework}>
-                  <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                    كتابة الحل أو التعليق:
-                  </div>
-                  <textarea
-                    value={answerText}
-                    onChange={e => setAnswerText(e.target.value)}
-                    placeholder="اكتب إجابتك أو خطوات الحل العلمي هنا..."
-                    rows={4}
-                    style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-subtle)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      fontFamily: 'var(--font-arabic)',
-                      outline: 'none',
-                      resize: 'vertical',
-                      boxSizing: 'border-box',
-                      marginBottom: '12px'
-                    }}
-                  />
-
-                  {/* File Upload / Attach Solution Box */}
-                  <div style={{
-                    border: '1.5px dashed var(--border-medium)',
-                    borderRadius: '14px',
-                    padding: '14px',
-                    textAlign: 'center',
-                    backgroundColor: 'var(--bg-surface)',
-                    marginBottom: '20px'
-                  }}>
-                    <label style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer'
-                    }}>
-                      <Paperclip size={18} color="var(--primary)" />
-                      <span style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                        {uploadedFileName || 'إرفاق ملف الحل من جهازك (PDF أو صورة)'}
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        انقر هنا لاختيار ملف من جهازك
-                      </span>
-                      <input type="file" style={{ display: 'none' }} onChange={handleSimulateFileUpload} />
-                    </label>
-                  </div>
-
-                  {/* Modal Action Buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedHw(null)}
-                      style={{
-                        padding: '10px 18px',
-                        borderRadius: '10px',
-                        backgroundColor: 'var(--bg-subtle)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-secondary)',
-                        fontWeight: '700',
-                        fontSize: '13px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      إلغاء
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="clean-btn"
-                      style={{
-                        padding: '10px 24px',
-                        borderRadius: '10px',
-                        backgroundColor: 'var(--primary)',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        fontWeight: '800',
-                        fontSize: '13px',
-                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 2px 10px rgba(108, 77, 255, 0.3)'
-                      }}
-                    >
-                      <Send size={14} />
-                      <span>{isSubmitting ? 'جارٍ التسليم...' : 'تسليم الواجب الآن'}</span>
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* Graded Close Button */
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={() => setSelectedHw(null)}
-                    style={{
-                      padding: '10px 22px',
-                      borderRadius: '10px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      fontWeight: '800',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    إغلاق
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Submission / Grade Modal */}
+        <HomeworkSubmissionModal
+          selectedHw={selectedHw}
+          setSelectedHw={setSelectedHw}
+          showPdfPreview={showPdfPreview}
+          setShowPdfPreview={setShowPdfPreview}
+          answerText={answerText}
+          setAnswerText={setAnswerText}
+          uploadedFileName={uploadedFileName}
+          handleSimulateFileUpload={handleSimulateFileUpload}
+          handleSubmitHomework={handleSubmitHomework}
+          isSubmitting={isSubmitting}
+          lang={lang}
+          isRtl={isRtl}
+        />
       </div>
     </SPage>
   );
 };
+
+export default StudentHomeworkView;

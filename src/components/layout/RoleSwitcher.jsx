@@ -28,7 +28,7 @@ export const RoleSwitcher = () => {
       title: lang === 'ar' ? 'معلم (د. سلمى السيد)' : 'Teacher (Dr. Salma)',
       subtitle: lang === 'ar' ? 'استوديو التسجيل، خريطة المعرفة، بنك الأسئلة' : 'Studio, Knowledge Map, Quizzes, Roster',
       icon: GraduationCap,
-      color: '#6C4DFF',
+      color: 'var(--primary, #1588C7)',
       path: '/teacher/dashboard'
     },
     {

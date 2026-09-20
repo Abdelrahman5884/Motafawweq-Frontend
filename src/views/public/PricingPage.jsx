@@ -200,7 +200,7 @@ export const PricingPage = () => {
               border: plan.popular ? '2px solid var(--primary)' : '1px solid var(--border-medium)',
               borderRadius: 'var(--radius-xl)',
               padding: '32px 24px',
-              boxShadow: plan.popular ? '0 16px 36px rgba(108, 77, 255, 0.2)' : 'var(--shadow-sm)',
+              boxShadow: plan.popular ? '0 16px 36px rgba(21, 136, 199, 0.2)' : 'var(--shadow-sm)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
@@ -221,7 +221,7 @@ export const PricingPage = () => {
                 fontSize: '11px',
                 fontWeight: '800',
                 letterSpacing: '0.5px',
-                boxShadow: '0 4px 12px rgba(108, 77, 255, 0.4)'
+                boxShadow: '0 4px 12px rgba(21, 136, 199, 0.4)'
               }}>
                 {lang === 'ar' ? 'الأكثر طلباً بين المدرسين' : 'MOST POPULAR'}
               </div>
@@ -287,7 +287,7 @@ export const PricingPage = () => {
                 fontSize: '14px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                boxShadow: plan.popular ? '0 6px 18px rgba(108, 77, 255, 0.35)' : 'none',
+                boxShadow: plan.popular ? '0 6px 18px rgba(21, 136, 199, 0.35)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
