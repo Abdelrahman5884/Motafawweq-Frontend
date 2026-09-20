@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 
 import { PlexusBackground } from '../../components/common/PlexusBackground';
+import { SpiderManWeb } from '../../components/common/SpiderManWeb';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -156,7 +157,10 @@ export const LandingPage = () => {
   return (
     <div style={{ position: 'relative', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', overflow: 'hidden' }}>
 
-      {/* ── Clean Ambient Background ── */}
+      {/* ── Realistic Spider-Man on Web (Landing Page Exclusive) ── */}
+      <SpiderManWeb />
+
+      {/* ── Interactive Neural / Spiderweb Constellation Canvas Background ── */}
       <PlexusBackground />
 
       {/* =========================================================================

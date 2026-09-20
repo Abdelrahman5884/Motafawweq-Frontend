@@ -5,136 +5,102 @@ import { useLanguage } from '../../context/LanguageContext';
 const SPIDEY_QUOTES_AR = [
   'يا بطل! مستعد تكسّر الدنيا؟ 🕷️',
   'مع متفوّق.. التفوق مضمون!',
-  'أنا في ضهرك.. ركّز وذاكر!',
-  'أبطال مصر قادمون للتفوق!'
+  'أنا في ضهرك.. ركّز وذاكر! 🕸️',
+  'أبطال مصر قادمون للتفوق! 🚀',
+  'كل دقيقة بتفرق في مستقبلك! ⚡',
+  'ذاكر بذكاء مش بمجهود ع الفاضي! 🧠'
 ];
 
 const SPIDEY_QUOTES_EN = [
   'Ready to crush your goals, hero? 🕷️',
   'With Motafawweq, success is yours!',
-  'I got your back.. Stay focused!',
-  'Your superpowers start here!'
+  'I got your back.. Stay focused! 🕸️',
+  'Your superpowers start here! 🚀',
+  'Every minute counts towards your dream! ⚡',
+  'Study smarter, not harder! 🧠'
 ];
 
 export const SpiderManWeb = () => {
   const { lang, isRtl } = useLanguage();
   const location = useLocation();
+
+  // Strictly ONLY on the Landing Page
   const isLandingPage = location.pathname === '/';
 
-  // Animation lifecycle stages: 'entering' | 'hanging' | 'diving' | 'hidden'
-  const [stage, setStage] = useState(isLandingPage ? 'entering' : 'hidden');
+  // Animation lifecycle stages: 'entering' | 'hanging' | 'retracting' | 'hidden'
+  const [stage, setStage] = useState('hidden');
   const [showBubble, setShowBubble] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [bounceCount, setBounceCount] = useState(0);
 
   const cycleTimerRef = useRef(null);
   const bubbleTimerRef = useRef(null);
+  const autoHideTimerRef = useRef(null);
 
-  // Landing page cycle vs Non-landing page peek
   useEffect(() => {
-    // Clear existing timers
-    if (cycleTimerRef.current) clearTimeout(cycleTimerRef.current);
-    if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
-
-    if (isLandingPage) {
-      let isMounted = true;
-
-      const runLandingCycle = () => {
-        if (!isMounted) return;
-
-        // Step 1: Drop in from top
-        setStage('entering');
-        
-        // Auto show bubble after landing
-        bubbleTimerRef.current = setTimeout(() => {
-          if (isMounted) setShowBubble(true);
-        }, 1100);
-
-        // Hide bubble after 4.5s
-        setTimeout(() => {
-          if (isMounted) setShowBubble(false);
-        }, 5500);
-
-        // Transition to normal hanging swing after entrance
-        setTimeout(() => {
-          if (isMounted) setStage('hanging');
-        }, 1000);
-
-        // Step 2: After ~10 seconds of hanging, perform dramatic superhero downward dive ("يقع لتحت خالص")
-        cycleTimerRef.current = setTimeout(() => {
-          if (!isMounted) return;
-          setShowBubble(false);
-          setStage('diving');
-
-          // Step 3: Once off-screen (after 800ms), transition to hidden cooldown
-          setTimeout(() => {
-            if (!isMounted) return;
-            setStage('hidden');
-            // Advance quote for next time
-            setQuoteIndex((prev) => (prev + 1) % SPIDEY_QUOTES_AR.length);
-
-            // Step 4: After 3.5s of hidden cooldown, drop in again from navbar!
-            cycleTimerRef.current = setTimeout(() => {
-              if (isMounted) runLandingCycle();
-            }, 3500);
-
-          }, 850);
-
-        }, 60000); // 10 seconds hanging time
-      };
-
-      runLandingCycle();
-
-      return () => {
-        isMounted = false;
-        if (cycleTimerRef.current) clearTimeout(cycleTimerRef.current);
-        if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
-      };
-    } else {
-      // Non-landing pages: Polite peek every 3 minutes for 3 seconds
-      let isMounted = true;
+    // If NOT on the landing page, ensure hidden and do nothing
+    if (!isLandingPage) {
       setStage('hidden');
       setShowBubble(false);
-
-      const HIDE_DURATION = 3 * 60 * 1000; // 3 minutes
-      const PEEK_DURATION = 3500;           // 3.5 seconds
-
-      const runPeekCycle = () => {
-        cycleTimerRef.current = setTimeout(() => {
-          if (!isMounted) return;
-          setStage('entering');
-          setShowBubble(true);
-
-          setTimeout(() => {
-            if (isMounted) setStage('hanging');
-          }, 800);
-
-          cycleTimerRef.current = setTimeout(() => {
-            if (!isMounted) return;
-            setShowBubble(false);
-            setStage('diving');
-
-            setTimeout(() => {
-              if (!isMounted) return;
-              setStage('hidden');
-              runPeekCycle();
-            }, 800);
-          }, PEEK_DURATION);
-
-        }, HIDE_DURATION);
-      };
-
-      runPeekCycle();
-
-      return () => {
-        isMounted = false;
-        if (cycleTimerRef.current) clearTimeout(cycleTimerRef.current);
-        if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
-      };
+      return;
     }
-  }, [location.pathname, isLandingPage]);
 
-  // Interactive tap / click handler
+    let isMounted = true;
+
+    // Routine to trigger a Spidey descent and retract cycle
+    const triggerCycle = () => {
+      if (!isMounted) return;
+
+      // 1. Drop down from top
+      setStage('entering');
+
+      // 2. Pop the motivational quote bubble after landing
+      bubbleTimerRef.current = setTimeout(() => {
+        if (isMounted) setShowBubble(true);
+      }, 850);
+
+      // 3. Transition to gentle hanging swing
+      setTimeout(() => {
+        if (isMounted) setStage('hanging');
+      }, 950);
+
+      // 4. Stay hanging for 7 seconds, then retract back up
+      autoHideTimerRef.current = setTimeout(() => {
+        if (!isMounted) return;
+        setShowBubble(false);
+        setStage('retracting');
+
+        // 5. Hide completely after retraction finishes
+        setTimeout(() => {
+          if (!isMounted) return;
+          setStage('hidden');
+          setQuoteIndex((prev) => (prev + 1) % SPIDEY_QUOTES_AR.length);
+        }, 750);
+
+      }, 7000);
+    };
+
+    // Initial show shortly after page load (1.5s delay for pleasant entrance)
+    const initialTimer = setTimeout(() => {
+      triggerCycle();
+    }, 1500);
+
+    // Recurring cycle: every 60 seconds (1 minute), Spider-Man drops in and retracts
+    const recurringInterval = setInterval(() => {
+      triggerCycle();
+    }, 60000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(initialTimer);
+      clearInterval(recurringInterval);
+      if (cycleTimerRef.current) clearTimeout(cycleTimerRef.current);
+      if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+    };
+  }, [isLandingPage]);
+
+  // Handle tap / click to trigger interactive bounce and quote change
   const handleClick = (e) => {
     e.stopPropagation();
     setBounceCount((prev) => prev + 1);
@@ -144,28 +110,30 @@ export const SpiderManWeb = () => {
     if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
     bubbleTimerRef.current = setTimeout(() => {
       setShowBubble(false);
-    }, 4000);
+    }, 4500);
   };
 
-  if (stage === 'hidden') return null;
+  // Do not render anything when hidden or off the landing page
+  if (!isLandingPage || stage === 'hidden') return null;
 
   const currentQuote = lang === 'ar' ? SPIDEY_QUOTES_AR[quoteIndex] : SPIDEY_QUOTES_EN[quoteIndex];
 
   return (
     <div
-      className="spidey-container-adaptive"
+      className="spidey-fixed-root"
+      aria-label="Motafawweq Spider-Man"
       style={{
-        position: 'absolute',
-        top: '100%',
-        zIndex: 60,
+        position: 'fixed',
+        top: 0,
+        zIndex: 9999,
         pointerEvents: 'none',
         userSelect: 'none'
       }}
     >
       <style>{`
-        /* Responsive Positioning and Adaptive Sizing */
-        .spidey-container-adaptive {
-          inset-inline-end: clamp(80px, 14vw, 220px);
+        /* Positioning on Desktop and Tablets */
+        .spidey-fixed-root {
+          ${isRtl ? 'left: clamp(20px, 8vw, 140px);' : 'right: clamp(20px, 8vw, 140px);'}
         }
 
         .spidey-interactive-wrapper {
@@ -178,21 +146,21 @@ export const SpiderManWeb = () => {
           touch-action: manipulation;
         }
 
-        /* Web Line - Longer & Sturdier */
+        /* Web Line Thread - Radiant Silky Web */
         .spidey-web-line {
           width: 2px;
-          height: 75px;
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, #FFFFFF 50%, #38BDF8 100%);
+          height: clamp(45px, 8vh, 85px);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, #FFFFFF 40%, #38BDF8 100%);
           box-shadow: 0 0 8px rgba(56, 189, 248, 0.8), 0 0 3px rgba(255, 255, 255, 0.9);
           transition: height 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         /* Spidey Character Sprite */
         .spidey-character-sprite {
-          width: 66px;
+          width: clamp(46px, 6vw, 62px);
           height: auto;
           object-fit: contain;
-          filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 12px rgba(56, 189, 248, 0.3));
+          filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 12px rgba(56, 189, 248, 0.35));
           transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease;
         }
 
@@ -206,18 +174,18 @@ export const SpiderManWeb = () => {
           }
         }
 
-        /* Smooth Drop In from Navbar entrance */
-        @keyframes spideyDropFromNav {
+        /* Drop In From Top (Entering) */
+        @keyframes spideyDropFromTop {
           0% {
-            transform: translateY(-180px) scale(0.9);
+            transform: translateY(-220px) scale(0.9);
             opacity: 0;
           }
           65% {
-            transform: translateY(16px) scale(1.02);
+            transform: translateY(14px) scale(1.03);
             opacity: 1;
           }
           85% {
-            transform: translateY(-8px) scale(0.99);
+            transform: translateY(-6px) scale(0.99);
           }
           100% {
             transform: translateY(0px) scale(1);
@@ -225,44 +193,44 @@ export const SpiderManWeb = () => {
           }
         }
 
-        /* Dramatic Superhero Downward Fall / Dive */
-        @keyframes spideyDiveDown {
+        /* Retract Back Up To Top (Retracting) */
+        @keyframes spideyRetractUp {
           0% {
-            transform: translateY(0px) rotate(0deg) scale(1);
+            transform: translateY(0px) scale(1);
             opacity: 1;
           }
           20% {
-            transform: translateY(-15px) rotate(-8deg) scale(1.04);
+            transform: translateY(10px) scale(1.02);
             opacity: 1;
           }
           100% {
-            transform: translateY(115vh) rotate(18deg) scale(0.85);
+            transform: translateY(-240px) scale(0.85);
             opacity: 0;
           }
         }
 
-        /* Eye Lenses Glow */
+        /* Eye Lenses Subtle Glow */
         @keyframes spideyEyeGlow {
           0%, 100% {
-            filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 10px rgba(56, 189, 248, 0.3));
+            filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 8px rgba(56, 189, 248, 0.3));
           }
           50% {
-            filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 18px rgba(56, 189, 248, 0.75));
+            filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 16px rgba(56, 189, 248, 0.75));
           }
         }
 
         .spidey-anim-entering {
           transform-origin: top center;
-          animation: spideyDropFromNav 0.95s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          animation: spideyDropFromTop 0.85s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
 
         .spidey-anim-hanging {
           transform-origin: top center;
         }
 
-        .spidey-anim-diving {
+        .spidey-anim-retracting {
           transform-origin: top center;
-          animation: spideyDiveDown 0.85s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
+          animation: spideyRetractUp 0.75s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
         }
 
         .spidey-swing-assembly {
@@ -273,7 +241,7 @@ export const SpiderManWeb = () => {
         /* Hover & Tap: Elastic stretch downward */
         .spidey-interactive-wrapper:hover .spidey-web-line,
         .spidey-interactive-wrapper:active .spidey-web-line {
-          height: 100px;
+          height: clamp(65px, 12vh, 105px);
         }
 
         .spidey-interactive-wrapper:hover .spidey-character-sprite {
@@ -285,48 +253,31 @@ export const SpiderManWeb = () => {
           animation: spideyEyeGlow 3s ease-in-out infinite;
         }
 
-        /* Tablet Responsive Adjustments */
-        @media (max-width: 1024px) {
-          .spidey-container-adaptive {
-            inset-inline-end: clamp(35px, 9vw, 90px);
-          }
-          .spidey-character-sprite {
-            width: 54px;
-          }
-          .spidey-web-line {
-            height: 62px;
-          }
-          .spidey-interactive-wrapper:hover .spidey-web-line,
-          .spidey-interactive-wrapper:active .spidey-web-line {
-            height: 82px;
-          }
-        }
-
-        /* Mobile Responsive & Adaptive: Guaranteed 100% visible speech bubble without any screen clipping */
+        /* Mobile Responsive & Adaptive: Guaranteed NO screen overflow or clipping */
         @media (max-width: 640px) {
-          .spidey-container-adaptive {
-            inset-inline-end: 18px !important;
+          .spidey-fixed-root {
+            ${isRtl ? 'left: 14px !important;' : 'right: 14px !important;'}
           }
           .spidey-character-sprite {
-            width: 46px !important;
+            width: 44px !important;
           }
           .spidey-web-line {
-            height: 50px !important;
+            height: 40px !important;
           }
           .spidey-interactive-wrapper:hover .spidey-web-line,
           .spidey-interactive-wrapper:active .spidey-web-line {
-            height: 68px !important;
+            height: 56px !important;
           }
         }
       `}</style>
 
-      {/* Spider-Man Animation Wrapper based on stage */}
+      {/* Spider-Man Animation Container */}
       <div
         className={
           stage === 'entering'
             ? 'spidey-anim-entering'
-            : stage === 'diving'
-            ? 'spidey-anim-diving'
+            : stage === 'retracting'
+            ? 'spidey-anim-retracting'
             : 'spidey-anim-hanging'
         }
       >
@@ -354,18 +305,18 @@ export const SpiderManWeb = () => {
             />
           </div>
 
-          {/* Speech Bubble - Intelligently Anchored Towards Inside Viewport so it NEVER clips */}
-          {showBubble && stage !== 'diving' && (
+          {/* Speech Bubble - Designed to always open towards the inside of the screen */}
+          {showBubble && stage !== 'retracting' && (
             <div
               style={{
                 position: 'absolute',
-                top: 'calc(100% + 6px)',
-                // Anchor intelligently based on RTL so it opens towards the inside of the screen
+                top: 'calc(100% + 8px)',
+                // Anchor toward inside viewport so it NEVER clips off screen on mobile
                 ...(isRtl
-                  ? { left: '-10px', right: 'auto' }
-                  : { right: '-10px', left: 'auto' }),
+                  ? { left: '0px', right: 'auto' }
+                  : { right: '0px', left: 'auto' }),
                 backgroundColor: 'rgba(15, 23, 42, 0.96)',
-                backdropFilter: 'blur(16px)',
+                backdropFilter: 'blur(14px)',
                 color: '#FFFFFF',
                 border: '1.5px solid #EF4444',
                 borderRadius: '16px',
@@ -375,21 +326,21 @@ export const SpiderManWeb = () => {
                 lineHeight: 1.35,
                 whiteSpace: 'normal',
                 width: 'max-content',
-                maxWidth: 'clamp(180px, 65vw, 240px)',
+                maxWidth: 'clamp(180px, 60vw, 240px)',
                 textAlign: 'center',
                 boxShadow: '0 10px 28px rgba(239, 68, 68, 0.45), 0 4px 16px rgba(0, 0, 0, 0.7)',
                 animation: 'authSpeechPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-                zIndex: 1000,
+                zIndex: 10000,
                 pointerEvents: 'none'
               }}
             >
               {currentQuote}
-              {/* Triangular arrow pointing to Spider-Man */}
+              {/* Triangular indicator arrow pointing to Spidey */}
               <div
                 style={{
                   position: 'absolute',
                   top: '-7px',
-                  ...(isRtl ? { left: '26px' } : { right: '26px' }),
+                  ...(isRtl ? { left: '20px' } : { right: '20px' }),
                   width: 0,
                   height: 0,
                   borderLeft: '6px solid transparent',
