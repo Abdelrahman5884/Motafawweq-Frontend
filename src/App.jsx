@@ -38,6 +38,7 @@ import { StudentQuizView } from './views/student/StudentQuizView';
 import { StudentHomeworkView } from './views/student/StudentHomeworkView';
 import { ExamTakingView } from './views/student/ExamTakingView';
 import { StudentSmartLectureView } from './views/student/StudentSmartLectureView';
+import { StudentConvertedLecturesView } from './views/student/StudentConvertedLecturesView';
 import { StudentRevisionView } from './views/student/StudentRevisionView';
 import { StudentLeagueView } from './views/student/StudentLeagueView';
 import { StudentAnalyticsView } from './views/student/StudentAnalyticsView';
@@ -246,6 +247,7 @@ export default function App() {
                 <Route path="/student/homework" element={<StudentHomeworkView />} />
                 <Route path="/student/exam" element={<ExamTakingView />} />
                 <Route path="/student/smart-lecture" element={<StudentSmartLectureView />} />
+                <Route path="/student/converted-lectures" element={<StudentConvertedLecturesView />} />
                 <Route path="/student/revision" element={<StudentRevisionView />} />
                 <Route path="/student/league" element={<StudentLeagueView />} />
                 <Route path="/student/analytics" element={<Navigate to="/student/league" replace />} />

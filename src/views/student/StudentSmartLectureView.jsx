@@ -1,41 +1,62 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { MOCK_LESSON } from '../../data/mockData';
 import { KnowledgeMapCanvas } from '../../components/knowledge-map/KnowledgeMapCanvas';
-import { Sparkles, Brain, FileText, Layers } from 'lucide-react';
+import { Sparkles, Brain, FileText, Layers, CheckCircle2, FolderCheck, PlayCircle } from 'lucide-react';
 import {
   LectureRecorderUploader,
   LectureMiniPlayer,
   LectureTranscriptTab,
   LectureTopicsTab
 } from '../../features/student/smart-lecture';
+import '../../features/student/smart-lecture/smart-lecture.css';
 
 export const StudentSmartLectureView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
   const lesson = MOCK_LESSON;
 
-  // Recording State (US-57)
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
-  const recordIntervalRef = useRef(null);
+  // Selected outputs: 'graph' | 'transcript' | 'topics' | 'quiz'
+  const [selectedOutputs, setSelectedOutputs] = useState(['graph', 'transcript', 'topics']);
 
-  // Upload & AI Processing Simulation (US-56, US-58)
-  const [uploadedFile, setUploadedFile] = useState({
-    name: lang === 'ar' ? 'محاضرة_الأحياء_الفصل_الثالث.mp4' : 'Biology_Lecture_Chapter3.mp4',
-    sizeFormatted: '24.6 MB',
-    type: 'video/mp4'
-  });
-  const [uploadStatus, setUploadStatus] = useState('done'); // 'idle' | 'uploading' | 'processing' | 'done'
-  const [uploadProgress, setUploadProgress] = useState(100);
+  // Generation status: Results only appear after clicking Generate
+  const [hasGenerated, setHasGenerated] = useState(false);
+
+  // Upload & AI Processing Simulation
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'processing' | 'done'
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const uploadTimerRef = useRef(null);
+  const stageTimeoutRef = useRef(null);
   const [searchTranscript, setSearchTranscript] = useState('');
 
   // Active synchronized player & timestamp (US-63, US-64, US-65)
   const [activeSeconds, setActiveSeconds] = useState(320); // 05:20
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeTab, setActiveTab] = useState('map'); // 'map' | 'transcript' | 'topics'
+  const [activeTab, setActiveTab] = useState('map'); // 'map' | 'transcript' | 'topics' | 'quiz'
+
+  // Toggle desired output
+  const handleToggleOutput = (id) => {
+    setSelectedOutputs(prev => {
+      if (prev.includes(id)) {
+        if (prev.length <= 1) return prev; // At least one output
+        const next = prev.filter(item => item !== id);
+        // If currently active tab was unchecked, switch tab
+        if (id === 'graph' && activeTab === 'map') {
+          setActiveTab(next.includes('transcript') ? 'transcript' : 'topics');
+        } else if (id === 'transcript' && activeTab === 'transcript') {
+          setActiveTab(next.includes('graph') ? 'map' : 'topics');
+        } else if (id === 'topics' && activeTab === 'topics') {
+          setActiveTab(next.includes('graph') ? 'map' : 'transcript');
+        }
+        return next;
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
 
   // Format file size
   const formatFileSize = (bytes) => {
@@ -46,65 +67,124 @@ export const StudentSmartLectureView = () => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  // Upload handler with smooth real-time progress
+  // Clean timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
+      if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
+    };
+  }, []);
+
+  // Sequential AI stages simulation
+  const runAiStages = (targetOutputs) => {
+    const totalStages = 1 + targetOutputs.length;
+    let stage = 0;
+    setCurrentStageIndex(0);
+
+    const stepInterval = setInterval(() => {
+      stage += 1;
+      if (stage < totalStages) {
+        setCurrentStageIndex(stage);
+      } else {
+        clearInterval(stepInterval);
+        setCurrentStageIndex(totalStages);
+        setUploadStatus('done');
+        setHasGenerated(true); // Content appears now!
+
+        // Save newly generated lecture to converted lectures archive
+        try {
+          const stored = localStorage.getItem('mtfq_converted_lectures');
+          const list = stored ? JSON.parse(stored) : [];
+          const activeFile = uploadedFile || {
+            name: lang === 'ar' ? 'محاضرة_الأحياء_الفصل_الثالث.mp4' : 'Biology_Lecture_Chapter3.mp4',
+            sizeFormatted: '24.6 MB'
+          };
+          const newEntry = {
+            id: `conv-${Date.now()}`,
+            lessonId: 'l3',
+            titleAr: lesson.titleAr,
+            titleEn: lesson.title,
+            subjectAr: 'الأحياء',
+            subjectEn: 'Biology',
+            gradeAr: 'الصف الثالث الثانوي',
+            teacherAr: 'د. سلمى السيد',
+            dateAr: lang === 'ar' ? 'اليوم - الآن' : 'Today - Just now',
+            fileName: activeFile.name,
+            fileSize: activeFile.sizeFormatted || '24.6 MB',
+            duration: lesson.durationFmt || '35:00',
+            summaryAr: 'تم تحويل المحاضرة واستخراج خريطة المفاهيم والتفريغ الصوتي ومحاور الحصة والكويز بنجاح.',
+            outputs: targetOutputs,
+            questionsCount: targetOutputs.includes('quiz') ? 5 : 0,
+            conceptsCount: 6,
+            keyTopics: ['انشطار الماء', 'تجربة فان نيل', 'الفسفرة الضوئية', 'دورة كالفن']
+          };
+          const remaining = Array.isArray(list) ? list.filter(item => item.id !== 'conv-l3') : [];
+          localStorage.setItem('mtfq_converted_lectures', JSON.stringify([newEntry, ...remaining]));
+        } catch (e) {}
+
+        // Ensure active tab matches generated outputs
+        if (!targetOutputs.includes('graph') && activeTab === 'map') {
+          setActiveTab(targetOutputs.includes('transcript') ? 'transcript' : 'topics');
+        }
+      }
+    }, 600);
+  };
+
+  // Upload handler: Registers the file ready for generation
   const handleFileUpload = (file) => {
     if (!file) return;
-    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
-
     setUploadedFile({
       name: file.name,
       sizeFormatted: formatFileSize(file.size),
       type: file.type || ''
     });
-    setUploadStatus('uploading');
-    setUploadProgress(10);
+    setUploadStatus('idle');
+    setUploadProgress(100);
+    setCurrentStageIndex(0);
+  };
 
-    let current = 10;
+  // Generate trigger: Called when user clicks Generate button
+  const handleGenerate = () => {
+    if (uploadStatus === 'processing' || uploadStatus === 'uploading') return;
+    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
+    if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
+
+    // Fallback sample file if user didn't pick one yet
+    const activeFile = uploadedFile || {
+      name: lang === 'ar' ? 'محاضرة_الأحياء_الفصل_الثالث.mp4' : 'Biology_Lecture_Chapter3.mp4',
+      sizeFormatted: '24.6 MB',
+      type: 'video/mp4'
+    };
+    if (!uploadedFile) {
+      setUploadedFile(activeFile);
+    }
+
+    setUploadStatus('uploading');
+    setUploadProgress(20);
+    setCurrentStageIndex(0);
+
+    let current = 20;
     uploadTimerRef.current = setInterval(() => {
-      current += Math.floor(Math.random() * 20) + 12;
+      current += Math.floor(Math.random() * 25) + 20;
       if (current >= 100) {
         clearInterval(uploadTimerRef.current);
         setUploadProgress(100);
         setUploadStatus('processing');
-        setTimeout(() => {
-          setUploadStatus('done');
-        }, 1200);
+        runAiStages(selectedOutputs);
       } else {
         setUploadProgress(current);
       }
-    }, 180);
+    }, 130);
   };
 
   const handleResetFile = () => {
     if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
+    if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
     setUploadedFile(null);
     setUploadStatus('idle');
     setUploadProgress(0);
-  };
-
-  // Recording toggle
-  const toggleRecording = () => {
-    if (isRecording) {
-      clearInterval(recordIntervalRef.current);
-      setIsRecording(false);
-      const timeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-      setUploadedFile({
-        name: lang === 'ar' ? `تسجيل_صوتي_مباشر_${timeStr}.wav` : `live_record_${timeStr}.wav`,
-        sizeFormatted: `${Math.max(1.2, (recordSeconds * 0.12)).toFixed(1)} MB`,
-        type: 'audio/wav'
-      });
-      setUploadStatus('processing');
-      setUploadProgress(100);
-      setTimeout(() => {
-        setUploadStatus('done');
-      }, 1400);
-    } else {
-      setIsRecording(true);
-      setRecordSeconds(0);
-      recordIntervalRef.current = setInterval(() => {
-        setRecordSeconds(prev => prev + 1);
-      }, 1000);
-    }
+    setCurrentStageIndex(0);
+    setHasGenerated(false);
   };
 
   // Jump timestamp from Mindmap or Chapter (US-63, US-65)
@@ -125,21 +205,18 @@ export const StudentSmartLectureView = () => {
     return t.textAr.includes(searchTranscript.trim()) || t.text.toLowerCase().includes(searchTranscript.toLowerCase());
   });
 
+  // Calculate available tabs based on selected/generated outputs
+  const availableTabs = [
+    ...(selectedOutputs.includes('graph') ? [{ id: 'map', labelAr: 'خريطة المفاهيم التفاعلية', labelEn: 'Knowledge Map', icon: Brain }] : []),
+    ...(selectedOutputs.includes('transcript') ? [{ id: 'transcript', labelAr: `النص المفرغ والبحث (${lesson.transcript.length})`, labelEn: `Transcript (${lesson.transcript.length})`, icon: FileText }] : []),
+    ...(selectedOutputs.includes('topics') ? [{ id: 'topics', labelAr: `محاور الحصة (${lesson.chapters.length})`, labelEn: `Topics (${lesson.chapters.length})`, icon: Layers }] : []),
+    ...(selectedOutputs.includes('quiz') ? [{ id: 'quiz', labelAr: 'كويز المحاضرة (5 أسئلة)', labelEn: 'Generated Quiz (5)', icon: Sparkles }] : [])
+  ];
+
   return (
-    <div style={{
-      maxWidth: '1240px',
-      margin: '0 auto',
-      padding: '24px 20px 80px'
-    }}>
-      {/* Calm Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '20px'
-      }}>
+    <div className="smart-lecture-container">
+      {/* Calm Responsive Header */}
+      <div className="smart-lecture-header">
         <div>
           <h1 style={{
             fontSize: '22px',
@@ -155,7 +232,8 @@ export const StudentSmartLectureView = () => {
             fontSize: '13.5px',
             color: 'var(--text-secondary)',
             margin: '4px 0 0 0',
-            fontFamily: 'var(--font-arabic)'
+            fontFamily: 'var(--font-arabic)',
+            lineHeight: 1.4
           }}>
             {lang === 'ar' 
               ? 'تفريغ صوتي فوري، تلخيص للمحاور، وخريطة مفاهيم تفاعلية بالذكاء الاصطناعي' 
@@ -163,161 +241,271 @@ export const StudentSmartLectureView = () => {
           </p>
         </div>
 
-        {/* Generate Quiz Button */}
-        <button
-          onClick={() => navigate('/student/quiz')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '9px 18px',
-            borderRadius: '12px',
-            backgroundColor: 'var(--primary)',
-            color: '#FFFFFF',
-            border: 'none',
-            fontSize: '13.5px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-arabic)',
-            boxShadow: '0 2px 8px rgba(21, 136, 199, 0.25)',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Sparkles size={16} />
-          <span>{lang === 'ar' ? 'توليد كويز فوري من المحاضرة' : 'Generate AI Quiz'}</span>
-        </button>
+        {/* Header Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => navigate('/student/converted-lectures')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 16px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-arabic)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <FolderCheck size={16} color="var(--primary)" />
+            <span>{lang === 'ar' ? 'المحاضرات المحولة' : 'Converted Lectures'}</span>
+          </button>
+
+          {hasGenerated && (
+            <button
+              onClick={() => navigate('/student/lesson?id=l3')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-arabic)',
+                boxShadow: '0 2px 8px rgba(21, 136, 199, 0.25)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <PlayCircle size={16} />
+              <span>{lang === 'ar' ? 'فتح في حصصي' : 'Open in My Lessons'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Upload or Record Action Section */}
+      {/* Upload Action Section with Multi-stage AI, Output Selector & Generate Action */}
       <LectureRecorderUploader
         lang={lang}
-        isRecording={isRecording}
-        recordSeconds={recordSeconds}
-        formatSecs={formatSecs}
         uploadedFile={uploadedFile}
         uploadProgress={uploadProgress}
         uploadStatus={uploadStatus}
-        onToggleRecording={toggleRecording}
+        currentStageIndex={currentStageIndex}
+        selectedOutputs={selectedOutputs}
+        hasGenerated={hasGenerated}
+        onGenerate={handleGenerate}
+        onToggleOutput={handleToggleOutput}
         onFileUpload={handleFileUpload}
         onResetFile={handleResetFile}
       />
 
-      {/* Synchronized Media Mini-Player Bar */}
-      <LectureMiniPlayer
-        lesson={lesson}
-        activeSeconds={activeSeconds}
-        isPlaying={isPlaying}
-        formatSecs={formatSecs}
-        isRtl={isRtl}
-        lang={lang}
-        onTogglePlay={() => setIsPlaying(!isPlaying)}
-        onOpenFullRoom={() => navigate('/student/lesson')}
-      />
+      {/* Generated Results: Only visible AFTER clicking Generate */}
+      {hasGenerated ? (
+        <div className="smart-generated-results">
+          {/* Synchronized Media Mini-Player Bar */}
+          <LectureMiniPlayer
+            lesson={lesson}
+            activeSeconds={activeSeconds}
+            isPlaying={isPlaying}
+            formatSecs={formatSecs}
+            isRtl={isRtl}
+            lang={lang}
+            onTogglePlay={() => setIsPlaying(!isPlaying)}
+            onOpenFullRoom={() => navigate('/student/lesson')}
+          />
 
-      {/* AI Intelligence Work Area (Mindmap, Transcript, Topics) */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: '20px',
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-xs)'
-      }}>
-        {/* Sub-tabs */}
-        <div style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--border-subtle)',
-          padding: '0 16px',
-          gap: '4px',
-          backgroundColor: 'var(--bg-subtle)'
-        }}>
-          {[
-            { id: 'map', labelAr: 'خريطة المفاهيم التفاعلية', labelEn: 'Knowledge Map', icon: Brain },
-            { id: 'transcript', labelAr: `النص المفرغ والبحث (${lesson.transcript.length})`, labelEn: `Transcript (${lesson.transcript.length})`, icon: FileText },
-            { id: 'topics', labelAr: `محاور الحصة (${lesson.chapters.length})`, labelEn: `Topics (${lesson.chapters.length})`, icon: Layers }
-          ].map(tab => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
+          {/* AI Intelligence Work Area (Mindmap, Transcript, Topics, Quiz) */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '20px',
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-xs)'
+          }}>
+            {/* Scrollable Tabs on Mobile */}
+            <div className="smart-lecture-tabs-container">
+              {availableTabs.map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`smart-tab-btn ${isActive ? 'active' : ''}`}
+                  >
+                    <tab.icon size={15} />
+                    <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Tab 1: Interactive Knowledge Map */}
+            {activeTab === 'map' && selectedOutputs.includes('graph') && (
+              <div className="smart-map-wrapper">
+                <KnowledgeMapCanvas
+                  knowledgeMap={lesson.knowledgeMap}
+                  onNodeSelect={(node) => {
+                    if (node.seconds !== undefined) {
+                      handleJumpToTime(node.seconds);
+                    }
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  bottom: '12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: 'rgba(6, 37, 78, 0.88)',
+                  color: '#FFFFFF',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  pointerEvents: 'none',
+                  backdropFilter: 'blur(4px)',
+                  boxShadow: 'var(--shadow-xs)',
+                  fontFamily: 'var(--font-arabic)',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '90%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {lang === 'ar' ? 'اضغط على أي عنصر للانتقال لموقعه في الشرح الصوتي' : 'Click any node to jump to its timestamp'}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Transcript with Search */}
+            {activeTab === 'transcript' && selectedOutputs.includes('transcript') && (
+              <LectureTranscriptTab
+                searchTranscript={searchTranscript}
+                setSearchTranscript={setSearchTranscript}
+                filteredTranscript={filteredTranscript}
+                activeSeconds={activeSeconds}
+                lang={lang}
+                onJumpToTime={handleJumpToTime}
+              />
+            )}
+
+            {/* Tab 3: Topics Division */}
+            {activeTab === 'topics' && selectedOutputs.includes('topics') && (
+              <LectureTopicsTab
+                chapters={lesson.chapters}
+                lang={lang}
+                isRtl={isRtl}
+                onJumpToTime={handleJumpToTime}
+              />
+            )}
+
+            {/* Tab 4: Quiz Tab Preview */}
+            {activeTab === 'quiz' && selectedOutputs.includes('quiz') && (
+              <div style={{ padding: '24px', textAlign: 'center' }}>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--primary-light)',
+                  color: 'var(--primary)',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  padding: '14px 18px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
-                  color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                  justifyContent: 'center',
+                  marginBottom: '12px'
+                }}>
+                  <CheckCircle2 size={26} />
+                </div>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
+                  margin: '0 0 6px 0',
+                  fontFamily: 'var(--font-arabic)'
+                }}>
+                  {lang === 'ar' ? 'تم استخراج وتوليد كويز المحاضرة بنجاح!' : 'Quiz Generated Successfully!'}
+                </h3>
+                <p style={{
                   fontSize: '13px',
-                  fontWeight: isActive ? '700' : '500',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-arabic)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <tab.icon size={16} />
-                <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Tab 1: Interactive Knowledge Map */}
-        {activeTab === 'map' && (
-          <div style={{ height: '480px', width: '100%', position: 'relative' }}>
-            <KnowledgeMapCanvas
-              knowledgeMap={lesson.knowledgeMap}
-              onNodeSelect={(node) => {
-                if (node.seconds !== undefined) {
-                  handleJumpToTime(node.seconds);
-                }
-              }}
-            />
-            <div style={{
-              position: 'absolute',
-              bottom: '14px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: 'rgba(6, 37, 78, 0.85)',
-              color: '#FFFFFF',
-              padding: '6px 14px',
-              borderRadius: '20px',
-              fontSize: '11.5px',
-              fontWeight: '600',
-              pointerEvents: 'none',
-              backdropFilter: 'blur(4px)',
-              boxShadow: 'var(--shadow-xs)',
-              fontFamily: 'var(--font-arabic)'
-            }}>
-              {lang === 'ar' ? 'اضغط على أي عنصر للانتقال لموقعه في الشرح الصوتي' : 'Click any node to jump to its timestamp'}
-            </div>
+                  color: 'var(--text-secondary)',
+                  margin: '0 0 18px 0',
+                  fontFamily: 'var(--font-arabic)'
+                }}>
+                  {lang === 'ar' ? 'قام الذكاء الاصطناعي بصياغة 5 أسئلة اختيار من متعدد تغطي موضوعات المحاضرة.' : 'AI generated 5 MCQs based on this lecture.'}
+                </p>
+                <button
+                  onClick={() => navigate('/student/quiz')}
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-arabic)'
+                  }}
+                >
+                  {lang === 'ar' ? 'بدء حل الكويز الآن' : 'Start Quiz Now'}
+                </button>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Tab 2: Transcript with Search */}
-        {activeTab === 'transcript' && (
-          <LectureTranscriptTab
-            searchTranscript={searchTranscript}
-            setSearchTranscript={setSearchTranscript}
-            filteredTranscript={filteredTranscript}
-            activeSeconds={activeSeconds}
-            lang={lang}
-            onJumpToTime={handleJumpToTime}
-          />
-        )}
-
-        {/* Tab 3: Topics Division */}
-        {activeTab === 'topics' && (
-          <LectureTopicsTab
-            chapters={lesson.chapters}
-            lang={lang}
-            isRtl={isRtl}
-            onJumpToTime={handleJumpToTime}
-          />
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Empty Guidance State Before Generation */
+        <div style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          borderRadius: '20px',
+          padding: '36px 20px',
+          textAlign: 'center',
+          boxShadow: 'var(--shadow-xs)'
+        }}>
+          <div style={{
+            width: '46px',
+            height: '46px',
+            borderRadius: '14px',
+            backgroundColor: 'var(--primary-light)',
+            color: 'var(--primary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '10px'
+          }}>
+            <Brain size={22} />
+          </div>
+          <div style={{
+            fontSize: '14.5px',
+            fontWeight: '700',
+            color: 'var(--text-primary)',
+            marginBottom: '4px',
+            fontFamily: 'var(--font-arabic)'
+          }}>
+            {lang === 'ar' ? 'المحتوى الذكي بانتظار أمر التوليد' : 'Awaiting AI Generation'}
+          </div>
+          <div style={{
+            fontSize: '12.5px',
+            color: 'var(--text-secondary)',
+            maxWidth: '460px',
+            margin: '0 auto',
+            lineHeight: 1.5,
+            fontFamily: 'var(--font-arabic)'
+          }}>
+            {lang === 'ar' 
+              ? 'اختر ملف المحاضرة أو سجّل صوتاً، وحدد المخرجات المطلوبة ثم اضغط على زر "توليد المحتوى بالذكاء الاصطناعي" لاستخراج خريطة المفاهيم والتفريغ الصوتي.'
+              : 'Select lecture file or voice record, choose desired outputs, then click "Generate with AI" above to extract knowledge map and transcript.'}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 

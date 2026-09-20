@@ -14,20 +14,8 @@ export const LectureMiniPlayer = ({
   const currentChapter = lesson.chapters.find(c => activeSeconds >= c.startSeconds) || lesson.chapters[0];
 
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-surface)',
-      border: '1px solid var(--border-subtle)',
-      borderRadius: '16px',
-      padding: '12px 18px',
-      marginBottom: '20px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      boxShadow: 'var(--shadow-xs)',
-      flexWrap: 'wrap',
-      gap: '12px'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+    <div className="smart-mini-player">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
         <button
           onClick={onTogglePlay}
           aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
@@ -72,7 +60,8 @@ export const LectureMiniPlayer = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            marginTop: '2px'
+            marginTop: '2px',
+            flexWrap: 'wrap'
           }}>
             <span style={{
               display: 'inline-block',
@@ -90,23 +79,24 @@ export const LectureMiniPlayer = ({
 
       <button
         onClick={onOpenFullRoom}
+        className="smart-mini-player-btn"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           gap: '6px',
-          padding: '7px 14px',
+          padding: '8px 16px',
           borderRadius: '10px',
           backgroundColor: 'var(--bg-subtle)',
           border: '1px solid var(--border-subtle)',
           color: 'var(--text-primary)',
           fontSize: '12.5px',
-          fontWeight: '600',
+          fontWeight: '700',
           cursor: 'pointer',
           fontFamily: 'var(--font-arabic)',
           transition: 'all 0.15s ease'
         }}
       >
-        <span>{lang === 'ar' ? 'فتح غرفة الحصة' : 'Lesson Room'}</span>
+        <span>{lang === 'ar' ? 'فتح في حصصي' : 'Open in My Lessons'}</span>
         <ExternalLink size={14} color="var(--text-secondary)" />
       </button>
     </div>

@@ -16,13 +16,35 @@ export const useLesson = (lang) => {
   const kmRef = useRef(null);
 
   // Active Lesson State
-  const [activeLessonId, setActiveLessonId] = useState('l3');
+  const [activeLessonId, setActiveLessonId] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlId = params.get('id') || params.get('lessonId');
+      if (urlId && LESSONS_DATABASE[urlId]) return urlId;
+      const stored = sessionStorage.getItem('mtfq_target_lesson');
+      if (stored && LESSONS_DATABASE[stored]) {
+        sessionStorage.removeItem('mtfq_target_lesson');
+        return stored;
+      }
+    } catch (e) {}
+    return 'l3';
+  });
   const [lessonStatuses, setLessonStatuses] = useState(() => {
     const saved = localStorage.getItem('mtfq_lesson_statuses');
     return saved ? JSON.parse(saved) : { l1: true, l2: true, l3: false, l4: false, l5: false, l6: false };
   });
 
   const lesson = LESSONS_DATABASE[activeLessonId] || LESSONS_DATABASE.l3;
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlId = params.get('id') || params.get('lessonId');
+      if (urlId && LESSONS_DATABASE[urlId] && urlId !== activeLessonId) {
+        setActiveLessonId(urlId);
+      }
+    } catch (e) {}
+  }, [window.location.search]);
 
   // Mobile drawer state
   const [mobilePlaylistOpen, setMobilePlaylistOpen] = useState(false);

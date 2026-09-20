@@ -22,14 +22,14 @@ import {
   Server,
   Trophy,
   FileText,
-  RotateCcw,
   CreditCard,
   BookMarked,
   ClipboardList,
   TrendingUp,
   Medal,
   Sparkles,
-  PlayCircle
+  PlayCircle,
+  FolderCheck
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -76,8 +76,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             group: lang === 'ar' ? 'أدوات التعلم الذكية' : 'Smart Learning Tools',
             items: [
               { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic, badge: 'AI' },
-              { id: 'revision', path: '/student/revision', label: lang === 'ar' ? 'المراجعة الذكية' : 'Smart Revision', icon: RotateCcw },
-              { id: 'quiz', path: '/student/quiz', label: lang === 'ar' ? 'الكويزات والتدريب' : 'Quizzes', icon: Sparkles },
+              { id: 'converted-lectures', path: '/student/converted-lectures', label: lang === 'ar' ? 'المحاضرات المحولة' : 'Converted Lectures', icon: FolderCheck },
               { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal },
               { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
               { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription', icon: CreditCard },

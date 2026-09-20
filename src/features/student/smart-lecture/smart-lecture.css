@@ -1,0 +1,177 @@
+/* Smart Lecture AI Studio - Responsive & Calm Styling */
+
+.smart-lecture-container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .smart-lecture-container {
+    padding: 16px 14px 60px;
+  }
+}
+
+/* Header Responsive */
+.smart-lecture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .smart-lecture-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .smart-lecture-header button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Upload Grid Responsive */
+.smart-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 680px) {
+  .smart-upload-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Scrollable Tabs on Mobile */
+.smart-lecture-tabs-container {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 12px;
+  gap: 4px;
+  background-color: var(--bg-subtle);
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+
+.smart-lecture-tabs-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+.smart-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-arabic);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.smart-tab-btn.active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .smart-tab-btn {
+    padding: 12px 14px;
+    font-size: 12.5px;
+    gap: 6px;
+  }
+}
+
+/* Mini Player Responsive */
+.smart-mini-player {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-xs);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .smart-mini-player {
+    padding: 12px 14px;
+  }
+
+  .smart-mini-player-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Pulsing dot animation for active AI stage */
+@keyframes aiPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(21, 136, 199, 0.4);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(21, 136, 199, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(21, 136, 199, 0);
+  }
+}
+
+.ai-pulse-dot {
+  animation: aiPulse 2s infinite;
+}
+
+/* Knowledge Map Responsive Container */
+.smart-map-wrapper {
+  height: 480px;
+  width: 100%;
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .smart-map-wrapper {
+    height: 380px;
+  }
+}
+
+/* Smooth Entrance for Generated Content */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.smart-generated-results {
+  animation: fadeInSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
