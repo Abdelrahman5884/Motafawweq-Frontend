@@ -29,7 +29,8 @@ import {
   Medal,
   Sparkles,
   PlayCircle,
-  FolderCheck
+  FolderCheck,
+  Flame
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -342,20 +343,48 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{
-                fontSize: '12.5px',
-                fontWeight: '700',
-                color: 'var(--text-primary)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '6px'
               }}>
-                {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
+                <div style={{
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  color: 'var(--text-primary)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
+                </div>
+                {currentRole === 'student' && (
+                  <div
+                    title={lang === 'ar' ? 'سلسلة الاستريك المتتالية' : 'Daily Streak'}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      padding: '1.5px 6px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      color: '#D97706',
+                      fontSize: '10.5px',
+                      fontWeight: '800',
+                      border: '1px solid rgba(245, 158, 11, 0.22)',
+                      flexShrink: 0
+                    }}
+                  >
+                    <Flame size={12} color="#F59E0B" />
+                    <span>16 {lang === 'ar' ? 'يوم' : 'd'}</span>
+                  </div>
+                )}
               </div>
               <div style={{
                 fontSize: '10.5px',
                 color: 'var(--text-secondary)',
                 fontWeight: '500',
-                marginTop: '1px',
+                marginTop: '2px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'

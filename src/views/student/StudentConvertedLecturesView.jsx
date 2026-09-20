@@ -93,7 +93,6 @@ export const StudentConvertedLecturesView = () => {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all'); // all, quiz, graph
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   // Sync to localStorage
@@ -131,23 +130,11 @@ export const StudentConvertedLecturesView = () => {
     const topics = (item.keyTopics || []).join(' ');
     const query = searchQuery.trim().toLowerCase();
 
-    const matchesSearch = !query || 
+    return !query || 
       title.toLowerCase().includes(query) || 
       file.toLowerCase().includes(query) ||
       topics.toLowerCase().includes(query);
-
-    const matchesType = 
-      selectedFilter === 'all' ||
-      (selectedFilter === 'quiz' && item.outputs?.includes('quiz')) ||
-      (selectedFilter === 'graph' && item.outputs?.includes('graph'));
-
-    return matchesSearch && matchesType;
   });
-
-  // Calculate statistics
-  const totalCount = lectures.length;
-  const withQuizCount = lectures.reduce((acc, l) => acc + (l.questionsCount || 0), 0);
-  const withGraphCount = lectures.filter(l => l.outputs?.includes('graph')).length;
 
   return (
     <div style={{
@@ -226,218 +213,48 @@ export const StudentConvertedLecturesView = () => {
         </button>
       </div>
 
-      {/* Metric Counters Banner */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '14px',
-        marginBottom: '26px'
-      }}>
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '16px',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(59, 130, 246, 0.12)',
-            color: '#3B82F6',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <FolderCheck size={20} />
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {totalCount}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {lang === 'ar' ? 'محاضرات محولة' : 'Converted Lectures'}
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '16px',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-            color: '#10B981',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Brain size={20} />
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {withGraphCount}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {lang === 'ar' ? 'خرائط مفاهيم مستخرجة' : 'Knowledge Maps'}
-            </div>
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '16px',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(245, 158, 11, 0.12)',
-            color: '#F59E0B',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Sparkles size={20} />
-          </div>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {withQuizCount}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {lang === 'ar' ? 'أسئلة كويز متولدة' : 'Quiz Questions'}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filters Bar */}
+      {/* Calm Search Bar */}
       <div style={{
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        borderRadius: '18px',
-        padding: '14px 18px',
+        borderRadius: '16px',
+        padding: '10px 16px',
         marginBottom: '24px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '14px',
+        gap: '12px',
         boxShadow: 'var(--shadow-xs)'
       }}>
-        {/* Search Input */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: 'var(--bg-main)',
-          padding: '8px 14px',
-          borderRadius: '12px',
-          border: '1px solid var(--border-subtle)',
-          flex: '1 1 260px'
-        }}>
-          <Search size={16} style={{ color: 'var(--text-secondary)' }} />
-          <input
-            type="text"
-            placeholder={lang === 'ar' ? 'ابحث باسم المحاضرة أو الموضوع أو الملف...' : 'Search lectures, files, or topics...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+        <Search size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+        <input
+          type="text"
+          placeholder={lang === 'ar' ? 'ابحث باسم المحاضرة أو الموضوع أو اسم الملف...' : 'Search lectures, files, or topics...'}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            outline: 'none',
+            color: 'var(--text-primary)',
+            fontSize: '13.5px',
+            width: '100%',
+            fontFamily: 'inherit'
+          }}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
             style={{
               border: 'none',
               background: 'transparent',
-              outline: 'none',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-              width: '100%',
-              fontFamily: 'inherit'
-            }}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-
-        {/* Filters Group */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setSelectedFilter('all')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '10px',
-              fontSize: '12px',
-              fontWeight: '700',
-              border: 'none',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
-              backgroundColor: selectedFilter === 'all' ? 'var(--primary)' : 'var(--bg-main)',
-              color: selectedFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
-              transition: 'all 0.15s ease'
+              fontSize: '13px'
             }}
           >
-            {lang === 'ar' ? 'الكل' : 'All'}
+            ✕
           </button>
-          <button
-            onClick={() => setSelectedFilter('quiz')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '10px',
-              fontSize: '12px',
-              fontWeight: '700',
-              border: 'none',
-              cursor: 'pointer',
-              backgroundColor: selectedFilter === 'quiz' ? 'var(--primary)' : 'var(--bg-main)',
-              color: selectedFilter === 'quiz' ? '#FFFFFF' : 'var(--text-secondary)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            {lang === 'ar' ? 'تشمل كويز' : 'Has Quiz'}
-          </button>
-          <button
-            onClick={() => setSelectedFilter('graph')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '10px',
-              fontSize: '12px',
-              fontWeight: '700',
-              border: 'none',
-              cursor: 'pointer',
-              backgroundColor: selectedFilter === 'graph' ? 'var(--primary)' : 'var(--bg-main)',
-              color: selectedFilter === 'graph' ? '#FFFFFF' : 'var(--text-secondary)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            {lang === 'ar' ? 'تشمل خريطة مفاهيم' : 'Has Mindmap'}
-          </button>
-        </div>
+        )}
       </div>
 
       {/* Lectures Cards Grid */}
@@ -566,23 +383,7 @@ export const StudentConvertedLecturesView = () => {
                     )}
                   </div>
 
-                  {/* Summary / Snippet */}
-                  {lecture.summaryAr && (
-                    <p style={{
-                      fontSize: '12.5px',
-                      color: 'var(--text-secondary)',
-                      lineHeight: 1.5,
-                      margin: '0 0 14px 0',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}>
-                      {lecture.summaryAr}
-                    </p>
-                  )}
-
-                  {/* Generated Badges */}
+                  {/* Generated Badges - Platform unified styling */}
                   <div style={{
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -593,64 +394,68 @@ export const StudentConvertedLecturesView = () => {
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                        color: '#10B981',
-                        fontWeight: '700'
+                        gap: '5px',
+                        fontSize: '11.5px',
+                        padding: '3.5px 9px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        fontWeight: '600'
                       }}>
-                        <Brain size={12} />
-                        {lang === 'ar' ? 'خريطة مفاهيم' : 'Mindmap'}
+                        <Brain size={13} color="var(--primary)" />
+                        <span>{lang === 'ar' ? 'خريطة مفاهيم' : 'Mindmap'}</span>
                       </span>
                     )}
                     {hasTranscript && (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                        color: '#3B82F6',
-                        fontWeight: '700'
+                        gap: '5px',
+                        fontSize: '11.5px',
+                        padding: '3.5px 9px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        fontWeight: '600'
                       }}>
-                        <FileText size={12} />
-                        {lang === 'ar' ? 'تفريغ صوتي' : 'Transcript'}
+                        <FileText size={13} color="var(--primary)" />
+                        <span>{lang === 'ar' ? 'تفريغ صوتي' : 'Transcript'}</span>
                       </span>
                     )}
                     {hasTopics && (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        backgroundColor: 'rgba(139, 92, 246, 0.08)',
-                        color: '#8B5CF6',
-                        fontWeight: '700'
+                        gap: '5px',
+                        fontSize: '11.5px',
+                        padding: '3.5px 9px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        fontWeight: '600'
                       }}>
-                        <Layers size={12} />
-                        {lang === 'ar' ? 'محاور الدرس' : 'Topics'}
+                        <Layers size={13} color="var(--primary)" />
+                        <span>{lang === 'ar' ? 'محاور الدرس' : 'Topics'}</span>
                       </span>
                     )}
                     {hasQuiz && (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                        color: '#F59E0B',
-                        fontWeight: '700'
+                        gap: '5px',
+                        fontSize: '11.5px',
+                        padding: '3.5px 9px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        fontWeight: '600'
                       }}>
-                        <HelpCircle size={12} />
-                        {lang === 'ar' ? `كويز (${lecture.questionsCount || 5} أسئلة)` : 'Quiz'}
+                        <HelpCircle size={13} color="var(--primary)" />
+                        <span>{lang === 'ar' ? `كويز (${lecture.questionsCount || 5} أسئلة)` : 'Quiz'}</span>
                       </span>
                     )}
                   </div>

@@ -25,6 +25,7 @@ export const StudentSmartLectureView = () => {
 
   // Upload & AI Processing Simulation
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [lectureTitle, setLectureTitle] = useState('');
   const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'processing' | 'done'
   const [uploadProgress, setUploadProgress] = useState(0);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
@@ -99,11 +100,12 @@ export const StudentSmartLectureView = () => {
             name: lang === 'ar' ? 'محاضرة_الأحياء_الفصل_الثالث.mp4' : 'Biology_Lecture_Chapter3.mp4',
             sizeFormatted: '24.6 MB'
           };
+          const chosenTitle = lectureTitle.trim() || activeFile.name.replace(/\.[^/.]+$/, '') || lesson.titleAr;
           const newEntry = {
             id: `conv-${Date.now()}`,
             lessonId: 'l3',
-            titleAr: lesson.titleAr,
-            titleEn: lesson.title,
+            titleAr: chosenTitle,
+            titleEn: chosenTitle,
             subjectAr: 'الأحياء',
             subjectEn: 'Biology',
             gradeAr: 'الصف الثالث الثانوي',
@@ -138,6 +140,9 @@ export const StudentSmartLectureView = () => {
       sizeFormatted: formatFileSize(file.size),
       type: file.type || ''
     });
+    if (!lectureTitle) {
+      setLectureTitle(file.name.replace(/\.[^/.]+$/, ''));
+    }
     setUploadStatus('idle');
     setUploadProgress(100);
     setCurrentStageIndex(0);
@@ -181,6 +186,7 @@ export const StudentSmartLectureView = () => {
     if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
     if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
     setUploadedFile(null);
+    setLectureTitle('');
     setUploadStatus('idle');
     setUploadProgress(0);
     setCurrentStageIndex(0);
@@ -301,6 +307,8 @@ export const StudentSmartLectureView = () => {
         currentStageIndex={currentStageIndex}
         selectedOutputs={selectedOutputs}
         hasGenerated={hasGenerated}
+        lectureTitle={lectureTitle}
+        onTitleChange={setLectureTitle}
         onGenerate={handleGenerate}
         onToggleOutput={handleToggleOutput}
         onFileUpload={handleFileUpload}

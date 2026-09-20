@@ -17,16 +17,17 @@ export const BadgesShowcase = ({ lang }) => {
 
   return (
     <div style={{
-      backgroundColor: 'var(--bg-surface-elevated)',
-      border: '1.5px solid var(--border-medium)',
-      borderRadius: '24px',
-      padding: '24px',
-      marginBottom: '28px'
+      backgroundColor: 'var(--bg-surface)',
+      border: '1px solid var(--border-subtle)',
+      borderRadius: '20px',
+      padding: '22px 24px',
+      marginBottom: '26px',
+      boxShadow: 'var(--shadow-xs)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
-        <Trophy size={20} color="var(--warning)" />
-        <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-          {lang === 'ar' ? 'معرض شارات التميز والأوسمة (Badges):' : 'Badges & Achievements Showcase:'}
+        <Trophy size={18} color="var(--primary)" />
+        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-arabic)' }}>
+          {lang === 'ar' ? 'معرض شارات التميز والأوسمة' : 'Badges & Honors'}
         </h3>
       </div>
 

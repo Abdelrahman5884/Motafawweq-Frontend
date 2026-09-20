@@ -6,7 +6,8 @@ import {
   Video, 
   Music, 
   CheckCircle2, 
-  X
+  X,
+  PenLine
 } from 'lucide-react';
 import { LectureOutputSelector } from './LectureOutputSelector';
 import { LectureAiStagesProgress } from './LectureAiStagesProgress';
@@ -19,6 +20,8 @@ export const LectureRecorderUploader = ({
   currentStageIndex = 0,
   selectedOutputs = ['graph', 'transcript', 'topics'],
   hasGenerated = false,
+  lectureTitle = '',
+  onTitleChange,
   onGenerate,
   onToggleOutput,
   onFileUpload,
@@ -341,6 +344,63 @@ export const LectureRecorderUploader = ({
           lang={lang}
         />
       )}
+
+      {/* Custom Lecture Title Input */}
+      <div style={{
+        marginTop: '14px',
+        marginBottom: '14px',
+        backgroundColor: 'var(--bg-main)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: '14px',
+        padding: '10px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        transition: 'border-color 0.15s ease'
+      }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '8px',
+          backgroundColor: 'var(--primary-light)',
+          color: 'var(--primary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }}>
+          <PenLine size={16} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{
+            display: 'block',
+            fontSize: '11px',
+            color: 'var(--text-secondary)',
+            fontWeight: '600',
+            marginBottom: '2px',
+            fontFamily: 'var(--font-arabic)'
+          }}>
+            {isRtl ? 'اسم المحاضرة أو الحصة' : 'Lecture / Lesson Title'}
+          </label>
+          <input
+            type="text"
+            value={lectureTitle}
+            onChange={(e) => onTitleChange && onTitleChange(e.target.value)}
+            placeholder={isRtl ? 'اكتب اسماً مخصصاً للمحاضرة أو الحصة...' : 'Enter custom lecture or lesson name...'}
+            disabled={uploadStatus === 'uploading' || uploadStatus === 'processing'}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              outline: 'none',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              fontWeight: '700',
+              width: '100%',
+              fontFamily: 'inherit'
+            }}
+          />
+        </div>
+      </div>
 
       {/* Output Selector: Graph, Text, Topics, Quiz */}
       <LectureOutputSelector

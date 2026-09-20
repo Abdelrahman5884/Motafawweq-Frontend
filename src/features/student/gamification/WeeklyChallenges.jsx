@@ -4,15 +4,16 @@ import { Zap, CheckCircle2, Target } from 'lucide-react';
 export const WeeklyChallenges = ({ challenges, lang }) => {
   return (
     <div style={{
-      backgroundColor: 'var(--bg-surface-elevated)',
-      border: '1.5px solid var(--border-medium)',
-      borderRadius: '24px',
-      padding: '24px'
+      backgroundColor: 'var(--bg-surface)',
+      border: '1px solid var(--border-subtle)',
+      borderRadius: '20px',
+      padding: '22px 24px',
+      boxShadow: 'var(--shadow-xs)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
-        <Zap size={20} color="var(--primary)" />
-        <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-          {lang === 'ar' ? 'تحديات الأسبوع التعليمية (+XP إضافي):' : 'Weekly Challenges:'}
+        <Zap size={18} color="var(--primary)" />
+        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-arabic)' }}>
+          {lang === 'ar' ? 'تحديات الأسبوع التعليمية' : 'Weekly Challenges'}
         </h3>
       </div>
 

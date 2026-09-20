@@ -271,48 +271,6 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
 
         {/* ── RIGHT / END AREA: Global Controls & Actions ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Student gamification stats (Desktop only, in dashboard mode) */}
-          {isDashboardLayout && currentRole === 'student' && (
-            <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginInlineEnd: '4px' }}>
-              <div 
-                title={lang === 'ar' ? 'سلسلة المذاكرة المتتالية' : 'Study Streak'}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '5px 10px',
-                  borderRadius: '99px',
-                  backgroundColor: 'var(--bg-subtle)',
-                  border: '1px solid var(--border-subtle)',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <Flame size={14} color="#F5A623" />
-                <span>{STUDENT_PROFILE.streakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
-              </div>
-              <div 
-                title={lang === 'ar' ? 'نقاط الخبرة الكلية' : 'Total XP'}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '5px 10px',
-                  borderRadius: '99px',
-                  backgroundColor: 'var(--bg-subtle)',
-                  border: '1px solid var(--border-subtle)',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: 'var(--text-primary)'
-                }}
-              >
-                <Trophy size={14} color="#1588C7" />
-                <span>{STUDENT_PROFILE.xp.toLocaleString()} XP</span>
-              </div>
-            </div>
-          )}
-
           {/* Global Cmd+K Search Bar Button (Desktop) */}
           <button
             onClick={() => setSearchModalOpen(true)}
