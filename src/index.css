@@ -3668,9 +3668,10 @@ button, input, select, textarea {
   position: sticky;
   top: 80px;
   animation: lvSlideIn 0.3s ease;
+  width: 100%;
 }
 
-/* ── "درس اليوم" Card (Matching Image 2) ── */
+/* ── CARD 1: "درس اليوم" (Daily Study Plan) ── */
 .lv-today-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
@@ -3678,163 +3679,178 @@ button, input, select, textarea {
   padding: 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  gap: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
 }
 
-.lv-today-card__head {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.lv-today-card__title-row {
+.lv-today-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.lv-today-card__title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lv-today-card__badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-surface);
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  width: fit-content;
 }
 
 .lv-today-card__title {
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 17px;
+  font-weight: 900;
   color: var(--text-primary);
   margin: 0;
   font-family: var(--font-heading);
 }
 
-.lv-today-card__icon-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--primary-surface);
-  color: var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-[data-theme="dark"] .lv-today-card__icon-wrap {
-  background: var(--primary-surface);
-  color: var(--primary-light);
-}
-
-.lv-today-card__subtitle {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-/* Gauge Row with Circular Donut */
-.lv-today-card__gauge-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 4px 0;
-}
-
-.lv-today-card__circle-wrap {
+/* Donut Gauge */
+.lv-today-card__gauge {
   position: relative;
-  width: 84px;
-  height: 84px;
+  width: 76px;
+  height: 76px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.lv-today-card__circle-text {
+.lv-donut {
+  width: 76px;
+  height: 76px;
+}
+
+.lv-donut__bg {
+  stroke: var(--border-subtle);
+}
+
+.lv-donut__val {
+  stroke: var(--primary);
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lv-donut__center {
   position: absolute;
-  font-size: 19px;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.lv-donut__pct {
+  font-size: 15px;
   font-weight: 900;
   color: var(--text-primary);
+  line-height: 1.1;
   font-family: var(--font-heading);
 }
 
-.lv-today-card__gauge-info {
+.lv-donut__lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Checklist */
+.lv-today-card__checklist {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.lv-today-card__status-title {
-  font-size: 14.5px;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.lv-today-card__remaining-time {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-/* Interactive Checklist */
-.lv-today-card__checklist {
+  gap: 8px;
   background: var(--bg-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 10px;
+}
+
+.lv-check-item {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
-}
-
-.lv-today-card__check-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 9px 10px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.18s ease;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   user-select: none;
-  transition: color 0.15s ease;
-}
-.lv-today-card__check-item:hover .lv-today-card__check-label {
-  color: var(--text-primary);
 }
 
-.lv-today-card__check-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+.lv-check-item:hover {
+  border-color: var(--primary-light);
+  transform: translateX(-2px);
 }
 
-.lv-today-card__check-icon {
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-}
-.lv-today-card__check-icon.checked {
-  color: #10B981;
+.lv-check-item--done {
+  background: rgba(16, 185, 129, 0.05);
+  border-color: rgba(16, 185, 129, 0.25);
 }
 
-/* Prominent Action Button: متابعة الدرس ▶ */
-.lv-today-card__btn {
-  width: 100%;
+.lv-check-item__btn {
+  background: transparent;
+  border: none;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 18px;
-  border-radius: 12px;
-  border: none;
-  background: var(--primary);
-  color: #FFFFFF;
-  font-size: 14px;
-  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(21, 136, 199, 0.4);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.lv-today-card__btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(21, 136, 199, 0.5);
-}
-.lv-today-card__btn:active {
-  transform: translateY(0);
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
-/* ── Course Playlist Box ── */
-.lv-sidebar__playlist-box {
+.lv-check-item__icon--checked {
+  color: #10B981;
+}
+
+.lv-check-item__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lv-check-item__label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.lv-check-item--done .lv-check-item__label {
+  color: var(--text-secondary);
+}
+
+.lv-check-item__time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.lv-check-item__badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+  flex-shrink: 0;
+}
+
+/* ── CARD 2: "محتوى الدورة" Playlist ── */
+.lv-playlist-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 18px;
@@ -3842,76 +3858,201 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
 }
 
-.lv-sidebar__head {
+.lv-playlist-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-subtle);
-  padding-bottom: 10px;
-  flex-wrap: wrap;
   gap: 8px;
 }
 
-.lv-sidebar__title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.lv-playlist-card__sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: block;
 }
 
-.lv-sidebar__title {
-  font-size: 15px;
-  font-weight: 800;
+.lv-playlist-card__title {
+  font-size: 16px;
+  font-weight: 900;
   color: var(--text-primary);
   margin: 0;
   font-family: var(--font-heading);
 }
 
-.lv-sidebar__pct-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 10px;
-  border-radius: 99px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #10B981;
-  font-size: 12.5px;
-  font-weight: 900;
-  font-family: var(--font-heading);
-  animation: lvFadeIn 0.3s ease;
+.lv-playlist-card__progress-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
-.lv-sidebar__progress-text {
-  font-size: 11.5px;
-  font-weight: 700;
+.lv-playlist-card__pct {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--primary);
+  font-family: var(--font-heading);
+}
+
+.lv-playlist-card__count {
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
-.lv-sidebar__bar {
+.lv-course-pbar {
   width: 100%;
   height: 6px;
-  border-radius: 99px;
   background: var(--bg-subtle);
+  border-radius: 99px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
 }
 
-.lv-sidebar__bar-fill {
+.lv-course-pbar__fill {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #10B981, #06B6D4);
-  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  background: linear-gradient(90deg, #1588C7, #5CB6DB);
+  transition: width 0.4s ease;
 }
 
-/* Playlist List */
+.lv-playlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-inline-end: 4px;
+}
+
+.lv-playlist-list::-webkit-scrollbar {
+  width: 4px;
+}
+.lv-playlist-list::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 4px;
+}
+
+.lv-pl-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.lv-pl-item:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-medium);
+  transform: translateX(-2px);
+}
+
+.lv-pl-item--active {
+  background: var(--primary-surface) !important;
+  border: 1.5px solid var(--primary) !important;
+  box-shadow: 0 2px 10px rgba(21, 136, 199, 0.12);
+}
+
+.lv-pl-item--completed {
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.lv-pl-item__idx {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.lv-pl-item--active .lv-pl-item__idx {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.lv-pl-item__completed-icon {
+  color: #10B981;
+}
+
+.lv-pl-item__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lv-pl-item__title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-pl-item--active .lv-pl-item__title {
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.lv-pl-item__time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.lv-pl-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.lv-pl-item__status-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.lv-pl-item__status-tag.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.lv-pl-item__status-tag.completed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.lv-pl-item__lock {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+/* Mobile Playlist Drawer List */
 .lv-playlist {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 420px;
+  max-height: 60vh;
   overflow-y: auto;
   padding-inline-end: 2px;
 }
@@ -3919,10 +4060,9 @@ button, input, select, textarea {
   width: 4px;
 }
 .lv-playlist::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-medium);
   border-radius: 4px;
 }
-
 .lv-playlist__item {
   display: flex;
   align-items: center;
@@ -3932,24 +4072,14 @@ button, input, select, textarea {
   cursor: pointer;
   transition: all 0.18s ease;
   border: 1px solid transparent;
-  animation: lvFadeIn 0.25s ease both;
 }
 .lv-playlist__item:hover {
   background: var(--bg-subtle);
 }
-
-/* Active Playlist Item */
 .lv-playlist__item.active {
-  background: rgba(21, 136, 199, 0.08);
-  border: 1px solid rgba(21, 136, 199, 0.3);
-  border-inline-end: 3px solid var(--primary);
+  background: var(--primary-surface);
+  border: 1px solid var(--primary);
 }
-[data-theme="dark"] .lv-playlist__item.active {
-  background: rgba(21, 136, 199, 0.12);
-  border-color: rgba(21, 136, 199, 0.35);
-  border-inline-end: 3px solid var(--primary-light);
-}
-
 .lv-playlist__icon {
   flex-shrink: 0;
   color: var(--text-muted);
@@ -3957,13 +4087,9 @@ button, input, select, textarea {
 .lv-playlist__item.active .lv-playlist__icon {
   color: var(--primary);
 }
-[data-theme="dark"] .lv-playlist__item.active .lv-playlist__icon {
-  color: var(--primary-light);
-}
 .lv-playlist__item.done .lv-playlist__icon {
   color: #10B981;
 }
-
 .lv-playlist__body {
   flex: 1;
   min-width: 0;
@@ -3971,19 +4097,16 @@ button, input, select, textarea {
   flex-direction: column;
   gap: 2px;
 }
-
 .lv-playlist__top-line {
   display: flex;
   align-items: center;
   gap: 4px;
 }
-
 .lv-playlist__num {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
 }
-
 .lv-playlist__title {
   font-size: 12.5px;
   font-weight: 600;
@@ -3996,10 +4119,6 @@ button, input, select, textarea {
   font-weight: 700;
   color: var(--primary);
 }
-[data-theme="dark"] .lv-playlist__item.active .lv-playlist__title {
-  color: var(--primary-light);
-}
-
 .lv-playlist__time {
   font-size: 11px;
   color: var(--text-muted);
@@ -5127,6 +5246,488 @@ button, input, select, textarea {
   }
 }
 
+
+/* =========================================================================
+   LANDING PAGE — KEYFRAMES & ANIMATIONS
+   ========================================================================= */
+
+/* Audio waveform bar bounce (used in pipeline step 0) */
+@keyframes liveWave {
+  0%, 100% { height: 12px; opacity: 0.5; }
+  50% { height: 40px; opacity: 1; }
+}
+
+/* Sparkle particle twinkle */
+@keyframes particleTwinkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Hero entrance — fade up */
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Gentle float for brand emblem */
+@keyframes gentleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* Subtle pulse glow for CTA buttons */
+@keyframes ctaPulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(21, 136, 199, 0.35); }
+  50% { box-shadow: 0 8px 36px rgba(21, 136, 199, 0.55); }
+}
+
+/* Section slide in from bottom */
+@keyframes sectionSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade in scale — for cards */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Shimmer effect for badges */
+@keyframes badgeShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Smooth counter count-up feel */
+@keyframes countPop {
+  0% { opacity: 0; transform: scale(0.8) translateY(12px); }
+  60% { transform: scale(1.05) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Rotating highlight ring */
+@keyframes rotateHighlight {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
+/* =========================================================================
+   LANDING PAGE — HERO SECTION POLISH
+   ========================================================================= */
+
+/* Hero section entrance stagger */
+.landing-hero-badge {
+  animation: heroFadeUp 0.7s ease-out both;
+  animation-delay: 0.1s;
+}
+
+.landing-hero-emblem {
+  animation: heroFadeUp 0.7s ease-out both, gentleFloat 5s ease-in-out 1s infinite;
+  animation-delay: 0.25s;
+}
+
+.landing-hero-headline {
+  animation: heroFadeUp 0.7s ease-out both;
+  animation-delay: 0.35s;
+}
+
+.landing-hero-subtitle {
+  animation: heroFadeUp 0.7s ease-out both;
+  animation-delay: 0.5s;
+}
+
+.landing-hero-ctas {
+  animation: heroFadeUp 0.7s ease-out both;
+  animation-delay: 0.65s;
+}
+
+.landing-hero-trust {
+  animation: heroFadeUp 0.7s ease-out both;
+  animation-delay: 0.8s;
+}
+
+/* Primary CTA animated glow */
+.landing-cta-primary {
+  animation: ctaPulse 3s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.landing-cta-primary:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 12px 36px rgba(21, 136, 199, 0.5) !important;
+}
+
+/* Secondary CTA hover */
+.landing-cta-secondary {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.landing-cta-secondary:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary) !important;
+  box-shadow: 0 6px 20px rgba(21, 136, 199, 0.15);
+}
+
+
+/* =========================================================================
+   LANDING PAGE — SECTION ENTRANCE ANIMATIONS
+   ========================================================================= */
+
+.landing-section {
+  animation: sectionSlideIn 0.8s ease-out both;
+}
+
+.landing-section:nth-of-type(2) { animation-delay: 0.1s; }
+.landing-section:nth-of-type(3) { animation-delay: 0.15s; }
+.landing-section:nth-of-type(4) { animation-delay: 0.2s; }
+
+/* Pipeline step buttons — hover polish */
+.landing-pipeline-step {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.landing-pipeline-step:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+
+/* =========================================================================
+   LANDING PAGE — CARD ANIMATIONS & HOVER EFFECTS
+   ========================================================================= */
+
+/* Glow card entrance */
+.glow-card {
+  animation: fadeInScale 0.6s ease-out both;
+}
+
+.glow-card:nth-child(1) { animation-delay: 0.1s; }
+.glow-card:nth-child(2) { animation-delay: 0.2s; }
+.glow-card:nth-child(3) { animation-delay: 0.3s; }
+.glow-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* Comparison cards */
+.landing-compare-card {
+  animation: fadeInScale 0.6s ease-out both;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-compare-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* Pricing cards */
+.landing-pricing-card {
+  animation: fadeInScale 0.6s ease-out both;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-pricing-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(21, 136, 199, 0.12);
+}
+
+/* Testimonial cards */
+.landing-testimonial-card {
+  animation: fadeInScale 0.6s ease-out both;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-testimonial-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* FAQ accordion animation */
+.landing-faq-item {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-faq-item:hover {
+  transform: translateX(4px);
+}
+
+[dir="rtl"] .landing-faq-item:hover {
+  transform: translateX(-4px);
+}
+
+
+/* =========================================================================
+   LANDING PAGE — STATS SECTION
+   ========================================================================= */
+
+.landing-stat-item {
+  animation: countPop 0.7s ease-out both;
+}
+
+.landing-stat-item:nth-child(1) { animation-delay: 0.1s; }
+.landing-stat-item:nth-child(2) { animation-delay: 0.25s; }
+.landing-stat-item:nth-child(3) { animation-delay: 0.4s; }
+.landing-stat-item:nth-child(4) { animation-delay: 0.55s; }
+
+
+/* =========================================================================
+   LANDING PAGE — CTA BANNER SECTION
+   ========================================================================= */
+
+.cta-section {
+  position: relative;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  border-radius: 99px;
+}
+
+
+/* =========================================================================
+   LANDING PAGE — CURRICULUM CARDS
+   ========================================================================= */
+
+.landing-curriculum-card {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-curriculum-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary) !important;
+  box-shadow: 0 8px 24px rgba(21, 136, 199, 0.1);
+}
+
+
+/* =========================================================================
+   LANDING PAGE — PIPELINE PREVIEW CARD
+   ========================================================================= */
+
+.landing-preview-card {
+  transition: all 0.3s ease;
+}
+
+/* Audio bar enhanced styling */
+.audio-bar {
+  height: 20px;
+}
+
+
+/* =========================================================================
+   LANDING PAGE — RESPONSIVE MOBILE POLISH
+   ========================================================================= */
+
+@media (max-width: 767px) {
+  .landing-hero-headline {
+    font-size: clamp(1.8rem, 6vw, 2.4rem) !important;
+  }
+  
+  .landing-hero-ctas {
+    flex-direction: column !important;
+    width: 100%;
+  }
+  
+  .landing-hero-ctas > * {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center;
+  }
+}
+
+/* =========================================================================
+   LANDING PAGE — CYBER GRID, LIGHT BEAM & PARTICLES (Motafawweq Colors)
+   ========================================================================= */
+
+@keyframes beamSweep {
+  0% {
+    transform: translateX(-100%) rotate(-15deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.65;
+  }
+  70% {
+    opacity: 0.65;
+  }
+  100% {
+    transform: translateX(200%) rotate(-15deg);
+    opacity: 0;
+  }
+}
+
+@keyframes gridPulse {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.cyber-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(21, 136, 199, 0.14) 1.5px, transparent 1.5px),
+    linear-gradient(to right, rgba(21, 136, 199, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(21, 136, 199, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px, 72px 72px, 72px 72px;
+  pointer-events: none;
+  z-index: 1;
+  animation: gridPulse 8s ease-in-out infinite;
+  mask-image: radial-gradient(ellipse at 50% 40%, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 40%, black 40%, transparent 80%);
+}
+
+.hero-light-beam {
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(21, 136, 199, 0.06) 45%, rgba(92, 182, 219, 0.18) 50%, rgba(21, 136, 199, 0.06) 55%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+  animation: beamSweep 10s ease-in-out infinite;
+}
+
+.sparkle-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 0 10px 2px var(--primary, #1588C7);
+  pointer-events: none;
+  z-index: 2;
+  animation: particleTwinkle 3s ease-in-out infinite;
+}
+
+/* =========================================================================
+   LANDING PAGE — HERO LOGO ORBITAL ANIMATIONS (Motafawweq Colors)
+   ========================================================================= */
+
+@keyframes heroLogoFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%  { transform: translateY(-12px) rotate(0.8deg); }
+  66%  { transform: translateY(-6px) rotate(-0.8deg); }
+}
+
+@keyframes heroRingPulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.1); }
+}
+
+@keyframes heroRingPulse2 {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.18); }
+}
+
+@keyframes heroOrbitSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes heroOrbitSpinReverse {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+@keyframes heroParticleGlow {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.6); }
+}
+
+@keyframes heroLogoGlow {
+  0%, 100% { filter: drop-shadow(0 0 16px rgba(21,136,199,0.5)) drop-shadow(0 0 8px rgba(92,182,219,0.35)); }
+  50% { filter: drop-shadow(0 0 28px rgba(21,136,199,0.85)) drop-shadow(0 0 16px rgba(92,182,219,0.6)); }
+}
+
+@keyframes heroLogoEntrance {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.hero-logo-wrapper {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: heroLogoFloat 4.5s ease-in-out infinite, heroLogoEntrance 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.hero-logo-img {
+  width: 82px;
+  height: 82px;
+  object-fit: contain;
+  position: relative;
+  z-index: 10;
+  animation: heroLogoGlow 3s ease-in-out infinite;
+}
+
+.hero-ring-1 {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(21, 136, 199, 0.45);
+  animation: heroRingPulse 2.8s ease-in-out infinite;
+}
+
+.hero-ring-2 {
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  border: 1px dashed rgba(21, 136, 199, 0.3);
+  animation: heroOrbitSpin 12s linear infinite;
+}
+
+.hero-ring-3 {
+  position: absolute;
+  inset: -32px;
+  border-radius: 50%;
+  border: 1px dashed rgba(92, 182, 219, 0.28);
+  animation: heroOrbitSpinReverse 18s linear infinite;
+}
+
+.hero-ring-4 {
+  position: absolute;
+  inset: -48px;
+  border-radius: 50%;
+  border: 1px solid rgba(21, 136, 199, 0.12);
+  animation: heroRingPulse2 3.5s ease-in-out infinite 0.8s;
+}
+
+.hero-orbit-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: heroParticleGlow 2s ease-in-out infinite;
+}
 
 
 

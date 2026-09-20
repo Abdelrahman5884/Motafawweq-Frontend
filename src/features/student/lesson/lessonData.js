@@ -14,7 +14,7 @@ export const COURSE_INFO = {
 export const LESSONS_DATABASE = {
   l1: {
     id: 'l1',
-    titleAr: 'مقدمة البناء الضوئي وتركيب البلاستيدة الخضراء',
+    titleAr: 'الحصة 1: مقدمة البناء الضوئي وتركيب البلاستيدة الخضراء',
     descAr: 'دراسة تشريح البلاستيدة الخضراء، أغشية الثيلاكويد، والستروما، وأهمية صبغة الكلوروفيل أ وب في امتصاص الطيف الضوئي.',
     durationSec: 1500,
     durationFmt: '25:00',
@@ -29,7 +29,7 @@ export const LESSONS_DATABASE = {
   },
   l2: {
     id: 'l2',
-    titleAr: 'الأصباغ النباتية ومطياف الامتصاص والطاقة الضوئية',
+    titleAr: 'الحصة 2: الأصباغ النباتية ومطياف الامتصاص والطاقة الضوئية',
     descAr: 'تحليل امتصاص الفوتونات الضوئية بواسطة الإلكترونات في ذرة المغنيسيوم الموجودة بمركز جزيء الكلوروفيل أ.',
     durationSec: 1800,
     durationFmt: '30:00',
@@ -44,7 +44,7 @@ export const LESSONS_DATABASE = {
   },
   l3: {
     id: 'l3',
-    titleAr: 'Lecture 3: البناء الضوئي وحركية الطاقة في الخلايا النباتية',
+    titleAr: 'الحصة 3: البناء الضوئي وحركية الطاقة في الخلايا النباتية',
     descAr: 'Feature maps, photosynthesis architecture, Van Niel isotope experiment, Z-scheme electron transport, and Calvin cycle synthesis.',
     durationSec: 2100,
     durationFmt: '35:00',
@@ -60,7 +60,7 @@ export const LESSONS_DATABASE = {
   },
   l4: {
     id: 'l4',
-    titleAr: 'Lecture 4: التنفس الخلوي وانشطار الجلوكوز في السيتوسول',
+    titleAr: 'الحصة 4: التنفس الخلوي وانشطار الجلوكوز في السيتوسول',
     descAr: 'مراحل تحلل الجلوكوز، إنتاج حمض البيروفيك، وحساب صافي مركبات ATP و NADH قبل دخول الميتوكوندريا.',
     durationSec: 2400,
     durationFmt: '40:00',
@@ -75,7 +75,7 @@ export const LESSONS_DATABASE = {
   },
   l5: {
     id: 'l5',
-    titleAr: 'Lecture 5: دورة كريبس وسلسلة نقل الإلكترون التنافسية',
+    titleAr: 'الحصة 5: دورة كريبس وسلسلة نقل الإلكترون التنافسية',
     descAr: 'أكسدة أستيل كو-أ، دورات حمض الستريك، والأكسدة الفسفورية لإنتاج 38 جزيء ATP لكل جزيء جلوكوز.',
     durationSec: 2700,
     durationFmt: '45:00',
@@ -90,7 +90,7 @@ export const LESSONS_DATABASE = {
   },
   l6: {
     id: 'l6',
-    titleAr: 'Lecture 6: التخمر اللاهوائي والتطبيقات الحيوية المعاصرة',
+    titleAr: 'الحصة 6: التخمر اللاهوائي والتطبيقات الحيوية المعاصرة',
     descAr: 'التخمر الحمضي في العضلات والتخمر الكحولي في فطر الخميرة، وأضرار الإجهاد العضلي وتراكم حمض اللاكتيك.',
     durationSec: 1680,
     durationFmt: '28:00',

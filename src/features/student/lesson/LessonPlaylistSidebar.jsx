@@ -24,7 +24,7 @@ export const LessonPlaylistSidebar = ({
   const donutDashoffset = donutCircumference - (donutProgressVal / 100) * donutCircumference;
 
   return (
-    <div className="lv-sidebar">
+    <>
       {/* ── CARD 1: "درس اليوم" Checklist & Circular Progress ── */}
       <div className="lv-today-card">
         <div className="lv-today-card__header">
@@ -103,7 +103,7 @@ export const LessonPlaylistSidebar = ({
           <div className="lv-playlist-card__progress-pill">
             <span className="lv-playlist-card__pct">{courseCompletionPct}%</span>
             <span className="lv-playlist-card__count">
-              ({completedCount}/{playlist.length} {lang === 'ar' ? 'حصص' : 'lessons'})
+              {lang === 'ar' ? `${completedCount} من ${playlist.length} حصص` : `${completedCount} of ${playlist.length} lessons`}
             </span>
           </div>
         </div>
@@ -153,6 +153,6 @@ export const LessonPlaylistSidebar = ({
           })}
         </div>
       </div>
-    </div>
+    </>
   );
 };
