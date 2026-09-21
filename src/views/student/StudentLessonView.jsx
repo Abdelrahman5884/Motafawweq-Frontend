@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import {
   FileText, AlignLeft, Map, Folder, HelpCircle,
-  ChevronRight, ArrowLeft, ArrowRight, CheckCircle2,
+  ChevronRight, ChevronLeft, ArrowLeft, ArrowRight, CheckCircle2,
   BookOpen, X
 } from 'lucide-react';
 import {
@@ -318,7 +318,7 @@ export const StudentLessonView = () => {
           <ChevronRight size={13} className="lv-crumb-sep" />
           <span className="lv-crumb-item">{courseInfo.subjectAr}</span>
           <ChevronRight size={13} className="lv-crumb-sep" />
-          <span className="lv-crumb-item current">{lesson.titleAr}</span>
+          <span className="lv-crumb-current">{lesson.titleAr}</span>
         </nav>
       </div>
 
@@ -365,7 +365,32 @@ export const StudentLessonView = () => {
             lang={lang}
           />
 
-          {/* Tabs Navigation & Content */}
+          {/* Mobile In-flow Course Playlist Card (Never overlaps content) */}
+          <button
+            type="button"
+            className="lv-mobile-playlist-card mobile-only"
+            onClick={() => setMobilePlaylistOpen(true)}
+          >
+            <div className="lv-mobile-playlist-card__info">
+              <div className="lv-mobile-playlist-card__icon">
+                <BookOpen size={18} />
+              </div>
+              <div className="lv-mobile-playlist-card__text">
+                <span className="lv-mobile-playlist-card__title">
+                  {lang === 'ar' ? 'فهرس حصص المنهج ومحتوى الدورة' : 'Course Modules & Lessons'}
+                </span>
+                <span className="lv-mobile-playlist-card__sub">
+                  {lang === 'ar' ? `${completedCount} من ${playlist.length} حصص مكتملة` : `${completedCount} of ${playlist.length} completed`}
+                </span>
+              </div>
+            </div>
+            <div className="lv-mobile-playlist-card__action">
+              <span className="lv-mobile-playlist-card__pct">{courseCompletionPct}%</span>
+              {isRtl ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+            </div>
+          </button>
+
+          {/* Tabs Navigation & Content (Inline for both Desktop and Mobile) */}
           <div className="lv-tabs">
             <div className="lv-tabs__header" role="tablist">
               {tabs.map(t => {
@@ -377,12 +402,7 @@ export const StudentLessonView = () => {
                     role="tab"
                     aria-selected={isActive}
                     className={`lv-tabs__btn ${isActive ? 'active' : ''}`}
-                    onClick={() => {
-                      setActiveTab(t.id);
-                      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-                        setMobileSubpage(t.id);
-                      }
-                    }}
+                    onClick={() => setActiveTab(t.id)}
                   >
                     <Icon size={16} />
                     <span>{t.label}</span>
@@ -391,38 +411,9 @@ export const StudentLessonView = () => {
               })}
             </div>
 
-            {/* Desktop Tabs Body */}
-            <div className="lv-tabs__body lv-tabs__body--desktop-only">
+            {/* Inline Tabs Body */}
+            <div className="lv-tabs__body">
               {renderTabContent(activeTab)}
-            </div>
-
-            {/* Mobile Dedicated Page Quick-Open Banner */}
-            <div className="lv-mobile-open-banner">
-              <div className="lv-mobile-open-banner__info">
-                <div className="lv-mobile-open-banner__icon">
-                  {(() => {
-                    const curr = tabs.find(t => t.id === activeTab);
-                    const TabIcon = curr ? curr.icon : FileText;
-                    return <TabIcon size={18} />;
-                  })()}
-                </div>
-                <div className="lv-mobile-open-banner__text">
-                  <span className="lv-mobile-open-banner__title">
-                    {tabs.find(t => t.id === activeTab)?.label}
-                  </span>
-                  <span className="lv-mobile-open-banner__sub">
-                    {lang === 'ar' ? 'عرض مستقل بملء الشاشة لراحة أكبر وبدون تشتيت' : 'Distraction-free full screen view'}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="lv-mobile-open-banner__btn"
-                onClick={() => setMobileSubpage(activeTab)}
-              >
-                <span>{lang === 'ar' ? 'فتح في صفحة مخصصة' : 'Open Full Page'}</span>
-                {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
-              </button>
             </div>
           </div>
         </main>
@@ -444,18 +435,6 @@ export const StudentLessonView = () => {
             isRtl={isRtl}
           />
         </aside>
-      </div>
-
-      {/* MOBILE FLOATING PLAYLIST TRIGGER */}
-      <div className="lv-mobile-bar mobile-only">
-        <button
-          className="lv-mobile-bar__btn"
-          onClick={() => setMobilePlaylistOpen(true)}
-        >
-          <BookOpen size={16} />
-          <span>{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</span>
-          <span className="lv-mobile-bar__count">{courseCompletionPct}%</span>
-        </button>
       </div>
 
       {/* Modals: Confirmation, Celebration, Mobile Drawer */}

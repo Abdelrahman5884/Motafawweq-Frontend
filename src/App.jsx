@@ -152,8 +152,8 @@ function AppShell({ children }) {
             className="app-main-content"
             style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}
           >
-            {/* Mobile menu button — only on dashboard pages */}
-            {hasSidebar && (
+            {/* Mobile menu button — only on dashboard pages (hidden on focused lesson view) */}
+            {hasSidebar && !location.pathname.includes('/lesson/') && (
               <button
                 className="mobile-sidebar-toggle"
                 onClick={() => setMobileSidebarOpen(true)}

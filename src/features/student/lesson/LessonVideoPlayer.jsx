@@ -174,27 +174,29 @@ export const LessonVideoPlayer = ({
           </button>
 
           <div className="lv-controls__right">
-            {/* Mute / Volume */}
-            <button
-              className="lv-ctrl-btn"
-              onClick={() => setIsMuted(!isMuted)}
-              title={isMuted ? 'إلغاء الكتم' : 'كتم'}
-            >
-              {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
-              onChange={e => {
-                setVolume(parseFloat(e.target.value));
-                setIsMuted(false);
-              }}
-              className="lv-vol"
-              title="مستوى الصوت"
-            />
+            {/* Mute / Volume (Desktop only — phones use hardware buttons) */}
+            <div className="lv-vol-group desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                className="lv-ctrl-btn"
+                onClick={() => setIsMuted(!isMuted)}
+                title={isMuted ? 'إلغاء الكتم' : 'كتم'}
+              >
+                {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={e => {
+                  setVolume(parseFloat(e.target.value));
+                  setIsMuted(false);
+                }}
+                className="lv-vol"
+                title="مستوى الصوت"
+              />
+            </div>
 
             {/* Playback Speed */}
             <select
@@ -208,15 +210,6 @@ export const LessonVideoPlayer = ({
               ))}
             </select>
 
-            {/* Mobile Landscape Quick Switcher */}
-            <button
-              className="lv-ctrl-btn lv-mobile-rot-btn mobile-only"
-              onClick={toggleLandscape}
-              title="تشغيل بالعرض (Landscape)"
-            >
-              <RotateCw size={15} />
-            </button>
-
             {/* Adaptive Media Switcher (Video vs Audio) */}
             <button
               className={`lv-ctrl-btn lv-mode-toggle ${mediaMode === 'audio' ? 'active' : ''}`}
@@ -224,6 +217,15 @@ export const LessonVideoPlayer = ({
               title={mediaMode === 'video' ? 'التحويل للاستماع الصوتي (Podcast)' : 'التحويل للفيديو'}
             >
               {mediaMode === 'video' ? <Headphones size={16} /> : <Video size={16} />}
+            </button>
+
+            {/* Fullscreen Button */}
+            <button
+              className="lv-ctrl-btn"
+              onClick={togglePlayerFS}
+              title={isPlayerFS ? 'إنهاء وضع الشاشة الكاملة' : 'شاشة كاملة'}
+            >
+              {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
           </div>
         </div>
