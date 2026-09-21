@@ -1,7 +1,7 @@
 import React from 'react';
-import { Trophy, Crown } from 'lucide-react';
+import { Trophy, Crown, Sparkles } from 'lucide-react';
 
-export const LeaguePodium = ({ top1, top2, top3, lang }) => {
+export const LeaguePodium = ({ top1, top2, top3, lang, onSelectStudent, leagueBadge }) => {
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',
@@ -25,9 +25,21 @@ export const LeaguePodium = ({ top1, top2, top3, lang }) => {
             {lang === 'ar' ? 'منصة التتويج والمراكز الأولى' : 'Top 3 Podium'}
           </h3>
         </div>
-        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-          دوري النخبة الماسي
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+            {leagueBadge || 'دوري النخبة الماسي'}
+          </span>
+          <span style={{ 
+            fontSize: '11px', 
+            color: 'var(--primary)', 
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '2px 8px',
+            borderRadius: '6px',
+            fontWeight: '600'
+          }}>
+            اضغط لعرض الإنجازات 🏅
+          </span>
+        </div>
       </div>
 
       {/* Compact Podiums Layout */}
@@ -42,14 +54,24 @@ export const LeaguePodium = ({ top1, top2, top3, lang }) => {
       }}>
         {/* 2nd Place */}
         {top2 && (
-          <div style={{
-            flex: 1,
-            maxWidth: '180px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center'
-          }}>
+          <div 
+            onClick={() => onSelectStudent?.(top2)}
+            role="button"
+            tabIndex={0}
+            title={`عرض إنجازات ${top2.nameAr}`}
+            style={{
+              flex: 1,
+              maxWidth: '180px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
             <div style={{ position: 'relative', marginBottom: '8px' }}>
               <img
                 src={top2.avatar}
@@ -59,16 +81,25 @@ export const LeaguePodium = ({ top1, top2, top3, lang }) => {
                   height: '52px',
                   borderRadius: '50%',
                   objectFit: 'cover',
-                  border: '2px solid var(--border-medium)'
+                  border: top2.isMe ? '2.5px solid var(--primary)' : '2px solid var(--border-medium)'
                 }}
               />
             </div>
 
-            <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+            <div style={{ 
+              fontSize: '13px', 
+              fontWeight: '800', 
+              color: top2.isMe ? 'var(--primary)' : 'var(--text-primary)', 
+              marginBottom: '2px', 
+              whiteSpace: 'nowrap', 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              maxWidth: '100%' 
+            }}>
               {top2.nameAr}
             </div>
             <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)', marginBottom: '8px' }}>
-              {top2.score.toLocaleString()} نقطة
+              {top2.score?.toLocaleString()} نقطة
             </div>
 
             {/* 2nd pedestal */}
@@ -92,14 +123,24 @@ export const LeaguePodium = ({ top1, top2, top3, lang }) => {
 
         {/* 1st Place */}
         {top1 && (
-          <div style={{
-            flex: 1,
-            maxWidth: '200px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center'
-          }}>
+          <div 
+            onClick={() => onSelectStudent?.(top1)}
+            role="button"
+            tabIndex={0}
+            title={`عرض إنجازات ${top1.nameAr}`}
+            style={{
+              flex: 1,
+              maxWidth: '200px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
             <div style={{ position: 'relative', marginBottom: '8px' }}>
               <Crown size={20} color="var(--warning)" style={{ position: 'absolute', top: '-18px', insetInlineStart: '50%', transform: 'translateX(50%)' }} />
               <img
@@ -110,17 +151,26 @@ export const LeaguePodium = ({ top1, top2, top3, lang }) => {
                   height: '62px',
                   borderRadius: '50%',
                   objectFit: 'cover',
-                  border: '2.5px solid var(--warning)',
+                  border: top1.isMe ? '3px solid var(--primary)' : '2.5px solid var(--warning)',
                   boxShadow: '0 4px 14px rgba(245, 158, 11, 0.25)'
                 }}
               />
             </div>
 
-            <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+            <div style={{ 
+              fontSize: '13.5px', 
+              fontWeight: '800', 
+              color: top1.isMe ? 'var(--primary)' : 'var(--text-primary)', 
+              marginBottom: '2px', 
+              whiteSpace: 'nowrap', 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              maxWidth: '100%' 
+            }}>
               {top1.nameAr}
             </div>
             <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--warning)', marginBottom: '8px' }}>
-              {top1.score.toLocaleString()} نقطة
+              {top1.score?.toLocaleString()} نقطة
             </div>
 
             {/* 1st pedestal */}
@@ -144,14 +194,24 @@ export const LeaguePodium = ({ top1, top2, top3, lang }) => {
 
         {/* 3rd Place */}
         {top3 && (
-          <div style={{
-            flex: 1,
-            maxWidth: '180px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center'
-          }}>
+          <div 
+            onClick={() => onSelectStudent?.(top3)}
+            role="button"
+            tabIndex={0}
+            title={`عرض إنجازات ${top3.nameAr}`}
+            style={{
+              flex: 1,
+              maxWidth: '180px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
             <div style={{ position: 'relative', marginBottom: '8px' }}>
               <img
                 src={top3.avatar}
@@ -161,16 +221,25 @@ export const LeaguePodium = ({ top1, top2, top3, lang }) => {
                   height: '52px',
                   borderRadius: '50%',
                   objectFit: 'cover',
-                  border: '2px solid #D97706'
+                  border: top3.isMe ? '2.5px solid var(--primary)' : '2px solid #D97706'
                 }}
               />
             </div>
 
-            <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+            <div style={{ 
+              fontSize: '13px', 
+              fontWeight: '800', 
+              color: top3.isMe ? 'var(--primary)' : 'var(--text-primary)', 
+              marginBottom: '2px', 
+              whiteSpace: 'nowrap', 
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              maxWidth: '100%' 
+            }}>
               {top3.nameAr}
             </div>
             <div style={{ fontSize: '13px', fontWeight: '800', color: '#B45309', marginBottom: '8px' }}>
-              {top3.score.toLocaleString()} نقطة
+              {top3.score?.toLocaleString()} نقطة
             </div>
 
             {/* 3rd pedestal */}

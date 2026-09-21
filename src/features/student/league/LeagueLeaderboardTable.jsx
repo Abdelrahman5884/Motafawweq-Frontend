@@ -1,6 +1,7 @@
 import React from 'react';
+import { Award, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 
-export const LeagueLeaderboardTable = ({ students, lang, isRtl }) => {
+export const LeagueLeaderboardTable = ({ students, lang, isRtl, onSelectStudent }) => {
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',
@@ -16,6 +17,10 @@ export const LeagueLeaderboardTable = ({ students, lang, isRtl }) => {
           return (
             <div
               key={item.rank}
+              onClick={() => onSelectStudent?.(item)}
+              role="button"
+              tabIndex={0}
+              title={`عرض إنجازات الطالب ${item.nameAr}`}
               style={{
                 padding: '14px 20px',
                 display: 'flex',
@@ -24,7 +29,14 @@ export const LeagueLeaderboardTable = ({ students, lang, isRtl }) => {
                 gap: '14px',
                 backgroundColor: isMe ? 'rgba(92, 182, 219, 0.1)' : 'transparent',
                 borderBottom: '1px solid var(--border-subtle)',
-                transition: 'background-color 0.15s ease'
+                transition: 'background-color 0.15s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                if (!isMe) e.currentTarget.style.backgroundColor = 'var(--bg-subtle)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isMe) e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
               {/* Rank & Student Info */}
@@ -79,6 +91,22 @@ export const LeagueLeaderboardTable = ({ students, lang, isRtl }) => {
                         {lang === 'ar' ? 'أنت' : 'You'}
                       </span>
                     )}
+                    {item.streak && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        color: '#EA580C',
+                        backgroundColor: 'rgba(234, 88, 12, 0.08)',
+                        padding: '1px 6px',
+                        borderRadius: '6px'
+                      }}>
+                        <Flame size={11} />
+                        {item.streak}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     {item.schoolAr}
@@ -93,11 +121,24 @@ export const LeagueLeaderboardTable = ({ students, lang, isRtl }) => {
                   minWidth: '85px'
                 }}>
                   <div style={{ fontSize: '15px', fontWeight: '800', color: isMe ? 'var(--primary)' : 'var(--text-primary)' }}>
-                    {item.score.toLocaleString()} نقطة
+                    {item.score?.toLocaleString()} نقطة
                   </div>
-                  <div style={{ fontSize: '11px', color: item.change > 0 ? 'var(--success)' : 'var(--text-secondary)', fontWeight: '600' }}>
+                  <div style={{ fontSize: '11px', color: item.change > 0 ? 'var(--success)' : item.change < 0 ? 'var(--danger, #EF4444)' : 'var(--text-secondary)', fontWeight: '600' }}>
                     {item.change > 0 ? `+${item.change} مركز` : item.change < 0 ? `${item.change}` : 'ثابت'}
                   </div>
+                </div>
+
+                <div style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {isRtl ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
                 </div>
               </div>
             </div>
