@@ -826,86 +826,130 @@ export const CERTIFICATES_LIST = [
 
 export const SUBSCRIPTION_PLANS = [
   {
-    id: 'plan-monthly',
-    nameAr: 'الباقة الشهرية المتكاملة',
-    nameEn: 'Monthly All-Access Pass',
-    priceEgp: 350,
+    id: 'plan-free',
+    nameAr: 'الباقة المجانية',
+    nameEn: 'Free Plan',
+    tier: 'free',
+    pricing: {
+      monthly: { priceEgp: 0, originalPriceEgp: null, periodAr: 'دائم مجاناً', periodEn: 'Free Forever', badgeAr: 'بدون أي تكلفة', badgeEn: '100% Free' },
+      term: { priceEgp: 0, originalPriceEgp: null, periodAr: 'دائم مجاناً', periodEn: 'Free Forever', badgeAr: 'بدون أي تكلفة', badgeEn: '100% Free' },
+      annual: { priceEgp: 0, originalPriceEgp: null, periodAr: 'دائم مجاناً', periodEn: 'Free Forever', badgeAr: 'بدون أي تكلفة', badgeEn: '100% Free' }
+    },
+    priceEgp: 0,
+    periodAr: 'دائم مجاناً',
+    periodEn: 'Free Forever',
+    badgeAr: 'بدون أي تكلفة',
+    badgeEn: '100% Free',
+    featuresAr: [
+      'شرح ومناهج وزارة التربية والتعليم الرسمية لجميع المواد',
+      'تصفح الدروس والمذكرات الأساسية المفتوحة مجاناً',
+      'جدول المذاكرة العام ومتابعة المهام اليومية'
+    ],
+    featuresEn: [
+      'Official Ministry of Education curriculum & video lectures',
+      'Access to open free lessons and core summary files',
+      'General study schedule and daily learning tasks'
+    ],
+    limitationsAr: [
+      'غير شاملة الامتحانات التقييمية بنظام البابل شيت',
+      'غير شاملة تحويل المحاضرات الذكي بالـ AI',
+      'غير شاملة دوريات المتفوقين أو الشهادات المعتمدة'
+    ],
+    limitationsEn: [
+      'Excludes Bubble Sheet assessments & exams',
+      'Excludes AI lecture audio/video transcription',
+      'Excludes student leagues & verified certificates'
+    ],
+    color: '#64748B',
+    popular: false
+  },
+  {
+    id: 'plan-plus',
+    nameAr: 'باقة بلس (Plus)',
+    nameEn: 'Plus Plan',
+    tier: 'plus',
+    pricing: {
+      monthly: { priceEgp: 60, originalPriceEgp: null, periodAr: 'شهرياً', periodEn: 'per month', badgeAr: 'الأنسب للأساسيات', badgeEn: 'Great for Essentials' },
+      term: { priceEgp: 240, originalPriceEgp: 300, periodAr: 'للترم (5 شهور)', periodEn: 'per semester (5 mo)', badgeAr: 'توفير 20%', badgeEn: 'Save 20%' },
+      annual: { priceEgp: 450, originalPriceEgp: 600, periodAr: 'للعام كاملاً (10 شهور)', periodEn: 'per full year (10 mo)', badgeAr: 'توفير 25%', badgeEn: 'Save 25%' }
+    },
+    priceEgp: 60,
     periodAr: 'شهرياً',
-    periodEn: 'Monthly',
+    periodEn: 'per month',
+    badgeAr: 'الأنسب للأساسيات',
+    badgeEn: 'Great for Essentials',
     featuresAr: [
-      'تحويل المحاضرات الذكي (تفريغ صوت وفيديو وملفات PDF)',
-      'توليد كويزات ذكية بنظام البابل شيت بعد كل درس',
-      'الوصول لغرفة المذاكرة والقفز اللحظي من النص للصوت',
-      'المشاركة في دوريات المتفوقين والتحديات الأسبوعية',
-      'بنك الأخطاء واستخراج المفاهيم المتعثرة وتصحيحها'
+      'جميع مزايا الباقة المجانية بالكامل',
+      'الامتحانات التقييمية وبنك الأسئلة الشامل بنظام البابل شيت',
+      'المشاركة في دوريات المتفوقين والتحديات الأسبوعية ونقاط (XP)',
+      'الاشتراك في كورسات ومقررات المعلمين المعتمدين',
+      'بنك الأخطاء الذكي واستخراج المفاهيم المتعثرة وتصحيحها',
+      'شهادات إتمام المقررات والمنهج المعتمدة رسمياً بكود QR'
     ],
     featuresEn: [
+      'All Free Plan features included',
+      'Comprehensive question bank & Bubble Sheet exams',
+      'Full participation in weekly student leagues & XP ranking',
+      'Enrollment in certified teacher courses and modules',
+      'Smart mistake bank & weak concept correction',
+      'QR-verified official subject & course completion certificates'
+    ],
+    limitationsAr: [
+      'غير شاملة تحويل المحاضرات الذكي بالـ AI (تفريغ صوت وفيديو ومذكرات)',
+      'غير شاملة توليد الكويزات التلقائية بالذكاء الاصطناعي'
+    ],
+    limitationsEn: [
+      'Excludes AI Smart Lecture conversion (audio/video/PDF transcripts)',
+      'Excludes AI automated bubble-sheet quiz generation'
+    ],
+    color: '#0284C7',
+    popular: false
+  },
+  {
+    id: 'plan-pro',
+    nameAr: 'باقة برو الشاملة (Pro)',
+    nameEn: 'Pro VIP Plan (All-Access)',
+    tier: 'pro',
+    pricing: {
+      monthly: { priceEgp: 120, originalPriceEgp: null, periodAr: 'شهرياً', periodEn: 'per month', badgeAr: 'الباقة الشاملة القصوى ⭐', badgeEn: 'All-Inclusive VIP ⭐' },
+      term: { priceEgp: 450, originalPriceEgp: 600, periodAr: 'للترم بالكامل (5 شهور)', periodEn: 'per semester (5 mo)', badgeAr: 'الأكثر طلباً (وفر 150 ج.م) ⭐', badgeEn: 'Most Popular (Save 150 EGP) ⭐' },
+      annual: { priceEgp: 850, originalPriceEgp: 1200, periodAr: 'للعام كاملاً حتى الامتحانات (10 شهور)', periodEn: 'per full year (10 mo)', badgeAr: 'القيمة الأفضل (وفر 350 ج.م) 👑', badgeEn: 'Ultimate Value (Save 350 EGP) 👑' }
+    },
+    priceEgp: 120,
+    periodAr: 'شهرياً',
+    periodEn: 'per month',
+    badgeAr: 'الباقة الشاملة القصوى ⭐',
+    badgeEn: 'All-Inclusive VIP ⭐',
+    featuresAr: [
+      'كل أدوات ومزايا المنصة بالكامل بلا أي قيود (VIP)',
+      'تحويل المحاضرات الذكي بالـ AI (تفريغ صوت وفيديو ومذكرات PDF)',
+      'توليد كويزات تقييمية بنظام البابل شيت بالـ AI بعد كل درس وتصحيح فوري',
+      'الوصول لغرفة المذاكرة والقفز اللحظي من النص للشرح الصوتي',
+      'الخرائط الذهنية التفاعلية وتلخيصات كبسولات المنهج المركزة',
+      'جميع امتحانات ودوريات المتفوقين ومقررات المعلمين بالكامل',
+      'حصص البث المباشر التفاعلية (Live Rooms) مع كبار المعلمين',
+      'معسكرات ليلة الامتحان النهائية وتوقعات البابل شيت الرسمية',
+      'وضع المذاكرة أوفلاين غير المحدود وتحميل كافة المذكرات والملازم',
+      'تقارير أسبوعية تفصيلية لولي الأمر لمتابعة التحصيل الدراسي',
+      'كافة الشهادات والأوسمة المعتمدة بكود QR ودرع صدارة الدوري'
+    ],
+    featuresEn: [
+      'Complete, unrestricted VIP access to all platform features',
       'AI Lecture Conversion (Audio, Video & PDF Transcripts)',
-      'Instant AI Bubble-Sheet Quizzes after each class',
-      'Interactive study room with click-to-audio sync',
-      'Weekly student league rankings & challenges',
-      'Smart mistake bank & weak area diagnostics'
-    ],
-    popular: false,
-    color: '#06B6D4'
-  },
-  {
-    id: 'plan-term',
-    nameAr: 'باقة الفصل الدراسي الأول (توفير 25%)',
-    nameEn: 'Semester 1 Hero Pass (Save 25%)',
-    priceEgp: 1100,
-    originalPriceEgp: 1400,
-    periodAr: 'للترم بالكامل',
-    periodEn: 'Full Semester',
-    featuresAr: [
-      'جميع مميزات الباقة الشهرية طوال الفصل الدراسي',
-      'الخرائط الذهنية التفاعلية وتلخيصات كبسولات المنهج',
-      'شهادات إتمام وتفوق معتمدة رسمياً من المعلمين والمنصة بكود QR',
-      'أولوية الإجابة وتصحيح الواجبات من المعلمين الخبراء',
-      'معسكر امتحانات نصف العام وبنك الأسئلة الشامل',
-      'تقارير تفصيلية أسبوعية لولي الأمر لمتابعة الاستريك'
-    ],
-    featuresEn: [
-      'All Monthly features throughout the entire semester',
-      'Interactive concept mind maps & capsule summaries',
-      'QR-verified official certificates from Teachers & Platform',
-      'Priority homework grading & expert teacher feedback',
-      'Midterm exam camps & comprehensive question bank',
-      'Weekly guardian progress reports & streak tracking'
-    ],
-    popular: true,
-    badgeAr: 'الأكثر اختياراً من المتفوقين',
-    badgeEn: 'Most Popular Choice',
-    color: '#1588C7'
-  },
-  {
-    id: 'plan-annual',
-    nameAr: 'باقة الثانوية العامة السنوية الشاملة',
-    nameEn: 'Full Thanawya Year Pass (Best Value)',
-    priceEgp: 2200,
-    originalPriceEgp: 3200,
-    periodAr: 'للعام الدراسي كاملاً حتى الامتحانات',
-    periodEn: 'Full Academic Year Until Finals',
-    featuresAr: [
-      'وصول غير محدود لكل كورسات ومحاضرات المواد طوال العام',
-      'معسكرات ليلة الامتحان وتوقعات البابل شيت للثانوية العامة',
-      'حضور حصص البث المباشر التفاعلية (Live Rooms)',
-      'كبسولات الإنقاذ ومراجعات الساعات الأخيرة',
-      'شهادات دوري النخبة وشهادات إتمام المواد المعتمدة',
-      'مذاكرة أوفلاين غير محدودة بدون استهلاك باقة الإنترنت'
-    ],
-    featuresEn: [
-      'Unlimited access to all subjects & courses year-round',
-      'Night-before-exam camps & Thanawya Amma predictions',
+      'Instant AI Bubble-Sheet Quizzes generated after each lesson',
+      'Interactive study room with instant click-to-audio sync',
+      'Interactive concept mind maps & high-yield summary capsules',
+      'All certified teacher courses & official Ministry exam bank',
       'Interactive Live Rooms broadcasting with top educators',
-      'Emergency revision capsules & high-yield summaries',
-      'Accredited League & Subject completion certificates',
-      'Unlimited offline mode without consuming cellular data'
+      'Final exam night camps & official Bubble Sheet predictions',
+      'Unlimited offline study mode with downloadable booklets',
+      'Weekly guardian progress reports & streak analytics',
+      'All verified credentials, QR certificates, and League Trophy'
     ],
-    popular: false,
-    badgeAr: 'القيمة الأفضل (وفر 1000 ج.م)',
-    badgeEn: 'Best Value (Save 1,000 EGP)',
-    color: '#10B981'
+    limitationsAr: [],
+    limitationsEn: [],
+    color: '#1588C7',
+    popular: true
   }
 ];
 
