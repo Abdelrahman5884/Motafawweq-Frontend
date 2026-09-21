@@ -84,7 +84,7 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
           ref={fullCertRef}
           cert={cert}
           lang={lang}
-          isMini={false}
+          isExport={true}
         />
       </div>
 
@@ -100,7 +100,7 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
         }}
         title={isAr ? 'انقر لمعاينة الشهادة وتكبيرها بالكامل' : 'Click to preview full certificate'}
       >
-        <OfficialCertificateDocument cert={cert} lang={lang} isMini={true} />
+        <OfficialCertificateDocument cert={cert} lang={lang} />
 
         {/* Hover Overlay */}
         <div

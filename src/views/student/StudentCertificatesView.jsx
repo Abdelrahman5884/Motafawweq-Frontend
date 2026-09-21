@@ -41,13 +41,16 @@ export const StudentCertificatesView = () => {
       {/* 3-Tier Criteria Checklist Card (Calm Formal Aesthetic) */}
       <CertificateEligibilityCard lang={lang} />
 
-      {/* Certificates Gallery (No filter buttons, prominent certificate display) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-        gap: '24px',
-        marginTop: '8px'
-      }}>
+      {/* Certificates Gallery (100% Mobile Responsive Grid) */}
+      <div
+        className="certificates-gallery-grid"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+          gap: '20px',
+          marginTop: '8px'
+        }}
+      >
         {CERTIFICATES_LIST.map((cert) => (
           <CertificateCard
             key={cert.id}

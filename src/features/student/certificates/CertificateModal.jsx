@@ -3,10 +3,10 @@ import { X, Download, Check, Copy, ShieldCheck, Loader2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { OfficialCertificateDocument } from './OfficialCertificateDocument';
 
-export const CertificateModal = ({ selectedCert, isRtl, onClose, lang = 'ar' }) => {
+export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const modalCertRef = useRef(null);
+  const exportCertRef = useRef(null);
   const isAr = lang === 'ar';
 
   useEffect(() => {
@@ -27,10 +27,10 @@ export const CertificateModal = ({ selectedCert, isRtl, onClose, lang = 'ar' }) 
   };
 
   const handleDownloadPng = async () => {
-    if (isDownloading || !modalCertRef.current) return;
+    if (isDownloading || !exportCertRef.current) return;
     setIsDownloading(true);
     try {
-      const dataUrl = await toPng(modalCertRef.current, {
+      const dataUrl = await toPng(exportCertRef.current, {
         pixelRatio: 2.5,
         cacheBust: true,
         backgroundColor: '#FFFFFF'
@@ -140,15 +140,35 @@ export const CertificateModal = ({ selectedCert, isRtl, onClose, lang = 'ar' }) 
           </button>
         </div>
 
+        {/* ── Hidden full-scale certificate for crystal-sharp 1-click PNG image generation ── */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: '0',
+            width: '960px',
+            pointerEvents: 'none',
+            zIndex: -1
+          }}
+        >
+          <OfficialCertificateDocument
+            ref={exportCertRef}
+            cert={selectedCert}
+            lang={lang}
+            isExport={true}
+          />
+        </div>
+
         {/* Certificate Rendering Container */}
         <div style={{
           overflowX: 'auto',
           padding: '4px 0',
           display: 'flex',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          width: '100%'
         }}>
           <OfficialCertificateDocument
-            ref={modalCertRef}
             cert={selectedCert}
             lang={lang}
             className="in-modal-certificate"
@@ -229,14 +249,15 @@ export const CertificateModal = ({ selectedCert, isRtl, onClose, lang = 'ar' }) 
             </button>
 
             <button
+              className="certificate-modal-btn-close"
               onClick={onClose}
               style={{
-                padding: '10px 18px',
-                borderRadius: '12px',
+                padding: '9px 16px',
+                borderRadius: '11px',
                 backgroundColor: 'transparent',
                 color: '#94A3B8',
                 border: '1px solid rgba(255, 255, 255, 0.15)',
-                fontSize: '13px',
+                fontSize: '12.5px',
                 fontWeight: '700',
                 cursor: 'pointer'
               }}

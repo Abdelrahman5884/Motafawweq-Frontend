@@ -152,7 +152,7 @@ export const CertificateEligibilityCard = ({ lang = 'ar' }) => {
       {/* ── 3 Tracks Grid (Strictly Motafawweq Brand Colors - ZERO Green) ── */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
         gap: '16px'
       }}>
         {content.tracks.map((track) => {
