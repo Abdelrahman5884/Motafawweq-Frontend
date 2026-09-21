@@ -6,43 +6,48 @@ import {
   CertificateCard,
   CertificateModal
 } from '../../features/student/certificates';
-
 export const StudentCertificatesView = () => {
   const { lang, isRtl } = useLanguage();
   const [selectedCert, setSelectedCert] = useState(null);
 
-  // Requirements checklist for the active course (US-95)
-  const requirements = [
-    { labelAr: 'إكمال 100% من محاضرات كورس الأحياء الفسيولوجية', met: true },
-    { labelAr: 'تسليم جميع الواجبات المقالية واعتمادها من المعلم', met: true },
-    { labelAr: 'اجتياز الامتحان الشامل للوحدة بنسبة 80% فأكثر (حاصل على 96%)', met: true }
-  ];
-
-  const handlePrint = () => {
-    window.print();
-  };
+  const isAr = lang === 'ar';
 
   return (
     <div style={{
       maxWidth: '1100px',
       margin: '0 auto',
-      padding: '28px 20px 80px'
+      padding: '28px 20px 80px',
+      fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-sans)',
+      direction: isRtl ? 'rtl' : 'ltr'
     }}>
-      {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-          {lang === 'ar' ? 'الشهادات المعتمدة والتوثيق الرسمي' : 'Certificates & Official Verification'}
+      {/* Calm Elegant Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{
+          fontSize: '24px',
+          fontWeight: '900',
+          color: 'var(--text-primary)',
+          margin: '0 0 6px 0',
+          letterSpacing: '-0.3px'
+        }}>
+          {isAr ? 'الشهادات المعتمدة والتوثيق الأكاديمي' : 'Official Certificates & Academic Verification'}
         </h1>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-          {lang === 'ar' ? 'شهادات إتمام الكورسات الموثقة برقم تسلسلي معتمد وكود QR يمكن مشاركتها وطباعتها' : 'Accredited completion certificates with QR verification & serial ID'}
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+          {isAr 
+            ? 'شهادات إنجاز وتفوق موثقة برقم تسلسلي رسمي وكود QR صالحة للتحقق والتحميل كصورة PNG بجودة فائقة' 
+            : 'Verified achievement credentials authenticated with serial IDs and instant QR validation ready for high-resolution PNG download'}
         </p>
       </div>
 
-      {/* Requirements Checklist Card */}
-      <CertificateEligibilityCard requirements={requirements} lang={lang} />
+      {/* 3-Tier Criteria Checklist Card (Calm Formal Aesthetic) */}
+      <CertificateEligibilityCard lang={lang} />
 
-      {/* Certificates Gallery */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px' }}>
+      {/* Certificates Gallery (No filter buttons, prominent certificate display) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+        gap: '24px',
+        marginTop: '8px'
+      }}>
         {CERTIFICATES_LIST.map((cert) => (
           <CertificateCard
             key={cert.id}
@@ -57,9 +62,10 @@ export const StudentCertificatesView = () => {
       <CertificateModal
         selectedCert={selectedCert}
         isRtl={isRtl}
+        lang={lang}
         onClose={() => setSelectedCert(null)}
-        onPrint={handlePrint}
       />
     </div>
   );
 };
+
