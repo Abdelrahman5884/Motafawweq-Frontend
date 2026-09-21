@@ -36,11 +36,13 @@ import {
   CheckCheck,
   Shield,
   BarChart3,
-  ExternalLink
+  ExternalLink,
+  Trophy
 } from 'lucide-react';
 
 import { PlexusBackground } from '../../components/common/PlexusBackground';
 import { SpiderManWeb } from '../../components/common/SpiderManWeb';
+import { MonthlyChampionsSlider } from '../../components/landing/MonthlyChampionsSlider';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -186,12 +188,11 @@ export const LandingPage = () => {
         <div className="sparkle-particle" style={{ top: '75%', right: '25%', width: '4px', height: '4px', animationDelay: '0.8s' }} />
         <div className="sparkle-particle" style={{ top: '42%', left: '80%', width: '5px', height: '5px', animationDelay: '1.7s' }} />
 
-        <div style={{ maxWidth: '1080px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
-
+        <div style={{ maxWidth: '1240px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
           {/* Floating EdTech Badge */}
-          <div className="landing-hero-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+          <div className="landing-hero-badge" style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px' }}>
             <div style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
               padding: '8px 20px',
@@ -217,174 +218,152 @@ export const LandingPage = () => {
             </div>
           </div>
 
-          {/* Animated Hero Logo with Orbital Rings & Glowing Particles (Motafawweq Brand Colors) */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px' }}>
-            <div className="hero-logo-wrapper">
-              {/* Inner Pulsing Ring */}
-              <div className="hero-ring-1" />
-
-              {/* Orbiting Ring 2 with Primary Blue Dot */}
-              <div className="hero-ring-2">
-                <div className="hero-orbit-dot" style={{
-                  top: '-4px', left: '50%', marginLeft: '-4px',
-                  backgroundColor: 'var(--primary, #1588C7)',
-                  boxShadow: '0 0 10px 3px rgba(21, 136, 199, 0.85)'
-                }} />
-              </div>
-
-              {/* Orbiting Ring 3 with Cyan & Sky Blue Dots */}
-              <div className="hero-ring-3">
-                <div className="hero-orbit-dot" style={{
-                  top: '10%', right: '-4px',
-                  width: '6px', height: '6px',
-                  backgroundColor: '#5CB6DB',
-                  boxShadow: '0 0 8px 3px rgba(92, 182, 219, 0.85)',
-                  animationDelay: '0.5s'
-                }} />
-                <div className="hero-orbit-dot" style={{
-                  bottom: '10%', left: '-3px',
-                  width: '5px', height: '5px',
-                  backgroundColor: '#1588C7',
-                  boxShadow: '0 0 8px 3px rgba(21, 136, 199, 0.85)',
-                  animationDelay: '1s'
-                }} />
-              </div>
-
-              {/* Outer Gentle Ambient Ring */}
-              <div className="hero-ring-4" />
-
-              {/* Animated Floating Glowing Logo */}
-              <img
-                src={isDark ? '/logo-dark.png' : '/logo-light.png'}
-                alt="متفوّق – Motafawweq"
-                className="hero-logo-img"
-              />
-            </div>
-          </div>
-
-          {/* Dynamic Headline */}
-          <h1 className="landing-hero-headline" style={{
-            fontSize: 'clamp(2.3rem, 5vw, 4rem)',
-            fontWeight: '900',
-            lineHeight: 1.2,
-            letterSpacing: '-1px',
-            fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)',
-            marginBottom: '18px'
-          }}>
-            <span>{lang === 'ar' ? 'اشرح حصتك مرة واحدة..' : 'Teach Your Class Once..'}</span>
-            <br />
-            <span style={{ color: 'var(--primary)' }}>
-              {lang === 'ar' ? 'واحصل على كل ما يلزم لتفوق طلابك' : 'And Empower Your Students with Motafawweq'}
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="landing-hero-subtitle" style={{
-            fontSize: 'clamp(1rem, 2vw, 1.2rem)',
-            lineHeight: 1.7,
-            color: 'var(--text-secondary)',
-            maxWidth: '820px',
-            margin: '0 auto 34px',
-            fontWeight: '500'
-          }}>
-            {lang === 'ar'
-              ? 'سجل حصتك الدراسية بكل سهولة، ودع متفوّق يحولها فوراً إلى خريطة مفاهيم تفاعلية، وتفريغ نصي بالثواني، وملخصات كورنيل الهيكلية، وبنوك أسئلة بنظام البابل شيت للثانوية العامة وكافة المراحل.'
-              : 'Record your lecture once and let Motafawweq instantly create concept mind maps, synced transcripts, Cornell notes, and adaptive Thanawya exam quizzes.'}
-          </p>
-
-          {/* Hero CTAs */}
-          <div className="landing-hero-ctas" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: '14px',
-            marginBottom: '36px'
-          }}>
-            <Link
-              to="/register"
-              className="btn btn-primary btn-lg landing-cta-primary"
-              style={{
-                display: 'flex',
+          {/* 2-Column Hero Grid: Text & CTAs on right, Monthly Champions Slider on left */}
+          <div className="landing-hero-2col">
+            {/* Text & Action Column */}
+            <div>
+              {/* Top Tag: Our Students Success Stories / Monthly Champions */}
+              <div style={{
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '10px',
-                padding: '15px 34px',
-                fontSize: '15.5px',
+                gap: '6px',
+                color: 'var(--primary)',
+                fontSize: '13px',
                 fontWeight: '800',
-                borderRadius: 'var(--radius-full)',
-                boxShadow: '0 8px 24px rgba(21, 136, 199, 0.35)',
-                textDecoration: 'none'
-              }}
-            >
-              <span>{lang === 'ar' ? 'ابدأ تجربتك المجانية الآن' : 'Start Free Trial'}</span>
-              {isRtl ? <ArrowLeft size={17} /> : <ArrowRight size={17} />}
-            </Link>
+                marginBottom: '12px'
+              }}>
+                <Trophy size={16} color="#FBBF24" />
+                <span>{lang === 'ar' ? 'قصص نجاح طلابنا • أبطال دوري المتفوقين' : 'Student Success Stories • League Champions'}</span>
+              </div>
 
-            <Link
-              to="/student/lesson"
-              style={{
+              {/* Dynamic Headline */}
+              <h1 className="landing-hero-headline" style={{
+                fontSize: 'clamp(2.1rem, 3.8vw, 3.4rem)',
+                fontWeight: '900',
+                lineHeight: 1.25,
+                letterSpacing: '-1px',
+                fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)',
+                marginBottom: '18px'
+              }}>
+                <span>{lang === 'ar' ? 'اشرح حصتك مرة واحدة..' : 'Teach Your Class Once..'}</span>
+                <br />
+                <span style={{ color: 'var(--primary)' }}>
+                  {lang === 'ar' ? 'واحصل على كل ما يلزم لتفوق طلابك' : 'And Empower Your Students with Motafawweq'}
+                </span>
+              </h1>
+
+              {/* Subtitle */}
+              <p className="landing-hero-subtitle" style={{
+                fontSize: 'clamp(0.95rem, 1.8vw, 1.15rem)',
+                lineHeight: 1.7,
+                color: 'var(--text-secondary)',
+                maxWidth: '620px',
+                margin: '0 0 28px',
+                fontWeight: '500'
+              }}>
+                {lang === 'ar'
+                  ? 'سجل حصتك الدراسية بكل سهولة، ودع متفوّق يحولها فوراً إلى خريطة مفاهيم تفاعلية، وتفريغ نصي بالثواني، وملخصات كورنيل الهيكلية، وبنوك أسئلة بنظام البابل شيت للثانوية العامة وكافة المراحل.'
+                  : 'Record your lecture once and let Motafawweq instantly create concept mind maps, synced transcripts, Cornell notes, and adaptive Thanawya exam quizzes.'}
+              </p>
+
+              {/* Hero CTAs */}
+              <div className="landing-hero-ctas" style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '14px 26px',
-                fontSize: '14.5px',
-                fontWeight: '700',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                border: '1.5px solid var(--border-medium)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                textDecoration: 'none'
-              }}
-            >
-              <BookOpen size={17} color="var(--primary)" />
-              <span>{lang === 'ar' ? 'استعراض تجربة الطالب (الحصص)' : 'View Student Lesson View'}</span>
-            </Link>
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginBottom: '32px'
+              }}>
+                <Link
+                  to="/register"
+                  className="btn btn-primary btn-lg landing-cta-primary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '14px 28px',
+                    fontSize: '15px',
+                    fontWeight: '800',
+                    borderRadius: 'var(--radius-full)',
+                    boxShadow: '0 8px 24px rgba(21, 136, 199, 0.35)',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <span>{lang === 'ar' ? 'ابدأ تجربتك المجانية الآن' : 'Start Free Trial'}</span>
+                  {isRtl ? <ArrowLeft size={17} /> : <ArrowRight size={17} />}
+                </Link>
 
-            <Link
-              to="/teacher/studio"
-              style={{
+                <Link
+                  to="/student/lesson"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '13px 22px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    border: '1.5px solid var(--border-medium)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <BookOpen size={16} color="var(--primary)" />
+                  <span>{lang === 'ar' ? 'استعراض تجربة الطالب (الحصص)' : 'View Student Lesson View'}</span>
+                </Link>
+
+                <Link
+                  to="/teacher/studio"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '13px 20px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    border: '1.5px solid var(--border-medium)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    textDecoration: 'none'
+                  }}
+                >
+                  <Mic size={16} color="var(--primary)" />
+                  <span>{lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio'}</span>
+                </Link>
+              </div>
+
+              {/* Trust Badges */}
+              <div className="landing-hero-trust" style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '14px 24px',
-                fontSize: '14.5px',
-                fontWeight: '700',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                border: '1.5px solid var(--border-medium)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                textDecoration: 'none'
-              }}
-            >
-              <Mic size={17} color="var(--primary)" />
-              <span>{lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio'}</span>
-            </Link>
-          </div>
+                flexWrap: 'wrap',
+                gap: '20px',
+                fontSize: '12.5px',
+                color: 'var(--text-secondary)',
+                fontWeight: '600'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircle2 size={16} color="#10B981" />
+                  <span>{lang === 'ar' ? 'بدون بطاقة ائتمان' : 'No credit card required'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircle2 size={16} color="#10B981" />
+                  <span>{lang === 'ar' ? 'متوافق 100% مع مناهج مصر' : '100% Egyptian Curriculum Aligned'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircle2 size={16} color="#10B981" />
+                  <span>{lang === 'ar' ? 'نظام البابل شيت والتابلت المدرسي' : 'Bubble Sheet & School Tablet Ready'}</span>
+                </div>
+              </div>
+            </div>
 
-          {/* Trust Badges */}
-          <div className="landing-hero-trust" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: '24px',
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            fontWeight: '600'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle2 size={16} color="#10B981" />
-              <span>{lang === 'ar' ? 'بدون بطاقة ائتمان' : 'No credit card required'}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle2 size={16} color="#10B981" />
-              <span>{lang === 'ar' ? 'متوافق 100% مع مناهج مصر' : '100% Egyptian Curriculum Aligned'}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle2 size={16} color="#10B981" />
-              <span>{lang === 'ar' ? 'نظام البابل شيت والتابلت المدرسي' : 'Bubble Sheet & School Tablet Ready'}</span>
+            {/* Monthly Champions Slider Column (The Winners of each month) */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <MonthlyChampionsSlider isRtl={isRtl} />
             </div>
           </div>
         </div>
