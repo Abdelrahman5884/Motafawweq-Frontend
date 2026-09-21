@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trophy, ChevronRight, ChevronLeft, Award, Sparkles, Flame } from 'lucide-react';
+import { Trophy, ChevronRight, ChevronLeft, Award } from 'lucide-react';
 
 const CHAMPIONS_DATA = [
   {
@@ -9,33 +9,33 @@ const CHAMPIONS_DATA = [
     nameAr: 'أحمد إبراهيم الدسوقي',
     schoolAr: 'مدرسة السعيدية الثانوية العسكرية، الجيزة',
     score: '3,980 نقطة',
-    rankAr: 'المركز الأول جمهورياً 🥇',
+    rankAr: 'المركز الأول جمهورياً',
     streak: '30 يوم استريك',
-    image: '/characters/league-champion.png',
+    image: '/characters/real-male-champ-1.png',
     badge: 'كأس التفوق الشهري'
   },
   {
     id: 'champ-aug',
     monthAr: 'دوري شهر أغسطس 2026',
-    titleAr: 'بطل دوري المتفوقين لشهر أغسطس',
-    nameAr: 'عمر طارق القاضي',
-    schoolAr: 'الأورمان النموذجية الثانوية، الدقي',
-    score: '3,850 نقطة',
-    rankAr: 'المركز الأول جمهورياً 🥇',
-    streak: '26 يوم استريك',
-    image: '/characters/student.png',
-    badge: 'درع المتفوق الذهبي'
+    titleAr: 'بطلة دوري المتفوقات لشهر أغسطس',
+    nameAr: 'سارة خالد منصور',
+    schoolAr: 'مدرسة المتفوقات STEM، كفر الشيخ',
+    score: '3,920 نقطة',
+    rankAr: 'المركز الأول جمهورياً',
+    streak: '28 يوم استريك',
+    image: '/characters/real-female-champ.png',
+    badge: 'درع المتفوقة الذهبي'
   },
   {
     id: 'champ-jul',
     monthAr: 'دوري شهر يوليو 2026',
-    titleAr: 'بطلة دوري المتفوقات لشهر يوليو',
-    nameAr: 'سارة خالد منصور',
-    schoolAr: 'مدرسة المتفوقات STEM، كفر الشيخ',
-    score: '3,920 نقطة',
-    rankAr: 'المركز الأول جمهورياً 🥇',
-    streak: '28 يوم استريك',
-    image: '/characters/female-champion.jpg',
+    titleAr: 'بطل دوري المتفوقين لشهر يوليو',
+    nameAr: 'عمر طارق القاضي',
+    schoolAr: 'الأورمان النموذجية الثانوية، الدقي',
+    score: '3,850 نقطة',
+    rankAr: 'المركز الأول جمهورياً',
+    streak: '26 يوم استريك',
+    image: '/characters/real-male-champ-2.png',
     badge: 'وسام التميز الوطني'
   }
 ];
@@ -60,7 +60,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
     if (isPaused) return;
     timerRef.current = setInterval(() => {
       handleNext();
-    }, 5000);
+    }, 5500);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -75,12 +75,12 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
       style={{
         position: 'relative',
         width: '100%',
-        maxWidth: '430px',
+        maxWidth: '410px',
         margin: '0 auto',
-        padding: '10px'
+        padding: '8px'
       }}
     >
-      {/* Decorative Outer Cyan Wireframe Accent */}
+      {/* Decorative Outer Platform Accent Frame */}
       <div 
         style={{
           position: 'absolute',
@@ -88,100 +88,79 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
           insetInlineStart: '0px',
           width: 'calc(100% - 16px)',
           height: 'calc(100% - 16px)',
-          border: '1.5px solid rgba(92, 182, 219, 0.35)',
-          borderRadius: '28px',
+          border: '1.5px solid var(--border-subtle)',
+          borderRadius: '26px',
           pointerEvents: 'none',
           zIndex: 1,
-          transform: isRtl ? 'translate(-8px, -8px)' : 'translate(8px, -8px)'
+          transform: isRtl ? 'translate(-8px, -8px)' : 'translate(8px, -8px)',
+          opacity: 0.7
         }} 
       />
 
-      {/* Main Champion Card */}
+      {/* Main Champion Card - Fully Adaptive to Platform Colors (Dark & Light) */}
       <div
         style={{
           position: 'relative',
-          backgroundColor: '#040F1F',
-          background: 'radial-gradient(ellipse at 50% 35%, #0B3A6F 0%, #061B36 55%, #040F1F 100%)',
+          backgroundColor: 'var(--bg-surface)',
+          background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-subtle) 100%)',
           borderRadius: '24px',
-          border: '1.5px solid rgba(92, 182, 219, 0.4)',
-          boxShadow: '0 20px 48px rgba(6, 37, 78, 0.45), 0 0 35px rgba(21, 136, 199, 0.2)',
+          border: '1.5px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-md)',
           overflow: 'hidden',
           zIndex: 2,
-          minHeight: '480px',
+          minHeight: '460px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between'
         }}
       >
-        {/* Subtle Cyber Grid & Stars in Card Background */}
+        {/* Ambient Radial Platform Glow behind Student */}
         <div style={{
           position: 'absolute',
-          inset: 0,
-          backgroundImage: 'radial-gradient(circle, rgba(92, 182, 219, 0.15) 1px, transparent 1px)',
-          backgroundSize: '20px 20px',
-          opacity: 0.6,
-          pointerEvents: 'none'
-        }} />
-
-        {/* Ambient Radial Center Light behind Student */}
-        <div style={{
-          position: 'absolute',
-          top: '30%',
+          top: '35%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '260px',
-          height: '260px',
+          width: '280px',
+          height: '280px',
           borderRadius: '50%',
-          backgroundColor: 'rgba(21, 136, 199, 0.25)',
-          filter: 'blur(60px)',
+          backgroundColor: 'rgba(21, 136, 199, 0.12)',
+          filter: 'blur(50px)',
           pointerEvents: 'none'
         }} />
 
-        {/* Floating Constellation Decorative Lines */}
-        <svg 
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.3 }}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <line x1="20" y1="90" x2="80" y2="40" stroke="#5CB6DB" strokeWidth="0.8" strokeDasharray="3 3" />
-          <circle cx="80" cy="40" r="2.5" fill="#5CB6DB" />
-          <line x1="80" y1="40" x2="130" y2="80" stroke="#5CB6DB" strokeWidth="0.8" strokeDasharray="3 3" />
-          <circle cx="130" cy="80" r="2" fill="#5CB6DB" />
-          <line x1="330" y1="120" x2="380" y2="70" stroke="#5CB6DB" strokeWidth="0.8" strokeDasharray="3 3" />
-          <circle cx="330" cy="120" r="2.5" fill="#5CB6DB" />
-          <circle cx="380" cy="70" r="2" fill="#5CB6DB" />
-        </svg>
-
-        {/* Top Header Label inside Card */}
+        {/* Top Header inside Card */}
         <div style={{
           position: 'relative',
           zIndex: 3,
-          padding: '20px 22px 10px',
+          padding: '16px 18px 10px',
           display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between'
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          borderBottom: '1px solid var(--border-subtle)'
         }}>
-          <div>
+          {/* League Cup Badge */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            fontWeight: '800',
+            color: 'var(--text-primary)'
+          }}>
             <div style={{
-              fontSize: '12px',
-              fontWeight: '700',
-              color: '#5CB6DB',
-              marginBottom: '2px',
-              letterSpacing: '0.02em',
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px'
+              justifyContent: 'center'
             }}>
-              <Sparkles size={13} color="#5CB6DB" />
-              <span>قصص نجاح طلابنا</span>
+              <Trophy size={15} color="#D97706" />
             </div>
-            <div style={{
-              fontSize: '17px',
-              fontWeight: '800',
-              color: '#FFFFFF',
-              textShadow: '0 2px 8px rgba(0,0,0,0.5)'
-            }}>
-              متفوقو المنصة
-            </div>
+            <span>لوحة أبطال الدوري</span>
           </div>
 
           {/* Month Indicator Pill */}
@@ -189,21 +168,19 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '5px 12px',
+            padding: '4px 10px',
             borderRadius: '20px',
-            backgroundColor: 'rgba(21, 136, 199, 0.2)',
-            border: '1px solid rgba(92, 182, 219, 0.35)',
-            color: '#5CB6DB',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--primary)',
             fontSize: '11.5px',
-            fontWeight: '700',
-            backdropFilter: 'blur(8px)'
+            fontWeight: '700'
           }}>
-            <Trophy size={13} color="#FBBF24" />
             <span>{currentChamp.monthAr}</span>
           </div>
         </div>
 
-        {/* Center: Champion Student Photo with Smooth Transition */}
+        {/* Center: Real Student Photo with Transparent Background (No background box) */}
         <div style={{
           position: 'relative',
           zIndex: 2,
@@ -211,31 +188,30 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '0 10px',
-          minHeight: '310px'
+          padding: '12px 16px 4px',
+          minHeight: '290px'
         }}>
           <img
             key={currentChamp.id}
             src={currentChamp.image}
             alt={currentChamp.nameAr}
             style={{
-              maxHeight: '340px',
+              maxHeight: '300px',
               maxWidth: '92%',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.6))',
-              animation: 'championFadeIn 0.5s ease-out both'
+              filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15))',
+              animation: 'championFadeIn 0.4s ease-out both'
             }}
           />
         </div>
 
-        {/* Bottom Glassmorphic Winner Info & Slider Controls */}
+        {/* Bottom Student Info & Controls */}
         <div style={{
           position: 'relative',
           zIndex: 3,
-          padding: '16px 20px 18px',
-          background: 'linear-gradient(180deg, rgba(4, 15, 31, 0.75) 0%, rgba(4, 15, 31, 0.96) 100%)',
-          borderTop: '1px solid rgba(92, 182, 219, 0.25)',
-          backdropFilter: 'blur(10px)'
+          padding: '14px 18px 16px',
+          backgroundColor: 'var(--bg-surface)',
+          borderTop: '1px solid var(--border-subtle)'
         }}>
           {/* Winner Details */}
           <div style={{ marginBottom: '12px' }}>
@@ -243,39 +219,54 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '4px'
+              marginBottom: '4px',
+              gap: '8px'
             }}>
               <div style={{
-                fontSize: '16px',
+                fontSize: '15.5px',
                 fontWeight: '800',
-                color: '#FFFFFF'
+                color: 'var(--text-primary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
               }}>
                 {currentChamp.nameAr}
               </div>
 
               <div style={{
                 fontSize: '12px',
-                fontWeight: '700',
-                color: '#34D399',
-                backgroundColor: 'rgba(52, 211, 153, 0.12)',
-                padding: '2px 8px',
+                fontWeight: '800',
+                color: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                padding: '3px 8px',
                 borderRadius: '6px',
-                border: '1px solid rgba(52, 211, 153, 0.25)'
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                flexShrink: 0
               }}>
                 {currentChamp.score}
               </div>
             </div>
 
             <div style={{
-              fontSize: '12px',
-              color: '#94A3B8',
+              fontSize: '11.5px',
+              color: 'var(--text-secondary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: '8px'
             }}>
-              <span>{currentChamp.schoolAr}</span>
-              <span style={{ color: '#FBBF24', fontWeight: '700', flexShrink: 0 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {currentChamp.schoolAr}
+              </span>
+              <span style={{ 
+                color: '#D97706', 
+                fontWeight: '800', 
+                flexShrink: 0,
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                padding: '2px 7px',
+                borderRadius: '5px',
+                border: '1px solid rgba(245, 158, 11, 0.2)'
+              }}>
                 {currentChamp.rankAr}
               </span>
             </div>
@@ -287,7 +278,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingTop: '8px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+            borderTop: '1px solid var(--border-subtle)'
           }}>
             {/* Prev Arrow */}
             <button
@@ -297,9 +288,9 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                backgroundColor: 'rgba(21, 136, 199, 0.15)',
-                border: '1px solid rgba(92, 182, 219, 0.3)',
-                color: '#FFFFFF',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -309,13 +300,15 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = 'var(--primary)';
                 e.currentTarget.style.borderColor = 'var(--primary)';
+                e.currentTarget.style.color = '#FFFFFF';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.15)';
-                e.currentTarget.style.borderColor = 'rgba(92, 182, 219, 0.3)';
+                e.currentTarget.style.backgroundColor = 'var(--bg-subtle)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                e.currentTarget.style.color = 'var(--text-primary)';
               }}
             >
-              {isRtl ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+              {isRtl ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             </button>
 
             {/* Indicator Dots */}
@@ -327,15 +320,16 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
                     key={champ.id}
                     onClick={() => setCurrentIndex(idx)}
                     title={champ.titleAr}
+                    aria-label={champ.titleAr}
                     style={{
-                      width: isActive ? '24px' : '8px',
+                      width: isActive ? '22px' : '8px',
                       height: '8px',
                       borderRadius: '4px',
-                      backgroundColor: isActive ? 'var(--primary, #1588C7)' : 'rgba(255, 255, 255, 0.25)',
+                      backgroundColor: isActive ? 'var(--primary)' : 'var(--border-medium)',
                       border: 'none',
                       cursor: 'pointer',
                       transition: 'all 0.25s ease',
-                      boxShadow: isActive ? '0 0 10px rgba(21, 136, 199, 0.8)' : 'none',
+                      boxShadow: isActive ? '0 0 8px rgba(21, 136, 199, 0.4)' : 'none',
                       padding: 0
                     }}
                   />
@@ -351,9 +345,9 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                backgroundColor: 'rgba(21, 136, 199, 0.15)',
-                border: '1px solid rgba(92, 182, 219, 0.3)',
-                color: '#FFFFFF',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -363,13 +357,15 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = 'var(--primary)';
                 e.currentTarget.style.borderColor = 'var(--primary)';
+                e.currentTarget.style.color = '#FFFFFF';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.15)';
-                e.currentTarget.style.borderColor = 'rgba(92, 182, 219, 0.3)';
+                e.currentTarget.style.backgroundColor = 'var(--bg-subtle)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                e.currentTarget.style.color = 'var(--text-primary)';
               }}
             >
-              {isRtl ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
+              {isRtl ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
             </button>
           </div>
         </div>
@@ -379,7 +375,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
         @keyframes championFadeIn {
           0% {
             opacity: 0;
-            transform: scale(0.95) translateY(8px);
+            transform: scale(0.96) translateY(6px);
           }
           100% {
             opacity: 1;

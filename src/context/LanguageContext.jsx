@@ -151,7 +151,7 @@ const DICTIONARY = {
     explanation: 'Explanation',
 
     // Student UI
-    greetingStudent: 'Welcome back, Omar! 🔥',
+    greetingStudent: 'Welcome back, Omar!',
     studentGoal: 'Weekly Goal: 8/10 Lessons Reviewed',
     streakBadge: '14-Day Streak',
     xpBadge: '2,150 XP (Gold Rank)',
@@ -312,7 +312,7 @@ const DICTIONARY = {
     explanation: 'التفسير العلمي للحل',
 
     // Student UI
-    greetingStudent: 'مرحباً بعودتك، يا عمر! 🔥',
+    greetingStudent: 'مرحباً بعودتك، يا عمر!',
     studentGoal: 'هدف الأسبوع: مراجعة 8 من 10 حصص',
     streakBadge: 'سلسلة 14 يوم متواصلة',
     xpBadge: '2,150 نقطة خبرة (المستوى الذهبي)',

@@ -125,7 +125,7 @@ export const StudentLeagueView = () => {
           }}
         >
           <Trophy size={16} color="var(--primary)" />
-          <span>{lang === 'ar' ? 'لوحة إنجازاتي وجوائزي 🏅' : 'My Achievements 🏅'}</span>
+          <span>{lang === 'ar' ? 'لوحة إنجازاتي وجوائزي' : 'My Achievements'}</span>
           <ChevronLeft size={16} />
         </button>
       </div>
@@ -200,7 +200,7 @@ export const StudentLeagueView = () => {
           </button>
         </div>
 
-        {/* Sub-leagues Pills */}
+        {/* Sub-leagues Pills - NO EMOJIS */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -233,7 +233,6 @@ export const StudentLeagueView = () => {
                   transition: 'all 0.15s ease'
                 }}
               >
-                <span>{lg.icon}</span>
                 <span>{lg.nameAr}</span>
                 {lg.myRank && (
                   <span style={{

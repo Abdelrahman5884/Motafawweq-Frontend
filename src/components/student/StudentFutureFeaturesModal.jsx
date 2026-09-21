@@ -13,7 +13,9 @@ import {
   Bell, 
   Download, 
   Copy, 
-  ExternalLink 
+  ExternalLink,
+  Gift,
+  Crown
 } from 'lucide-react';
 
 export const StudentFutureFeaturesModal = ({ isOpen, onClose, defaultTab = 'live' }) => {
@@ -121,11 +123,11 @@ export const StudentFutureFeaturesModal = ({ isOpen, onClose, defaultTab = 'live
           overflowX: 'auto'
         }}>
           {[
-            { id: 'live', labelAr: 'الحصص المباشرة 🔴', icon: Video },
-            { id: 'offline', labelAr: 'مذاكرة أوفلاين 📴', icon: WifiOff },
-            { id: 'reviews', labelAr: 'تقييم الكورس والمدرس ⭐', icon: Star },
-            { id: 'referral', labelAr: 'دعوة الأصدقاء 🎁', icon: UserPlus },
-            { id: 'share', labelAr: 'مشاركة الإنجاز 🚀', icon: Share2 }
+            { id: 'live', labelAr: 'الحصص المباشرة', icon: Video },
+            { id: 'offline', labelAr: 'مذاكرة أوفلاين', icon: WifiOff },
+            { id: 'reviews', labelAr: 'تقييم الكورس والمدرس', icon: Star },
+            { id: 'referral', labelAr: 'دعوة الأصدقاء', icon: UserPlus },
+            { id: 'share', labelAr: 'مشاركة الإنجاز', icon: Share2 }
           ].map(tab => (
             <button
               key={tab.id}
@@ -173,7 +175,7 @@ export const StudentFutureFeaturesModal = ({ isOpen, onClose, defaultTab = 'live
                       {item.titleAr}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                      👨‍🏫 {item.teacherNameAr} • 📅 {item.dateAr} • ⏰ {item.timeAr} ({item.duration})
+                      {item.teacherNameAr} • {item.dateAr} • {item.timeAr} ({item.duration})
                     </div>
                   </div>
 
@@ -232,7 +234,7 @@ export const StudentFutureFeaturesModal = ({ isOpen, onClose, defaultTab = 'live
                       {l.titleAr}
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      الحجم: {l.size} • {l.date} ✅
+                      الحجم: {l.size} • {l.date}
                     </div>
                   </div>
 
@@ -334,7 +336,9 @@ export const StudentFutureFeaturesModal = ({ isOpen, onClose, defaultTab = 'live
         {/* Tab 4: Referral & Invite (US-123) */}
         {activeTab === 'referral' && (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <div style={{ fontSize: '36px', marginBottom: '8px' }}>🎁</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+              <Gift size={36} color="var(--primary)" />
+            </div>
             <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
               {lang === 'ar' ? 'ادعُ أصدقاءك واحصل على 150 ج.م رصيد مجاني!' : 'Invite Friends, Earn Rewards!'}
             </h3>
@@ -391,15 +395,17 @@ export const StudentFutureFeaturesModal = ({ isOpen, onClose, defaultTab = 'live
               margin: '0 auto 20px',
               boxShadow: '0 12px 30px rgba(0,0,0,0.4)'
             }}>
-              <div style={{ fontSize: '32px' }}>👑</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
+                <Crown size={32} color="#FBBF24" />
+              </div>
               <h4 style={{ fontSize: '18px', fontWeight: '900', margin: '8px 0 4px' }}>
                 {student.nameAr}
               </h4>
               <div style={{ fontSize: '12px', color: '#C7D2FE' }}>
-                {student.gradeNameAr} • المركز 2 بدوري المتفوقين 💎
+                {student.gradeNameAr} • المركز الثاني بدوري المتفوقين
               </div>
               <div style={{ fontSize: '22px', fontWeight: '900', color: '#FDE68A', marginTop: '12px' }}>
-                {student.xp.toLocaleString()} XP • {student.streakDays} يوماً متواصلاً 🔥
+                {student.xp.toLocaleString()} XP • {student.streakDays} يوماً متواصلاً
               </div>
             </div>
 

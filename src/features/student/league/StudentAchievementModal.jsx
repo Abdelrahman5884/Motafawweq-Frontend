@@ -3,14 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { 
   X, 
   Flame, 
-  Target, 
-  Award, 
+  CheckCircle2, 
+  ClipboardCheck, 
   BookOpen, 
   Trophy, 
-  Sparkles, 
-  ShieldCheck, 
-  ExternalLink,
-  Zap
+  ChevronLeft
 } from 'lucide-react';
 
 export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 'ar' }) => {
@@ -29,45 +26,44 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
 
   const isMe = student.isMe;
 
-  // Derive realistic stats if not provided directly
+  // Derive stats matching the student's own "إنجازاتي" format
   const streak = student.streak || 16;
-  const perfectQuizzes = student.perfectQuizzes || 11;
-  const examsSolved = student.examsSolved || Math.round(perfectQuizzes * 1.5 + 4);
-  const lessonsStudied = student.lessonsStudied || Math.round(streak * 2 + 10);
+  const perfectQuizzes = student.perfectQuizzes || (isMe ? 18 : 12);
+  const examsSolved = student.examsSolved || (isMe ? 24 : Math.round(perfectQuizzes * 1.4 + 4));
+  const lessonsStudied = student.lessonsStudied || (isMe ? 42 : Math.round(streak * 2 + 10));
 
-  // Unlocked Badges
-  const badges = [
+  const stats = [
     {
-      id: 'diamond-student',
-      title: 'المتفوق الماسي',
-      icon: '💎',
-      desc: 'ضمن النخبة الأولى على مستوى الجمهورية',
-      unlocked: true,
-      color: '#1588C7'
+      id: 'exams-solved',
+      titleAr: 'امتحانات تم حلها',
+      value: examsSolved,
+      subAr: 'شاملة الكويزات والتدريبات',
+      icon: ClipboardCheck,
+      color: 'var(--primary)'
     },
     {
-      id: 'streak-fire',
-      title: 'شعلة الالتزام',
-      icon: '🔥',
-      desc: `استمرارية المذاكرة لـ ${streak} يوماً متواصلاً`,
-      unlocked: true,
+      id: 'full-marks',
+      titleAr: 'امتحانات مقفلة 100%',
+      value: perfectQuizzes,
+      subAr: 'تقفيل كامل بالدرجة النهائية',
+      icon: CheckCircle2,
+      color: 'var(--success)'
+    },
+    {
+      id: 'lessons-studied',
+      titleAr: 'حصص تمت مذاكرتها',
+      value: lessonsStudied,
+      subAr: 'محاضرات مسجلة مكتملة',
+      icon: BookOpen,
+      color: 'var(--primary)'
+    },
+    {
+      id: 'streak-days',
+      titleAr: 'أيام الاستمرار والاستريك',
+      value: `${streak} يوماً`,
+      subAr: 'مذاكرة متواصلة دون انقطاع',
+      icon: Flame,
       color: '#EA580C'
-    },
-    {
-      id: 'perfect-master',
-      title: 'عبقري التقفيل',
-      icon: '🎯',
-      desc: `تقفيل ${perfectQuizzes} امتحاناً بالدرجة النهائية 100%`,
-      unlocked: true,
-      color: '#059669'
-    },
-    {
-      id: 'fast-solver',
-      title: 'سريع البديهة',
-      icon: '⚡',
-      desc: 'متوسط زمن إجابة أقل من 40 ثانية للسؤال',
-      unlocked: true,
-      color: '#7C3AED'
     }
   ];
 
@@ -76,13 +72,13 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(6, 37, 78, 0.45)',
+        backgroundColor: 'rgba(6, 37, 78, 0.5)',
         backdropFilter: 'blur(6px)',
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px',
+        padding: '16px',
         animation: 'fadeIn 0.2s ease-out'
       }}
       onClick={onClose}
@@ -92,19 +88,19 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
           backgroundColor: 'var(--bg-surface)',
           borderRadius: '24px',
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '480px',
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: '0 20px 48px rgba(6, 37, 78, 0.22)',
+          boxShadow: '0 20px 48px rgba(6, 37, 78, 0.25)',
           border: '1px solid var(--border-subtle)',
           position: 'relative'
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Ribbon / Banner */}
+        {/* Header Ribbon */}
         <div style={{
           position: 'relative',
-          padding: '28px 24px 20px',
+          padding: '24px 20px 18px',
           background: 'linear-gradient(135deg, rgba(6, 37, 78, 0.04) 0%, rgba(21, 136, 199, 0.08) 100%)',
           borderBottom: '1px solid var(--border-subtle)',
           textAlign: 'center'
@@ -115,8 +111,8 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
             aria-label="إغلاق"
             style={{
               position: 'absolute',
-              top: '16px',
-              insetInlineEnd: '16px',
+              top: '14px',
+              insetInlineEnd: '14px',
               width: '32px',
               height: '32px',
               borderRadius: '10px',
@@ -134,13 +130,13 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
           </button>
 
           {/* Avatar with rank badge */}
-          <div style={{ position: 'relative', display: 'inline-block', marginBottom: '12px' }}>
+          <div style={{ position: 'relative', display: 'inline-block', marginBottom: '10px' }}>
             <img
               src={student.avatar}
               alt={student.nameAr}
               style={{
-                width: '76px',
-                height: '76px',
+                width: '72px',
+                height: '72px',
                 borderRadius: '50%',
                 objectFit: 'cover',
                 border: isMe ? '3px solid var(--primary)' : '3px solid var(--border-medium)',
@@ -150,17 +146,17 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
             {/* Rank badge */}
             <div style={{
               position: 'absolute',
-              bottom: '-4px',
-              insetInlineEnd: '-4px',
-              width: '28px',
-              height: '28px',
+              bottom: '-2px',
+              insetInlineEnd: '-2px',
+              width: '26px',
+              height: '26px',
               borderRadius: '50%',
               backgroundColor: student.rank === 1 ? '#F59E0B' : student.rank === 2 ? '#1588C7' : student.rank === 3 ? '#B45309' : '#0F172A',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '12.5px',
+              fontSize: '12px',
               fontWeight: '900',
               border: '2px solid var(--bg-surface)'
             }}>
@@ -168,9 +164,9 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '3px' }}>
             <h2 style={{
-              fontSize: '18px',
+              fontSize: '17px',
               fontWeight: '800',
               color: 'var(--text-primary)',
               margin: 0
@@ -179,9 +175,9 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
             </h2>
             {isMe && (
               <span style={{
-                fontSize: '11px',
+                fontSize: '10.5px',
                 fontWeight: '700',
-                padding: '2px 8px',
+                padding: '2px 7px',
                 borderRadius: '6px',
                 backgroundColor: 'var(--primary)',
                 color: '#FFFFFF'
@@ -191,7 +187,7 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
             )}
           </div>
 
-          <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
             {student.schoolAr}
           </div>
 
@@ -208,212 +204,70 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
             fontWeight: '700',
             color: 'var(--primary)'
           }}>
-            <Trophy size={13} />
+            <Trophy size={13} color="var(--primary)" />
             <span>{leagueTitle || 'دوري المتفوقين'} • {student.score?.toLocaleString()} نقطة</span>
           </div>
         </div>
 
-        {/* Modal Body */}
-        <div style={{ padding: '22px 24px' }}>
-          {/* 4 Quick Stat Cards */}
+        {/* Modal Body - 4 Study Metrics Cards identical to "إنجازاتي" */}
+        <div style={{ padding: '20px' }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',
             gap: '12px',
-            marginBottom: '22px'
+            marginBottom: '20px'
           }}>
-            {/* Streak */}
-            <div style={{
-              padding: '12px 14px',
-              borderRadius: '14px',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(234, 88, 12, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#EA580C',
-                flexShrink: 0
-              }}>
-                <Flame size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                  أيام الالتزام
-                </div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {streak} يوم متواصل
-                </div>
-              </div>
-            </div>
-
-            {/* Perfect Quizzes */}
-            <div style={{
-              padding: '12px 14px',
-              borderRadius: '14px',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(5, 150, 105, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#059669',
-                flexShrink: 0
-              }}>
-                <Target size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                  امتحانات 100%
-                </div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {perfectQuizzes} تقفيل
-                </div>
-              </div>
-            </div>
-
-            {/* Exams Solved */}
-            <div style={{
-              padding: '12px 14px',
-              borderRadius: '14px',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)',
-                flexShrink: 0
-              }}>
-                <Award size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                  امتحانات محلولة
-                </div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {examsSolved} امتحان وكويز
-                </div>
-              </div>
-            </div>
-
-            {/* Lessons Studied */}
-            <div style={{
-              padding: '12px 14px',
-              borderRadius: '14px',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(124, 58, 237, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#7C3AED',
-                flexShrink: 0
-              }}>
-                <BookOpen size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                  حصص مكتملة
-                </div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {lessonsStudied} حصة
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Badges Earned */}
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '12px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={15} color="var(--primary)" />
-                <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  الأوسمة والشارات المكتسبة
-                </span>
-              </div>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                4 أوسمة متميزة
-              </span>
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '10px'
-            }}>
-              {badges.map((b) => (
+            {stats.map((item) => {
+              const IconComponent = item.icon;
+              return (
                 <div
-                  key={b.id}
+                  key={item.id}
                   style={{
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    backgroundColor: 'var(--bg-surface)',
+                    padding: '14px',
+                    borderRadius: '16px',
+                    backgroundColor: 'var(--bg-subtle)',
                     border: '1px solid var(--border-subtle)',
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '10px'
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    minHeight: '92px'
                   }}
                 >
-                  <div style={{
-                    fontSize: '20px',
-                    lineHeight: '1',
-                    flexShrink: 0
-                  }}>
-                    {b.icon}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '2px' }}>
-                      {b.title}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '700' }}>
+                      {item.titleAr}
+                    </span>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: item.color,
+                      flexShrink: 0
+                    }}>
+                      <IconComponent size={15} />
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                      {b.desc}
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                      {item.value}
+                    </div>
+                    <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {item.subAr}
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
-          {/* Footer Navigation CTA */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+          {/* Footer Action */}
+          <div>
             {isMe ? (
               <button
                 onClick={() => {
@@ -421,7 +275,7 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
                   navigate('/student/gamification');
                 }}
                 style={{
-                  flex: 1,
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -431,22 +285,22 @@ export const StudentAchievementModal = ({ student, leagueTitle, onClose, lang = 
                   backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   border: 'none',
-                  fontSize: '13.5px',
+                  fontSize: '13px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   boxShadow: '0 4px 14px rgba(21, 136, 199, 0.25)',
                   transition: 'opacity 0.15s ease'
                 }}
               >
-                <Trophy size={16} />
-                <span>فتح صفحة إنجازاتي وجوائزي الكاملة</span>
-                <ExternalLink size={14} />
+                <Trophy size={15} />
+                <span>فتح صفحة إنجازاتي الكاملة</span>
+                <ChevronLeft size={15} />
               </button>
             ) : (
               <button
                 onClick={onClose}
                 style={{
-                  flex: 1,
+                  width: '100%',
                   padding: '11px 18px',
                   borderRadius: '12px',
                   backgroundColor: 'var(--bg-subtle)',

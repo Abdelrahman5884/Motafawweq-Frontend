@@ -4,16 +4,14 @@ import {
   Trophy, 
   Medal, 
   UserCheck, 
-  Calendar, 
-  ArrowRight,
-  ExternalLink,
-  ChevronLeft
+  ChevronLeft,
+  Award
 } from 'lucide-react';
 
 export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
   const navigate = useNavigate();
 
-  // Teacher leagues standings
+  // Teacher leagues standings - NO EMOJIS
   const teacherLeagues = [
     {
       id: 'tch-salma',
@@ -24,8 +22,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       totalStudents: 4120,
       xp: 3450,
       tierAr: 'دوري النخبة الماسي',
-      statusAr: 'مؤهل للمراكز الأولى',
-      medal: '🥈'
+      statusAr: 'مؤهل للمراكز الأولى'
     },
     {
       id: 'tch-hany',
@@ -36,8 +33,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       totalStudents: 3890,
       xp: 2890,
       tierAr: 'بطل الكورس الذهبي',
-      statusAr: 'متصدر المجموعة',
-      medal: '🥇'
+      statusAr: 'متصدر المجموعة'
     },
     {
       id: 'tch-walid',
@@ -48,8 +44,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       totalStudents: 3500,
       xp: 3120,
       tierAr: 'دوري النخبة الماسي',
-      statusAr: 'منصة التتويج',
-      medal: '🥉'
+      statusAr: 'منصة التتويج'
     },
     {
       id: 'tch-ehab',
@@ -60,12 +55,11 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       totalStudents: 2940,
       xp: 2100,
       tierAr: 'الدوري الذهبي',
-      statusAr: 'صاعد للمربع الذهبي',
-      medal: '🎖️'
+      statusAr: 'صاعد للمربع الذهبي'
     }
   ];
 
-  // Past leagues archive
+  // Past leagues archive - NO EMOJIS
   const pastLeagues = [
     {
       id: 'past-1',
@@ -75,8 +69,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       points: '3,450',
       badgeAr: 'وسام التميز الفضي',
       tierAr: 'دوري النخبة الماسي',
-      dateAr: '18 سبتمبر 2026',
-      medal: '🥈'
+      dateAr: '18 سبتمبر 2026'
     },
     {
       id: 'past-2',
@@ -86,8 +79,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       points: '4,820',
       badgeAr: 'درع المتفوق الذهبي الأول',
       tierAr: 'بطل الجمهورية',
-      dateAr: '31 أغسطس 2026',
-      medal: '🥇'
+      dateAr: '31 أغسطس 2026'
     },
     {
       id: 'past-3',
@@ -97,8 +89,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       points: '2,890',
       badgeAr: 'وسام الصعود السريع',
       tierAr: 'الدوري الماسي',
-      dateAr: '11 سبتمبر 2026',
-      medal: '🥈'
+      dateAr: '11 سبتمبر 2026'
     },
     {
       id: 'past-4',
@@ -108,8 +99,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
       points: '2,650',
       badgeAr: 'وسام المنصة البرونزي',
       tierAr: 'الدوري الذهبي',
-      dateAr: '28 أغسطس 2026',
-      medal: '🥉'
+      dateAr: '28 أغسطس 2026'
     }
   ];
 
@@ -209,7 +199,21 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
                   }}>
                     {item.subject}
                   </span>
-                  <span style={{ fontSize: '18px' }}>{item.medal}</span>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: item.rank === 1 ? 'rgba(245, 158, 11, 0.12)' : item.rank === 2 ? 'rgba(21, 136, 199, 0.12)' : 'rgba(217, 119, 6, 0.12)',
+                    color: item.rank === 1 ? '#D97706' : item.rank === 2 ? 'var(--primary)' : '#B45309',
+                    fontSize: '11px',
+                    fontWeight: '800'
+                  }}>
+                    <Medal size={13} />
+                    <span>المركز #{item.rank}</span>
+                  </div>
                 </div>
 
                 <div style={{
@@ -244,7 +248,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
                 </div>
                 <div>
                   <strong style={{ color: 'var(--text-primary)' }}>{item.xp.toLocaleString()}</strong>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}> XP</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}> نقطة</span>
                 </div>
               </div>
             </div>
@@ -278,7 +282,7 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
               margin: '3px 0 0 0',
               fontFamily: 'var(--font-arabic)'
             }}>
-              {lang === 'ar' ? 'أرشيف نتائجك والمراكز والميداليات التي حققتها في جولات الدوري السابقة' : 'Your final ranks and awards in previous league seasons'}
+              {lang === 'ar' ? 'أرشيف نتائجك والمراكز المحققة في جولات الدوري السابقة' : 'Your final ranks in previous league seasons'}
             </p>
           </div>
         </div>
@@ -304,7 +308,21 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '18px' }}>{item.medal}</span>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: item.rank === 1 ? 'rgba(245, 158, 11, 0.12)' : 'rgba(21, 136, 199, 0.12)',
+                    color: item.rank === 1 ? '#D97706' : 'var(--primary)',
+                    fontSize: '11px',
+                    fontWeight: '800'
+                  }}>
+                    <Award size={13} />
+                    <span>المركز #{item.rank}</span>
+                  </div>
+
                   <span style={{
                     fontSize: '11px',
                     fontWeight: '700',

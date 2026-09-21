@@ -1,10 +1,7 @@
 import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { STUDENT_PROFILE } from '../../data/studentData';
 import {
-  GamificationHero,
   StudyActivityHeatmap,
-  BadgesShowcase,
   WeeklyChallenges,
   GamificationStatsCards,
   GamificationLeaguesHistory
@@ -12,13 +9,49 @@ import {
 
 export const StudentGamificationView = () => {
   const { lang } = useLanguage();
-  const student = STUDENT_PROFILE;
 
-  // Weekly challenges
+  // Real, platform-specific weekly challenges
   const challenges = [
-    { id: 'ch-1', titleAr: 'تحدي عبقري الأحياء: حل 3 كويزات بدرجة 90%+', progress: '2 / 3', completed: false, xpReward: 250 },
-    { id: 'ch-2', titleAr: 'تحدي الالتزام الأسبوعي: 5 أيام متتالية مذاكرة', progress: '5 / 5', completed: true, xpReward: 300 },
-    { id: 'ch-3', titleAr: 'تحدي بنك الأخطاء: تصحيح 5 مفاهيم من بنك الأخطاء', progress: '3 / 5', completed: false, xpReward: 200 }
+    { 
+      id: 'ch-1', 
+      titleAr: 'حل 5 كويزات في مادة الأحياء', 
+      descAr: 'تمارين تفاعلية من كورس د. سلمى السيد بنظام البابل شيت',
+      current: 4,
+      target: 5,
+      completed: false, 
+      xpReward: 250,
+      link: '/student/quiz'
+    },
+    { 
+      id: 'ch-2', 
+      titleAr: 'تقفيل امتحان شامل في مادة الفيزياء (100%)', 
+      descAr: 'الحصول على الدرجة النهائية في اختبار دوائر كيرشوف',
+      current: 1,
+      target: 1,
+      completed: true, 
+      xpReward: 350,
+      link: '/student/exam'
+    },
+    { 
+      id: 'ch-3', 
+      titleAr: 'مذاكرة 4 حصص من الكورسات المسجلة', 
+      descAr: 'إكمال مشاهدة وتلخيص الحصص على المنصة هذا الأسبوع',
+      current: 3,
+      target: 4,
+      completed: false, 
+      xpReward: 300,
+      link: '/student/courses'
+    },
+    { 
+      id: 'ch-4', 
+      titleAr: 'تصحيح 5 أسئلة من بنك الأخطاء', 
+      descAr: 'إعادة حل وتثبيت المفاهيم التي تم التعثر فيها سابقاً',
+      current: 3,
+      target: 5,
+      completed: false, 
+      xpReward: 200,
+      link: '/student/weak-areas'
+    }
   ];
 
   return (
@@ -34,26 +67,20 @@ export const StudentGamificationView = () => {
           {lang === 'ar' ? 'لوحة إنجازاتي وجوائز التفوق' : 'My Achievements & Honors'}
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-          {lang === 'ar' ? 'متابعة إحصائيات المذاكرة والامتحانات، شارات التميز، وسجل الترتيب في الدوريات' : 'Track your study statistics, perfect scores, badges, and league rankings'}
+          {lang === 'ar' ? 'متابعة إحصائيات المذاكرة والامتحانات، وسجل الترتيب في الدوريات والتحديات الأسبوعية' : 'Track your study statistics, exams, league rankings, and weekly challenges'}
         </p>
       </div>
 
       {/* 1. Study Metrics Stats Cards: Exams solved, Full Marks, Lessons studied, Streak */}
       <GamificationStatsCards lang={lang} />
 
-      {/* 2. Level & XP Progression Hero */}
-      <GamificationHero student={student} />
-
-      {/* 3. Study Activity Heatmap */}
+      {/* 2. Study Activity Heatmap (Daily Commitment) */}
       <StudyActivityHeatmap lang={lang} />
 
-      {/* 4. Teacher Leagues & Past Leagues Archive */}
+      {/* 3. Teacher Leagues & Past Leagues Archive */}
       <GamificationLeaguesHistory lang={lang} />
 
-      {/* 5. Badges Showcase Grid */}
-      <BadgesShowcase lang={lang} />
-
-      {/* 6. Weekly Challenges */}
+      {/* 4. Real Platform Weekly Challenges */}
       <WeeklyChallenges challenges={challenges} lang={lang} />
     </div>
   );

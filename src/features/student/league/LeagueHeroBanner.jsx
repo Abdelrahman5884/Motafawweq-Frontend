@@ -122,7 +122,7 @@ export const LeagueHeroBanner = ({ lang, isRtl, onStartQuiz, onStartExam, onGoTo
                 }}
               >
                 <Trophy size={14} color="#FBBF24" />
-                <span>{lang === 'ar' ? 'سجل إنجازاتي 🏆' : 'My Achievements'}</span>
+                <span>{lang === 'ar' ? 'سجل إنجازاتي' : 'My Achievements'}</span>
               </button>
             )}
 

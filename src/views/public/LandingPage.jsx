@@ -222,19 +222,6 @@ export const LandingPage = () => {
           <div className="landing-hero-2col">
             {/* Text & Action Column */}
             <div>
-              {/* Top Tag: Our Students Success Stories / Monthly Champions */}
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                color: 'var(--primary)',
-                fontSize: '13px',
-                fontWeight: '800',
-                marginBottom: '12px'
-              }}>
-                <Trophy size={16} color="#FBBF24" />
-                <span>{lang === 'ar' ? 'قصص نجاح طلابنا • أبطال دوري المتفوقين' : 'Student Success Stories • League Champions'}</span>
-              </div>
 
               {/* Dynamic Headline */}
               <h1 className="landing-hero-headline" style={{

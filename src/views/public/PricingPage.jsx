@@ -60,7 +60,7 @@ export const PricingPage = () => {
         lang === 'ar' ? 'القفز اللحظي من النص لتسجيل الحصة' : 'Click-to-jump audio seeker in transcripts',
         lang === 'ar' ? 'تشخيص ذكي لنقاط الضعف' : 'AI weak areas diagnostics & review queues',
         lang === 'ar' ? 'امتحانات تدريبية ذكية غير محدودة' : 'Unlimited practice smart quizzes',
-        lang === 'ar' ? 'نقاط الخبرة وعداد الحماس اليومي 🔥' : 'XP leaderboards & study streak 🔥'
+        lang === 'ar' ? 'نقاط الخبرة وعداد الاستريك اليومي' : 'XP leaderboards & study streak'
       ],
       cta: lang === 'ar' ? 'اشترك كطالب' : 'Get Student Plus',
       role: 'student'

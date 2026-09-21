@@ -1,4 +1,4 @@
-// Detailed data for General Ministry Subject Leagues and Teacher Course Leagues
+// Detailed data for General Ministry Subject Leagues and Teacher Course Leagues (No Emojis)
 
 export const ALL_LEAGUES = [
   // ================= 1. دوريات المواد العامة (التربية والتعليم) =================
@@ -8,7 +8,6 @@ export const ALL_LEAGUES = [
     nameAr: 'الأحياء',
     titleAr: 'دوري مادة الأحياء العام',
     subtitleAr: 'المناهج القومية • وزارة التربية والتعليم',
-    icon: '🧬',
     badge: 'التربية والتعليم',
     descriptionAr: 'تنافس مع نخبة طلاب الشعبة العلمية على مستوى الجمهورية في اختبارات وفصول مادة الأحياء المقررة وزارياً.',
     participantsCount: 18450,
@@ -30,7 +29,6 @@ export const ALL_LEAGUES = [
     nameAr: 'الفيزياء',
     titleAr: 'دوري مادة الفيزياء العام',
     subtitleAr: 'المناهج القومية • وزارة التربية والتعليم',
-    icon: '⚡',
     badge: 'التربية والتعليم',
     descriptionAr: 'المنافسة الجمهورية في مسائل كيرشوف والفيزياء الحديثة والدينامو مع بنوك أسئلة الوزارة ونماذج الامتحانات التجريبية.',
     participantsCount: 16800,
@@ -52,7 +50,6 @@ export const ALL_LEAGUES = [
     nameAr: 'الكيمياء',
     titleAr: 'دوري مادة الكيمياء العام',
     subtitleAr: 'المناهج القومية • وزارة التربية والتعليم',
-    icon: '🧪',
     badge: 'التربية والتعليم',
     descriptionAr: 'سباق الكيمياء الوزاري الأسبوعي: معادلات التوازن، الكيمياء الكهربية وتفاعلات الكيمياء العضوية الحديثة.',
     participantsCount: 15300,
@@ -64,7 +61,7 @@ export const ALL_LEAGUES = [
       { rank: 4, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80', score: 2910, streak: 16, badge: 'صاعد للكبار', tier: 'Gold', isMe: true, schoolAr: 'السعيدية الثانوية العسكرية، الجيزة', perfectQuizzes: 8, examsSolved: 19, lessonsStudied: 37, change: 2 },
       { rank: 5, nameAr: 'نهال فوزي عبد الله', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=80', score: 2680, streak: 7, badge: 'نشطة', tier: 'Gold', schoolAr: 'الزقازيق الثانوية بنات', perfectQuizzes: 6, examsSolved: 14, lessonsStudied: 25, change: -1 },
       { rank: 6, nameAr: 'طارق رمزي متولي', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80', score: 2450, streak: 5, badge: 'متقدم', tier: 'Gold', schoolAr: 'دمياط العسكرية بنين', perfectQuizzes: 5, examsSolved: 12, lessonsStudied: 21, change: 1 },
-      { rank: 7, nameAr: 'شهد علاء فاروق', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&auto=format&fit=crop&q=80', score: 2260, streak: 4, badge: 'طموحة', tier: 'Silver', schoolAr: 'بني سويف التجريبية', perfectQuizzes: 3, examsSolved: 10, lessonsStudied: 17, change: 0 },
+      { rank: 7, nameAr: 'شهد علاء فاروق', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&auto=format&fit=crop&q=80', score: 2260, streak: 4, badge: 'طموحة', tier: 'Silver', schoolAr: 'بني سويف التجريبية', perfectQuizzes: 3, examsSolved: 10, lessonsStudied: 16, change: 0 },
       { rank: 8, nameAr: 'كريم أشرف حلمي', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&auto=format&fit=crop&q=80', score: 2040, streak: 3, badge: 'مستمر', tier: 'Silver', schoolAr: 'قنا الثانوية بنين', perfectQuizzes: 2, examsSolved: 8, lessonsStudied: 14, change: 0 }
     ]
   },
@@ -74,7 +71,6 @@ export const ALL_LEAGUES = [
     nameAr: 'اللغة العربية',
     titleAr: 'دوري مادة اللغة العربية العام',
     subtitleAr: 'المناهج القومية • وزارة التربية والتعليم',
-    icon: '📖',
     badge: 'التربية والتعليم',
     descriptionAr: 'تنافس في النحو الشامل، البلاغة، القراءة المتحررة والأدب مع نماذج الوزارة الاسترشادية الشاملة.',
     participantsCount: 19200,
@@ -96,7 +92,6 @@ export const ALL_LEAGUES = [
     nameAr: 'الرياضيات',
     titleAr: 'دوري مادة الرياضيات العام',
     subtitleAr: 'المناهج القومية • وزارة التربية والتعليم',
-    icon: '📐',
     badge: 'التربية والتعليم',
     descriptionAr: 'تحديات التفاضل والتكامل والجبر والهندسة الفراغية والديناميكا لطلاب شعبة علمي رياضة.',
     participantsCount: 14100,
@@ -122,7 +117,6 @@ export const ALL_LEAGUES = [
     subtitleAr: 'ماستر كورس الأحياء والوراثة الجزيئية',
     teacherName: 'د. سلمى السيد',
     subject: 'الأحياء',
-    icon: '🔬',
     badge: 'كورس د. سلمى',
     descriptionAr: 'المنافسة الحصرية لطلاب ماستر كورس دكتورة سلمى السيد على بنوك أسئلة الحصص والكويزات الأسبوعية.',
     participantsCount: 4120,
@@ -146,13 +140,12 @@ export const ALL_LEAGUES = [
     subtitleAr: 'الفيزياء الحديثة وقوانين كيرشوف والدينامو',
     teacherName: 'د. هاني الشناوي',
     subject: 'الفيزياء',
-    icon: '⚡',
     badge: 'كورس د. هاني',
     descriptionAr: 'دوري أبطال الفيزياء التابع لأكاديمية الدكتور هاني الشناوي، لحل مسائل الدوائر المعقدة والتحديات اليومية.',
     participantsCount: 3890,
     myRank: 1,
     students: [
-      { rank: 1, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80', score: 2890, streak: 16, badge: 'بطل الكورس 🥇', tier: 'Diamond', isMe: true, schoolAr: 'السعيدية الثانوية العسكرية، الجيزة', perfectQuizzes: 12, examsSolved: 21, lessonsStudied: 38, change: 2 },
+      { rank: 1, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80', score: 2890, streak: 16, badge: 'بطل الكورس', tier: 'Diamond', isMe: true, schoolAr: 'السعيدية الثانوية العسكرية، الجيزة', perfectQuizzes: 12, examsSolved: 21, lessonsStudied: 38, change: 2 },
       { rank: 2, nameAr: 'محمد أشرف رضوان', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80', score: 2810, streak: 15, badge: 'وصيف الكورس', tier: 'Diamond', schoolAr: 'الإبراهيمية الثانوية، الإسكندرية', perfectQuizzes: 11, examsSolved: 20, lessonsStudied: 35, change: -1 },
       { rank: 3, nameAr: 'سلمى إبراهيم حمزة', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80', score: 2690, streak: 12, badge: 'منصة التتويج', tier: 'Diamond', schoolAr: 'الشهيد هشام بركات، القاهرة', perfectQuizzes: 9, examsSolved: 18, lessonsStudied: 32, change: 1 },
       { rank: 4, nameAr: 'فادي رؤوف زكي', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&auto=format&fit=crop&q=80', score: 2480, streak: 8, badge: 'نشط', tier: 'Gold', schoolAr: 'المنارة بنين، المعادي', perfectQuizzes: 7, examsSolved: 15, lessonsStudied: 27, change: 0 },
@@ -170,7 +163,6 @@ export const ALL_LEAGUES = [
     subtitleAr: 'الاتزان الكيميائي والكيمياء الكهربية والتحليلية',
     teacherName: 'د. إيهاب عبد العظيم',
     subject: 'الكيمياء',
-    icon: '🧪',
     badge: 'كورس د. إيهاب',
     descriptionAr: 'منافسات كورس الكيمياء الشامل بإشراف د. إيهاب عبد العظيم، مع تقييمات الواجبات الأسبوعية وبنك المسائل التراكمي.',
     participantsCount: 2940,
@@ -194,7 +186,6 @@ export const ALL_LEAGUES = [
     subtitleAr: 'مراجعة النحو الشاملة والبلاغة التراكمية',
     teacherName: 'مستر وليد محسن',
     subject: 'اللغة العربية',
-    icon: '📚',
     badge: 'كورس مستر وليد',
     descriptionAr: 'المضمار الأسبوعي لنخبة طلاب مستر وليد محسن في فك شفرات النحو والبلاغة وإعراب أصعب الشواهد.',
     participantsCount: 3500,
@@ -202,7 +193,7 @@ export const ALL_LEAGUES = [
     students: [
       { rank: 1, nameAr: 'خالد عبد الرحمن النجار', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&auto=format&fit=crop&q=80', score: 3580, streak: 23, badge: 'فارس النحو', tier: 'Diamond', schoolAr: 'المنصورة العسكرية بنين', perfectQuizzes: 14, examsSolved: 27, lessonsStudied: 47, change: 0 },
       { rank: 2, nameAr: 'فاطمة الزهراء مصطفى', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80', score: 3340, streak: 18, badge: 'وصيفة الكورس', tier: 'Diamond', schoolAr: 'السنية الثانوية بنات، القاهرة', perfectQuizzes: 12, examsSolved: 24, lessonsStudied: 43, change: 1 },
-      { rank: 3, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80', score: 3120, streak: 16, badge: 'منصة التتويج 🥉', tier: 'Diamond', isMe: true, schoolAr: 'السعيدية الثانوية العسكرية، الجيزة', perfectQuizzes: 10, examsSolved: 22, lessonsStudied: 39, change: 1 },
+      { rank: 3, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&auto=format&fit=crop&q=80', score: 3120, streak: 16, badge: 'منصة التتويج', tier: 'Diamond', isMe: true, schoolAr: 'السعيدية الثانوية العسكرية، الجيزة', perfectQuizzes: 10, examsSolved: 22, lessonsStudied: 39, change: 1 },
       { rank: 4, nameAr: 'سلمى كمال بدر', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&auto=format&fit=crop&q=80', score: 2790, streak: 9, badge: 'مثابرة', tier: 'Gold', schoolAr: 'طلائع المستقبل لغات', perfectQuizzes: 7, examsSolved: 16, lessonsStudied: 27, change: -2 },
       { rank: 5, nameAr: 'إبراهيم يوسف غنيم', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80', score: 2540, streak: 7, badge: 'دقيق النحو', tier: 'Gold', schoolAr: 'الإبراهيمية الثانوية', perfectQuizzes: 6, examsSolved: 14, lessonsStudied: 23, change: 1 },
       { rank: 6, nameAr: 'هدى عصام الدين', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&auto=format&fit=crop&q=80', score: 2390, streak: 5, badge: 'نشطة', tier: 'Silver', schoolAr: 'المنيا الثانوية بنات', perfectQuizzes: 4, examsSolved: 12, lessonsStudied: 19, change: 0 },
