@@ -1,46 +1,75 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trophy, ChevronRight, ChevronLeft, Award } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
+import { Trophy, ChevronRight, ChevronLeft } from 'lucide-react';
 
 const CHAMPIONS_DATA = [
   {
     id: 'champ-sep',
     monthAr: 'دوري شهر سبتمبر 2026',
+    monthEn: 'September 2026 League',
     titleAr: 'بطل دوري المتفوقين لشهر سبتمبر',
+    titleEn: 'September League Champion',
     nameAr: 'أحمد إبراهيم الدسوقي',
+    nameEn: 'Ahmed Ibrahim El-Desouky',
     schoolAr: 'مدرسة السعيدية الثانوية العسكرية، الجيزة',
-    score: '3,980 نقطة',
+    schoolEn: 'El Saidiya Military High School, Giza',
+    scoreAr: '3,980 نقطة',
+    scoreEn: '3,980 Points',
     rankAr: 'المركز الأول جمهورياً',
-    streak: '30 يوم استريك',
+    rankEn: 'National 1st Place',
+    streakAr: '30 يوم استريك',
+    streakEn: '30-Day Streak',
     image: '/characters/real-male-champ-1.png',
-    badge: 'كأس التفوق الشهري'
+    badgeAr: 'كأس التفوق الشهري',
+    badgeEn: 'Monthly Excellence Cup'
   },
   {
     id: 'champ-aug',
     monthAr: 'دوري شهر أغسطس 2026',
+    monthEn: 'August 2026 League',
     titleAr: 'بطلة دوري المتفوقات لشهر أغسطس',
+    titleEn: 'August League Champion',
     nameAr: 'سارة خالد منصور',
+    nameEn: 'Sara Khaled Mansour',
     schoolAr: 'مدرسة المتفوقات STEM، كفر الشيخ',
-    score: '3,920 نقطة',
+    schoolEn: 'STEM High School, Kafr El-Sheikh',
+    scoreAr: '3,920 نقطة',
+    scoreEn: '3,920 Points',
     rankAr: 'المركز الأول جمهورياً',
-    streak: '28 يوم استريك',
+    rankEn: 'National 1st Place',
+    streakAr: '28 يوم استريك',
+    streakEn: '28-Day Streak',
     image: '/characters/real-female-champ.png',
-    badge: 'درع المتفوقة الذهبي'
+    badgeAr: 'درع المتفوقة الذهبي',
+    badgeEn: 'Golden Champion Shield'
   },
   {
     id: 'champ-jul',
     monthAr: 'دوري شهر يوليو 2026',
+    monthEn: 'July 2026 League',
     titleAr: 'بطل دوري المتفوقين لشهر يوليو',
+    titleEn: 'July League Champion',
     nameAr: 'عمر طارق القاضي',
+    nameEn: 'Omar Tarek El-Kady',
     schoolAr: 'الأورمان النموذجية الثانوية، الدقي',
-    score: '3,850 نقطة',
+    schoolEn: 'Orman Model High School, Dokki',
+    scoreAr: '3,850 نقطة',
+    scoreEn: '3,850 Points',
     rankAr: 'المركز الأول جمهورياً',
-    streak: '26 يوم استريك',
+    rankEn: 'National 1st Place',
+    streakAr: '26 يوم استريك',
+    streakEn: '26-Day Streak',
     image: '/characters/real-male-champ-2.png',
-    badge: 'وسام التميز الوطني'
+    badgeAr: 'وسام التميز الوطني',
+    badgeEn: 'National Excellence Medal'
   }
 ];
 
-export const MonthlyChampionsSlider = ({ isRtl = true }) => {
+export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => {
+  const languageContext = useLanguage?.() || {};
+  const lang = propLang || languageContext.lang || 'ar';
+  const isRtl = propIsRtl !== undefined ? propIsRtl : (lang === 'ar');
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const timerRef = useRef(null);
@@ -160,7 +189,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
             }}>
               <Trophy size={15} color="#D97706" />
             </div>
-            <span>لوحة أبطال الدوري</span>
+            <span>{lang === 'ar' ? 'لوحة أبطال الدوري' : 'League Champions'}</span>
           </div>
 
           {/* Month Indicator Pill */}
@@ -176,7 +205,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
             fontSize: '11.5px',
             fontWeight: '700'
           }}>
-            <span>{currentChamp.monthAr}</span>
+            <span>{lang === 'ar' ? currentChamp.monthAr : currentChamp.monthEn}</span>
           </div>
         </div>
 
@@ -194,7 +223,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
           <img
             key={currentChamp.id}
             src={currentChamp.image}
-            alt={currentChamp.nameAr}
+            alt={lang === 'ar' ? currentChamp.nameAr : currentChamp.nameEn}
             style={{
               maxHeight: '300px',
               maxWidth: '92%',
@@ -230,7 +259,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
               }}>
-                {currentChamp.nameAr}
+                {lang === 'ar' ? currentChamp.nameAr : currentChamp.nameEn}
               </div>
 
               <div style={{
@@ -243,7 +272,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
                 border: '1px solid rgba(16, 185, 129, 0.25)',
                 flexShrink: 0
               }}>
-                {currentChamp.score}
+                {lang === 'ar' ? currentChamp.scoreAr : currentChamp.scoreEn}
               </div>
             </div>
 
@@ -256,7 +285,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
               gap: '8px'
             }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {currentChamp.schoolAr}
+                {lang === 'ar' ? currentChamp.schoolAr : currentChamp.schoolEn}
               </span>
               <span style={{ 
                 color: '#D97706', 
@@ -267,7 +296,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
                 borderRadius: '5px',
                 border: '1px solid rgba(245, 158, 11, 0.2)'
               }}>
-                {currentChamp.rankAr}
+                {lang === 'ar' ? currentChamp.rankAr : currentChamp.rankEn}
               </span>
             </div>
           </div>
@@ -283,7 +312,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
             {/* Prev Arrow */}
             <button
               onClick={handlePrev}
-              aria-label="السابق"
+              aria-label={lang === 'ar' ? 'السابق' : 'Previous'}
               style={{
                 width: '32px',
                 height: '32px',
@@ -319,8 +348,8 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
                   <button
                     key={champ.id}
                     onClick={() => setCurrentIndex(idx)}
-                    title={champ.titleAr}
-                    aria-label={champ.titleAr}
+                    title={lang === 'ar' ? champ.titleAr : champ.titleEn}
+                    aria-label={lang === 'ar' ? champ.titleAr : champ.titleEn}
                     style={{
                       width: isActive ? '22px' : '8px',
                       height: '8px',
@@ -340,7 +369,7 @@ export const MonthlyChampionsSlider = ({ isRtl = true }) => {
             {/* Next Arrow */}
             <button
               onClick={handleNext}
-              aria-label="التالي"
+              aria-label={lang === 'ar' ? 'التالي' : 'Next'}
               style={{
                 width: '32px',
                 height: '32px',

@@ -350,7 +350,7 @@ export const LandingPage = () => {
 
             {/* Monthly Champions Slider Column (The Winners of each month) */}
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <MonthlyChampionsSlider isRtl={isRtl} />
+              <MonthlyChampionsSlider isRtl={isRtl} lang={lang} />
             </div>
           </div>
         </div>
