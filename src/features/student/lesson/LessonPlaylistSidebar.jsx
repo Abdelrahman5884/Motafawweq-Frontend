@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  BookOpen, CheckSquare, Square, Play, CheckCircle2,
-  Lock, ChevronLeft, ChevronRight, Check
+  Play, CheckCircle2,
+  Lock, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { LessonTodayCard } from './LessonTodayCard';
 
 export const LessonPlaylistSidebar = ({
   courseInfo,
@@ -12,86 +13,28 @@ export const LessonPlaylistSidebar = ({
   activeLessonId,
   isCompleted,
   progress,
+  currentTime,
+  durationFmt,
+  fmt,
   lessonChecklist,
   toggleChecklistItem,
   handlePlaylistLessonClick,
   lang,
   isRtl
 }) => {
-  const donutProgressVal = isCompleted ? 100 : Math.max(15, Math.round(progress));
-  const donutRadius = 36;
-  const donutCircumference = 2 * Math.PI * donutRadius;
-  const donutDashoffset = donutCircumference - (donutProgressVal / 100) * donutCircumference;
-
   return (
     <>
       {/* ── CARD 1: "درس اليوم" Checklist & Circular Progress ── */}
-      <div className="lv-today-card">
-        <div className="lv-today-card__header">
-          <div className="lv-today-card__title-wrap">
-            <span className="lv-today-card__badge">{lang === 'ar' ? 'خطة مذاكرة اليوم' : 'Daily Plan'}</span>
-            <h3 className="lv-today-card__title">{lang === 'ar' ? 'درس اليوم' : "Today's Lesson"}</h3>
-          </div>
-
-          {/* Donut Progress Gauge */}
-          <div className="lv-today-card__gauge">
-            <svg width="86" height="86" viewBox="0 0 86 86" className="lv-donut">
-              <circle
-                cx="43" cy="43" r={donutRadius}
-                className="lv-donut__bg"
-                strokeWidth="7"
-                fill="none"
-              />
-              <circle
-                cx="43" cy="43" r={donutRadius}
-                className="lv-donut__val"
-                strokeWidth="7"
-                strokeDasharray={donutCircumference}
-                strokeDashoffset={donutDashoffset}
-                strokeLinecap="round"
-                fill="none"
-                transform="rotate(-90 43 43)"
-              />
-            </svg>
-            <div className="lv-donut__center">
-              <span className="lv-donut__pct">{donutProgressVal}%</span>
-              <span className="lv-donut__lbl">{lang === 'ar' ? 'إنجاز' : 'Done'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 4 Interactive Milestones Checklist */}
-        <div className="lv-today-card__checklist">
-          {[
-            { key: 'watchVideo', labelAr: 'مشاهدة فيديو الشرح والمحطات', time: '35 دقيقة' },
-            { key: 'reviewNotes', labelAr: 'تدوين ومراجعة الملاحظات الذكية', time: '10 دقائق' },
-            { key: 'solveQuestions', labelAr: 'حل وتدريب أسئلة الدرس (بابل شيت)', time: '15 دقيقة' },
-            { key: 'completeMaterials', labelAr: 'تنزيل ملخص الـ PDF والمخطط', time: '5 دقائق' },
-          ].map(item => {
-            const isDone = !!lessonChecklist[item.key];
-            return (
-              <div
-                key={item.key}
-                className={`lv-check-item ${isDone ? 'lv-check-item--done' : ''}`}
-                onClick={() => toggleChecklistItem(item.key)}
-              >
-                <button type="button" className="lv-check-item__btn">
-                  {isDone ? (
-                    <CheckSquare size={17} className="lv-check-item__icon lv-check-item__icon--checked" />
-                  ) : (
-                    <Square size={17} className="lv-check-item__icon" />
-                  )}
-                </button>
-                <div className="lv-check-item__info">
-                  <span className="lv-check-item__label">{item.labelAr}</span>
-                  <span className="lv-check-item__time">{item.time}</span>
-                </div>
-                {isDone && <span className="lv-check-item__badge">{lang === 'ar' ? 'تم' : 'Done'}</span>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <LessonTodayCard
+        lessonChecklist={lessonChecklist}
+        toggleChecklistItem={toggleChecklistItem}
+        progress={progress}
+        isCompleted={isCompleted}
+        currentTime={currentTime}
+        durationFmt={durationFmt}
+        fmt={fmt}
+        lang={lang}
+      />
 
       {/* ── CARD 2: "محتوى الدورة" Playlist with Explicit Progress ── */}
       <div className="lv-playlist-card">

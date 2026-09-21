@@ -25,6 +25,7 @@ export const LessonVideoPlayer = ({
   isPlayerFS,
   togglePlayerFS,
   toggleLandscape,
+  isLandscape,
   progress,
   fmt,
   lang
@@ -32,11 +33,16 @@ export const LessonVideoPlayer = ({
   return (
     <div
       ref={playerRef}
-      className={`lv-player ${mediaMode === 'audio' ? 'lv-player--audio' : ''} ${isPlayerFS ? 'lv-player--fullscreen' : ''}`}
+      className={`lv-player ${mediaMode === 'audio' ? 'lv-player--audio' : ''} ${isPlayerFS ? 'lv-player--fullscreen lv-player--fs' : ''} ${isLandscape ? 'lv-player--landscape lv-player--fs' : ''}`}
     >
       {mediaMode === 'video' ? (
         <div className="lv-player__screen">
-          <img src={lesson.videoUrl} alt={lesson.titleAr} className="lv-player__video" />
+          <img
+            src={lesson.videoUrl}
+            alt={lesson.titleAr}
+            className="lv-player__video"
+            style={{ objectFit: 'contain' }}
+          />
           <div className="lv-player__video-gradient" />
 
           {/* Chapter Pill */}

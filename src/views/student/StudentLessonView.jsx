@@ -16,6 +16,7 @@ import {
   LessonMaterialsTab,
   LessonQuestionsTab,
   LessonModals,
+  LessonTodayCard,
   useLesson
 } from '../../features/student/lesson';
 
@@ -348,6 +349,7 @@ export const StudentLessonView = () => {
             isPlayerFS={isPlayerFS}
             togglePlayerFS={togglePlayerFS}
             toggleLandscape={toggleLandscape}
+            isLandscape={isLandscape}
             progress={progress}
             fmt={fmt}
             lang={lang}
@@ -362,6 +364,19 @@ export const StudentLessonView = () => {
             handleCompleteButtonClick={handleCompleteButtonClick}
             handleSummaryClick={handleSummaryClick}
             handleBookmarkClick={handleBookmarkClick}
+            lang={lang}
+          />
+
+          {/* Mobile "درس اليوم" Card with Live Sync Timer & Checklist */}
+          <LessonTodayCard
+            className="mobile-only"
+            lessonChecklist={lessonChecklist}
+            toggleChecklistItem={toggleChecklistItem}
+            progress={progress}
+            isCompleted={isCompleted}
+            currentTime={currentTime}
+            durationFmt={lesson.durationFmt}
+            fmt={fmt}
             lang={lang}
           />
 
@@ -390,7 +405,7 @@ export const StudentLessonView = () => {
             </div>
           </button>
 
-          {/* Tabs Navigation & Content (Inline for both Desktop and Mobile) */}
+          {/* Tabs Navigation & Content */}
           <div className="lv-tabs">
             <div className="lv-tabs__header" role="tablist">
               {tabs.map(t => {
@@ -402,7 +417,12 @@ export const StudentLessonView = () => {
                     role="tab"
                     aria-selected={isActive}
                     className={`lv-tabs__btn ${isActive ? 'active' : ''}`}
-                    onClick={() => setActiveTab(t.id)}
+                    onClick={() => {
+                      setActiveTab(t.id);
+                      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+                        setMobileSubpage(t.id);
+                      }
+                    }}
                   >
                     <Icon size={16} />
                     <span>{t.label}</span>
@@ -428,6 +448,9 @@ export const StudentLessonView = () => {
             activeLessonId={activeLessonId}
             isCompleted={isCompleted}
             progress={progress}
+            currentTime={currentTime}
+            durationFmt={lesson.durationFmt}
+            fmt={fmt}
             lessonChecklist={lessonChecklist}
             toggleChecklistItem={toggleChecklistItem}
             handlePlaylistLessonClick={handlePlaylistLessonClick}
@@ -435,6 +458,18 @@ export const StudentLessonView = () => {
             isRtl={isRtl}
           />
         </aside>
+      </div>
+
+      {/* MOBILE FLOATING PLAYLIST TRIGGER */}
+      <div className="lv-mobile-bar mobile-only">
+        <button
+          className="lv-mobile-bar__btn"
+          onClick={() => setMobilePlaylistOpen(true)}
+        >
+          <BookOpen size={16} />
+          <span>{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</span>
+          <span className="lv-mobile-bar__count">{courseCompletionPct}%</span>
+        </button>
       </div>
 
       {/* Modals: Confirmation, Celebration, Mobile Drawer */}
