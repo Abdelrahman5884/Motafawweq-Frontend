@@ -298,11 +298,11 @@ export const OfficialCertificateDocument = forwardRef(({
           </defs>
         </svg>
 
-        {/* ── TOP-LEFT: OFFICIAL MOTAFAWWEQ LOGO (Enlarged & Clear in pure white zone) ── */}
+        {/* ── TOP-LEFT: OFFICIAL MOTAFAWWEQ LOGO (Enlarged & Prominent in pure white zone) ── */}
         <div style={{
           position: 'absolute',
-          top: '26px',
-          left: '165px',
+          top: '18px',
+          left: '155px',
           zIndex: 10,
           display: 'flex',
           alignItems: 'center'
@@ -311,10 +311,10 @@ export const OfficialCertificateDocument = forwardRef(({
             src="/logo.png"
             alt="Motafawweq"
             style={{
-              height: '84px',
+              height: '102px',
               objectFit: 'contain',
               display: 'block',
-              filter: 'drop-shadow(0 4px 12px rgba(6, 37, 78, 0.12))'
+              filter: 'drop-shadow(0 4px 14px rgba(6, 37, 78, 0.14))'
             }}
           />
         </div>
