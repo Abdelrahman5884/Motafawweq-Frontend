@@ -54,12 +54,29 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
     switch (currentRole) {
       case 'teacher':
         return [
-          { id: 'dashboard', path: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
-          { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: 'AI' },
-          { id: 'lesson-workspace', path: '/teacher/workspace', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace', icon: BookOpen },
-          { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Users },
-          { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: ClipboardList },
-          { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign },
+          {
+            group: lang === 'ar' ? 'التدريس والمقررات' : 'Teaching & Curriculum',
+            items: [
+              { id: 'dashboard', path: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
+              { id: 'teacher-courses', path: '/teacher/courses', label: lang === 'ar' ? 'المقررات والمناهج' : 'Courses & Curriculum', icon: BookOpen },
+              { id: 'teacher-exams', path: '/teacher/exams', label: lang === 'ar' ? 'بنك الأسئلة والامتحانات' : 'Question Bank & Exams', icon: ClipboardList },
+              { id: 'teacher-homework', path: '/teacher/homework', label: lang === 'ar' ? 'تصحيح الواجبات' : 'Homework & Grading', icon: FileText },
+              { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: 'AI' },
+              { id: 'lesson-workspace', path: '/teacher/workspace', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace', icon: BookMarked },
+            ]
+          },
+          {
+            group: lang === 'ar' ? 'متابعة الطلاب والتقييم' : 'Students & Performance',
+            items: [
+              { id: 'teacher-league', path: '/teacher/league', label: lang === 'ar' ? 'دوري الكورس والتحدي' : 'Course League', icon: Trophy },
+              { id: 'teacher-analytics', path: '/teacher/analytics', label: lang === 'ar' ? 'التحليلات وتشخيص الضعف' : 'Analytics & Diagnostics', icon: TrendingUp },
+              { id: 'teacher-certificates', path: '/teacher/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
+              { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: Users },
+              { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Building2 },
+              { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign },
+              { id: 'teacher-settings', path: '/teacher/settings', label: lang === 'ar' ? 'إعدادات المعلم' : 'Teacher Settings', icon: Settings },
+            ]
+          }
         ];
       case 'student':
         return [
@@ -111,7 +128,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
   };
 
   const menuItems = getMenuItems();
-  const isStudentGrouped = currentRole === 'student' && Array.isArray(menuItems) && menuItems[0]?.group;
+  const isGrouped = Array.isArray(menuItems) && menuItems[0]?.group;
 
   const handleLinkClick = () => {
     if (onClose) onClose();
@@ -315,10 +332,10 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       {currentUser && (
         !isCollapsed ? (
           <Link
-            to={currentRole === 'student' ? '/student/settings' : '#'}
+            to={currentRole === 'student' ? '/student/settings' : (currentRole === 'teacher' ? '/teacher/settings' : '#')}
             onClick={handleLinkClick}
             className="sidebar-user-card"
-            style={{ textDecoration: 'none', cursor: currentRole === 'student' ? 'pointer' : 'default' }}
+            style={{ textDecoration: 'none', cursor: (currentRole === 'student' || currentRole === 'teacher') ? 'pointer' : 'default' }}
           >
             <div className="sidebar-avatar-wrapper">
               {currentUser.avatar ? (
@@ -402,7 +419,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
           </Link>
         ) : (
           <Link
-            to={currentRole === 'student' ? '/student/settings' : '#'}
+            to={currentRole === 'student' ? '/student/settings' : (currentRole === 'teacher' ? '/teacher/settings' : '#')}
             onClick={handleLinkClick}
             className="sidebar-item-wrapper"
             style={{ margin: '10px auto 4px auto', display: 'flex', justifyContent: 'center', textDecoration: 'none' }}
@@ -440,7 +457,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
           overflowX: 'hidden'
         }}
       >
-        {isStudentGrouped ? (
+        {isGrouped ? (
           menuItems.map((group, gi) => (
             <div key={gi} style={{ marginBottom: '8px' }}>
               {!isCollapsed && (

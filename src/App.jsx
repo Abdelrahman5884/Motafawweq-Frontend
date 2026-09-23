@@ -23,6 +23,13 @@ import { MarketplacePage } from './views/public/MarketplacePage';
 
 // Teacher Views
 import { TeacherDashboard } from './views/teacher/TeacherDashboard';
+import { TeacherCoursesView } from './views/teacher/TeacherCoursesView';
+import { TeacherExamsView } from './views/teacher/TeacherExamsView';
+import { TeacherHomeworkView } from './views/teacher/TeacherHomeworkView';
+import { TeacherLeagueView } from './views/teacher/TeacherLeagueView';
+import { TeacherAnalyticsView } from './views/teacher/TeacherAnalyticsView';
+import { TeacherCertificatesView } from './views/teacher/TeacherCertificatesView';
+import { TeacherSettingsView } from './views/teacher/TeacherSettingsView';
 import { RecordingStudio } from './views/teacher/RecordingStudio';
 import { LessonWorkspace } from './views/teacher/LessonWorkspace';
 import { ClassManager } from './views/teacher/ClassManager';
@@ -232,6 +239,13 @@ export default function App() {
                 {/* Teacher Routes */}
                 <Route path="/teacher" element={<Navigate to="/teacher/dashboard" replace />} />
                 <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+                <Route path="/teacher/courses" element={<TeacherCoursesView />} />
+                <Route path="/teacher/exams" element={<TeacherExamsView />} />
+                <Route path="/teacher/homework" element={<TeacherHomeworkView />} />
+                <Route path="/teacher/league" element={<TeacherLeagueView />} />
+                <Route path="/teacher/analytics" element={<TeacherAnalyticsView />} />
+                <Route path="/teacher/certificates" element={<TeacherCertificatesView />} />
+                <Route path="/teacher/settings" element={<TeacherSettingsView />} />
                 <Route path="/teacher/studio" element={<RecordingStudio />} />
                 <Route path="/teacher/workspace" element={<LessonWorkspace />} />
                 <Route path="/teacher/classes" element={<ClassManager />} />
