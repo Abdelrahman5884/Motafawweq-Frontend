@@ -74,6 +74,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
     if (currentPath.startsWith('/student/gamification')) return lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements';
     if (currentPath.startsWith('/student/certificates')) return lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates';
     if (currentPath.startsWith('/student/billing')) return lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription';
+    if (currentPath.startsWith('/student/settings')) return lang === 'ar' ? 'إعدادات الحساب والملف' : 'Account Settings';
     if (currentPath.startsWith('/teacher/dashboard')) return lang === 'ar' ? 'لوحة المعلم' : 'Teacher Dashboard';
     if (currentPath.startsWith('/teacher/studio')) return lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio';
     if (currentPath.startsWith('/teacher/workspace')) return lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace';
@@ -371,7 +372,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
           {isAuthenticated ? (
             <div className="desktop-only" style={{ alignItems: 'center', gap: '8px' }}>
               <button 
-                onClick={() => navigate(currentRole === 'student' ? '/student/league' : getDashboardPath())}
+                onClick={() => navigate(currentRole === 'student' ? '/student/settings' : getDashboardPath())}
                 title={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
                 aria-label={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
                 style={{
@@ -536,11 +537,26 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
             {isAuthenticated ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  onClick={() => {
+                    if (currentRole === 'student') {
+                      navigate('/student/settings');
+                      setMobileMenuOpen(false);
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    cursor: currentRole === 'student' ? 'pointer' : 'default',
+                    padding: '6px',
+                    borderRadius: 'var(--radius-md)'
+                  }}
+                >
                   <img
                     src={currentUser.avatar}
                     alt={currentUser.name}
-                    style={{ width: '36px', height: '36px', borderRadius: '50%' }}
+                    style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
                   />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>

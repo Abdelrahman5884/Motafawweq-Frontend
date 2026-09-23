@@ -30,7 +30,8 @@ import {
   Sparkles,
   PlayCircle,
   FolderCheck,
-  Flame
+  Flame,
+  Settings
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -81,6 +82,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal },
               { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
               { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription', icon: CreditCard },
+              { id: 'student-settings', path: '/student/settings', label: lang === 'ar' ? 'الإعدادات والملف الشخصي' : 'Settings', icon: Settings },
             ]
           }
         ];
@@ -312,7 +314,12 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       {/* ── User Profile Mini-Card ── */}
       {currentUser && (
         !isCollapsed ? (
-          <div className="sidebar-user-card">
+          <Link
+            to={currentRole === 'student' ? '/student/settings' : '#'}
+            onClick={handleLinkClick}
+            className="sidebar-user-card"
+            style={{ textDecoration: 'none', cursor: currentRole === 'student' ? 'pointer' : 'default' }}
+          >
             <div className="sidebar-avatar-wrapper">
               {currentUser.avatar ? (
                 <img
@@ -392,9 +399,14 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                 {lang === 'ar' ? (currentUser.roleLabelAr || currentUser.roleLabel) : currentUser.roleLabel}
               </div>
             </div>
-          </div>
+          </Link>
         ) : (
-          <div className="sidebar-item-wrapper" style={{ margin: '10px auto 4px auto', display: 'flex', justifyContent: 'center' }}>
+          <Link
+            to={currentRole === 'student' ? '/student/settings' : '#'}
+            onClick={handleLinkClick}
+            className="sidebar-item-wrapper"
+            style={{ margin: '10px auto 4px auto', display: 'flex', justifyContent: 'center', textDecoration: 'none' }}
+          >
             <div className="sidebar-avatar-wrapper">
               <img
                 src={currentUser.avatar}
@@ -411,7 +423,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             <div className="sidebar-tooltip">
               <span>{lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}</span>
             </div>
-          </div>
+          </Link>
         )
       )}
 

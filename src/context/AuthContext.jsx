@@ -236,6 +236,22 @@ export const AuthProvider = ({ children }) => {
     return true;
   };
 
+  // Update User Profile (e.g. name, avatar, email, grade, settings)
+  const updateUserProfile = (updatedFields) => {
+    setCurrentUser((prevUser) => {
+      const newUser = {
+        ...prevUser,
+        ...(typeof updatedFields === 'function' ? updatedFields(prevUser) : updatedFields)
+      };
+      try {
+        localStorage.setItem('motafawweq_custom_user', JSON.stringify(newUser));
+      } catch (e) {
+        // localStorage quota or private mode fallback
+      }
+      return newUser;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -251,6 +267,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        updateUserProfile,
         requestPasswordReset,
         verifyOtp,
         completePasswordReset,

@@ -46,6 +46,7 @@ import { StudentGamificationView } from './views/student/StudentGamificationView
 import { StudentCertificatesView } from './views/student/StudentCertificatesView';
 import { StudentBillingView } from './views/student/StudentBillingView';
 import { WeakAreasHub } from './views/student/WeakAreasHub';
+import { StudentSettingsView } from './views/student/StudentSettingsView';
 
 // Parent Views
 import { ParentDashboard } from './views/parent/ParentDashboard';
@@ -255,6 +256,7 @@ export default function App() {
                 <Route path="/student/certificates" element={<StudentCertificatesView />} />
                 <Route path="/student/billing" element={<StudentBillingView />} />
                 <Route path="/student/weak-areas" element={<WeakAreasHub />} />
+                <Route path="/student/settings" element={<StudentSettingsView />} />
 
                 {/* Parent Portal Route */}
                 <Route path="/parent" element={<Navigate to="/parent/dashboard" replace />} />
