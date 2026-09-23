@@ -1,7 +1,5 @@
 import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import React from 'react';
-import { useLanguage } from '../../context/LanguageContext';
 import {
   StudyActivityHeatmap,
   WeeklyChallenges,
