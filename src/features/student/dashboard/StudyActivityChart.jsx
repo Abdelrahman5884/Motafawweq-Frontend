@@ -30,13 +30,13 @@ export const StudyActivityChart = ({
 }) => {
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
 
-  // Chart coordinate mapping (viewBox: 650 x 200)
-  const chartWidth = 650;
-  const chartHeight = 200;
-  const paddingLeft = 50;
-  const paddingRight = 30;
-  const paddingTop = 25;
-  const paddingBottom = 40;
+  // Chart coordinate mapping (viewBox: 680 x 230)
+  const chartWidth = 680;
+  const chartHeight = 230;
+  const paddingLeft = 72; // Generous space so Y-axis labels never collide with Saturday dot
+  const paddingRight = 36;
+  const paddingTop = 36;
+  const paddingBottom = 46;
   const baseline = chartHeight - paddingBottom;
   const maxMinutes = 100;
 
@@ -69,20 +69,35 @@ export const StudyActivityChart = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '16px'
+          marginBottom: '16px',
+          flexWrap: 'wrap',
+          gap: '10px'
         }}>
           <div>
-            <h2 style={{
-              fontSize: '16px',
-              fontWeight: '700',
-              color: 'var(--text-primary)',
-              margin: 0,
-              fontFamily: 'var(--font-heading), var(--font-arabic)'
-            }}>
-              {lang === 'ar' ? 'معدل المذاكرة — آخر 7 أيام' : 'Study Activity — Last 7 Days'}
-            </h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-              {lang === 'ar' ? 'إجمالي الدقائق والحصص المنجزة يومياً' : 'Daily study minutes and completed sessions'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h2 style={{
+                fontSize: '16px',
+                fontWeight: '800',
+                color: 'var(--text-primary)',
+                margin: 0,
+                fontFamily: 'var(--font-heading), var(--font-arabic)'
+              }}>
+                {lang === 'ar' ? 'معدل المذاكرة — آخر 7 أيام' : 'Study Activity — Last 7 Days'}
+              </h2>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: '800',
+                color: themeAccent,
+                backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.1)',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.2)'}`
+              }}>
+                {lang === 'ar' ? 'القيم بالدقائق (دقيقة)' : 'Values in Minutes'}
+              </span>
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+              {lang === 'ar' ? 'إجمالي دقائق المذاكرة والحصص المنجزة يومياً' : 'Daily study minutes and completed sessions'}
             </p>
           </div>
 
@@ -96,7 +111,7 @@ export const StudyActivityChart = ({
             borderRadius: '8px',
             fontSize: '12px',
             color: 'var(--text-secondary)',
-            fontWeight: '500'
+            fontWeight: '600'
           }}>
             <Calendar size={13} style={{ color: themeAccent }} />
             <span>{lang === 'ar' ? 'آخر 7 أيام' : 'Last 7 Days'}</span>
@@ -104,7 +119,7 @@ export const StudyActivityChart = ({
         </div>
 
         {/* SVG Area Spline Visualizer */}
-        <div style={{ position: 'relative', width: '100%', height: '220px' }}>
+        <div style={{ position: 'relative', width: '100%', height: '240px' }}>
           <svg
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             preserveAspectRatio="none"
@@ -122,6 +137,19 @@ export const StudyActivityChart = ({
               </filter>
             </defs>
 
+            {/* Y-Axis Label: Title on top of the vertical axis */}
+            <text
+              x={paddingLeft - 10}
+              y={paddingTop - 14}
+              textAnchor="end"
+              fill={themeAccent}
+              fontSize="10.5"
+              fontFamily="var(--font-arabic)"
+              fontWeight="800"
+            >
+              {lang === 'ar' ? 'الدقائق' : 'Minutes'}
+            </text>
+
             {/* Y-Axis Horizontal Dashed Grid Lines */}
             {yTicks.map((tick) => {
               const yRatio = tick / maxMinutes;
@@ -133,11 +161,11 @@ export const StudyActivityChart = ({
                     y={y + 4}
                     textAnchor="end"
                     fill={themeAxisFill}
-                    fontSize="10"
-                    fontFamily="var(--font-latin)"
-                    fontWeight="500"
+                    fontSize="10.5"
+                    fontFamily="var(--font-heading), var(--font-latin)"
+                    fontWeight="600"
                   >
-                    {tick}
+                    {tick} {lang === 'ar' ? 'د' : 'm'}
                   </text>
                   <line
                     x1={paddingLeft}
@@ -170,11 +198,49 @@ export const StudyActivityChart = ({
               className="spline-line"
             />
 
-            {/* Interactive Points & X-Axis Labels */}
+            {/* Interactive Points, Vertical Guide Lines, Value Badges & X-Axis Labels */}
             {points.map((p, idx) => {
               const isHovered = hoveredPointIndex === idx;
               return (
                 <g key={idx}>
+                  {/* Vertical Guideline connecting point to day name */}
+                  <line
+                    x1={p.x}
+                    y1={p.y + (p.isToday || isHovered ? 8 : 5)}
+                    x2={p.x}
+                    y2={baseline + 5}
+                    stroke={p.isToday ? themeAccent : themeGridStroke}
+                    strokeDasharray="3 3"
+                    strokeWidth={p.isToday ? '1.5' : '1'}
+                    opacity={p.isToday ? 0.75 : 0.4}
+                  />
+
+                  {/* Value Badge directly above the point */}
+                  <g style={{ transition: 'transform 0.15s ease' }}>
+                    <rect
+                      x={p.x - 19}
+                      y={p.y - 25}
+                      width="38"
+                      height="17"
+                      rx="5"
+                      fill={p.isToday ? themeAccent : (isDark ? '#1E293B' : '#F1F5F9')}
+                      stroke={p.isToday ? themeAccent : (isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.12)')}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={p.x}
+                      y={p.y - 13}
+                      textAnchor="middle"
+                      fill={p.isToday ? '#FFFFFF' : (isDark ? '#E2E8F0' : '#1E293B')}
+                      fontSize="10"
+                      fontWeight="800"
+                      fontFamily="var(--font-heading)"
+                    >
+                      {p.minutes} {lang === 'ar' ? 'د' : 'm'}
+                    </text>
+                  </g>
+
+                  {/* Invisible Hit Area for smooth hover */}
                   <circle
                     cx={p.x}
                     cy={p.y}
@@ -185,6 +251,7 @@ export const StudyActivityChart = ({
                     onMouseLeave={() => setHoveredPointIndex(null)}
                   />
 
+                  {/* Outer Glow Circle */}
                   {(isHovered || p.isToday) && (
                     <circle
                       cx={p.x}
@@ -196,39 +263,54 @@ export const StudyActivityChart = ({
                     />
                   )}
 
+                  {/* Inner Dot Circle */}
                   <circle
                     cx={p.x}
                     cy={p.y}
-                    r={isHovered ? 4.5 : 3.5}
+                    r={isHovered ? 5 : 3.8}
                     fill={isDark ? '#0E1726' : '#FFFFFF'}
                     stroke={themeAccent}
                     strokeWidth="2.5"
                     style={{ transition: 'r 0.2s ease, stroke-width 0.2s ease' }}
                   />
 
+                  {/* Day Label */}
                   <text
                     x={p.x}
                     y={baseline + 20}
                     textAnchor="middle"
-                    fill={p.isToday ? themeAccent : themeAxisFill}
-                    fontSize="11"
-                    fontWeight={p.isToday ? '700' : '500'}
+                    fill={p.isToday ? themeAccent : (isDark ? '#E2E8F0' : '#334155')}
+                    fontSize="11.5"
+                    fontWeight={p.isToday ? '800' : '600'}
                     fontFamily="var(--font-arabic)"
                   >
                     {lang === 'ar' ? p.dayAr : p.dayEn}
                   </text>
+                  {p.isToday && (
+                    <text
+                      x={p.x}
+                      y={baseline + 33}
+                      textAnchor="middle"
+                      fill={themeAccent}
+                      fontSize="9.5"
+                      fontWeight="700"
+                      fontFamily="var(--font-arabic)"
+                    >
+                      {lang === 'ar' ? '(اليوم)' : '(Today)'}
+                    </text>
+                  )}
                 </g>
               );
             })}
           </svg>
 
-          {/* Floating Tooltip */}
+          {/* Floating Tooltip on Hover */}
           {hoveredPointIndex !== null && (
             <div style={{
               position: 'absolute',
               left: `${(points[hoveredPointIndex].x / chartWidth) * 100}%`,
               top: `${(points[hoveredPointIndex].y / chartHeight) * 100}%`,
-              transform: 'translate(-50%, -135%)',
+              transform: 'translate(-50%, -145%)',
               background: isDark ? '#131E33' : '#FFFFFF',
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.25)'}`,
               boxShadow: isDark ? '0 8px 24px rgba(0, 0, 0, 0.5)' : '0 8px 24px rgba(0, 0, 0, 0.12)',

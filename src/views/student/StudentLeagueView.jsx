@@ -175,7 +175,7 @@ export const StudentLeagueView = () => {
             }}
           >
             <GraduationCap size={16} />
-            <span>دوريات المواد العامة (التربية والتعليم)</span>
+            <span>{lang === 'ar' ? 'دوري الجمهورية العام (كل المواد)' : 'General Republic League'}</span>
           </button>
 
           {/* Teacher Course Leagues */}
@@ -198,71 +198,82 @@ export const StudentLeagueView = () => {
             }}
           >
             <BookOpen size={16} />
-            <span>دوريات كورسات المعلمين</span>
+            <span>{lang === 'ar' ? 'دوريات كورسات المعلمين' : 'Teacher Course Leagues'}</span>
           </button>
         </div>
 
-        {/* Sub-leagues Pills - NO EMOJIS */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          flexWrap: 'wrap'
-        }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginInlineEnd: '4px' }}>
-            اختر الدوري:
-          </span>
+        {/* Sub-leagues Selector (Only for Teachers) or Republic Banner (for General) */}
+        {leagueCategory === 'teachers' ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginInlineEnd: '4px' }}>
+              {lang === 'ar' ? 'اختر كورس المعلم:' : 'Select Teacher League:'}
+            </span>
 
-          {categoryLeagues.map((lg) => {
-            const isSelected = lg.id === selectedLeagueId;
-            const isRepublic = lg.id === 'general-republic' || lg.isRepublicLeague;
+            {categoryLeagues.map((lg) => {
+              const isSelected = lg.id === selectedLeagueId;
 
-            return (
-              <button
-                key={lg.id}
-                onClick={() => setSelectedLeagueId(lg.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: isRepublic ? '8px 16px' : '7px 14px',
-                  borderRadius: '10px',
-                  border: isRepublic
-                    ? (isSelected ? '2px solid #F59E0B' : '1.5px solid rgba(245, 158, 11, 0.4)')
-                    : (isSelected ? '1px solid var(--primary)' : '1px solid var(--border-subtle)'),
-                  backgroundColor: isSelected
-                    ? (isRepublic ? '#06254E' : 'var(--primary)')
-                    : (isRepublic ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-subtle)'),
-                  color: isSelected
-                    ? (isRepublic ? '#FDE68A' : '#FFFFFF')
-                    : (isRepublic ? '#B45309' : 'var(--text-primary)'),
-                  fontSize: isRepublic ? '13px' : '12.5px',
-                  fontWeight: isSelected || isRepublic ? '800' : '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: isRepublic && isSelected ? '0 4px 14px rgba(245, 158, 11, 0.25)' : 'none'
-                }}
-              >
-                {isRepublic && <Crown size={14} color="#F59E0B" fill="#F59E0B" />}
-                <span>{lg.nameAr}</span>
-                {lg.myRank && (
-                  <span style={{
-                    fontSize: '10.5px',
-                    padding: '1px 6px',
-                    borderRadius: '6px',
-                    backgroundColor: isSelected
-                      ? (isRepublic ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 255, 255, 0.22)')
-                      : 'rgba(21, 136, 199, 0.12)',
-                    color: isSelected ? (isRepublic ? '#FDE68A' : '#FFFFFF') : 'var(--primary)',
-                    fontWeight: '800'
-                  }}>
-                    #{lg.myRank}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+              return (
+                <button
+                  key={lg.id}
+                  onClick={() => setSelectedLeagueId(lg.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: '10px',
+                    border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
+                    backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-subtle)',
+                    color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
+                    fontSize: '12.5px',
+                    fontWeight: isSelected ? '800' : '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>{lg.nameAr}</span>
+                  {lg.myRank && (
+                    <span style={{
+                      fontSize: '10.5px',
+                      padding: '1px 6px',
+                      borderRadius: '6px',
+                      backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.22)' : 'rgba(21, 136, 199, 0.12)',
+                      color: isSelected ? '#FFFFFF' : 'var(--primary)',
+                      fontWeight: '800'
+                    }}>
+                      #{lg.myRank}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            borderRadius: '12px',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+            color: '#B45309',
+            fontSize: '13px',
+            fontWeight: '700'
+          }}>
+            <Crown size={16} color="#F59E0B" />
+            <span>
+              {lang === 'ar' 
+                ? 'دوري الجمهورية العام الموحد (المجموع التراكمي الشامل لكافة المواد الوزارية على مستوى الجمهورية)' 
+                : 'Unified National General League (All Ministry Subjects Combined)'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 3. Hero & League Status Banner with Champion Slider */}
