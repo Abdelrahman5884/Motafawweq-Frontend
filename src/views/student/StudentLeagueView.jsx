@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import { ALL_LEAGUES } from '../../data/leagueData';
 import { LEAGUE_TIERS } from '../../data/studentData';
 import { 
@@ -8,10 +9,10 @@ import {
   HelpCircle, 
   Gift, 
   Trophy, 
+  Crown,
   GraduationCap, 
   BookOpen, 
-  ChevronLeft,
-  Sparkles
+  ChevronLeft
 } from 'lucide-react';
 import {
   LeagueHeroBanner,
@@ -25,10 +26,11 @@ import {
 export const StudentLeagueView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
+  const { currentUser } = useAuth();
 
   // League category: 'general' (وزارة التربية والتعليم) or 'teachers' (دوريات المدرسين)
   const [leagueCategory, setLeagueCategory] = useState('general');
-  const [selectedLeagueId, setSelectedLeagueId] = useState('general-bio');
+  const [selectedLeagueId, setSelectedLeagueId] = useState('general-republic');
   const [selectedTier, setSelectedTier] = useState('Diamond');
   const [activeTab, setActiveTab] = useState('leaderboard'); // 'leaderboard' | 'rules' | 'prizes'
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -213,6 +215,8 @@ export const StudentLeagueView = () => {
 
           {categoryLeagues.map((lg) => {
             const isSelected = lg.id === selectedLeagueId;
+            const isRepublic = lg.id === 'general-republic' || lg.isRepublicLeague;
+
             return (
               <button
                 key={lg.id}
@@ -221,27 +225,36 @@ export const StudentLeagueView = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 14px',
+                  padding: isRepublic ? '8px 16px' : '7px 14px',
                   borderRadius: '10px',
-                  border: '1px solid',
-                  borderColor: isSelected ? 'var(--primary)' : 'var(--border-subtle)',
-                  backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-subtle)',
-                  color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
-                  fontSize: '12.5px',
-                  fontWeight: isSelected ? '800' : '600',
+                  border: isRepublic
+                    ? (isSelected ? '2px solid #F59E0B' : '1.5px solid rgba(245, 158, 11, 0.4)')
+                    : (isSelected ? '1px solid var(--primary)' : '1px solid var(--border-subtle)'),
+                  backgroundColor: isSelected
+                    ? (isRepublic ? '#06254E' : 'var(--primary)')
+                    : (isRepublic ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-subtle)'),
+                  color: isSelected
+                    ? (isRepublic ? '#FDE68A' : '#FFFFFF')
+                    : (isRepublic ? '#B45309' : 'var(--text-primary)'),
+                  fontSize: isRepublic ? '13px' : '12.5px',
+                  fontWeight: isSelected || isRepublic ? '800' : '600',
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
+                  boxShadow: isRepublic && isSelected ? '0 4px 14px rgba(245, 158, 11, 0.25)' : 'none'
                 }}
               >
+                {isRepublic && <Crown size={14} color="#F59E0B" fill="#F59E0B" />}
                 <span>{lg.nameAr}</span>
                 {lg.myRank && (
                   <span style={{
                     fontSize: '10.5px',
                     padding: '1px 6px',
                     borderRadius: '6px',
-                    backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.22)' : 'rgba(21, 136, 199, 0.12)',
-                    color: isSelected ? '#FFFFFF' : 'var(--primary)',
-                    fontWeight: '700'
+                    backgroundColor: isSelected
+                      ? (isRepublic ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 255, 255, 0.22)')
+                      : 'rgba(21, 136, 199, 0.12)',
+                    color: isSelected ? (isRepublic ? '#FDE68A' : '#FFFFFF') : 'var(--primary)',
+                    fontWeight: '800'
                   }}>
                     #{lg.myRank}
                   </span>
@@ -252,11 +265,12 @@ export const StudentLeagueView = () => {
         </div>
       </div>
 
-      {/* 3. Hero & League Status Banner with Dynamic activeLeague */}
+      {/* 3. Hero & League Status Banner with Champion Slider */}
       <LeagueHeroBanner
         lang={lang}
         isRtl={isRtl}
         activeLeague={activeLeague}
+        currentUser={currentUser}
         onGoToAchievements={() => navigate('/student/gamification')}
         onStartQuiz={() => navigate('/student/quiz')}
         onStartExam={() => navigate('/student/exam')}

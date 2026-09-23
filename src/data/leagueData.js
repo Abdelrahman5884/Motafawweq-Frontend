@@ -3,10 +3,42 @@
 export const ALL_LEAGUES = [
   // ================= 1. دوريات المواد العامة (التربية والتعليم) =================
   {
+    id: 'general-republic',
+    category: 'general',
+    nameAr: 'دوري الجمهورية العام (كل المواد)',
+    titleAr: 'دوري الجمهورية العام (المجموع الكلي لكافة المواد)',
+    subtitleAr: 'البطولة الوطنية الكبرى • وزارة التربية والتعليم',
+    badge: 'دوري الجمهورية',
+    isRepublicLeague: true,
+    descriptionAr: 'المنافسة الكبرى على مستوى مدارس جمهورية مصر العربية في المجموع الكلي لكافة المواد. صاحب المركز الأول يتوج أسبوعياً وتُوضع صورته في سلايدر الشرف الوطني أمام جميع الطلاب والمعلمين!',
+    participantsCount: 48900,
+    myRank: 2,
+    champion: {
+      nameAr: 'سارة خالد منصور',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80',
+      schoolAr: 'مدرسة المتفوقات STEM كفر الشيخ',
+      governorate: 'كفر الشيخ',
+      score: 18450,
+      streak: 28,
+      title: 'بطلة الجمهورية للأسبوع الحالي',
+      quoteAr: 'الاستمرار اليومي وحل امتحانات الوزارة الشاملة في كل المواد هو سر الصدارة في دوري الجمهورية.'
+    },
+    students: [
+      { rank: 1, nameAr: 'سارة خالد منصور', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80', score: 18450, streak: 28, badge: 'بطلة الجمهورية 👑', tier: 'Diamond', schoolAr: 'المتفوقات STEM كفر الشيخ', perfectQuizzes: 48, examsSolved: 92, lessonsStudied: 160, change: 0, isChampion: true },
+      { rank: 2, nameAr: 'عمر طارق القاضي (أنت)', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80', score: 17290, streak: 16, badge: 'وصيف الجمهورية 🥈', tier: 'Diamond', isMe: true, schoolAr: 'السعيدية الثانوية العسكرية، الجيزة', perfectQuizzes: 42, examsSolved: 84, lessonsStudied: 148, change: 1 },
+      { rank: 3, nameAr: 'خالد عبد الرحمن النجار', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80', score: 16800, streak: 26, badge: 'المركز الثالث 🥉', tier: 'Diamond', schoolAr: 'المنصورة العسكرية بنين', perfectQuizzes: 39, examsSolved: 78, lessonsStudied: 135, change: -1 },
+      { rank: 4, nameAr: 'أحمد بهاء الدين الصاوي', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80', score: 15950, streak: 22, badge: 'المستوى الماسي', tier: 'Diamond', schoolAr: 'المتفوقين عين شمس بنين', perfectQuizzes: 36, examsSolved: 72, lessonsStudied: 126, change: 2 },
+      { rank: 5, nameAr: 'منى شمس الدين', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80', score: 15100, streak: 18, badge: 'المستوى الذهبي', tier: 'Gold', schoolAr: 'المعادي القومية بنات', perfectQuizzes: 33, examsSolved: 66, lessonsStudied: 118, change: 0 },
+      { rank: 6, nameAr: 'محمد أشرف رضوان', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80', score: 14600, streak: 15, badge: 'المستوى الذهبي', tier: 'Gold', schoolAr: 'الإبراهيمية الثانوية، الإسكندرية', perfectQuizzes: 30, examsSolved: 60, lessonsStudied: 110, change: -2 },
+      { rank: 7, nameAr: 'فاطمة الزهراء مصطفى', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop&q=80', score: 13950, streak: 12, badge: 'المستوى الفضي', tier: 'Silver', schoolAr: 'السنية الثانوية بنات، القاهرة', perfectQuizzes: 27, examsSolved: 54, lessonsStudied: 98, change: 1 },
+      { rank: 8, nameAr: 'كريم مصطفى بدوي', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80', score: 13200, streak: 10, badge: 'المستوى الفضي', tier: 'Silver', schoolAr: 'الأورمان النموذجية، الدقي', perfectQuizzes: 24, examsSolved: 48, lessonsStudied: 88, change: 0 }
+    ]
+  },
+  {
     id: 'general-bio',
     category: 'general',
     nameAr: 'الأحياء',
-    titleAr: 'دوري مادة الأحياء العام',
+    titleAr: 'دوري مادة الأحياء التخصصي',
     subtitleAr: 'المناهج القومية • وزارة التربية والتعليم',
     badge: 'التربية والتعليم',
     descriptionAr: 'تنافس مع نخبة طلاب الشعبة العلمية على مستوى الجمهورية في اختبارات وفصول مادة الأحياء المقررة وزارياً.',

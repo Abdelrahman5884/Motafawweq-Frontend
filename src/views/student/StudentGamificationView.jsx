@@ -1,9 +1,10 @@
 import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import React from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   StudyActivityHeatmap,
   WeeklyChallenges,
-  GamificationStatsCards,
   GamificationLeaguesHistory
 } from '../../features/student/gamification';
 
@@ -67,20 +68,17 @@ export const StudentGamificationView = () => {
           {lang === 'ar' ? 'لوحة إنجازاتي وجوائز التفوق' : 'My Achievements & Honors'}
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-          {lang === 'ar' ? 'متابعة إحصائيات المذاكرة والامتحانات، وسجل الترتيب في الدوريات والتحديات الأسبوعية' : 'Track your study statistics, exams, league rankings, and weekly challenges'}
+          {lang === 'ar' ? 'متابعة سجل الترتيب في الدوريات والبطولات التنافسية، وخريطة المذاكرة والتحديات الأسبوعية' : 'Track your tournament standings, league rankings, study habits, and weekly challenges'}
         </p>
       </div>
 
-      {/* 1. Study Metrics Stats Cards: Exams solved, Full Marks, Lessons studied, Streak */}
-      <GamificationStatsCards lang={lang} />
+      {/* 1. First Section: Teacher Leagues & Past Leagues Archive with Championship Background */}
+      <GamificationLeaguesHistory lang={lang} />
 
       {/* 2. Study Activity Heatmap (Daily Commitment) */}
       <StudyActivityHeatmap lang={lang} />
 
-      {/* 3. Teacher Leagues & Past Leagues Archive */}
-      <GamificationLeaguesHistory lang={lang} />
-
-      {/* 4. Real Platform Weekly Challenges */}
+      {/* 3. Real Platform Weekly Challenges */}
       <WeeklyChallenges challenges={challenges} lang={lang} />
     </div>
   );
