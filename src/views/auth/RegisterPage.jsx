@@ -25,7 +25,10 @@ export const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [grade, setGrade] = useState('grade-sec3');
+  const [grade, setGrade] = useState('3rd Secondary (Thanawya Amma)');
+  const [track, setTrack] = useState('علمي علوم');
+  const [governorate, setGovernorate] = useState('الجيزة');
+  const [parentPhone, setParentPhone] = useState('');
   const [subject, setSubject] = useState('Biology');
   const [centerName, setCenterName] = useState('');
   const [studentCode, setStudentCode] = useState('');
@@ -50,7 +53,10 @@ export const RegisterPage = () => {
         fullName,
         email,
         phone,
+        parentPhone,
         grade,
+        track,
+        governorate,
         subject,
         centerName,
         studentCode
@@ -162,6 +168,12 @@ export const RegisterPage = () => {
             setPassword={setPassword}
             grade={grade}
             setGrade={setGrade}
+            track={track}
+            setTrack={setTrack}
+            governorate={governorate}
+            setGovernorate={setGovernorate}
+            parentPhone={parentPhone}
+            setParentPhone={setParentPhone}
             subject={subject}
             setSubject={setSubject}
             centerName={centerName}

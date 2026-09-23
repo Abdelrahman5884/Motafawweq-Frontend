@@ -189,18 +189,42 @@ export const AuthProvider = ({ children }) => {
   const register = (userData) => {
     const role = userData.role || 'student';
     const baseUser = ROLES[role] || ROLES.student;
+    const grade = userData.grade || '3rd Secondary (Thanawya Amma)';
+    const track = userData.track || 'علمي علوم';
+
+    let roleLabel = role === 'teacher' ? (userData.subject || 'Teacher') : grade;
+    let roleLabelAr = role === 'teacher' ? (userData.subject || 'معلم متخصص') : `طالب ${grade} (${track})`;
+
     const newUser = {
       id: `usr-${Date.now()}`,
       name: userData.fullName || 'New User',
       nameAr: userData.fullName || 'مستخدم جديد',
       role: role,
-      roleLabel: role === 'teacher' ? (userData.subject || 'Teacher') : (userData.grade || 'Student'),
-      roleLabelAr: role === 'teacher' ? (userData.subject || 'معلم متخصص') : (userData.grade || 'طالب ثانوي'),
+      roleLabel: roleLabel,
+      roleLabelAr: roleLabelAr,
       email: userData.email,
       phone: userData.phone || '01000000000',
+      parentPhone: userData.parentPhone || '',
       avatar: baseUser.avatar,
-      center: userData.centerName || 'Online Learning',
-      grade: userData.grade || '3rd Secondary',
+      center: userData.centerName || userData.center || 'Online Learning',
+      grade: grade,
+      track: track,
+      governorate: userData.governorate || 'الجيزة',
+      school: userData.school || '',
+      nickname: userData.fullName ? `العبقري ${userData.fullName.split(' ')[0]}` : 'طالب متفوق',
+      targetGoal: 'التميز الأكاديمي والتفوق في الامتحانات',
+      dailyGoalMinutes: 60,
+      pomodoroReminder: true,
+      weeklyLessonsTarget: 8,
+      preferredStudyTime: 'evening',
+      playbackSpeed: '1.25x',
+      autoCornell: true,
+      soundEffects: true,
+      notifyWhatsapp: true,
+      notifyStreak: true,
+      notifyHomework: true,
+      leaderboardVisible: true,
+      parentReportSync: true,
       defaultRoute: baseUser.defaultRoute
     };
 

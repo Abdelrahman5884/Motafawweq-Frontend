@@ -15,6 +15,12 @@ export const RegisterForm = ({
   setPassword,
   grade,
   setGrade,
+  track,
+  setTrack,
+  governorate,
+  setGovernorate,
+  parentPhone,
+  setParentPhone,
   subject,
   setSubject,
   centerName,
@@ -113,6 +119,12 @@ export const RegisterForm = ({
         role={role}
         grade={grade}
         setGrade={setGrade}
+        track={track}
+        setTrack={setTrack}
+        governorate={governorate}
+        setGovernorate={setGovernorate}
+        parentPhone={parentPhone}
+        setParentPhone={setParentPhone}
         studentCode={studentCode}
         setStudentCode={setStudentCode}
         subject={subject}
