@@ -1875,6 +1875,54 @@ button, input, select, textarea {
   }
 }
 
+/* ── Teacher Executive Dashboard Responsive Layout ── */
+.teacher-dashboard-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 24px 110px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .teacher-dashboard-container {
+    padding: 16px 12px 120px;
+  }
+}
+
+.teacher-main-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 992px) {
+  .teacher-main-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.teacher-classes-table-container {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.teacher-classes-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .teacher-classes-table-container {
+    display: none !important;
+  }
+  .teacher-classes-mobile-cards {
+    display: flex !important;
+  }
+}
+
 /* Responsive KPI Cards Grid */
 .executive-kpi-grid {
   display: grid;

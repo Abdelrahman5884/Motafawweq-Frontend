@@ -16,8 +16,16 @@ export const TeacherDashboard = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
 
+  // Lessons sorted from Newest to Oldest
   const lessons = [
-    MOCK_LESSON,
+    {
+      ...MOCK_LESSON,
+      id: 'les-bio-301',
+      recordedDate: '2026-09-12',
+      titleAr: 'البناء الضوئي وحركية الطاقة في الخلايا النباتية',
+      durationFormatted: '42:18',
+      stats: { conceptsCount: 14, completionRate: 88, avgQuizScore: 84.5 }
+    },
     {
       id: 'les-bio-302',
       title: 'Cellular Respiration & Krebs Cycle',
@@ -39,33 +47,26 @@ export const TeacherDashboard = () => {
   ];
 
   return (
-    <div style={{
-      maxWidth: '1240px',
-      margin: '0 auto',
-      padding: '36px 24px 80px',
-      fontFamily: 'var(--font-arabic)'
-    }}>
-      {/* Top Welcome Banner */}
+    <div className="teacher-dashboard-container">
+      {/* 1. Top Welcome Banner */}
       <TeacherWelcomeBanner
         currentUser={currentUser}
         lang={lang}
       />
 
-      {/* 4 Stat Cards */}
+      {/* 2. Sleek Compact Executive Indicators (Revenue, Students, AI Quota, Class Mastery) */}
       <TeacherStatCards lang={lang} />
 
-      {/* Analytics Charts: 
-          1) Today's Lesson Attendance & Listeners Bar Chart (like student activity) 
-          2) Student Distribution by Subject or Centers Bar Chart */}
+      {/* 3. Executive Charts:
+          - Weekly Attendance Spline & Bar Chart (Last 7 Days)
+          - Class & Subject Mastery Donut Gauge
+          - Divided Neutral Cards for Subject & Center Student Distribution
+      */}
       <TeacherAnalyticsCharts lang={lang} isDark={isDark} isRtl={isRtl} />
 
-      {/* Main Grid: Lessons & Groups */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-        gap: '24px'
-      }}>
-        {/* Left Column: Recent Processed Lessons */}
+      {/* 4. Adaptive Grid: Recent Processed Lessons & Active Cohorts Table */}
+      <div className="teacher-main-grid">
+        {/* Left Column: Recent Processed Lessons with Curriculum Progress */}
         <RecentProcessedLessons
           lessons={lessons}
           lang={lang}
@@ -73,12 +74,14 @@ export const TeacherDashboard = () => {
           onOpenLesson={(id) => navigate('lesson-workspace', { lessonId: id })}
         />
 
-        {/* Right Column: Active Groups & Classes */}
+        {/* Right Column: Active Groups & Classes Structured Responsive Table/Cards */}
         <ActiveClassesList
           lang={lang}
-          onOpenClasses={() => navigate('classes')}
+          onOpenClasses={() => navigate('/teacher/classes')}
         />
       </div>
     </div>
   );
 };
+
+export default TeacherDashboard;
