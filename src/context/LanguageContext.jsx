@@ -328,9 +328,24 @@ const DICTIONARY = {
 const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {
-  // Default to Arabic as primary Egyptian audience, easily toggleable to English
+  // Detect device language (Arabic vs English)
+  const getDeviceLang = () => {
+    try {
+      const navLang = (navigator.language || (navigator.languages && navigator.languages[0]) || '').toLowerCase();
+      return navLang.startsWith('ar') ? 'ar' : 'en';
+    } catch (e) {
+      return 'ar';
+    }
+  };
+
+  const updateTabTitleByDevice = () => {
+    const isArabicDevice = getDeviceLang() === 'ar';
+    document.title = isArabicDevice ? 'متفوّق' : 'Motafawweq';
+  };
+
+  // Default to saved language or device language
   const [lang, setLang] = useState(() => {
-    return localStorage.getItem('motafawweq_lang') || 'ar';
+    return localStorage.getItem('motafawweq_lang') || getDeviceLang();
   });
 
   useEffect(() => {
@@ -338,7 +353,21 @@ export const LanguageProvider = ({ children }) => {
     document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', lang);
     localStorage.setItem('motafawweq_lang', lang);
+    updateTabTitleByDevice();
   }, [lang]);
+
+  useEffect(() => {
+    updateTabTitleByDevice();
+
+    const handleLanguageChange = () => {
+      updateTabTitleByDevice();
+    };
+
+    window.addEventListener('languagechange', handleLanguageChange);
+    return () => {
+      window.removeEventListener('languagechange', handleLanguageChange);
+    };
+  }, []);
 
   const toggleLanguage = () => {
     setLang((prev) => (prev === 'en' ? 'ar' : 'en'));

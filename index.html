@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>متفوّق — Motafawweq | تعلّم اليوم.. لتنطلق نحو القمّة</title>
+    <title>Motafawweq</title>
+    <script>
+      (function() {
+        try {
+          var navLang = (navigator.language || (navigator.languages && navigator.languages[0]) || '').toLowerCase();
+          var isArabicDevice = navLang.startsWith('ar');
+          document.title = isArabicDevice ? 'متفوّق' : 'Motafawweq';
+
+          var savedLang = localStorage.getItem('motafawweq_lang');
+          var activeLang = savedLang || (isArabicDevice ? 'ar' : 'en');
+          document.documentElement.setAttribute('dir', activeLang === 'ar' ? 'rtl' : 'ltr');
+          document.documentElement.setAttribute('lang', activeLang);
+        } catch (e) {}
+      })();
+    </script>
     <meta name="description" content="منصة متفوّق (Motafawweq) — المنصة التعليمية الذكية الرائدة في مصر. سجّل حصتك مرة واحدة ودع الذكاء الاصطناعي يستخرج خرائط المفاهيم التفاعلية، والتفريغ الزمني، وملخصات كورنيل، وبنك الأسئلة المتوافق مع الثانوية العامة." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
