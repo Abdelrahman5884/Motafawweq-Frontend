@@ -2207,9 +2207,14 @@ export const TeacherExamsView = () => {
               }}>
                 <Sparkles size={13} color="var(--primary)" />
                 <span>
-                  {isAr 
-                    ? `توزيع الدرجات التلقائي: سيحصل كل سؤال على (${Math.round(((Number(formFullMark) || 15) / (Number(formTargetCount) || 3)) * 10) / 10} درجة) بالتساوي، ويمكنك تعديل درجة كل سؤال لاحقاً وتتغير الدرجة الإجمالية تلقائياً.`
-                    : `Points distributed equally: ${Math.round(((Number(formFullMark) || 15) / (Number(formTargetCount) || 3)) * 10) / 10} pts per question.`}
+                  {(() => {
+                    const total = Number(formFullMark) || 0;
+                    const count = Number(formTargetCount) || 1;
+                    const pts = count > 0 ? Number((total / count).toFixed(2)) : 0;
+                    return isAr 
+                      ? `توزيع الدرجات التلقائي: سيحصل كل سؤال على (${pts} درجة) بالتساوي (${total} درجة ÷ ${count} أسئلة)، ويمكنك تعديل درجة كل سؤال لاحقاً وتتغير الدرجة الإجمالية تلقائياً.`
+                      : `Points distributed equally: ${pts} pts per question (${total} pts ÷ ${count} questions).`;
+                  })()}
                 </span>
               </div>
 
@@ -2361,13 +2366,13 @@ export const TeacherExamsView = () => {
                   </label>
                   <input
                     type="number"
-                    min="0.5"
-                    step="0.5"
-                    value={builderQuestions[currentBuilderIndex]?.points !== undefined ? builderQuestions[currentBuilderIndex].points : 5}
+                    min="0.25"
+                    step="0.25"
+                    value={builderQuestions[currentBuilderIndex]?.points !== undefined ? builderQuestions[currentBuilderIndex].points : ''}
                     onChange={(e) => handleBuilderQuestionPointsChange(e.target.value)}
                     title={isAr ? 'عدل درجة هذا السؤال وسيتغير إجمالي الدرجات بالأعلى مباشرة' : 'Edit points'}
                     style={{
-                      width: '52px',
+                      width: '58px',
                       padding: '3px 6px',
                       borderRadius: '5px',
                       border: '1.5px solid var(--primary)',
