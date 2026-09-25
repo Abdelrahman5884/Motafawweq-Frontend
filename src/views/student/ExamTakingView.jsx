@@ -89,6 +89,7 @@ export const ExamTakingView = () => {
       {/* VIEW 3: RESULTS */}
       {exam.examState === 'results' && (
         <ExamResults
+          activeExam={exam.activeExam}
           isPerfectScore={exam.isPerfectScore}
           examSource={exam.examSource}
           scorePercent={exam.scorePercent}

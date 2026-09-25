@@ -297,6 +297,7 @@ export const UPCOMING_EXAMS = [
     attemptsAllowed: 2,
     attemptsUsed: 0,
     status: 'ready',
+    showResults: true,
     typeAr: 'بابل شيت رسمي',
     difficultyAr: 'مستوى متقدم',
     cover: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&auto=format&fit=crop&q=80'
@@ -319,6 +320,7 @@ export const UPCOMING_EXAMS = [
     attemptsAllowed: 1,
     attemptsUsed: 0,
     status: 'ready',
+    showResults: true,
     typeAr: 'اختبار دوري تقييمي',
     difficultyAr: 'مستوى التحدي',
     cover: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=400&auto=format&fit=crop&q=80'
@@ -341,6 +343,7 @@ export const UPCOMING_EXAMS = [
     attemptsAllowed: 2,
     attemptsUsed: 0,
     status: 'ready',
+    showResults: false, // نتيجة محجوبة مؤقتاً للتجربة
     typeAr: 'بابل شيت تفاعلي',
     difficultyAr: 'مستوى متوسط',
     cover: 'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?w=400&auto=format&fit=crop&q=80'

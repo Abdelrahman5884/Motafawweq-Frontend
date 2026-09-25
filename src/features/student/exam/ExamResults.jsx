@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, RotateCcw, Trophy } from 'lucide-react';
+import { Award, RotateCcw, Trophy, CheckCircle2, Lock } from 'lucide-react';
 
 export const ExamResults = ({
+  activeExam,
   isPerfectScore,
   examSource,
   scorePercent,
@@ -20,6 +21,117 @@ export const ExamResults = ({
   lang
 }) => {
   const navigate = useNavigate();
+
+  // If the teacher has hidden results for this exam ("حجب النتيجة عن الطلاب")
+  if (activeExam && activeExam.showResults === false) {
+    return (
+      <div style={{
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: '24px',
+        padding: '36px 24px',
+        textAlign: 'center',
+        maxWidth: '680px',
+        margin: '20px auto 40px',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          backgroundColor: 'rgba(0, 102, 204, 0.08)',
+          border: '1px solid rgba(0, 102, 204, 0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 16px',
+          color: 'var(--primary)'
+        }}>
+          <CheckCircle2 size={28} />
+        </div>
+
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 12px',
+          borderRadius: '20px',
+          backgroundColor: 'rgba(245, 158, 11, 0.15)',
+          color: '#D97706',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          fontSize: '12px',
+          fontWeight: '700',
+          marginBottom: '14px'
+        }}>
+          <Lock size={13} />
+          <span>{lang === 'ar' ? 'النتيجة محجوبة مؤقتاً بقرار المعلم' : 'Results Hidden by Teacher'}</span>
+        </div>
+
+        <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 10px' }}>
+          {lang === 'ar' ? 'تم تسليم إجاباتك بنجاح وحفظها بالنظام!' : 'Exam Submitted Successfully!'}
+        </h2>
+
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 auto 24px', maxWidth: '520px' }}>
+          {lang === 'ar' 
+            ? 'قام معلم المادة بحجب ظهور الدرجات ونموذج الإجابة لجميع الطلاب حتى انتهاء موعد الاختبار وتدقيق الإجابات. سيتم إعلان نتيجتك فور اعتمادها.'
+            : 'The instructor has locked exam results until all submissions are reviewed. Your scores will be available once finalized.'}
+        </p>
+
+        {/* Specs Pill */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '16px',
+          padding: '10px 18px',
+          borderRadius: '10px',
+          backgroundColor: 'var(--bg-subtle)',
+          border: '1px solid var(--border-subtle)',
+          fontSize: '12.5px',
+          color: 'var(--text-secondary)',
+          marginBottom: '28px'
+        }}>
+          <span>{lang === 'ar' ? `عدد الأسئلة المستلمة: ${questions.length} سؤال` : `${questions.length} Questions Submitted`}</span>
+          <span>•</span>
+          <span>{lang === 'ar' ? 'حالة ورقة الإجابة: مقفلة ومؤمنة' : 'Answer Sheet: Secured'}</span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setExamState('catalog')}
+            style={{
+              padding: '10px 24px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              fontSize: '13px',
+              fontWeight: '700',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            {lang === 'ar' ? 'العودة لقائمة الامتحانات' : 'Back to Exams'}
+          </button>
+
+          <button
+            onClick={() => navigate('/student/dashboard')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            {lang === 'ar' ? 'لوحة تحكم الطالب' : 'Student Dashboard'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

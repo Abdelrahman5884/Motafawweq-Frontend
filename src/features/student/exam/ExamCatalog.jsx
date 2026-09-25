@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Clock, FileText, Award, RotateCcw, Play, Trophy,
-  AlertCircle, X
+  AlertCircle, X, EyeOff
 } from 'lucide-react';
 import { UPCOMING_EXAMS } from '../../../data/studentData';
 
@@ -217,6 +217,25 @@ export const ExamCatalog = ({
                     <span>المحاولات: {exam.attemptsAllowed}</span>
                   </div>
                 </div>
+
+                {exam.showResults === false && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    color: 'var(--text-muted)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    padding: '6px 10px',
+                    borderRadius: '10px',
+                    marginBottom: '14px',
+                    border: '1px dashed var(--border-subtle)'
+                  }}>
+                    <EyeOff size={13} color="var(--text-muted)" />
+                    <span>{lang === 'ar' ? 'النتيجة محجوبة حالياً بقرار المعلم' : 'Results withheld by teacher'}</span>
+                  </div>
+                )}
               </div>
 
               {/* Action Button */}
@@ -310,11 +329,30 @@ export const ExamCatalog = ({
             <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
               {pendingExam.titleAr}
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
               {lang === 'ar'
                 ? 'بمجرد الضغط على بدء الامتحان، سيبدأ العداد التنازلي فوراً ولن يمكنك إيقافه مؤقتاً.'
                 : 'Once started, the timer will begin immediately and cannot be paused.'}
             </p>
+
+            {pendingExam.showResults === false && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--warning-light)',
+                border: '1px solid var(--warning)',
+                color: 'var(--warning)',
+                fontSize: '12px',
+                fontWeight: '700',
+                marginBottom: '18px'
+              }}>
+                <EyeOff size={16} />
+                <span>{lang === 'ar' ? 'تنبيه: نتيجة هذا الاختبار محجوبة مؤقتاً بقرار المعلم وسيتم إعلانها لاحقاً.' : 'Notice: Results will be announced later by the teacher.'}</span>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button

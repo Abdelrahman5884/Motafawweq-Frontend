@@ -11,6 +11,7 @@ import {
   HelpCircle, 
   FileText, 
   Eye, 
+  EyeOff,
   X,
   Sparkles,
   TrendingUp,
@@ -49,11 +50,13 @@ const INITIAL_EXAMS_DATABASE = [
     passRate: 91.5,
     topScoreCount: 420,
     status: 'active', // 'active' (متاح للطلاب) | 'closed' (مغلق)
+    showResults: true, // إظهار النتيجة للطلاب (معلنة)
     dueDate: '2026-09-30',
     questions: [
       {
         id: 'q-101-1',
         number: 1,
+        points: 10,
         type: 'mcq',
         typeNameAr: 'اختيار من متعدد',
         questionAr: 'ما هو المانح المباشر لإلكترونات تعويض كلوروفيل (أ) في النظام الضوئي الثاني؟',
@@ -64,6 +67,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-101-2',
         number: 2,
+        points: 10,
         type: 'mcq',
         typeNameAr: 'اختيار من متعدد',
         questionAr: 'أي من المركبات التالية يمثل أول مركب كيميائي ثابت ناتج عن التفاعلات اللاضوئية في دورة كالفن؟',
@@ -74,6 +78,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-101-3',
         number: 3,
+        points: 10,
         type: 'true_false',
         typeNameAr: 'صح وخطأ',
         questionAr: 'تحدث دورة كريبس بالكامل داخل الغشاء الداخلي للميتوكوندريا دون الحاجة إلى تفاعلات تمهيدية.',
@@ -83,6 +88,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-101-4',
         number: 4,
+        points: 10,
         type: 'true_false',
         typeNameAr: 'صح وخطأ',
         questionAr: 'تنتج غالبية جزيئات ATP أثناء التنفس الهوائي عبر الفسفرة التأكسدية بسلسلة نقل الإلكترون.',
@@ -92,6 +98,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-101-5',
         number: 5,
+        points: 10,
         type: 'essay',
         typeNameAr: 'مقالي',
         questionAr: 'علل: توقف التفاعلات اللاضوئية بعد فترة وجيزة من انعدام الضوء رغم أنها لا تحتاج للضوء مباشرة.',
@@ -119,11 +126,13 @@ const INITIAL_EXAMS_DATABASE = [
     passRate: 96.2,
     topScoreCount: 780,
     status: 'active',
+    showResults: true,
     dueDate: '2026-09-28',
     questions: [
       {
         id: 'q-102-1',
         number: 1,
+        points: 7,
         type: 'mcq',
         typeNameAr: 'اختيار من متعدد',
         questionAr: 'أين تتمركز أصباغ الكلوروفيل والأنظمة الضوئية المستقبلة للطاقة داخل البلاستيدة؟',
@@ -134,6 +143,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-102-2',
         number: 2,
+        points: 7,
         type: 'true_false',
         typeNameAr: 'صح وخطأ',
         questionAr: 'يتم انشطار جزيء الماء بفعل الطاقة الضوئية الممتصة مباشرة في النظام الضوئي الأول.',
@@ -143,6 +153,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-102-3',
         number: 3,
+        points: 6,
         type: 'essay',
         typeNameAr: 'مقالي',
         questionAr: 'وضح بإيجاز: أهمية تدرج تركيز أيونات الهيدروجين (البروتونات) عبر غشاء الثيلاكويد.',
@@ -169,11 +180,13 @@ const INITIAL_EXAMS_DATABASE = [
     passRate: 85.0,
     topScoreCount: 210,
     status: 'closed',
+    showResults: false, // حجب النتيجة عن الطلاب
     dueDate: '2026-10-05',
     questions: [
       {
         id: 'q-103-1',
         number: 1,
+        points: 15,
         type: 'mcq',
         typeNameAr: 'اختيار من متعدد',
         questionAr: 'كم عدد جزيئات ATP الناتجة عن أكسدة جزيء واحد من حمض البيروفيك هوائياً؟',
@@ -184,6 +197,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-103-2',
         number: 2,
+        points: 15,
         type: 'true_false',
         typeNameAr: 'صح وخطأ',
         questionAr: 'يعمل مركب FAD كمستقبل للإلكترونات والهيدروجين في تفاعلات انشطار الجلوكوز بالسيتوسول.',
@@ -193,6 +207,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-103-3',
         number: 3,
+        points: 15,
         type: 'true_false',
         typeNameAr: 'صح وخطأ',
         questionAr: 'التخمر الكحولي والتخمر الحمضي كلاهما يحرران نفس الكمية الصافية من ATP الناتجة عن انشطار الجلوكوز.',
@@ -202,6 +217,7 @@ const INITIAL_EXAMS_DATABASE = [
       {
         id: 'q-103-4',
         number: 4,
+        points: 15,
         type: 'essay',
         typeNameAr: 'مقالي',
         questionAr: 'قارن بين التخمر الحمضي والتخمر الكحولي من حيث: الناتج النهائي ومصير غاز CO2.',
@@ -239,15 +255,43 @@ export const TeacherExamsView = () => {
   const [formTitle, setFormTitle] = useState('');
   const [formCourse, setFormCourse] = useState('ماستر كلاس الأحياء (3 ثانوي)');
   const [formDuration, setFormDuration] = useState('45');
-  const [formFullMark, setFormFullMark] = useState('50');
-  const [formPassScore, setFormPassScore] = useState('30');
-  const [formTargetCount, setFormTargetCount] = useState(3);
+  const [formFullMark, setFormFullMark] = useState('15'); // افتراضي 15 درجة زي مثال المستخدم
+  const [formPassScore, setFormPassScore] = useState('9');
+  const [formTargetCount, setFormTargetCount] = useState(3); // افتراضي 3 أسئلة (كل سؤال بـ 5 درجات)
+  const [formShowResults, setFormShowResults] = useState(true); // إظهار النتيجة للطلاب
 
-  // Step-by-Step Question Builder Buffer
+  // Step-by-Step Question Builder Buffer (مقسمين بالتساوي: 15 / 3 = 5 درجات لكل سؤال)
   const [currentBuilderIndex, setCurrentBuilderIndex] = useState(0);
   const [builderQuestions, setBuilderQuestions] = useState([
     {
       number: 1,
+      points: 5,
+      type: 'mcq',
+      typeNameAr: 'اختيار من متعدد',
+      questionAr: '',
+      optionsAr: ['', '', '', ''],
+      correctIndex: 0,
+      correctBool: true,
+      modelAnswerAr: '',
+      rubricPointsAr: ['استيفاء الفكرة العلمية الأساسية (درجة)', 'الاستدلال والتفسير المنطقي (درجة)'],
+      explanationAr: ''
+    },
+    {
+      number: 2,
+      points: 5,
+      type: 'mcq',
+      typeNameAr: 'اختيار من متعدد',
+      questionAr: '',
+      optionsAr: ['', '', '', ''],
+      correctIndex: 0,
+      correctBool: true,
+      modelAnswerAr: '',
+      rubricPointsAr: ['استيفاء الفكرة العلمية الأساسية (درجة)', 'الاستدلال والتفسير المنطقي (درجة)'],
+      explanationAr: ''
+    },
+    {
+      number: 3,
+      points: 5,
       type: 'mcq',
       typeNameAr: 'اختيار من متعدد',
       questionAr: '',
@@ -268,10 +312,11 @@ export const TeacherExamsView = () => {
     title: ''
   });
 
-  // Question Inline Edit State (والامتحان يكون مغلق أقدر أعدل على الأسئلة)
+  // Question Inline Edit State (والامتحان يكون مغلق أقدر أعدل على الأسئلة والدرجات)
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [editBuffer, setEditBuffer] = useState({
     questionAr: '',
+    points: 5,
     type: 'mcq',
     optionsAr: ['', '', '', ''],
     correctIndex: 0,
@@ -285,6 +330,7 @@ export const TeacherExamsView = () => {
     setEditingQuestionId(q.id);
     setEditBuffer({
       questionAr: q.questionAr || '',
+      points: q.points !== undefined ? q.points : 5,
       type: q.type,
       optionsAr: q.optionsAr ? [...q.optionsAr] : ['', '', '', ''],
       correctIndex: q.correctIndex !== undefined ? q.correctIndex : 0,
@@ -301,6 +347,7 @@ export const TeacherExamsView = () => {
         return {
           ...q,
           questionAr: editBuffer.questionAr.trim() || q.questionAr,
+          points: editBuffer.points !== undefined ? Math.max(0.5, Number(editBuffer.points) || 1) : (q.points || 1),
           optionsAr: q.type === 'mcq' ? editBuffer.optionsAr : q.optionsAr,
           correctIndex: editBuffer.correctIndex,
           correctBool: editBuffer.correctBool,
@@ -312,13 +359,38 @@ export const TeacherExamsView = () => {
       return q;
     });
 
+    const newFullMark = updatedQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+
     const updatedExam = {
       ...selectedExam,
+      fullMark: newFullMark,
       questions: updatedQuestions
     };
 
     setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
     setEditingQuestionId(null);
+  };
+
+  // Directly update question points from the input & recalculate total marks
+  const handleUpdateQuestionPoints = (questionId, newPointsVal) => {
+    if (!selectedExam) return;
+    const parsedPoints = Math.max(0.5, Number(newPointsVal) || 1);
+    const updatedQuestions = selectedExam.questions.map(q => {
+      if (q.id === questionId) {
+        return { ...q, points: parsedPoints };
+      }
+      return q;
+    });
+
+    const newFullMark = updatedQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+
+    const updatedExam = {
+      ...selectedExam,
+      fullMark: newFullMark,
+      questions: updatedQuestions
+    };
+
+    setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
   };
 
   const selectedExam = exams.find(e => e.id === selectedExamId) || exams[0];
@@ -350,6 +422,18 @@ export const TeacherExamsView = () => {
     }));
   };
 
+  // Toggle Show / Hide Results for students (زى بتاعت الامتحان متاح للطلاب ولا مغلق)
+  const handleToggleResults = (examId, e) => {
+    if (e) e.stopPropagation();
+    setExams(prev => prev.map(exam => {
+      if (exam.id === examId) {
+        const nextShow = exam.showResults === false ? true : false;
+        return { ...exam, showResults: nextShow };
+      }
+      return exam;
+    }));
+  };
+
   // Open Exam Detail Page
   const handleOpenExamDetail = (examId) => {
     setSelectedExamId(examId);
@@ -363,13 +447,41 @@ export const TeacherExamsView = () => {
   const handleOpenCreatePage = () => {
     setFormTitle('');
     setFormDuration('45');
-    setFormFullMark('50');
-    setFormPassScore('30');
+    setFormFullMark('15');
+    setFormPassScore('9');
     setFormTargetCount(3);
+    setFormShowResults(true);
     setWizardStep(1);
     setBuilderQuestions([
       {
         number: 1,
+        points: 5,
+        type: 'mcq',
+        typeNameAr: 'اختيار من متعدد',
+        questionAr: '',
+        optionsAr: ['', '', '', ''],
+        correctIndex: 0,
+        correctBool: true,
+        modelAnswerAr: '',
+        rubricPointsAr: ['استيفاء الفكرة العلمية الأساسية (درجة)', 'الاستدلال والتفسير المنطقي (درجة)'],
+        explanationAr: ''
+      },
+      {
+        number: 2,
+        points: 5,
+        type: 'mcq',
+        typeNameAr: 'اختيار من متعدد',
+        questionAr: '',
+        optionsAr: ['', '', '', ''],
+        correctIndex: 0,
+        correctBool: true,
+        modelAnswerAr: '',
+        rubricPointsAr: ['استيفاء الفكرة العلمية الأساسية (درجة)', 'الاستدلال والتفسير المنطقي (درجة)'],
+        explanationAr: ''
+      },
+      {
+        number: 3,
+        points: 5,
         type: 'mcq',
         typeNameAr: 'اختيار من متعدد',
         questionAr: '',
@@ -427,9 +539,12 @@ export const TeacherExamsView = () => {
         .filter(q => q.id !== deleteDialog.id)
         .map((q, idx) => ({ ...q, number: idx + 1 }));
 
+      const newFullMark = filtered.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+
       const updatedExam = {
         ...selectedExam,
         questionsCount: filtered.length,
+        fullMark: newFullMark,
         questions: filtered
       };
       setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
@@ -441,12 +556,16 @@ export const TeacherExamsView = () => {
   const handleAddQuestionToExam = (type) => {
     if (!selectedExam) return;
     const currentQCount = selectedExam.questions.length;
+    const avgPts = selectedExam.questions.length > 0 
+      ? Math.round(selectedExam.fullMark / selectedExam.questions.length) 
+      : 5;
     let newQ = null;
 
     if (type === 'mcq') {
       newQ = {
         id: `q-${Date.now()}`,
         number: currentQCount + 1,
+        points: avgPts || 5,
         type: 'mcq',
         typeNameAr: 'اختيار من متعدد',
         questionAr: `سؤال اختيار من متعدد جديد رقم (${currentQCount + 1})`,
@@ -458,6 +577,7 @@ export const TeacherExamsView = () => {
       newQ = {
         id: `q-${Date.now()}`,
         number: currentQCount + 1,
+        points: avgPts || 5,
         type: 'true_false',
         typeNameAr: 'صح وخطأ',
         questionAr: `عبارة صح وخطأ جديدة رقم (${currentQCount + 1})`,
@@ -468,6 +588,7 @@ export const TeacherExamsView = () => {
       newQ = {
         id: `q-${Date.now()}`,
         number: currentQCount + 1,
+        points: avgPts || 5,
         type: 'essay',
         typeNameAr: 'مقالي',
         questionAr: `سؤال مقالي جديد رقم (${currentQCount + 1})`,
@@ -477,10 +598,14 @@ export const TeacherExamsView = () => {
       };
     }
 
+    const updatedQuestions = [...selectedExam.questions, newQ];
+    const newFullMark = updatedQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+
     const updatedExam = {
       ...selectedExam,
       questionsCount: currentQCount + 1,
-      questions: [...selectedExam.questions, newQ]
+      fullMark: newFullMark,
+      questions: updatedQuestions
     };
     setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
   };
@@ -491,6 +616,7 @@ export const TeacherExamsView = () => {
     const newQ = {
       id: `q-blank-${Date.now()}`,
       number: selectedExam.questions.length + 1,
+      points: referenceQuestion.points || 5,
       type: referenceQuestion.type,
       typeNameAr: referenceQuestion.typeNameAr,
       questionAr: `سؤال جديد (${referenceQuestion.typeNameAr})`,
@@ -502,12 +628,64 @@ export const TeacherExamsView = () => {
       explanationAr: 'تفسير الإجابة النموذجية.'
     };
 
+    const updatedQuestions = [...selectedExam.questions, newQ];
+    const newFullMark = updatedQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+
     const updatedExam = {
       ...selectedExam,
       questionsCount: selectedExam.questions.length + 1,
-      questions: [...selectedExam.questions, newQ]
+      fullMark: newFullMark,
+      questions: updatedQuestions
     };
     setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+  };
+
+  // Proceed from Step 1 to Step 2 in Wizard with equal distribution of points
+  const handleProceedToQuestions = () => {
+    const totalMark = Math.max(1, Number(formFullMark) || 15);
+    const count = Math.max(1, Number(formTargetCount) || 1);
+    const rawEqual = totalMark / count;
+    const equalPts = Number(rawEqual.toFixed(2));
+
+    let newQuestions = [];
+    for (let i = 0; i < count; i++) {
+      const existing = builderQuestions[i];
+      newQuestions.push({
+        number: i + 1,
+        // ALWAYS allocate equal points per question based on Step 1 total / count
+        points: equalPts,
+        type: existing?.type || 'mcq',
+        typeNameAr: existing?.typeNameAr || 'اختيار من متعدد',
+        questionAr: existing?.questionAr || '',
+        optionsAr: existing?.optionsAr || ['', '', '', ''],
+        correctIndex: existing?.correctIndex !== undefined ? existing.correctIndex : 0,
+        correctBool: existing?.correctBool !== undefined ? existing.correctBool : true,
+        modelAnswerAr: existing?.modelAnswerAr || '',
+        rubricPointsAr: existing?.rubricPointsAr || ['استيفاء الفكرة العلمية الأساسية (درجة)', 'الاستدلال والتفسير المنطقي (درجة)'],
+        explanationAr: existing?.explanationAr || ''
+      });
+    }
+
+    setBuilderQuestions(newQuestions);
+    const calculatedTotal = newQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+    setFormFullMark(String(Number(calculatedTotal.toFixed(2))));
+
+    setCurrentBuilderIndex(0);
+    setWizardStep(2);
+  };
+
+  // Edit Question Points in Step 2: Dynamically updates the total marks!
+  const handleBuilderQuestionPointsChange = (newPts) => {
+    const val = newPts === '' ? '' : Math.max(0, Number(newPts) || 0);
+    const updated = [...builderQuestions];
+    updated[currentBuilderIndex] = {
+      ...updated[currentBuilderIndex],
+      points: val
+    };
+    setBuilderQuestions(updated);
+    // Auto-update total score!
+    const newTotal = updated.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+    setFormFullMark(String(Number(newTotal.toFixed(2))));
   };
 
   // Finish Creation Wizard
@@ -517,9 +695,12 @@ export const TeacherExamsView = () => {
       ...bq,
       id: `q-new-${Date.now()}-${idx}`,
       number: idx + 1,
+      points: Number(bq.points) || 1,
       questionAr: bq.questionAr.trim() || `سؤال رقم (${idx + 1})`,
       optionsAr: bq.type === 'mcq' ? bq.optionsAr.map((opt, oIdx) => opt.trim() || `الخيار ${oIdx + 1}`) : undefined
     }));
+
+    const finalFullMark = finalQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
 
     const newExamObj = {
       id: `ex-${Date.now()}`,
@@ -528,12 +709,13 @@ export const TeacherExamsView = () => {
       courseTitleAr: formCourse,
       questionsCount: finalQuestions.length,
       durationMinutes: Number(formDuration) || 45,
-      fullMark: Number(formFullMark) || 50,
-      passScore: Number(formPassScore) || 30,
+      fullMark: finalFullMark,
+      passScore: Number(formPassScore) || Math.round(finalFullMark * 0.6),
       avgScore: 0,
       passRate: 100,
       topScoreCount: 0,
       status: 'active', // متاح للطلاب تلقائياً
+      showResults: formShowResults, // إظهار النتيجة للطلاب أو حجبها
       dueDate: '2026-10-15',
       questions: finalQuestions
     };
@@ -548,10 +730,14 @@ export const TeacherExamsView = () => {
   const handleBuilderNextQuestion = () => {
     if (currentBuilderIndex < formTargetCount - 1) {
       if (!builderQuestions[currentBuilderIndex + 1]) {
+        const totalMark = Number(formFullMark) || 15;
+        const count = Number(formTargetCount) || 3;
+        const equalPts = Number((totalMark / count).toFixed(2)) || 1;
         setBuilderQuestions([
           ...builderQuestions,
           {
             number: currentBuilderIndex + 2,
+            points: equalPts,
             type: 'mcq',
             typeNameAr: 'اختيار من متعدد',
             questionAr: '',
@@ -811,26 +997,53 @@ export const TeacherExamsView = () => {
                         {exam.courseTitleAr}
                       </span>
 
-                      {/* Concise Status Button */}
-                      <button
-                        onClick={(e) => handleToggleStatus(exam.id, e)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          border: `1px solid ${isOpen ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                          backgroundColor: isOpen ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                          color: isOpen ? 'var(--primary)' : 'var(--text-secondary)',
-                          fontSize: '10.5px',
-                          fontWeight: '700',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {isOpen ? <Unlock size={11} /> : <Lock size={11} />}
-                        <span>{isOpen ? (isAr ? 'متاح للطلاب' : 'Open') : (isAr ? 'مغلق' : 'Closed')}</span>
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {/* 1. Exam Open / Closed status */}
+                        <button
+                          onClick={(e) => handleToggleStatus(exam.id, e)}
+                          title={isOpen ? 'الامتحان متاح للطلاب (اضغط للقفل)' : 'الامتحان مغلق (اضغط للإتاحة)'}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            border: `1px solid ${isOpen ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                            backgroundColor: isOpen ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                            color: isOpen ? 'var(--primary)' : 'var(--text-secondary)',
+                            fontSize: '10.5px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isOpen ? <Unlock size={11} /> : <Lock size={11} />}
+                          <span>{isOpen ? (isAr ? 'متاح للطلاب' : 'Open') : (isAr ? 'مغلق' : 'Closed')}</span>
+                        </button>
+
+                        {/* 2. Results Show / Hide status (زى بتاعت الامتحان متاح للطلاب ولا مغلق) */}
+                        <button
+                          onClick={(e) => handleToggleResults(exam.id, e)}
+                          title={exam.showResults !== false ? 'النتيجة ظاهرة للطلاب (اضغط للحجب)' : 'النتيجة محجوبة عن الطلاب (اضغط للإظهار)'}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            border: `1px solid ${exam.showResults !== false ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                            backgroundColor: exam.showResults !== false 
+                              ? (isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5') 
+                              : (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB'),
+                            color: exam.showResults !== false ? 'var(--success)' : '#D97706',
+                            fontSize: '10.5px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {exam.showResults !== false ? <Eye size={11} /> : <EyeOff size={11} />}
+                          <span>{exam.showResults !== false ? (isAr ? 'النتيجة: معلنة' : 'Results: On') : (isAr ? 'النتيجة: محجوبة' : 'Results: Off')}</span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Title */}
@@ -955,8 +1168,8 @@ export const TeacherExamsView = () => {
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* Concise Status Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {/* 1. Exam Open / Closed Toggle */}
               <button
                 onClick={(e) => handleToggleStatus(selectedExam.id, e)}
                 style={{
@@ -977,7 +1190,55 @@ export const TeacherExamsView = () => {
                 <span>{selectedExam.status === 'active' ? (isAr ? 'الامتحان متاح للطلاب' : 'Active') : (isAr ? 'الامتحان مغلق' : 'Closed')}</span>
               </button>
 
-              {/* PDF Print Button */}
+              {/* 2. Results Show / Hide Toggle (زى بتاعت الامتحان متاح للطلاب ولا مغلق) */}
+              <button
+                onClick={(e) => handleToggleResults(selectedExam.id, e)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '6px 12px',
+                  borderRadius: '7px',
+                  border: `1px solid ${selectedExam.showResults !== false ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                  backgroundColor: selectedExam.showResults !== false 
+                    ? (isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5') 
+                    : (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB'),
+                  color: selectedExam.showResults !== false ? 'var(--success)' : '#D97706',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {selectedExam.showResults !== false ? <Eye size={12} /> : <EyeOff size={12} />}
+                <span>{selectedExam.showResults !== false ? (isAr ? 'إظهار النتيجة (معلنة)' : 'Results: Shown') : (isAr ? 'حجب النتيجة عن الطلاب' : 'Results: Hidden')}</span>
+              </button>
+
+              {/* 3. Delete Exam Button (حذف الاختبار) */}
+              <button
+                onClick={(e) => promptDeleteExam(selectedExam.id, selectedExam.titleAr, e)}
+                title={isAr ? 'حذف هذا الاختبار نهائياً' : 'Delete Exam'}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 11px',
+                  borderRadius: '7px',
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#EF4444',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2'}
+              >
+                <Trash2 size={12} />
+                <span>{isAr ? 'حذف الاختبار' : 'Delete'}</span>
+              </button>
+
+              {/* 4. PDF Print Button */}
               <button
                 onClick={() => window.print()}
                 style={{
@@ -1042,13 +1303,28 @@ export const TeacherExamsView = () => {
               fontSize: '12px',
               color: 'var(--text-secondary)',
               borderTop: '1px solid var(--border-subtle)',
-              paddingTop: '8px'
+              paddingTop: '8px',
+              alignItems: 'center'
             }}>
               <span>الأسئلة: <strong style={{ color: 'var(--text-primary)' }}>{selectedExam.questions.length}</strong></span>
               <span>المدة: <strong style={{ color: 'var(--text-primary)' }}>{selectedExam.durationMinutes} دقيقة</strong></span>
-              <span>الدرجة النهائية: <strong style={{ color: 'var(--primary)' }}>{selectedExam.fullMark}</strong></span>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(0, 102, 204, 0.08)',
+                border: '1px solid rgba(0, 102, 204, 0.2)'
+              }}>
+                إجمالي الدرجات: <strong style={{ color: 'var(--primary)', fontSize: '13px' }}>{selectedExam.fullMark} درجة</strong>
+              </span>
               <span>درجة النجاح: <strong style={{ color: 'var(--text-primary)' }}>{selectedExam.passScore}</strong></span>
-              <span>متوسط الدرجات: <strong style={{ color: 'var(--text-primary)' }}>{selectedExam.avgScore}</strong></span>
+              <span>
+                إظهار النتيجة: <strong style={{ color: selectedExam.showResults !== false ? 'var(--success)' : '#D97706' }}>
+                  {selectedExam.showResults !== false ? (isAr ? 'معلنة للطلاب ✓' : 'Visible') : (isAr ? 'محجوبة 🔒' : 'Hidden')}
+                </strong>
+              </span>
             </div>
           </div>
 
@@ -1239,6 +1515,44 @@ export const TeacherExamsView = () => {
                       }}>
                         {q.typeNameAr}
                       </span>
+
+                      {/* Question Points Pill & Quick Input ("وفى كل سوال بيكون فوقه درجته و ممكن المدرس يعدلها") */}
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: isDark ? 'rgba(0, 102, 204, 0.15)' : 'rgba(0, 102, 204, 0.08)',
+                        border: '1px solid rgba(0, 102, 204, 0.22)',
+                        borderRadius: '6px',
+                        padding: '2px 7px'
+                      }}>
+                        <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)' }}>
+                          {isAr ? 'درجة السؤال:' : 'Marks:'}
+                        </span>
+                        <input
+                          type="number"
+                          min="0.5"
+                          step="0.5"
+                          value={q.points !== undefined ? q.points : 5}
+                          onChange={(e) => handleUpdateQuestionPoints(q.id, e.target.value)}
+                          title={isAr ? 'اضغط لتعديل درجة هذا السؤال (يتغير مجموع درجات الامتحان تلقائياً)' : 'Edit question marks'}
+                          style={{
+                            width: '44px',
+                            padding: '1px 3px',
+                            fontSize: '12px',
+                            fontWeight: '900',
+                            color: 'var(--primary)',
+                            textAlign: 'center',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: '4px',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            outline: 'none'
+                          }}
+                        />
+                        <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)', fontWeight: '700' }}>
+                          {isAr ? 'درجة' : 'pts'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Actions: Edit (✎), Plus (+), and Trash */}
@@ -1351,6 +1665,35 @@ export const TeacherExamsView = () => {
                             boxSizing: 'border-box'
                           }}
                         />
+                      </div>
+
+                      {/* Question Points Edit */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                          درجة هذا السؤال:
+                        </label>
+                        <input
+                          type="number"
+                          min="0.5"
+                          step="0.5"
+                          value={editBuffer.points !== undefined ? editBuffer.points : 5}
+                          onChange={(e) => setEditBuffer({ ...editBuffer, points: e.target.value })}
+                          style={{
+                            width: '54px',
+                            padding: '3px 6px',
+                            borderRadius: '5px',
+                            border: '1.5px solid var(--primary)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            color: 'var(--primary)',
+                            fontSize: '12px',
+                            fontWeight: '800',
+                            textAlign: 'center',
+                            outline: 'none'
+                          }}
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          (يتحدث إجمالي درجات الامتحان تلقائياً عند حفظ التعديل)
+                        </span>
                       </div>
 
                       {/* MCQ Options Edit */}
@@ -1850,10 +2193,76 @@ export const TeacherExamsView = () => {
                 </div>
               </div>
 
+              {/* Equal Distribution Hint */}
+              <div style={{
+                fontSize: '11.5px',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--bg-subtle)',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <Sparkles size={13} color="var(--primary)" />
+                <span>
+                  {isAr 
+                    ? `توزيع الدرجات التلقائي: سيحصل كل سؤال على (${Math.round(((Number(formFullMark) || 15) / (Number(formTargetCount) || 3)) * 10) / 10} درجة) بالتساوي، ويمكنك تعديل درجة كل سؤال لاحقاً وتتغير الدرجة الإجمالية تلقائياً.`
+                    : `Points distributed equally: ${Math.round(((Number(formFullMark) || 15) / (Number(formTargetCount) || 3)) * 10) / 10} pts per question.`}
+                </span>
+              </div>
+
+              {/* Show / Hide Results Toggle in Wizard (إظهار النتيجة للطلاب أو حجبها) */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div>
+                  <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    {isAr ? 'إظهار النتيجة للطلاب فور التسليم' : 'Show results upon submission'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    {isAr
+                      ? 'عند التفعيل تظهر النتيجة فوراً للطالب، وعند الحجب لا يرى الطالب درجاته إلا بعد إعلانها'
+                      : 'When disabled, results and answers are hidden from students'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFormShowResults(!formShowResults)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${formShowResults ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                    backgroundColor: formShowResults 
+                      ? (isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5') 
+                      : (isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB'),
+                    color: formShowResults ? 'var(--success)' : '#D97706',
+                    fontSize: '11.5px',
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {formShowResults ? <Eye size={12} /> : <EyeOff size={12} />}
+                  <span>{formShowResults ? (isAr ? 'النتيجة: معلنة' : 'Shown') : (isAr ? 'النتيجة: محجوبة' : 'Hidden')}</span>
+                </button>
+              </div>
+
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setWizardStep(2)}
+                  onClick={handleProceedToQuestions}
                   style={{
                     padding: '10px 20px',
                     borderRadius: '7px',
@@ -1893,12 +2302,87 @@ export const TeacherExamsView = () => {
                   }}
                 >
                   <ArrowRight size={13} style={{ transform: isRtl ? 'none' : 'rotate(180deg)' }} />
-                  <span>الرجوع لتعديل البيانات الأساسية (الاسم أو العدد)</span>
+                  <span>الرجوع لتعديل البيانات الأساسية (الاسم أو الدرجات أو العدد)</span>
                 </button>
 
                 <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>
                   سؤال {currentBuilderIndex + 1} من {formTargetCount}
                 </span>
+              </div>
+
+              {/* Dynamic Live Total Score Banner ("والدرجات تتغير فوق بناء على تعديلات total الدرجات يتغير بردوك") */}
+              <div style={{
+                backgroundColor: 'var(--primary-surface)',
+                border: '1px solid rgba(0, 102, 204, 0.25)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={15} color="var(--primary)" />
+                  <span style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    إجمالي درجات الامتحان: <strong style={{ color: 'var(--primary)', fontSize: '14.5px' }}>{formFullMark}</strong> درجة
+                  </span>
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  (تتغير الدرجة الإجمالية تلقائياً مع تعديل درجات كل سؤال أدناه)
+                </span>
+              </div>
+
+              {/* Question Header with Editable Points in Step 2 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+                backgroundColor: 'var(--bg-subtle)',
+                padding: '8px 12px',
+                borderRadius: '7px',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>
+                    سؤال {currentBuilderIndex + 1} من {formTargetCount}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    ({builderQuestions[currentBuilderIndex]?.typeNameAr || 'اختيار من متعدد'})
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    درجة هذا السؤال:
+                  </label>
+                  <input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={builderQuestions[currentBuilderIndex]?.points !== undefined ? builderQuestions[currentBuilderIndex].points : 5}
+                    onChange={(e) => handleBuilderQuestionPointsChange(e.target.value)}
+                    title={isAr ? 'عدل درجة هذا السؤال وسيتغير إجمالي الدرجات بالأعلى مباشرة' : 'Edit points'}
+                    style={{
+                      width: '52px',
+                      padding: '3px 6px',
+                      borderRadius: '5px',
+                      border: '1.5px solid var(--primary)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: 'var(--primary)',
+                      fontSize: '12.5px',
+                      fontWeight: '800',
+                      textAlign: 'center',
+                      outline: 'none'
+                    }}
+                  />
+                  <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    درجات
+                  </span>
+                </div>
               </div>
 
               {/* Type Switcher */}

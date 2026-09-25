@@ -12,7 +12,12 @@ import {
   Layers, 
   PlayCircle,
   X,
-  FileText
+  FileText,
+  Trash2,
+  AlertTriangle,
+  Edit3,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 export const TeacherCoursesView = () => {
@@ -24,6 +29,92 @@ export const TeacherCoursesView = () => {
   const [courses, setCourses] = useState(TEACHER_COURSES);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Delete Course Confirmation Dialog state
+  const [deleteCourseDialog, setDeleteCourseDialog] = useState({
+    isOpen: false,
+    id: null,
+    title: ''
+  });
+
+  const promptDeleteCourse = (courseId, courseTitle, e) => {
+    if (e) e.stopPropagation();
+    setDeleteCourseDialog({
+      isOpen: true,
+      id: courseId,
+      title: courseTitle
+    });
+  };
+
+  const handleConfirmDeleteCourse = () => {
+    setCourses(prev => prev.filter(c => c.id !== deleteCourseDialog.id));
+    setDeleteCourseDialog({ isOpen: false, id: null, title: '' });
+  };
+
+  // Expanded descriptions toggle state
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
+
+  const toggleDescription = (courseId, e) => {
+    if (e) e.stopPropagation();
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [courseId]: !prev[courseId]
+    }));
+  };
+
+  // Edit Course Modal state
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    stage: 'sec',
+    grade: 'الصف الثالث الثانوي',
+    subject: 'الأحياء',
+    price: '350',
+    description: '',
+    hours: '28 ساعة',
+    lessonsCount: '14'
+  });
+
+  const handleOpenEditCourse = (course, e) => {
+    if (e) e.stopPropagation();
+    setEditingCourse(course);
+    setEditForm({
+      title: course.titleAr || course.title || '',
+      stage: course.stageId || (course.stage === 'المرحلة الإعدادية' ? 'prep' : 'sec'),
+      grade: course.gradeAr || 'الصف الثالث الثانوي',
+      subject: course.subjectAr || 'الأحياء',
+      price: String(course.priceEgp || 300),
+      description: course.descriptionAr || '',
+      hours: course.hoursTotal || '20 ساعة',
+      lessonsCount: String(course.lessonsCount || 1)
+    });
+  };
+
+  const handleSaveEditCourse = (e) => {
+    e.preventDefault();
+    if (!editingCourse || !editForm.title.trim()) return;
+
+    setCourses(prev => prev.map(c => {
+      if (c.id === editingCourse.id) {
+        return {
+          ...c,
+          title: editForm.title,
+          titleAr: editForm.title,
+          stage: editForm.stage === 'sec' ? 'المرحلة الثانوية' : 'المرحلة الإعدادية',
+          stageId: editForm.stage,
+          gradeAr: editForm.grade,
+          subjectAr: editForm.subject,
+          priceEgp: Number(editForm.price) || c.priceEgp,
+          descriptionAr: editForm.description,
+          hoursTotal: editForm.hours || c.hoursTotal,
+          lessonsCount: Number(editForm.lessonsCount) || c.lessonsCount
+        };
+      }
+      return c;
+    }));
+
+    setEditingCourse(null);
+  };
 
   // New Course Form state
   const [newTitle, setNewTitle] = useState('');
@@ -292,18 +383,82 @@ export const TeacherCoursesView = () => {
                   </span>
                 </div>
 
-                {/* Price Tag Badge */}
-                <span style={{
-                  fontSize: '11.5px',
-                  fontWeight: '800',
-                  padding: '3px 9px',
-                  borderRadius: '6px',
-                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
-                  color: 'var(--success)',
-                  border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#A7F3D0'}`
-                }}>
-                  {course.priceEgp} {isAr ? 'ج.م / شهر' : 'EGP/mo'}
-                </span>
+                {/* Price Tag Badge + Edit & Delete Course Buttons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{
+                    fontSize: '11.5px',
+                    fontWeight: '800',
+                    padding: '3px 9px',
+                    borderRadius: '6px',
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
+                    color: 'var(--success)',
+                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#A7F3D0'}`
+                  }}>
+                    {course.priceEgp} {isAr ? 'ج.م / شهر' : 'EGP/mo'}
+                  </span>
+
+                  {/* Edit Course Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleOpenEditCourse(course, e)}
+                    title={isAr ? 'تعديل بيانات الكورس' : 'Edit Course'}
+                    style={{
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--primary)';
+                      e.currentTarget.style.borderColor = 'var(--primary)';
+                      e.currentTarget.style.backgroundColor = isDark ? 'rgba(0, 102, 204, 0.15)' : 'rgba(0, 102, 204, 0.08)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--text-muted)';
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Edit3 size={13} />
+                  </button>
+
+                  {/* Delete Course Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => promptDeleteCourse(course.id, isAr ? (course.titleAr || course.title) : course.title, e)}
+                    title={isAr ? 'حذف الكورس' : 'Delete Course'}
+                    style={{
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#EF4444';
+                      e.currentTarget.style.borderColor = '#FCA5A5';
+                      e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.08)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--text-muted)';
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
 
               {/* Course Title */}
@@ -318,19 +473,64 @@ export const TeacherCoursesView = () => {
                 {isAr ? course.titleAr : course.title}
               </h2>
 
-              {/* Course Description */}
-              <p style={{
-                fontSize: '12px',
-                color: 'var(--text-secondary)',
-                margin: '0 0 16px',
-                lineHeight: 1.55,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
-              }}>
-                {course.descriptionAr}
-              </p>
+              {/* Course Description with Expand / Collapse on Click */}
+              {(() => {
+                const isExpanded = !!expandedDescriptions[course.id];
+                return (
+                  <div
+                    onClick={(e) => toggleDescription(course.id, e)}
+                    style={{
+                      margin: '0 0 16px',
+                      padding: isExpanded ? '8px 10px' : '4px 0',
+                      borderRadius: '8px',
+                      backgroundColor: isExpanded ? 'var(--bg-subtle)' : 'transparent',
+                      border: isExpanded ? '1px dashed var(--border-subtle)' : '1px solid transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    title={isExpanded ? (isAr ? 'اضغط لتصغير الوصف' : 'Click to collapse') : (isAr ? 'اضغط لقراءة الوصف كاملاً' : 'Click to read full description')}
+                  >
+                    <p style={{
+                      fontSize: '12px',
+                      color: isExpanded ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      margin: 0,
+                      lineHeight: 1.6,
+                      ...(isExpanded ? {} : {
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }),
+                      transition: 'all 0.2s ease',
+                      wordBreak: 'break-word'
+                    }}>
+                      {course.descriptionAr}
+                    </p>
+
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      color: 'var(--primary)',
+                      marginTop: '4px'
+                    }}>
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp size={12} />
+                          <span>{isAr ? 'عرض أقل' : 'Show less'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown size={12} />
+                          <span>{isAr ? 'عرض المزيد...' : 'Show more...'}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
@@ -656,6 +856,395 @@ export const TeacherCoursesView = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT COURSE MODAL ── */}
+      {editingCourse && (
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingCourse(null);
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            backdropFilter: 'blur(3px)'
+          }}
+        >
+          <div style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            width: '100%',
+            maxWidth: '560px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '24px',
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit3 size={18} color="var(--primary)" />
+                <h3 style={{ fontSize: '16.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
+                  {isAr ? 'تعديل بيانات الكورس' : 'Edit Course Details'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditingCourse(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditCourse} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  {isAr ? 'عنوان المقرر أو الكورس:' : 'Course Title:'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.title}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    {isAr ? 'المرحلة الدراسية:' : 'Stage:'}
+                  </label>
+                  <select
+                    value={editForm.stage}
+                    onChange={(e) => {
+                      const nextStage = e.target.value;
+                      setEditForm(prev => ({
+                        ...prev,
+                        stage: nextStage,
+                        grade: nextStage === 'sec' ? 'الصف الثالث الثانوي' : 'الصف الثالث الإعدادي'
+                      }));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="sec">{isAr ? 'المرحلة الثانوية' : 'Secondary'}</option>
+                    <option value="prep">{isAr ? 'المرحلة الإعدادية' : 'Preparatory'}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    {isAr ? 'الصف الدراسي:' : 'Grade:'}
+                  </label>
+                  <select
+                    value={editForm.grade}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, grade: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {editForm.stage === 'sec' ? (
+                      <>
+                        <option value="الصف الأول الثانوي">الصف الأول الثانوي</option>
+                        <option value="الصف الثاني الثانوي">الصف الثاني الثانوي</option>
+                        <option value="الصف الثالث الثانوي">الصف الثالث الثانوي</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="الصف الأول الإعدادي">الصف الأول الإعدادي</option>
+                        <option value="الصف الثاني الإعدادي">الصف الثاني الإعدادي</option>
+                        <option value="الصف الثالث الإعدادي">الصف الثالث الإعدادي</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    {isAr ? 'المادة الدراسية:' : 'Subject:'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.subject}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    {isAr ? 'سعر الاشتراك الشهري (ج.م):' : 'Monthly Price (EGP):'}
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.price}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, price: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    {isAr ? 'عدد الحصص المسجلة:' : 'Lessons Count:'}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editForm.lessonsCount}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, lessonsCount: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                    {isAr ? 'إجمالي ساعات الشرح:' : 'Total Hours:'}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="مثال: 28 ساعة"
+                    value={editForm.hours}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, hours: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  {isAr ? 'وصف المقرر ومخرجات التعلم:' : 'Description:'}
+                </label>
+                <textarea
+                  rows="4"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder={isAr ? 'اكتب نبذة عن الكورس والوحدات التي يشملها...' : 'Brief summary of the course...'}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingCourse(null)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  {isAr ? 'حفظ التعديلات' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── CONFIRM DELETE COURSE MODAL ── */}
+      {deleteCourseDialog.isOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.45)',
+          zIndex: 2000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          backdropFilter: 'blur(2px)'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-lg)',
+            width: '100%',
+            maxWidth: '380px',
+            padding: '22px',
+            boxShadow: 'var(--shadow-lg)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px',
+              color: '#EF4444'
+            }}>
+              <AlertTriangle size={22} />
+            </div>
+
+            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+              {isAr ? 'تأكيد حذف المقرر الدراسي' : 'Confirm Delete Course'}
+            </h3>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.5 }}>
+              {isAr
+                ? `هل أنت متأكد من رغبتك في حذف مقرر "${deleteCourseDialog.title}"؟ سيتم إزالته من قائمة الكورسات نهائياً.`
+                : `Are you sure you want to delete course "${deleteCourseDialog.title}"?`}
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setDeleteCourseDialog({ isOpen: false, id: null, title: '' })}
+                style={{
+                  padding: '9px',
+                  borderRadius: '7px',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {isAr ? 'إلغاء' : 'Cancel'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDeleteCourse}
+                style={{
+                  padding: '9px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  backgroundColor: '#EF4444',
+                  color: '#FFFFFF',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)'
+                }}
+              >
+                {isAr ? 'نعم، حذف الكورس' : 'Delete Course'}
+              </button>
+            </div>
           </div>
         </div>
       )}
