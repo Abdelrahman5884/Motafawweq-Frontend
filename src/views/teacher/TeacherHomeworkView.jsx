@@ -594,13 +594,94 @@ export const TeacherHomeworkView = () => {
   const totalPendingCount = homeworks.reduce((acc, h) => acc + (h.pendingGrading || 0), 0);
 
   return (
-    <div style={{
+    <div className="hw-container" style={{
       maxWidth: '1240px',
       margin: '0 auto',
-      padding: '28px 24px 100px',
       fontFamily: 'var(--font-arabic)',
       boxSizing: 'border-box'
     }}>
+      <style>{`
+        .hw-container {
+          padding: 28px 24px 100px;
+        }
+        @media (max-width: 768px) {
+          .hw-container {
+            padding: 16px 12px 100px !important;
+          }
+          .hw-header-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+          }
+          .hw-header-btn {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .hw-view1-search-box {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+          .hw-controls-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+            padding: 12px !important;
+          }
+          .hw-filter-search-box {
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+          .hw-filter-tabs-wrap {
+            width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            white-space: nowrap !important;
+            padding: 4px !important;
+          }
+          .hw-filter-tabs-wrap button {
+            flex-shrink: 0 !important;
+          }
+          .hw-submissions-table-wrap {
+            display: none !important;
+          }
+          .hw-submissions-mobile-cards {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+            width: 100% !important;
+          }
+        }
+
+        @media (min-width: 769px) {
+          .hw-submissions-table-wrap {
+            display: block !important;
+          }
+          .hw-submissions-mobile-cards {
+            display: none !important;
+          }
+        }
+
+        /* View 3: Grading Desk Grid */
+        .hw-grading-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+          gap: 20px;
+          align-items: start;
+        }
+        @media (max-width: 991px) {
+          .hw-grading-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 16px !important;
+            width: 100% !important;
+          }
+          .hw-grading-grid > div {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+        }
+      `}</style>
 
       {/* ═══════════════════════════════════════════════════════════════════
           VIEW 1: HOMEWORKS LIST CARDS (نفس ديزاين الاختبارات وبنك الأسئلة)
@@ -608,7 +689,7 @@ export const TeacherHomeworkView = () => {
       {viewMode === 'list' && (
         <div>
           {/* Top Header */}
-          <div style={{
+          <div className="hw-header-row" style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -651,6 +732,7 @@ export const TeacherHomeworkView = () => {
             </div>
 
             <button
+              className="hw-header-btn"
               onClick={() => {
                 setCreateForm({
                   title: '',
@@ -693,7 +775,7 @@ export const TeacherHomeworkView = () => {
           {/* Clean Overview Stats Ribbon (matching Exams design) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
             gap: '12px',
             marginBottom: '24px'
           }}>
@@ -759,7 +841,7 @@ export const TeacherHomeworkView = () => {
           </div>
 
           {/* Filter & Search Bar */}
-          <div style={{
+          <div className="hw-controls-row" style={{
             backgroundColor: 'var(--bg-surface-elevated)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-xl)',
@@ -773,7 +855,7 @@ export const TeacherHomeworkView = () => {
             gap: '12px'
           }}>
             {/* Search Input Box */}
-            <div style={{
+            <div className="hw-view1-search-box" style={{
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
@@ -865,7 +947,7 @@ export const TeacherHomeworkView = () => {
           {/* ── HOMEWORKS CARDS GRID (Clean, balanced platform design) ── */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
             gap: '18px'
           }}>
             {filteredHomeworks.map(hw => {
@@ -1181,7 +1263,7 @@ export const TeacherHomeworkView = () => {
             {/* Quick Specs Row */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
               gap: '10px',
               padding: '12px 14px',
               borderRadius: '10px',
@@ -1231,7 +1313,7 @@ export const TeacherHomeworkView = () => {
           </div>
 
           {/* Table Controls (Search & Status Filter Tabs) */}
-          <div style={{
+          <div className="hw-controls-row" style={{
             backgroundColor: 'var(--bg-surface-elevated)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-xl)',
@@ -1244,7 +1326,7 @@ export const TeacherHomeworkView = () => {
             gap: '12px',
             boxShadow: 'var(--shadow-xs)'
           }}>
-            <div style={{
+            <div className="hw-filter-search-box" style={{
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
@@ -1281,7 +1363,7 @@ export const TeacherHomeworkView = () => {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: '6px', backgroundColor: 'var(--bg-subtle)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div className="hw-filter-tabs-wrap" style={{ display: 'flex', gap: '6px', backgroundColor: 'var(--bg-subtle)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
               {[
                 { id: 'all', label: isAr ? `الكل (${selectedHw?.submissions?.length || 0})` : 'All' },
                 { id: 'pending', label: isAr ? `قيد الانتظار (${selectedHw?.submissions?.filter(s => s.status === 'pending').length || 0})` : 'Pending' },
@@ -1309,8 +1391,8 @@ export const TeacherHomeworkView = () => {
             </div>
           </div>
 
-          {/* ── THE SUBMISSIONS TABLE (جدول الطلاب الذين سلموا الواجب) ── */}
-          <div style={{
+          {/* ── THE SUBMISSIONS TABLE (DESKTOP: جدول الطلاب الذين سلموا الواجب) ── */}
+          <div className="hw-submissions-table-wrap" style={{
             backgroundColor: 'var(--bg-surface-elevated)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-xl)',
@@ -1519,6 +1601,202 @@ export const TeacherHomeworkView = () => {
               </table>
             </div>
           </div>
+
+          {/* ── MOBILE SUBMISSIONS CARDS (عرض متجاوب بالكامل للتليفون بدون اسكرول أفقي) ── */}
+          <div className="hw-submissions-mobile-cards">
+            {filteredSubmissions.length > 0 ? (
+              filteredSubmissions.map((sub, idx) => (
+                <div
+                  key={sub.id}
+                  style={{
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '14px',
+                    boxShadow: 'var(--shadow-xs)'
+                  }}
+                >
+                  {/* Top Row: Student Avatar, Name, School & Status Badge */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <img
+                        src={sub.studentAvatar}
+                        alt={sub.studentNameAr}
+                        style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{
+                          fontWeight: '900',
+                          color: 'var(--text-primary)',
+                          fontSize: '13.5px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {sub.studentNameAr}
+                        </div>
+                        <div style={{
+                          fontSize: '11px',
+                          color: 'var(--text-secondary)',
+                          marginTop: '2px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {sub.schoolAr}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div style={{ flexShrink: 0 }}>
+                      {sub.status === 'graded' ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                          color: 'var(--success)',
+                          border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#A7F3D0'}`,
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <CheckCircle size={11} />
+                          <span>تم الرصد</span>
+                        </span>
+                      ) : sub.status === 'rejected' ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+                          color: '#EF4444',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <XCircle size={11} />
+                          <span>مرفوض</span>
+                        </span>
+                      ) : (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: isDark ? 'rgba(0, 102, 204, 0.12)' : 'rgba(0, 102, 204, 0.06)',
+                          color: 'var(--primary)',
+                          border: '1px solid rgba(0, 102, 204, 0.2)',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <Clock size={11} />
+                          <span>قيد الانتظار</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Metadata Grid (Center, Format, Time, Score) */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '6px 8px',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: '11.5px',
+                    marginBottom: '10px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)', minWidth: 0 }}>
+                      <MapPin size={11} color="var(--primary)" style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {sub.locationAr || 'أونلاين'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)', minWidth: 0 }}>
+                      {sub.type === 'pdf' ? <FileCheck size={11} color="var(--primary)" style={{ flexShrink: 0 }} /> : 
+                       sub.type === 'image' ? <ImageIcon size={11} color="var(--primary)" style={{ flexShrink: 0 }} /> :
+                       <FileText size={11} color="var(--primary)" style={{ flexShrink: 0 }} />}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {sub.type === 'pdf' ? (sub.attachmentName || 'ملف PDF') :
+                         sub.type === 'image' ? (sub.attachmentName || 'صورة') :
+                         'نص مكتوب'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)' }}>
+                      <Clock size={11} style={{ flexShrink: 0 }} />
+                      <span>{sub.submittedAt}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Award size={11} color="var(--primary)" style={{ flexShrink: 0 }} />
+                      <span style={{
+                        fontWeight: '800',
+                        color: sub.status === 'graded' ? 'var(--primary)' : sub.status === 'rejected' ? '#EF4444' : 'var(--text-muted)'
+                      }}>
+                        الدرجة: {sub.status === 'graded' ? `${sub.score} / ${selectedHw.maxGrade}` : sub.status === 'rejected' ? `0 / ${selectedHw.maxGrade}` : `— / ${selectedHw.maxGrade}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Button: 100% full width, large tap target */}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenGradingDesk(selectedHw.id, sub.id)}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: sub.status === 'pending' ? 'var(--primary)' : 'var(--bg-subtle)',
+                      color: sub.status === 'pending' ? '#FFFFFF' : 'var(--text-primary)',
+                      border: sub.status === 'pending' ? 'none' : '1px solid var(--border-subtle)',
+                      fontSize: '12.5px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      boxShadow: sub.status === 'pending' ? '0 2px 8px rgba(0, 102, 204, 0.25)' : 'none'
+                    }}
+                  >
+                    <Edit3 size={13} />
+                    <span>{sub.status === 'pending' ? 'تصحيح الواجب' : 'مراجعة التصحيح'}</span>
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div style={{
+                padding: '30px',
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: '13px'
+              }}>
+                لا توجد تسليمات مطابقة للبحث أو التصفية الحالية.
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1604,12 +1882,7 @@ export const TeacherHomeworkView = () => {
           </div>
 
           {/* Grading Desk Split Layout: Left Solution Preview, Right Grading Form */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1.35fr) minmax(320px, 0.95fr)',
-            gap: '20px',
-            alignItems: 'start'
-          }}>
+          <div className="hw-grading-grid">
             {/* ── LEFT PANE: STUDENT SOLUTION PREVIEW ── */}
             <div style={{
               backgroundColor: 'var(--bg-surface-elevated)',
@@ -1625,7 +1898,9 @@ export const TeacherHomeworkView = () => {
                 justifyContent: 'space-between',
                 paddingBottom: '16px',
                 borderBottom: '1px solid var(--border-subtle)',
-                marginBottom: '18px'
+                marginBottom: '18px',
+                flexWrap: 'wrap',
+                gap: '10px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <img
@@ -1942,11 +2217,11 @@ export const TeacherHomeworkView = () => {
                 </div>
 
                 {/* Actions: Save Grade or Reject */}
-                <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
                   <button
                     type="submit"
                     style={{
-                      flex: 1,
+                      flex: '1 1 180px',
                       padding: '11px 16px',
                       borderRadius: '8px',
                       border: 'none',
@@ -1970,6 +2245,7 @@ export const TeacherHomeworkView = () => {
                     type="button"
                     onClick={handleRejectSubmission}
                     style={{
+                      flex: '1 1 120px',
                       padding: '11px 16px',
                       borderRadius: '8px',
                       border: isDark ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid #FECACA',
@@ -2063,7 +2339,7 @@ export const TeacherHomeworkView = () => {
               </div>
 
               {/* Course & Linked Lesson Selection */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                     المادة والمقرر الدراسي:
@@ -2278,7 +2554,7 @@ export const TeacherHomeworkView = () => {
               )}
 
               {/* Max Grade and Deadline */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', gap: '10px' }}>
                 <div>
                   <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                     درجة الواجب:
