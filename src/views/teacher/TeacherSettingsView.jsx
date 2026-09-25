@@ -101,8 +101,9 @@ export const TeacherSettingsView = () => {
     <div style={{
       maxWidth: '1100px',
       margin: '0 auto',
-      padding: '32px 24px 80px',
-      fontFamily: 'var(--font-arabic)'
+      padding: '32px 20px 120px',
+      fontFamily: 'var(--font-arabic)',
+      boxSizing: 'border-box'
     }}>
       {/* Header */}
       <div style={{

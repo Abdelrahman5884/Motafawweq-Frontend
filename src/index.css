@@ -6028,6 +6028,114 @@ button, input, select, textarea {
   animation: heroParticleGlow 2s ease-in-out infinite;
 }
 
+/* =========================================================================
+   TEACHER PORTAL — RESPONSIVE & ADAPTIVE STYLES
+   ========================================================================= */
+
+/* Container */
+.teacher-dashboard-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px 120px;
+  font-family: var(--font-arabic);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .teacher-dashboard-container {
+    padding: 16px 12px 120px;
+    gap: 16px;
+  }
+}
+
+/* Main 2-column Grid (Lessons & Active Cohorts) */
+.teacher-main-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .teacher-main-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+}
+
+/* Active Classes Table vs Mobile Cards */
+.teacher-classes-table-container {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.teacher-classes-mobile-cards {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .teacher-classes-table-container {
+    display: none !important;
+  }
+  .teacher-classes-mobile-cards {
+    display: flex !important;
+  }
+}
+
+/* Teacher Exams Grid & Mobile Tabs */
+@media (min-width: 901px) {
+  .teacher-exams-grid-container {
+    display: grid !important;
+    grid-template-columns: minmax(300px, 360px) 1fr !important;
+    gap: 20px !important;
+    align-items: start !important;
+  }
+  .teacher-exams-mobile-tabs {
+    display: none !important;
+  }
+  .teacher-exams-back-to-list-btn {
+    display: none !important;
+  }
+  .teacher-exams-list-col {
+    display: block !important;
+  }
+  .teacher-exams-details-col {
+    display: block !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .teacher-exams-mobile-tabs {
+    display: block !important;
+  }
+  .teacher-exams-grid-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .teacher-exams-grid-container.show-list .teacher-exams-details-col {
+    display: none !important;
+  }
+  .teacher-exams-grid-container.show-list .teacher-exams-list-col {
+    display: block !important;
+  }
+  .teacher-exams-grid-container.show-details .teacher-exams-list-col {
+    display: none !important;
+  }
+  .teacher-exams-grid-container.show-details .teacher-exams-details-col {
+    display: block !important;
+  }
+  .teacher-exams-back-to-list-btn {
+    display: inline-flex !important;
+  }
+}
+
+
 
 
 
