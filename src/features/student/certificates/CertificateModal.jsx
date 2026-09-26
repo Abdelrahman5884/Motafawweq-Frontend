@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { X, Download, Check, Copy, ShieldCheck, Loader2 } from 'lucide-react';
+import { X, Download, Check, Copy, ShieldCheck, Loader2, MessageCircle } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { OfficialCertificateDocument } from './OfficialCertificateDocument';
 
@@ -24,6 +24,21 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
     navigator.clipboard?.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleShareWhatsApp = () => {
+    const studentName = isAr ? (selectedCert.studentNameAr || selectedCert.studentName || 'الطالب') : (selectedCert.studentNameEn || 'Student');
+    const courseName = isAr ? (selectedCert.courseNameAr || selectedCert.titleAr || 'المقرر') : (selectedCert.courseNameEn || selectedCert.titleEn || 'Course');
+    const scoreVal = selectedCert.score || (selectedCert.gradePercent ? `${selectedCert.gradePercent}%` : '');
+    const scoreText = scoreVal ? `بنسبة نجاح وتفوق ${scoreVal}` : '';
+    const serialCode = selectedCert.serialId || selectedCert.certNumber || 'MTF-2026';
+    const verifyUrl = selectedCert.verificationUrl || `https://motafawweq.me/verify/${serialCode}`;
+
+    const message = isAr
+      ? `شهادة تقدير وتفوق معتمدة من منصة متفوّق 🎓\n\nنبارك للطالب المتفوق: *${studentName}*\nلاجتيازه بتفوق مقرر: *${courseName}* ${scoreText}\n\nرقم التوثيق الرسمي: ${serialCode}\nرابط التحقق من صحة الشهادة واعتمادها:\n${verifyUrl}`
+      : `Official Certificate of Academic Excellence - Motafawweq Platform 🎓\n\nCongratulations to scholar: *${studentName}*\nFor outstanding completion of: *${courseName}* ${scoreText}\n\nVerification Code: ${serialCode}\nVerification Link:\n${verifyUrl}`;
+
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleDownloadPng = async () => {
@@ -186,29 +201,57 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
           gap: '12px',
           direction: isAr ? 'rtl' : 'ltr'
         }}>
-          {/* Copy Verification Link */}
-          <button
-            onClick={handleCopyLink}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 16px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              color: '#FFFFFF',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'background-color 0.15s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.14)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
-          >
-            {copied ? <Check size={15} color="#38BDF8" /> : <Copy size={15} />}
-            <span>{copied ? (isAr ? 'تم نسخ رابط التوثيق!' : 'Link Copied!') : (isAr ? 'نسخ رابط التوثيق الرسمي' : 'Copy Verification Link')}</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Copy Verification Link */}
+            <button
+              onClick={handleCopyLink}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                color: '#FFFFFF',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'background-color 0.15s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.14)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
+            >
+              {copied ? <Check size={15} color="#38BDF8" /> : <Copy size={15} />}
+              <span>{copied ? (isAr ? 'تم نسخ رابط التوثيق!' : 'Link Copied!') : (isAr ? 'نسخ رابط التوثيق الرسمي' : 'Copy Verification Link')}</span>
+            </button>
+
+            {/* Share on WhatsApp */}
+            <button
+              onClick={handleShareWhatsApp}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                backgroundColor: '#25D366',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '12.5px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+              title={isAr ? 'مشاركة الشهادة عبر واتساب' : 'Share certificate via WhatsApp'}
+            >
+              <MessageCircle size={15} />
+              <span>{isAr ? 'مشاركة واتساب' : 'Share WhatsApp'}</span>
+            </button>
+          </div>
 
           {/* Download PNG & Close */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
