@@ -3,6 +3,8 @@ import React from 'react';
 export const StudioLessonConfigCard = ({
   title,
   setTitle,
+  description,
+  setDescription,
   subject,
   setSubject,
   grade,
@@ -43,6 +45,33 @@ export const StudioLessonConfigCard = ({
               backgroundColor: 'var(--bg-subtle)',
               color: 'var(--text-primary)',
               fontSize: '14px',
+              fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-latin)'
+            }}
+          />
+        </div>
+
+        {/* Lesson Description */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            {lang === 'ar' ? 'وصف الحصة ومحاور الشرح (Description)' : 'Lesson Description & Key Topics'}
+          </label>
+          <textarea
+            rows={3}
+            value={description || ''}
+            onChange={(e) => setDescription && setDescription(e.target.value)}
+            placeholder={lang === 'ar' 
+              ? 'اكتب نبذة مختصرة عن أهم النقاط المشروحة في هذه الحصة، وملاحظات المذاكرة لطلابك...' 
+              : 'Add an overview of concepts explained in this lesson and study notes for students...'}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '13.5px',
+              lineHeight: 1.5,
+              resize: 'vertical',
               fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-latin)'
             }}
           />
