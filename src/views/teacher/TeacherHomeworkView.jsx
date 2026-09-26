@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { 
@@ -377,12 +377,137 @@ export const TeacherHomeworkView = () => {
     targetLocationId: 'all',
     type: 'file', // 'file' | 'text'
     fileType: 'pdf', // 'pdf' | 'image'
-    attachmentName: 'ورقة_الواجب_النموذجي.pdf',
+    file: null,
+    fileUrl: '',
+    fileName: '',
+    fileSize: '',
     textContent: '',
     maxGrade: '20',
     dueDate: '2026-10-06',
     dueTime: '23:59'
   });
+
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState('');
+  const [previewAttachmentModal, setPreviewAttachmentModal] = useState(null);
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const processSelectedFile = (file) => {
+    if (!file) return;
+    setFileUploadError('');
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name);
+
+    if (createForm.fileType === 'pdf' && !isPdf) {
+      setFileUploadError(isAr ? 'الملف المحدد ليس بصيغة PDF. يرجى اختيار ملف PDF أو التبديل لخيار الصورة.' : 'Selected file is not a PDF.');
+      return;
+    }
+
+    if (createForm.fileType === 'image' && !isImg) {
+      setFileUploadError(isAr ? 'الملف المحدد ليس صورة صالحة (PNG, JPG, WEBP). يرجى اختيار صورة أو التبديل لملف PDF.' : 'Selected file is not a valid image.');
+      return;
+    }
+
+    if (file.size > 30 * 1024 * 1024) {
+      setFileUploadError(isAr ? 'حجم الملف كبير جداً (الحد الأقصى 30 ميجابايت).' : 'File is too large (max 30MB).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setCreateForm(prev => ({
+        ...prev,
+        file: file,
+        fileUrl: e.target.result,
+        fileName: file.name,
+        fileSize: formatFileSize(file.size)
+      }));
+    };
+    reader.onerror = () => {
+      setFileUploadError(isAr ? 'حدث خطأ أثناء قراءة الملف.' : 'Error reading file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processSelectedFile(file);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name);
+      if (isPdf) {
+        setCreateForm(prev => ({ ...prev, fileType: 'pdf' }));
+      } else if (isImg) {
+        setCreateForm(prev => ({ ...prev, fileType: 'image' }));
+      }
+      processSelectedFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setCreateForm(prev => ({
+      ...prev,
+      file: null,
+      fileUrl: '',
+      fileName: '',
+      fileSize: ''
+    }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setFileUploadError('');
+  };
+
+  const handleFileTypeSwitch = (newType) => {
+    setCreateForm(prev => {
+      let shouldKeep = false;
+      if (prev.file) {
+        const isPdf = prev.file.type === 'application/pdf' || prev.fileName.toLowerCase().endsWith('.pdf');
+        if (newType === 'pdf' && isPdf) shouldKeep = true;
+        if (newType === 'image' && !isPdf) shouldKeep = true;
+      }
+      return {
+        ...prev,
+        fileType: newType,
+        file: shouldKeep ? prev.file : null,
+        fileUrl: shouldKeep ? prev.fileUrl : '',
+        fileName: shouldKeep ? prev.fileName : '',
+        fileSize: shouldKeep ? prev.fileSize : ''
+      };
+    });
+    setFileUploadError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   // Delete Dialog state
   const [deleteHwDialog, setDeleteHwDialog] = useState({
@@ -536,7 +661,16 @@ export const TeacherHomeworkView = () => {
     e.preventDefault();
     if (!createForm.title.trim()) return;
 
+    if (createForm.type === 'file' && !createForm.fileUrl && !createForm.fileName) {
+      setFileUploadError(isAr ? 'يرجى اختيار وإرفاق ملف (PDF أو صورة) للواجب أولاً.' : 'Please select and attach a file first.');
+      return;
+    }
+
     const targetLoc = TARGET_LOCATIONS.find(l => l.id === createForm.targetLocationId);
+
+    const defaultAttachmentName = createForm.fileType === 'pdf'
+      ? `${createForm.title.trim().replace(/\s+/g, '_')}.pdf`
+      : `${createForm.title.trim().replace(/\s+/g, '_')}.png`;
 
     const newHwObj = {
       id: `hw-${Date.now()}`,
@@ -548,8 +682,10 @@ export const TeacherHomeworkView = () => {
       type: createForm.type,
       fileType: createForm.type === 'file' ? createForm.fileType : null,
       attachmentName: createForm.type === 'file' 
-        ? (createForm.fileType === 'pdf' ? `${createForm.title.trim().replace(/\s+/g, '_')}.pdf` : `${createForm.title.trim().replace(/\s+/g, '_')}.png`)
+        ? (createForm.fileName || defaultAttachmentName)
         : '',
+      fileUrl: createForm.type === 'file' ? createForm.fileUrl : '',
+      fileSize: createForm.type === 'file' ? (createForm.fileSize || '1.8 MB') : '',
       textContent: createForm.type === 'text' ? createForm.textContent : '',
       dueDate: createForm.dueDate,
       dueTime: createForm.dueTime,
@@ -741,12 +877,16 @@ export const TeacherHomeworkView = () => {
                   targetLocationId: 'all',
                   type: 'file',
                   fileType: 'pdf',
-                  attachmentName: 'ورقة_الواجب_النموذجي.pdf',
+                  file: null,
+                  fileUrl: '',
+                  fileName: '',
+                  fileSize: '',
                   textContent: '',
                   maxGrade: '20',
                   dueDate: '2026-10-06',
                   dueTime: '23:59'
                 });
+                setFileUploadError('');
                 setShowCreateModal(true);
               }}
               style={{
@@ -1290,6 +1430,106 @@ export const TeacherHomeworkView = () => {
                 </strong>
               </div>
             </div>
+
+            {/* If homework has attached file, show it */}
+            {selectedHw.type === 'file' && (
+              <div style={{
+                marginTop: '14px',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '220px' }}>
+                  <div style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '10px',
+                    backgroundColor: selectedHw.fileType === 'pdf' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(0, 102, 204, 0.1)',
+                    color: selectedHw.fileType === 'pdf' ? '#EF4444' : 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    {selectedHw.fileType === 'pdf' ? <FileText size={24} /> : <ImageIcon size={24} />}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {selectedHw.attachmentName || (selectedHw.fileType === 'pdf' ? 'مستند_الواجب.pdf' : 'صورة_الواجب.png')}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {selectedHw.fileType === 'pdf' ? 'مستند أسئلة PDF رسمي' : 'ملف صورة تمرين'} {selectedHw.fileSize ? `• ${selectedHw.fileSize}` : ''}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewAttachmentModal({
+                        url: selectedHw.fileUrl,
+                        name: selectedHw.attachmentName || (selectedHw.fileType === 'pdf' ? 'واجب_مستند.pdf' : 'واجب_صورة.png'),
+                        type: selectedHw.fileType || 'pdf'
+                      });
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Eye size={14} />
+                    <span>{isAr ? 'معاينة الملف' : 'Preview'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedHw.fileUrl) {
+                        const a = document.createElement('a');
+                        a.href = selectedHw.fileUrl;
+                        a.download = selectedHw.attachmentName || 'homework-file';
+                        a.click();
+                      } else {
+                        alert(isAr ? `بدء تنزيل الملف المرفق: ${selectedHw.attachmentName}` : `Downloading: ${selectedHw.attachmentName}`);
+                      }
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      boxShadow: 'var(--shadow-xs)'
+                    }}
+                  >
+                    <Download size={14} />
+                    <span>{isAr ? 'تحميل الملف' : 'Download'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* If homework has text content, show it */}
             {selectedHw.type === 'text' && selectedHw.textContent && (
@@ -2483,46 +2723,310 @@ export const TeacherHomeworkView = () => {
               {createForm.type === 'file' ? (
                 <div style={{
                   padding: '14px',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   backgroundColor: 'var(--bg-subtle)',
-                  border: '1px dashed var(--border-subtle)'
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
                 }}>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  {/* File Type Radio Toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
+                      نوع الملف المطلوب إرفاقه:
+                    </span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', cursor: 'pointer' }}>
                       <input
                         type="radio"
                         name="hwFileType"
                         checked={createForm.fileType === 'pdf'}
-                        onChange={() => setCreateForm(prev => ({ ...prev, fileType: 'pdf' }))}
+                        onChange={() => handleFileTypeSwitch('pdf')}
                       />
                       <span>ملف مستند PDF</span>
                     </label>
 
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', cursor: 'pointer' }}>
                       <input
                         type="radio"
                         name="hwFileType"
                         checked={createForm.fileType === 'image'}
-                        onChange={() => setCreateForm(prev => ({ ...prev, fileType: 'image' }))}
+                        onChange={() => handleFileTypeSwitch('image')}
                       />
-                      <span>صورة (PNG / JPG)</span>
+                      <span>صورة (PNG / JPG / WEBP)</span>
                     </label>
                   </div>
 
-                  <div style={{
-                    padding: '16px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    textAlign: 'center'
-                  }}>
-                    <UploadCloud size={24} color="var(--primary)" style={{ margin: '0 auto 6px' }} />
-                    <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      تم تحديد إرفاق: {createForm.fileType === 'pdf' ? 'ملف مستند PDF' : 'صورة تمرين'}
+                  {/* Hidden File Input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={createForm.fileType === 'pdf' ? '.pdf,application/pdf' : 'image/png,image/jpeg,image/webp,image/*'}
+                    style={{ display: 'none' }}
+                    onChange={handleFileChange}
+                  />
+
+                  {/* Upload Box / Dropzone */}
+                  {!createForm.fileUrl ? (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      style={{
+                        padding: '24px 16px',
+                        borderRadius: '10px',
+                        backgroundColor: isDragging ? 'rgba(0, 102, 204, 0.08)' : 'var(--bg-surface-elevated)',
+                        border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--primary)';
+                        e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isDragging) {
+                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                          e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)';
+                        }
+                      }}
+                    >
+                      <div style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '50%',
+                        backgroundColor: isDragging ? 'rgba(0, 102, 204, 0.15)' : 'var(--bg-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--primary)'
+                      }}>
+                        <UploadCloud size={24} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                          {isAr 
+                            ? `انقر لاختيار ${createForm.fileType === 'pdf' ? 'ملف PDF' : 'صورة الواجب'} من جهازك أو اسحب الملف هنا`
+                            : `Click to browse or drag & drop ${createForm.fileType === 'pdf' ? 'PDF file' : 'image'} here`}
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          {createForm.fileType === 'pdf'
+                            ? (isAr ? 'يدعم مستندات PDF بحجم أقصى 30 ميجابايت' : 'PDF documents up to 30MB')
+                            : (isAr ? 'يدعم ملفات JPG, PNG, WEBP عالية الجودة' : 'High quality JPG, PNG, WEBP images')}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                        style={{
+                          marginTop: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 16px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--primary)',
+                          color: '#FFFFFF',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                          border: 'none',
+                          cursor: 'pointer',
+                          boxShadow: 'var(--shadow-xs)'
+                        }}
+                      >
+                        <UploadCloud size={14} />
+                        <span>{isAr ? 'اختيار الملف من الجهاز' : 'Choose File'}</span>
+                      </button>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      يمكن للطلاب استعراض الملف وتحميله مباشرة من حساباتهم
+                  ) : (
+                    /* File is Attached - Show Preview Card */
+                    <div style={{
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '10px',
+                      padding: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                          {/* Thumbnail / Icon */}
+                          {createForm.fileType === 'image' ? (
+                            <img
+                              src={createForm.fileUrl}
+                              alt="Uploaded homework preview"
+                              style={{
+                                width: '50px',
+                                height: '50px',
+                                objectFit: 'cover',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-subtle)',
+                                flexShrink: 0
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '50px',
+                              height: '50px',
+                              borderRadius: '8px',
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                              color: '#EF4444',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}>
+                              <FileText size={26} />
+                            </div>
+                          )}
+
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{
+                              fontSize: '13px',
+                              fontWeight: '800',
+                              color: 'var(--text-primary)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {createForm.fileName}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                {createForm.fileSize}
+                              </span>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '10.5px',
+                                fontWeight: '700',
+                                color: 'var(--success)',
+                                backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                                padding: '1px 6px',
+                                borderRadius: '4px'
+                              }}>
+                                <Check size={11} />
+                                <span>جاهز للإرفاق</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* File Action Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPreviewAttachmentModal({
+                                url: createForm.fileUrl,
+                                name: createForm.fileName,
+                                type: createForm.fileType
+                              });
+                            }}
+                            title="معاينة الملف"
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-subtle)',
+                              color: 'var(--text-primary)',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Eye size={13} />
+                            <span>معاينة</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            title="تغيير الملف"
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-subtle)',
+                              color: 'var(--text-secondary)',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <RotateCcw size={13} />
+                            <span>تغيير</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleRemoveFile}
+                            title="حذف الملف"
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'transparent',
+                              color: '#EF4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  {/* Error banner if file upload failed */}
+                  {fileUploadError && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#EF4444',
+                      fontSize: '12px',
+                      fontWeight: '700'
+                    }}>
+                      <AlertCircle size={15} />
+                      <span>{fileUploadError}</span>
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    {createForm.fileType === 'pdf'
+                      ? 'يمكن للطلاب فتح ملف مستند الـ PDF وحله، وتنزيله مباشرة من حساباتهم.'
+                      : 'يمكن للطلاب عرض الصورة بوضوح عالي، وتنزيلها لحل التمارين المطلوبة.'}
                   </div>
                 </div>
               ) : (
@@ -2748,6 +3252,158 @@ export const TeacherHomeworkView = () => {
                 }}
               >
                 {isAr ? 'نعم، حذف الواجب' : 'Delete Homework'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attachment Preview Modal */}
+      {previewAttachmentModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '16px',
+            maxWidth: '800px',
+            width: '100%',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-xl)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '14px 18px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: 'var(--bg-subtle)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {previewAttachmentModal.type === 'pdf' ? <FileText size={18} color="#EF4444" /> : <ImageIcon size={18} color="var(--primary)" />}
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {previewAttachmentModal.name || 'معاينة الملف المرفق'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewAttachmentModal(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{
+              padding: '16px',
+              overflowY: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '260px',
+              backgroundColor: 'var(--bg-surface)'
+            }}>
+              {previewAttachmentModal.type === 'image' ? (
+                previewAttachmentModal.url ? (
+                  <img
+                    src={previewAttachmentModal.url}
+                    alt="Preview"
+                    style={{ maxWidth: '100%', maxHeight: '68vh', objectFit: 'contain', borderRadius: '8px' }}
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px' }}>
+                    <ImageIcon size={48} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                    <div>{isAr ? 'صورة توضيحية لملف تمرين الواجب' : 'Homework exercise image file'}</div>
+                  </div>
+                )
+              ) : (
+                previewAttachmentModal.url ? (
+                  <iframe
+                    src={previewAttachmentModal.url}
+                    title="PDF Preview"
+                    style={{ width: '100%', height: '68vh', border: 'none', borderRadius: '8px' }}
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
+                    <FileText size={52} color="#EF4444" style={{ margin: '0 auto 12px' }} />
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {previewAttachmentModal.name}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      {isAr ? 'مستند PDF رسمي خاص بأسئلة ومسائل الواجب' : 'Official PDF homework sheet'}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '12px 18px',
+              borderTop: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              backgroundColor: 'var(--bg-subtle)'
+            }}>
+              {previewAttachmentModal.url && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = previewAttachmentModal.url;
+                    a.download = previewAttachmentModal.name;
+                    a.click();
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Download size={13} />
+                  <span>{isAr ? 'تحميل' : 'Download'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setPreviewAttachmentModal(null)}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {isAr ? 'إغلاق' : 'Close'}
               </button>
             </div>
           </div>
