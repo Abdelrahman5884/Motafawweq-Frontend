@@ -10,6 +10,68 @@ export const MOCK_LESSON = {
   gradeAr: 'الصف الثالث الثانوي',
   unit: 'Unit 1: Structure & Function in Living Organisms',
   unitAr: 'الوحدة الأولى: التركيب والوظيفة في الكائنات الحية',
+  description: 'Comprehensive high school biology lecture covering chloroplast anatomy, light-dependent reactions on thylakoids, Melvin Calvin cycle, and Thanawya Amma trap questions.',
+  descriptionAr: 'شرح مفصل ومكثف لدرس البناء الضوئي للصف الثالث الثانوي: تركيب البلاستيدة، التفاعلات الضوئية واللاضوئية، دورة كالفن، وأهم أسئلة ومصائد امتحانات الثانوية العامة مع ملازم الشرح وصور السبورة المرتبة.',
+  videoUrl: 'https://www.youtube.com/watch?v=sQK3Yr4Sc_k',
+  videoSourceType: 'embed',
+  videoFileName: 'Photosynthesis_Masterclass_2026.mp4',
+  attachments: {
+    pdfs: [
+      {
+        id: 'pdf-1',
+        title: 'مذكرة شرح البناء الضوئي والتفاعلات الضوئية - د. سلمى',
+        fileName: 'Photosynthesis_Full_Notes_2026.pdf',
+        fileSize: '4.8 MB',
+        pagesCount: 24,
+        url: '#'
+      },
+      {
+        id: 'pdf-2',
+        title: 'شيت تدريبات بنك الأسئلة والوزارة 2026',
+        fileName: 'Biology_Ministry_Bank_Questions.pdf',
+        fileSize: '2.3 MB',
+        pagesCount: 16,
+        url: '#'
+      },
+      {
+        id: 'pdf-3',
+        title: 'ملخص المعادلات ومخططات دورة كالفن',
+        fileName: 'Calvin_Cycle_Equations_Summary.pdf',
+        fileSize: '1.1 MB',
+        pagesCount: 6,
+        url: '#'
+      }
+    ],
+    images: [
+      {
+        id: 'img-1',
+        order: 1,
+        title: 'سبورة 1: التركيب التشريحي للبلاستيدة وأقراص الثيلاكويد',
+        fileName: 'whiteboard_part1_chloroplast.jpg',
+        fileSize: '1.8 MB',
+        url: 'https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=800&auto=format&fit=crop&q=80',
+        caption: 'رسم توضيحي تفصيلي لغشاء الثيلاكويد وحبيبات الجرانا والستروما'
+      },
+      {
+        id: 'img-2',
+        order: 2,
+        title: 'سبورة 2: مسار الإلكترونات والفسفرة الضوئية',
+        fileName: 'whiteboard_part2_photophosphorylation.jpg',
+        fileSize: '2.1 MB',
+        url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=800&auto=format&fit=crop&q=80',
+        caption: 'شرح حركة الإلكترونات بين نظام الصبغيات الأول والثاني'
+      },
+      {
+        id: 'img-3',
+        order: 3,
+        title: 'سبورة 3: دورة كالفن وتثبيت مركب PGAL',
+        fileName: 'whiteboard_part3_calvin_cycle.jpg',
+        fileSize: '1.9 MB',
+        url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+        caption: 'خطوات تثبيت ثاني أكسيد الكربون وإنتاج السكر'
+      }
+    ]
+  },
   durationSeconds: 2538, // 42m 18s
   durationFormatted: '42:18',
   recordedDate: '2026-09-12',

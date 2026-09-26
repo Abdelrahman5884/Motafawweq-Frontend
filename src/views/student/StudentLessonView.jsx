@@ -90,6 +90,7 @@ export const StudentLessonView = () => {
     revealedA,
     setRevealedA,
     attachments,
+    whiteboardImages,
     dlId,
     dlToast,
     handleDL,
@@ -279,6 +280,7 @@ export const StudentLessonView = () => {
         return (
           <LessonMaterialsTab
             attachments={attachments}
+            whiteboardImages={whiteboardImages}
             handleAttachmentDownloadClick={handleAttachmentDownloadClick}
             dlId={dlId}
             lang={lang}

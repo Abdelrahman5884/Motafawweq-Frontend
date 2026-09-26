@@ -106,8 +106,110 @@ export const HomeworkSubmissionModal = ({
           </div>
         </div>
 
-        {/* TEACHER ATTACHED PDF CARD */}
-        {selectedHw.teacherAttachmentPdf && (
+        {/* TEACHER ATTACHMENTS (MULTIPLE PDFS & IMAGES) */}
+        {selectedHw.attachments && selectedHw.attachments.length > 0 ? (
+          <div style={{
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '16px',
+            padding: '16px',
+            marginBottom: '18px',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{
+              fontSize: '12.5px',
+              fontWeight: '800',
+              color: 'var(--text-primary)',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <FileText size={15} color="var(--primary)" />
+              <span>{lang === 'ar' ? `الملفات المرفقة من الأستاذ (${selectedHw.attachments.length} ملفات):` : `Teacher Attachments (${selectedHw.attachments.length}):`}</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {selectedHw.attachments.map((file, fIdx) => (
+                <div
+                  key={file.id || fIdx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    gap: '10px',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '8px',
+                      backgroundColor: file.type === 'pdf' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                      color: file.type === 'pdf' ? '#EF4444' : '#10B981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      {file.type === 'pdf' ? <FileText size={18} /> : <Eye size={18} />}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {file.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {file.size} • {file.type === 'pdf' ? 'ملف أسئلة PDF' : 'صورة توضيحية'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <a
+                      href={file.url || '#download'}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => {
+                        if (!file.url || file.url === '#') {
+                          e.preventDefault();
+                          alert(lang === 'ar' ? `بدء تحميل الملف: ${file.name}` : `Downloading ${file.name}`);
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--primary)',
+                        color: '#FFFFFF',
+                        textDecoration: 'none',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Download size={13} />
+                      <span>{lang === 'ar' ? 'تحميل' : 'Download'}</span>
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : selectedHw.teacherAttachmentPdf ? (
           <div style={{
             backgroundColor: 'var(--bg-subtle)',
             border: '1px solid var(--border-subtle)',
@@ -230,7 +332,7 @@ export const HomeworkSubmissionModal = ({
               </div>
             )}
           </div>
-        )}
+        ) : null}
 
         {/* Instructions */}
         {selectedHw.instructionsAr && (

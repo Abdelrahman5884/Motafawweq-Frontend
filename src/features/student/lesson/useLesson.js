@@ -8,6 +8,7 @@ import {
   INITIAL_NOTES,
   QUESTIONS_LIST,
   ATTACHMENTS_LIST,
+  WHITEBOARD_IMAGES_LIST,
   TRANSCRIPT_SEGMENTS
 } from './lessonData';
 
@@ -403,6 +404,7 @@ export const useLesson = (lang) => {
     revealedA,
     setRevealedA,
     attachments: ATTACHMENTS_LIST,
+    whiteboardImages: WHITEBOARD_IMAGES_LIST,
     dlId,
     dlToast,
     handleDL,

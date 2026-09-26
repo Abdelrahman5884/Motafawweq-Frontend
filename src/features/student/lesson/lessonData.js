@@ -165,6 +165,33 @@ export const ATTACHMENTS_LIST = [
   { id: 'a3', titleAr: 'بنك أسئلة الوزارة وتدريبات البابل شيت مع نماذج الإجابة', size: '3.4 MB', pages: '12 صفحة', type: 'PDF' },
 ];
 
+export const WHITEBOARD_IMAGES_LIST = [
+  {
+    id: 'wb-1',
+    order: 1,
+    titleAr: 'سبورة 1: تشريح البلاستيدة الخضراء وغشاء الثيلاكويد',
+    size: '1.8 MB',
+    url: 'https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=800&auto=format&fit=crop&q=80',
+    caption: 'رسم توضيحي تفصيلي لغشاء الثيلاكويد وحبيبات الجرانا والستروما وتوزيع الصبغيات'
+  },
+  {
+    id: 'wb-2',
+    order: 2,
+    titleAr: 'سبورة 2: مسار الإلكترونات والفسفرة الضوئية وتكوين ATP',
+    size: '2.1 MB',
+    url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=800&auto=format&fit=crop&q=80',
+    caption: 'شرح حركة الإلكترونات بين نظام الصبغيات الأول والثاني واختزال NADP+'
+  },
+  {
+    id: 'wb-3',
+    order: 3,
+    titleAr: 'سبورة 3: دورة كالفن وتثبيت مركب PGAL ثلاثي الكربون',
+    size: '1.9 MB',
+    url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+    caption: 'خطوات تثبيت ثاني أكسيد الكربون وتوليد جزيئات الجلوكوز في الستروما'
+  }
+];
+
 export const TRANSCRIPT_SEGMENTS = [
   {
     id: 't1',
