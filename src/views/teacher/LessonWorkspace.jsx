@@ -1041,6 +1041,8 @@ export const LessonWorkspace = () => {
           {/* NotebookLM Mind Map Canvas Component */}
           <NotebookMindMapCanvas
             treeData={currentLesson.notebookMindMap || MOCK_LESSON.notebookMindMap}
+            lessonTitle={lang === 'ar' ? currentLesson.titleAr : currentLesson.title}
+            unitTitle={lang === 'ar' ? currentLesson.unitAr : currentLesson.unit}
             onJumpToTimestamp={(secs) => {
               handleJumpToTimestamp(secs);
               setActiveTab('media');

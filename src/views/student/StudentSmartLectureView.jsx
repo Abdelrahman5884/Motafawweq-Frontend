@@ -360,6 +360,8 @@ export const StudentSmartLectureView = () => {
               <div className="smart-map-wrapper" style={{ minHeight: '580px', borderRadius: '16px', overflow: 'hidden' }}>
                 <NotebookMindMapCanvas
                   treeData={lesson.notebookMindMap}
+                  lessonTitle={lang === 'ar' ? lesson.titleAr : lesson.title}
+                  unitTitle={lang === 'ar' ? lesson.unitAr : lesson.unit}
                   onJumpToTimestamp={(secs) => {
                     handleJumpToTime(secs);
                   }}
