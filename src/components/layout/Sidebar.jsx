@@ -69,7 +69,6 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             group: lang === 'ar' ? 'متابعة الطلاب والتقييم' : 'Students & Performance',
             items: [
               { id: 'teacher-league', path: '/teacher/league', label: lang === 'ar' ? 'دوري الكورس والتحدي' : 'Course League', icon: Trophy },
-              { id: 'teacher-analytics', path: '/teacher/analytics', label: lang === 'ar' ? 'التحليلات وتشخيص الضعف' : 'Analytics & Diagnostics', icon: TrendingUp },
               { id: 'teacher-certificates', path: '/teacher/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
               { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: Users },
               { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Building2 },

@@ -25,14 +25,19 @@ import {
   Download, 
   ExternalLink,
   Sparkles,
-  Calendar
+  Calendar,
+  Trash2,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 
 export const LessonWorkspace = () => {
   const { navigate, switchRole } = useAuth();
   const { lang, isRtl } = useLanguage();
 
-  const lessons = ALL_PUBLISHED_LESSONS || [MOCK_LESSON];
+  const [lessonsList, setLessonsList] = useState(ALL_PUBLISHED_LESSONS || [MOCK_LESSON]);
+  const [lessonToDelete, setLessonToDelete] = useState(null);
+  const lessons = lessonsList;
 
   // Currently selected lesson (defaults to first lesson)
   const [selectedLessonId, setSelectedLessonId] = useState(lessons[0]?.id || 'les-bio-301');
@@ -144,15 +149,6 @@ export const LessonWorkspace = () => {
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 {currentLesson.gradeAr} • {currentLesson.durationFormatted}
               </span>
-              {currentLesson.mediaType === 'video' ? (
-                <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>
-                  🎥 فيديو تفاعلي
-                </span>
-              ) : (
-                <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981' }}>
-                  🎙️ تسجيل صوتي
-                </span>
-              )}
             </div>
 
             <h1 style={{
@@ -543,6 +539,38 @@ export const LessonWorkspace = () => {
                       >
                         <FileText size={13} />
                         <span>{lang === 'ar' ? 'النص المفرغ' : 'Text'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLessonToDelete(l);
+                        }}
+                        title={lang === 'ar' ? 'حذف الحصة' : 'Delete Lesson'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          color: '#EF4444',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.16)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.08)';
+                        }}
+                      >
+                        <Trash2 size={13} />
+                        <span>{lang === 'ar' ? 'حذف الحصة' : 'Delete'}</span>
                       </button>
 
                       <button
@@ -1050,6 +1078,113 @@ export const LessonWorkspace = () => {
             lang={lang}
             isRtl={isRtl}
           />
+        </div>
+      )}
+
+      {/* Delete Lesson Confirmation Modal */}
+      {lessonToDelete && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setLessonToDelete(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: '20px',
+              padding: '28px',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
+              textAlign: 'center'
+            }}
+          >
+            <div style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '16px',
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              color: '#EF4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <AlertTriangle size={28} />
+            </div>
+
+            <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+              {lang === 'ar' ? 'تأكيد حذف الحصة' : 'Delete Lesson'}
+            </h3>
+
+            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 24px' }}>
+              {lang === 'ar'
+                ? `هل أنت متأكد من رغبتك في حذف حصة "${lessonToDelete.titleAr || lessonToDelete.title}" نهائياً من خريطة الحصص؟`
+                : `Are you sure you want to permanently delete "${lessonToDelete.titleAr || lessonToDelete.title}"?`}
+            </p>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setLessonToDelete(null)}
+                style={{
+                  flex: 1,
+                  padding: '11px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-medium)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setLessonsList(prev => {
+                    const updated = prev.filter(item => item.id !== lessonToDelete.id);
+                    if (selectedLessonId === lessonToDelete.id && updated.length > 0) {
+                      setSelectedLessonId(updated[0].id);
+                    }
+                    return updated;
+                  });
+                  setLessonToDelete(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '11px 18px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#EF4444',
+                  color: '#FFFFFF',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                }}
+              >
+                {lang === 'ar' ? 'تأكيد الحذف' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
