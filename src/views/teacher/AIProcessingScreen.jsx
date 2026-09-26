@@ -6,56 +6,68 @@ import {
   Mic, 
   FileText, 
   Share2, 
-  Brain, 
-  Zap, 
-  ArrowRight
+  Video, 
+  ArrowRight,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { ProcessingStepper } from '../../features/teacher/ai-processing';
 
 export const AIProcessingScreen = () => {
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
-  const [progress, setProgress] = useState(12);
+  const [progress, setProgress] = useState(15);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-  const steps = [
-    {
-      id: 0,
-      title: lang === 'ar' ? 'رفع الصوت وعزل الضوضاء الخلفية للقاعة' : 'Uploading & Classroom Noise Suppression',
-      icon: Mic,
-      threshold: 15
-    },
-    {
-      id: 1,
-      title: lang === 'ar' ? 'تفريغ دقيق بالذكاء الاصطناعي (اللهجة المصرية والمصطلحات)' : 'Whisper ASR: Egyptian Dialect & Scientific Jargon',
-      icon: FileText,
-      threshold: 35
-    },
-    {
-      id: 2,
-      title: lang === 'ar' ? 'اكتشاف الفصول وفهرسة اللحظات الزمنية بالثواني' : 'Chapter Segmentation & Timestamp Indexing',
-      icon: Sparkles,
-      threshold: 55
-    },
-    {
-      id: 3,
-      title: lang === 'ar' ? 'استخراج المفاهيم وبناء خريطة المعرفة التفاعلية' : 'Knowledge Graph: Concept Extraction & Mapping',
-      icon: Share2,
-      threshold: 75
-    },
-    {
-      id: 4,
-      title: lang === 'ar' ? 'توليد ملخص كورنيل، المعادلات، ومصائد الامتحانات' : 'Synthesizing Cornell Summary & Thanawya Exam Traps',
-      icon: Brain,
-      threshold: 90
-    },
-    {
-      id: 5,
-      title: lang === 'ar' ? 'صياغة 12 سؤال اختيار متعدد بمستويات تفكير متدرجة' : 'Generating Adaptive Assessment & Question Bank',
-      icon: Zap,
-      threshold: 100
+  // Read selected AI features from Recording Studio (Text, Graph, Chapters)
+  const selectedFeatures = React.useMemo(() => {
+    try {
+      const stored = sessionStorage.getItem('selectedAIFeatures');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return { speechToText: true, conceptGraph: true, chapterIndexing: true };
+  }, []);
+
+  // Dynamically constructed pipeline matching selected features (Question generation step removed per user request)
+  const steps = React.useMemo(() => {
+    const list = [
+      {
+        id: 'upload',
+        title: lang === 'ar' ? 'رفع ملف الحصة السحابي وعزل الضوضاء الخلفية' : 'Media Upload & Classroom Noise Suppression',
+        icon: Video
+      }
+    ];
+
+    if (selectedFeatures.speechToText !== false) {
+      list.push({
+        id: 'speechToText',
+        title: lang === 'ar' ? 'التفريغ النصي الذكي (Speech-to-Text اللهجة المصرية والمصطلحات)' : 'Whisper ASR: Speech-to-Text & Egyptian Dialect',
+        icon: FileText
+      });
     }
-  ];
+
+    if (selectedFeatures.chapterIndexing !== false) {
+      list.push({
+        id: 'chapters',
+        title: lang === 'ar' ? 'اكتشاف الفصول وتوقيتات اللحظات الزمنية بالثواني' : 'Chapter Segmentation & Timestamp Indexing',
+        icon: Clock
+      });
+    }
+
+    if (selectedFeatures.conceptGraph !== false) {
+      list.push({
+        id: 'graph',
+        title: lang === 'ar' ? 'استخراج المفاهيم وبناء خريطة المعرفة الشجرية (NotebookLM Graph)' : 'Concept Extraction & NotebookLM Mind Map Graph',
+        icon: Share2
+      });
+    }
+
+    // Evenly distribute progress thresholds up to 100%
+    return list.map((step, idx) => ({
+      ...step,
+      threshold: Math.round(((idx + 1) / list.length) * 100)
+    }));
+  }, [selectedFeatures, lang]);
 
   // Progress stepper simulation
   useEffect(() => {
@@ -65,7 +77,7 @@ export const AIProcessingScreen = () => {
           clearInterval(timer);
           return 100;
         }
-        const next = prev + Math.floor(Math.random() * 8) + 4;
+        const next = prev + Math.floor(Math.random() * 9) + 5;
         return Math.min(100, next);
       });
     }, 600);
@@ -91,7 +103,8 @@ export const AIProcessingScreen = () => {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '40px 24px',
-      backgroundColor: 'var(--bg-app)'
+      backgroundColor: 'var(--bg-app)',
+      fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit'
     }}>
       <div style={{
         maxWidth: '680px',
@@ -129,20 +142,22 @@ export const AIProcessingScreen = () => {
         }}>
           {isComplete
             ? (lang === 'ar' ? '🎉 اكتملت المعالجة بنجاح!' : '🎉 Processing Completed!')
-            : (lang === 'ar' ? 'جاري تحويل حصتك إلى تجربة تعليمية متكاملة...' : 'Turning your lesson into a complete learning experience...')}
+            : (lang === 'ar' ? 'جاري معالجة الحصة وتوليد النص والخريطة...' : 'Processing lecture into transcript and concept map...')}
         </h1>
 
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '32px' }}>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '32px', lineHeight: 1.6 }}>
           {lang === 'ar'
-            ? 'نقوم بتحليل الحصة الصوتية وبناء خريطة المعرفة وتجهيز أسئلة الامتحانات التفاعلية...'
-            : 'Transcribing speech, mapping concepts onto interactive graph, generating notes and adaptive quizzes...'}
+            ? 'نقوم برفع ومعالجة الحصة، واستخراج التفريغ النصي الدقيق، وتوليد خريطة المفاهيم التفاعلية الشجرية (NotebookLM)...'
+            : 'Uploading and processing media, generating speech-to-text transcript, and building interactive NotebookLM tree graph...'}
         </p>
 
         {/* Progress Bar & Percentage */}
         <div style={{ marginBottom: '36px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', fontSize: '13px', fontWeight: '700' }}>
             <span style={{ color: 'var(--text-primary)' }}>{lang === 'ar' ? 'نسبة الإنجاز' : 'Pipeline Progress'}</span>
-            <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)', fontSize: '16px' }}>{progress}%</span>
+            <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: '900' }}>
+              {progress}%
+            </span>
           </div>
           <div style={{
             width: '100%',
@@ -154,14 +169,14 @@ export const AIProcessingScreen = () => {
             <div style={{
               width: `${progress}%`,
               height: '100%',
-              background: 'linear-gradient(90deg, #1588C7 0%, #5CB6DB 50%, #06254E 100%)',
+              background: 'linear-gradient(90deg, #1588C7 0%, #38BDF8 50%, #10B981 100%)',
               borderRadius: '5px',
               transition: 'width 0.4s ease'
             }} />
           </div>
         </div>
 
-        {/* 6 Step Pipeline Status List */}
+        {/* 4 Step Pipeline Status List */}
         <ProcessingStepper
           steps={steps}
           progress={progress}
@@ -178,7 +193,7 @@ export const AIProcessingScreen = () => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '10px',
-              padding: '14px 32px',
+              padding: '14px 34px',
               borderRadius: 'var(--radius-full)',
               backgroundColor: 'var(--primary)',
               color: '#FFFFFF',
@@ -196,10 +211,11 @@ export const AIProcessingScreen = () => {
           </button>
         ) : (
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {lang === 'ar' ? 'المعالجة تستغرق عادة من 30 إلى 45 ثانية...' : 'Processing typically takes 30-45 seconds...'}
+            {lang === 'ar' ? 'المعالجة تستغرق عادة من 20 إلى 35 ثانية...' : 'Processing typically takes 20-35 seconds...'}
           </div>
         )}
       </div>
     </div>
   );
 };
+export default AIProcessingScreen;

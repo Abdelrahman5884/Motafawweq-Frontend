@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { Radio, Mic, UploadCloud, Video, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Radio, Mic, UploadCloud, Video, Sparkles, CheckCircle2, FileText, Share2, Clock, Check } from 'lucide-react';
 import {
   StudioLessonConfigCard,
   LiveMicRecorder,
@@ -23,6 +23,31 @@ export const RecordingStudio = () => {
 
   // Video state
   const [videoData, setVideoData] = useState(null);
+
+  // AI Output Modules Selection state (Text, Graph, Chapters)
+  const [aiFeatures, setAiFeatures] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('selectedAIFeatures');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      speechToText: true,
+      conceptGraph: true,
+      chapterIndexing: true
+    };
+  });
+
+  const handleToggleAIFeature = (key) => {
+    setAiFeatures(prev => {
+      const count = Object.values(prev).filter(Boolean).length;
+      if (prev[key] && count <= 1) return prev; // Keep at least one active
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        sessionStorage.setItem('selectedAIFeatures', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   // Lesson Metadata state
   const [title, setTitle] = useState(
@@ -119,11 +144,17 @@ export const RecordingStudio = () => {
 
   const handleStopAndProcess = () => {
     setIsRecording(false);
+    try {
+      sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
+    } catch (e) {}
     navigate('ai-processing');
   };
 
   const handleVideoStartProcessing = (vidData) => {
-    setVideoData(vidData);
+    if (vidData) setVideoData(vidData);
+    try {
+      sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
+    } catch (e) {}
     navigate('ai-processing');
   };
 
@@ -173,6 +204,177 @@ export const RecordingStudio = () => {
         lang={lang}
         isRtl={isRtl}
       />
+
+      {/* AI Output Modules Selection Card (Text, Concept Graph, Chapters) */}
+      <div style={{
+        backgroundColor: 'var(--bg-surface-elevated)',
+        border: '1px solid var(--border-medium)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '24px 28px',
+        marginBottom: '24px',
+        boxShadow: 'var(--shadow-sm)',
+        textAlign: isRtl ? 'right' : 'left'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <Sparkles size={18} color="var(--primary)" />
+          <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+            {lang === 'ar' ? 'تحديد مخرجات محرك الذكاء الاصطناعي للحصة' : 'Select AI Output Capabilities'}
+          </h3>
+        </div>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px 0', lineHeight: 1.5 }}>
+          {lang === 'ar' 
+            ? 'حدد التقنيات والتحليلات التي تريد توليدها تلقائياً بعد رفع أو تسجيل الحصة (مثل التفريغ النصي وخريطة المفاهيم الشجرية).'
+            : 'Select which intelligence outputs to generate automatically upon lesson processing (Transcript, Concept Tree, Chapters).'}
+        </p>
+
+        {/* 3 Interactive Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '12px'
+        }}>
+          {/* Module 1: Speech-to-Text */}
+          <div
+            onClick={() => handleToggleAIFeature('speechToText')}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              padding: '16px',
+              borderRadius: 'var(--radius-lg)',
+              border: `1.5px solid ${aiFeatures.speechToText ? 'var(--primary)' : 'var(--border-subtle)'}`,
+              backgroundColor: aiFeatures.speechToText ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              position: 'relative'
+            }}
+          >
+            <div style={{
+              width: '22px',
+              height: '22px',
+              borderRadius: '6px',
+              border: `2px solid ${aiFeatures.speechToText ? 'var(--primary)' : 'var(--border-medium)'}`,
+              backgroundColor: aiFeatures.speechToText ? 'var(--primary)' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#FFFFFF',
+              flexShrink: 0,
+              marginTop: '2px'
+            }}>
+              {aiFeatures.speechToText && <Check size={14} strokeWidth={3} />}
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <FileText size={15} color="var(--primary)" />
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'التفريغ النصي (Speech-to-Text)' : 'Speech-to-Text Transcript'}
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                {lang === 'ar'
+                  ? 'تحويل صوت الشرح إلى نص مقروء بدقة عالية باللهجة المصرية والمصطلحات العلمية مع إمكانية البحث.'
+                  : 'Egyptian dialect ASR transcription synchronized with seconds.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Module 2: Concept Graph (NotebookLM Style) */}
+          <div
+            onClick={() => handleToggleAIFeature('conceptGraph')}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              padding: '16px',
+              borderRadius: 'var(--radius-lg)',
+              border: `1.5px solid ${aiFeatures.conceptGraph ? '#0EA5E9' : 'var(--border-subtle)'}`,
+              backgroundColor: aiFeatures.conceptGraph ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-subtle)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              position: 'relative'
+            }}
+          >
+            <div style={{
+              width: '22px',
+              height: '22px',
+              borderRadius: '6px',
+              border: `2px solid ${aiFeatures.conceptGraph ? '#0EA5E9' : 'var(--border-medium)'}`,
+              backgroundColor: aiFeatures.conceptGraph ? '#0EA5E9' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#FFFFFF',
+              flexShrink: 0,
+              marginTop: '2px'
+            }}>
+              {aiFeatures.conceptGraph && <Check size={14} strokeWidth={3} />}
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <Share2 size={15} color="#0EA5E9" />
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'خريطة المفاهيم (NotebookLM Graph)' : 'Interactive Concept Graph'}
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                {lang === 'ar'
+                  ? 'استخراج شجرة المفاهيم المترابطة التفاعلية مطابقة لـ Google NotebookLM مع دعم ملء الشاشة على الهاتف.'
+                  : 'Interactive hierarchical knowledge tree matching Google NotebookLM.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Module 3: Chapters & Timestamps */}
+          <div
+            onClick={() => handleToggleAIFeature('chapterIndexing')}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              padding: '16px',
+              borderRadius: 'var(--radius-lg)',
+              border: `1.5px solid ${aiFeatures.chapterIndexing ? '#10B981' : 'var(--border-subtle)'}`,
+              backgroundColor: aiFeatures.chapterIndexing ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-subtle)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              position: 'relative'
+            }}
+          >
+            <div style={{
+              width: '22px',
+              height: '22px',
+              borderRadius: '6px',
+              border: `2px solid ${aiFeatures.chapterIndexing ? '#10B981' : 'var(--border-medium)'}`,
+              backgroundColor: aiFeatures.chapterIndexing ? '#10B981' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#FFFFFF',
+              flexShrink: 0,
+              marginTop: '2px'
+            }}>
+              {aiFeatures.chapterIndexing && <Check size={14} strokeWidth={3} />}
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <Clock size={15} color="#10B981" />
+                <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'فهرسة الفصول والتوقيتات (Chapters)' : 'Smart Chapter Indexing'}
+                </span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
+                {lang === 'ar'
+                  ? 'تقسيم المحاضرة إلى فصول زمنية مع إمكانية القفز السريع للحظة الشرح المطلوبة بالثواني.'
+                  : 'Automatic chapter division and timestamps for quick student scrubbing.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Media Input Card (Live Mic / Upload Audio / Upload or Embed Video) */}
       <div style={{
@@ -283,15 +485,23 @@ export const RecordingStudio = () => {
             uploadedFile={uploadedAudioFile}
             lang={lang}
             onSelectFile={setUploadedAudioFile}
-            onStartProcessing={() => navigate('ai-processing')}
+            onStartProcessing={() => {
+              try {
+                sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
+              } catch (e) {}
+              navigate('ai-processing');
+            }}
           />
         )}
 
         {mode === 'video' && (
           <VideoLessonUploader
-            onStartProcessing={handleVideoStartProcessing}
+            videoData={videoData}
+            setVideoData={setVideoData}
+            onStartProcessing={(data) => handleVideoStartProcessing(data)}
             lang={lang}
             isRtl={isRtl}
+            aiFeatures={aiFeatures}
           />
         )}
       </div>
