@@ -209,6 +209,192 @@ export const MOCK_LESSON = {
       'قانون بلاكمان يحدد أن سرعة البناء الضوئي تتوقف على العامل الأقرب إلى الحد الأدنى.'
     ]
   },
+  notebookMindMap: {
+    id: 'bio-root',
+    label: 'Photosynthesis & Energy Dynamics',
+    labelAr: 'البناء الضوئي وحركية الطاقة في النبات',
+    timestamp: '00:00',
+    seconds: 0,
+    summaryAr: 'العملية الحيوية الأساسية لتحويل الطاقة الضوئية إلى طاقة كيميائية في الروابط العضوية داخل البلاستيدات الخضراء.',
+    children: [
+      {
+        id: 'bio-chloro',
+        label: 'Chloroplast Structure',
+        labelAr: 'تركيب البلاستيدة الخضراء (Chloroplast)',
+        timestamp: '02:20',
+        seconds: 140,
+        summaryAr: 'غشاء مزدوج يحيط بكتل أقراص الثيلاكويد المرتبة في حبيبات الجرانا وحشوة الستروما السائلة.',
+        children: [
+          {
+            id: 'bio-grana',
+            label: 'Grana & Thylakoid Discs',
+            labelAr: 'حبيبات الجرانا وأقراص الثيلاكويد',
+            timestamp: '03:15',
+            seconds: 195,
+            summaryAr: 'أقراص غشائية متراصة تحتوي على أنظمة الصبغيات ومسارات نقل الإلكترونات لانشطار الماء.',
+            children: [
+              {
+                id: 'bio-pigments',
+                label: 'Pigment Complexes',
+                labelAr: 'أجهزة الأصباغ (كلوروفيل أ وب)',
+                timestamp: '04:00',
+                seconds: 240,
+                summaryAr: 'تمتص طاقة فوتونات الضوء الأزرق والأحمر بكفاءة عظمى وتعكس الأخضر.'
+              },
+              {
+                id: 'bio-atp-synth',
+                label: 'ATP Synthase Complex',
+                labelAr: 'معقد إنزيم بناء ATP',
+                timestamp: '04:45',
+                seconds: 285,
+                summaryAr: 'يستغل التدرج البروتوني عبر غشاء الثيلاكويد لتخليق جزيئات ATP من ADP والفوسفات.'
+              }
+            ]
+          },
+          {
+            id: 'bio-stroma',
+            label: 'Stroma Matrix',
+            labelAr: 'حشوة الستروما (النخاع)',
+            timestamp: '05:00',
+            seconds: 300,
+            summaryAr: 'الوسط البروتيني السائل المحتوي على إنزيمات دورة كالفن وريبوسومات وجزيئات DNA البلاستيدة.'
+          }
+        ]
+      },
+      {
+        id: 'bio-light',
+        label: 'Light-Dependent Reactions',
+        labelAr: 'التفاعلات الضوئية (Light Reactions)',
+        timestamp: '05:20',
+        seconds: 320,
+        summaryAr: 'تحدث على أغشية الثيلاكويد حيث يمتص الكلوروفيل الفوتونات الضوئية فتكتسب إلكتروناته طاقة وتصبح في حالة إثارة.',
+        children: [
+          {
+            id: 'bio-photolysis',
+            label: 'Photolysis of Water',
+            labelAr: 'انشطار جزيء الماء ضوئياً',
+            timestamp: '08:10',
+            seconds: 490,
+            summaryAr: 'أثبت فان نيل أن الماء وليس ثاني أكسيد الكربون هو مصدر الأكسجين المتصاعد O2.',
+            children: [
+              {
+                id: 'bio-oxygen-source',
+                label: 'Van Niel Experiment',
+                labelAr: 'تجربة فان نيل وبكتيريا الكبريت O18',
+                timestamp: '09:30',
+                seconds: 570,
+                summaryAr: 'استخدم نظائر الأكسجين المشعة لإثبات أن الماء هو المانح الحقيقي للإلكترونات والبروتونات.'
+              }
+            ]
+          },
+          {
+            id: 'bio-nadph',
+            label: 'NADP+ Reduction',
+            labelAr: 'اختزال مرافق الإنزيم NADP+',
+            timestamp: '11:20',
+            seconds: 680,
+            summaryAr: 'تاكسي الهيدروجين الذي يستقبل الإلكترونات والبروتونات ليتحول إلى NADPH ويمنع هروب الهيدروجين.'
+          },
+          {
+            id: 'bio-photophosphorylation',
+            label: 'Photophosphorylation',
+            labelAr: 'الفسفرة الضوئية لتوليد ATP',
+            timestamp: '13:00',
+            seconds: 780,
+            summaryAr: 'تخزين الطاقة المتحررة من هبوط الإلكترونات المثارة في روابط جزيئات ATP.'
+          }
+        ]
+      },
+      {
+        id: 'bio-dark',
+        label: 'Calvin Cycle (Dark Reactions)',
+        labelAr: 'التفاعلات اللاضوئية (دورة كالفن)',
+        timestamp: '14:45',
+        seconds: 885,
+        summaryAr: 'تحدث في الستروما ليلاً ونهاراً بشرط توافر مركبَي الطاقة التثبيتية ATP و NADPH لاختزال غاز CO2.',
+        children: [
+          {
+            id: 'bio-rubisco',
+            label: 'RuBisCO Enzyme',
+            labelAr: 'إنزيم روبيسكو RuBisCO وتثبيت CO2',
+            timestamp: '16:30',
+            seconds: 990,
+            summaryAr: 'الإنزيم المسؤول عن ربط غاز ثاني أكسيد الكربون بسكر ريبولوز ثنائي الفوسفات.'
+          },
+          {
+            id: 'bio-pgal',
+            label: 'PGAL Compound Formation',
+            labelAr: 'تكوين مركب PGAL ثلاثي الكربون',
+            timestamp: '19:00',
+            seconds: 1140,
+            summaryAr: 'أول مركب كيميائي ثابت ناتج؛ يلزم جزيئان منه لتكوين جزيء جلوكوز كامل.',
+            children: [
+              {
+                id: 'bio-glucose-synthesis',
+                label: 'Glucose Synthesis',
+                labelAr: 'بناء الجلوكوز والنشا والدهون',
+                timestamp: '22:15',
+                seconds: 1335,
+                summaryAr: 'يتحول PGAL عبر مسارات أيضية في السيتوبلازم إلى جلوكوز وأحماض أمينية وأحماض دهنية.'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'bio-factors',
+        label: 'Limiting Factors (Blackman)',
+        labelAr: 'العوامل المحددة (قانون بلاكمان)',
+        timestamp: '26:10',
+        seconds: 1570,
+        summaryAr: 'سرعة البناء الضوئي تتوقف على العامل الأقرب إلى حده الأدنى سواء الضوء أو الحرارة أو CO2.',
+        children: [
+          {
+            id: 'bio-light-intensity',
+            label: 'Light Intensity Factor',
+            labelAr: 'تأثير شدة الضوء ونقطة التشبع',
+            timestamp: '28:40',
+            seconds: 1720,
+            summaryAr: 'يزداد معدل البناء الضوئي بزيادة الضوء حتى الوصول لنقطة التشبع الضوئي.'
+          },
+          {
+            id: 'bio-temp-factor',
+            label: 'Temperature & Enzymes',
+            labelAr: 'تأثير درجة الحرارة على الإنزيمات',
+            timestamp: '31:20',
+            seconds: 1880,
+            summaryAr: 'تؤثر الحرارة بشكل مباشر على التفاعلات اللاضوئية الإنزيمية في الستروما.'
+          }
+        ]
+      },
+      {
+        id: 'bio-exam-traps',
+        label: 'Thanawya Exam Traps',
+        labelAr: 'مصائد امتحانات الثانوية العامة',
+        timestamp: '35:00',
+        seconds: 2100,
+        summaryAr: 'أهم التريكات والأسئلة الخادعة التي يقع فيها طلاب الثانوية العامة في امتحانات الوزارة.',
+        children: [
+          {
+            id: 'bio-trap-darkness',
+            label: 'Does Calvin Cycle need darkness?',
+            labelAr: 'هل تحدث دورة كالفن في الظلام فقط؟',
+            timestamp: '37:10',
+            seconds: 2230,
+            summaryAr: 'خطأ شائع! دورة كالفن تحدث نهاراً وليلاً ما دامت نواتج التفاعلات الضوئية متوافرة.'
+          },
+          {
+            id: 'bio-trap-isotopes',
+            label: 'Tracing Oxygen-18 Isotope',
+            labelAr: 'تتبع نظير الأكسجين المشع O18',
+            timestamp: '39:40',
+            seconds: 2380,
+            summaryAr: 'إذا كان الماء يحتوي على O18، فإن الأكسجين المتصاعد O2 هو الذي يحتوي على الإشعاع حصراً.'
+          }
+        ]
+      }
+    ]
+  },
   knowledgeMap: {
     centerConcept: 'Photosynthesis (البناء الضوئي)',
     nodes: [
@@ -455,6 +641,274 @@ export const MOCK_LESSON = {
     }
   ]
 };
+
+export const ALL_PUBLISHED_LESSONS = [
+  {
+    id: 'les-bio-301',
+    title: 'Photosynthesis & Energy Dynamics in Plant Cells',
+    titleAr: 'البناء الضوئي وحركية الطاقة في الخلايا النباتية',
+    subject: 'Biology',
+    subjectAr: 'الأحياء - الثانوية العامة',
+    gradeAr: 'الصف الثالث الثانوي',
+    unitAr: 'الوحدة الأولى: التركيب والوظيفة في الكائنات الحية',
+    mediaType: 'video',
+    durationFormatted: '42:18',
+    durationSeconds: 2538,
+    recordedDate: '2026-09-12',
+    videoUrl: 'https://www.youtube.com/watch?v=sQK3Yr4Sc_k',
+    videoSourceType: 'embed',
+    descriptionAr: 'شرح مفصل ومكثف لدرس البناء الضوئي للصف الثالث الثانوي: تركيب البلاستيدة، التفاعلات الضوئية واللاضوئية، دورة كالفن، وأهم أسئلة ومصائد امتحانات الثانوية العامة مع ملازم الشرح وصور السبورة المرتبة.',
+    stats: {
+      conceptsCount: 14,
+      chaptersCount: 5,
+      quizQuestionsCount: 12,
+      completionRate: 88,
+      avgQuizScore: 84.5
+    },
+    chapters: MOCK_LESSON.chapters,
+    transcript: MOCK_LESSON.transcript,
+    attachments: MOCK_LESSON.attachments,
+    notebookMindMap: MOCK_LESSON.notebookMindMap
+  },
+  {
+    id: 'les-nlp-401',
+    title: 'Linguistic Foundations for NLP Algorithms',
+    titleAr: 'أساسيات لغوية لخوارزميات معالجة اللغة الطبيعية (NLP)',
+    subject: 'Computer Science & AI',
+    subjectAr: 'علوم الحاسب والذكاء الاصطناعي',
+    gradeAr: 'المستوى الجامعي المتقدم',
+    unitAr: 'خوارزميات معالجة اللغات الطبيعية',
+    mediaType: 'video',
+    durationFormatted: '45:10',
+    durationSeconds: 2710,
+    recordedDate: '2026-09-18',
+    videoUrl: 'https://www.youtube.com/watch?v=sQK3Yr4Sc_k',
+    videoSourceType: 'embed',
+    descriptionAr: 'محاضرة مفصلة حول الأساسيات اللغوية لبناء خوارزميات معالجة اللغة الطبيعية، وتصميم المدونات اللغوية (Corpus)، وأشجار التحليل النحوي، وبناء المحلل الصرفي للغة العربية وقواعد إزالة كلمات التوقف.',
+    stats: {
+      conceptsCount: 18,
+      chaptersCount: 4,
+      quizQuestionsCount: 15,
+      completionRate: 94,
+      avgQuizScore: 89.2
+    },
+    chapters: [
+      { id: 'ch-nlp-1', title: 'Introduction to Linguistic Corpora', titleAr: 'مقدمة عن المدونات اللغوية (Corpus)', timestamp: '00:00', startSeconds: 0 },
+      { id: 'ch-nlp-2', title: 'Syntactic Parsing & Grammar', titleAr: 'التحليل النحوي وأشجار الإعراب (Parsing)', timestamp: '12:00', startSeconds: 720 },
+      { id: 'ch-nlp-3', title: 'Morphological Analysis in Arabic', titleAr: 'بناء محلل صرفي للغة العربية', timestamp: '21:00', startSeconds: 1260 },
+      { id: 'ch-nlp-4', title: 'Stop Word Removal Techniques', titleAr: 'استراتيجيات إزالة كلمات التوقف', timestamp: '30:00', startSeconds: 1800 }
+    ],
+    transcript: [
+      { id: 'tr-nlp-1', startSeconds: 0, timestamp: '00:00', speaker: 'د. سلمى', textAr: 'أهلاً بكم في محاضرة اليوم حول الأساسيات اللغوية لخوارزميات معالجة اللغة الطبيعية. سنبدأ بالتعرف على المدوّنة اللغوية أو الكوربس.' },
+      { id: 'tr-nlp-2', startSeconds: 190, timestamp: '03:10', speaker: 'د. سلمى', textAr: 'المدونة اللغوية (Corpus) هي مجموعة مهيكلة وضخمة من النصوص الحقيقية تستخدم لتدريب النماذج الإحصائية والعصبية.' },
+      { id: 'tr-nlp-3', startSeconds: 720, timestamp: '12:00', speaker: 'د. سلمى', textAr: 'التحليل النحوي أو الـ Parsing يهدف لاكتشاف العلاقات التركيبية وبناء شجرة الإعراب بين مكونات الجملة.' },
+      { id: 'tr-nlp-4', startSeconds: 1260, timestamp: '21:00', speaker: 'د. سلمى', textAr: 'في اللغة العربية، نظراً لطبيعتها الاشتقاقية، نحتاج لمحلل صرفي دقيق يحلل الجذور والأوزان والسوابق واللواحق.' },
+      { id: 'tr-nlp-5', startSeconds: 1800, timestamp: '30:00', speaker: 'د. سلمى', textAr: 'إزالة كلمات التوقف تساهم في تقليل ضوضاء المتجهات والتركيز على الكلمات المفتاحية الأكثر دلالة.' }
+    ],
+    attachments: {
+      pdfs: [
+        { id: 'pdf-nlp-1', title: 'مذكرة معالجة اللغات الطبيعية - د. سلمى', fileName: 'NLP_Linguistics_Foundations_2026.pdf', fileSize: '5.2 MB', pagesCount: 32, url: '#' },
+        { id: 'pdf-nlp-2', title: 'شيت تدريبات استخراج الكلمات المفتاحية', fileName: 'Corpus_Parsing_Worksheet.pdf', fileSize: '2.1 MB', pagesCount: 14, url: '#' }
+      ],
+      images: [
+        { id: 'img-nlp-1', order: 1, title: 'سبورة 1: مخطط معمارية المدونة اللغوية', fileName: 'nlp_corpus_architecture.jpg', fileSize: '1.9 MB', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80', caption: 'تصميم هيكل البيانات للمدونة' }
+      ]
+    },
+    notebookMindMap: {
+      id: 'nlp-root',
+      labelAr: 'أساسيات لغوية لخوارزميات معالجة اللغة الطبيعية',
+      label: 'Linguistic Foundations for NLP Algorithms',
+      timestamp: '00:00',
+      seconds: 0,
+      summaryAr: 'المفاهيم اللغوية التأسيسية لتطوير خوارزميات معالجة وفهم اللغات الطبيعية.',
+      children: [
+        {
+          id: 'nlp-corpus',
+          labelAr: 'المدوّنة (Corpus)',
+          label: 'Corpus',
+          timestamp: '03:10',
+          seconds: 190,
+          summaryAr: 'مجموعة نصوص حقيقية مهيكلة لتدريب النماذج.',
+          children: [
+            { id: 'nlp-def', labelAr: 'التعريف', label: 'Definition', timestamp: '04:00', seconds: 240, summaryAr: 'مجموعة معيارية من النصوص ممثلة للغة أو تخصص معين.' },
+            { id: 'nlp-design', labelAr: 'عناصر التصميم الرئيسية', label: 'Key Design Elements', timestamp: '06:20', seconds: 380, summaryAr: 'التمثيلية، التوازن، حجم البيانات، ودقة التوسيم النحوي.' },
+            { id: 'nlp-types', labelAr: 'أنواع المدونات', label: 'Types of Corpora', timestamp: '08:45', seconds: 525, summaryAr: 'مدونات عامة، متخصصة، ثنائية اللغة ومتوازية.' }
+          ]
+        },
+        {
+          id: 'nlp-parsing',
+          labelAr: 'التحليل النحوي (Parsing)',
+          label: 'Parsing',
+          timestamp: '12:00',
+          seconds: 720,
+          summaryAr: 'تفكيك الجمل واكتشاف العلاقات التركيبية بين الكلمات.',
+          children: [
+            { id: 'nlp-parse-tree', labelAr: 'أشجار الإعراب التوليدية', label: 'Constituency Trees', timestamp: '14:15', seconds: 855, summaryAr: 'تمثيل الجملة في هيكل هرمي من المركبات الاسمية والفعلية.' },
+            { id: 'nlp-dep', labelAr: 'التبعيات النحوية (Dependency)', label: 'Dependency Grammar', timestamp: '17:30', seconds: 1050, summaryAr: 'ربط الكلمات مباشرة بروابط نحوية موجهة (فاعل، مفعول).' }
+          ]
+        },
+        {
+          id: 'nlp-morph',
+          labelAr: 'بناء محلل صرفي (Morphological Analyzer)',
+          label: 'Morphological Analyzer',
+          timestamp: '21:00',
+          seconds: 1260,
+          summaryAr: 'تحليل بنية الكلمة العربية إلى الجذر والوزن والزوائد.',
+          children: [
+            { id: 'nlp-stemming', labelAr: 'التجذير والاشتقاق (Stemming)', label: 'Stemming & Lemmatization', timestamp: '23:40', seconds: 1420, summaryAr: 'إرجاع الكلمة إلى أصلها المعجمي أو جذرها الثلاثي.' },
+            { id: 'nlp-affix', labelAr: 'تحليل الزوائد والسوابق واللواحق', label: 'Affix Analysis', timestamp: '26:10', seconds: 1570, summaryAr: 'التعرف على حروف الجر والضمائر المتصلة وحروف العطف.' }
+          ]
+        },
+        {
+          id: 'nlp-stop',
+          labelAr: 'إزالة كلمات التوقف (Stop Word Removal)',
+          label: 'Stop Word Removal',
+          timestamp: '30:00',
+          seconds: 1800,
+          summaryAr: 'تصفية الكلمات الوظيفية الشائعة التي لا تحمل معنى دلالياً مؤثراً.',
+          children: [
+            { id: 'nlp-freq', labelAr: 'قوائم التكرار العالي', label: 'High Frequency Lists', timestamp: '32:15', seconds: 1935, summaryAr: 'حروف الجر وأسماء الإشارة والضمائر المنفصلة.' },
+            { id: 'nlp-domain', labelAr: 'تصفية الكلمات الخاصة بالسياق', label: 'Domain Specific Filtering', timestamp: '34:50', seconds: 2090, summaryAr: 'استبعاد الكلمات المكررة في نطاق علمي محدد.' }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    id: 'les-bio-302',
+    title: 'Cellular Respiration & Krebs Cycle',
+    titleAr: 'التنفس الخلوي الهوائي ودورة كريبس',
+    subject: 'Biology',
+    subjectAr: 'الأحياء - الثانوية العامة',
+    gradeAr: 'الصف الثالث الثانوي',
+    unitAr: 'الوحدة الأولى: التركيب والوظيفة في الكائنات الحية',
+    mediaType: 'audio',
+    durationFormatted: '38:40',
+    durationSeconds: 2320,
+    recordedDate: '2026-09-08',
+    descriptionAr: 'شرح تفكيك جزيء الجلوكوز، وانشطار الجلوكوز في السيتوبلازم، وتفاعلات أكسدة حمض البيروفيك داخل الميتوكوندريا، ودورة كريبس وسلسلة نقل الإلكترون.',
+    stats: { conceptsCount: 16, chaptersCount: 3, quizQuestionsCount: 14, completionRate: 91, avgQuizScore: 82.0 },
+    chapters: [
+      { id: 'ch-resp-1', title: 'Glycolysis in Cytoplasm', titleAr: 'انشطار الجلوكوز في السيتوبلازم', timestamp: '00:00', startSeconds: 0 },
+      { id: 'ch-resp-2', title: 'Krebs Cycle Matrix', titleAr: 'دورة كريبس في الميتوكوندريا', timestamp: '12:20', startSeconds: 740 },
+      { id: 'ch-resp-3', title: 'Electron Transport Chain', titleAr: 'سلسلة نقل الإلكترون وإنتاج 38 ATP', timestamp: '24:10', startSeconds: 1450 }
+    ],
+    transcript: [
+      { id: 'tr-resp-1', startSeconds: 0, timestamp: '00:00', speaker: 'د. سلمى', textAr: 'مساء الخير يا أبطال. اليوم نستكمل رحلة الطاقة مع التنفس الخلوي الهوائي داخل الخلية.' }
+    ],
+    attachments: { pdfs: [], images: [] },
+    notebookMindMap: {
+      id: 'resp-root',
+      labelAr: 'التنفس الخلوي الهوائي وإنتاج الطاقة',
+      label: 'Cellular Respiration',
+      timestamp: '00:00',
+      seconds: 0,
+      summaryAr: 'أكسدة الروابط العضوية لاستخراج الطاقة المخزونة في صورة 38 جزيء ATP.',
+      children: [
+        {
+          id: 'resp-glyco',
+          labelAr: 'انشطار الجلوكوز (Glycolysis)',
+          label: 'Glycolysis',
+          timestamp: '02:00',
+          seconds: 120,
+          children: [
+            { id: 'resp-glyco-loc', labelAr: 'يحدث في السيتوسول الخلوي', timestamp: '03:10', seconds: 190 },
+            { id: 'resp-glyco-atp', labelAr: 'الناتج الصافي: 2 ATP و 2 NADH', timestamp: '06:00', seconds: 360 }
+          ]
+        },
+        {
+          id: 'resp-krebs',
+          labelAr: 'دورة كريبس (حمض الستريك)',
+          label: 'Krebs Cycle',
+          timestamp: '12:20',
+          seconds: 740,
+          children: [
+            { id: 'resp-krebs-loc', labelAr: 'تحدث في حشوة الميتوكوندريا', timestamp: '14:00', seconds: 840 },
+            { id: 'resp-krebs-yield', labelAr: 'النواتج لكل جزيء جلوكوز (دورتان)', timestamp: '18:30', seconds: 1110 }
+          ]
+        },
+        {
+          id: 'resp-etc',
+          labelAr: 'سلسلة نقل الإلكترون',
+          label: 'Electron Transport Chain',
+          timestamp: '24:10',
+          seconds: 1450,
+          children: [
+            { id: 'resp-etc-cyto', labelAr: 'السيتوكرومات على الغشاء الداخلي', timestamp: '27:00', seconds: 1620 },
+            { id: 'resp-etc-oxygen', labelAr: 'الأكسجين هو المستقبل الأخير للإلكترونات', timestamp: '31:00', seconds: 1860 }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    id: 'les-bio-303',
+    title: 'Molecular Genetics & DNA Replication',
+    titleAr: 'البيولوجيا الجزيئية وتضاعف الحمض النووي DNA',
+    subject: 'Biology',
+    subjectAr: 'الأحياء - الثانوية العامة',
+    gradeAr: 'الصف الثالث الثانوي',
+    unitAr: 'الوحدة الثانية: البيولوجيا الجزيئية',
+    mediaType: 'video',
+    durationFormatted: '51:15',
+    durationSeconds: 3075,
+    recordedDate: '2026-09-02',
+    videoUrl: 'https://www.youtube.com/watch?v=sQK3Yr4Sc_k',
+    videoSourceType: 'embed',
+    descriptionAr: 'شرح تفصيلي لتجارب إثبات المادة الوراثية، وتركيب لولب واطسون وكريك المزدوج، وإنزيمات تضاعف الـ DNA (اللولب، البلمرة، والربط).',
+    stats: { conceptsCount: 22, chaptersCount: 3, quizQuestionsCount: 16, completionRate: 78, avgQuizScore: 79.5 },
+    chapters: [
+      { id: 'ch-dna-1', title: 'DNA as Genetic Material', titleAr: 'أدلة إثبات أن DNA هو المادة الوراثية', timestamp: '00:00', startSeconds: 0 },
+      { id: 'ch-dna-2', title: 'Watson & Crick Double Helix', titleAr: 'نموذج واطسون وكريك للولب المزدوج', timestamp: '15:20', startSeconds: 920 },
+      { id: 'ch-dna-3', title: 'Replication Enzymes', titleAr: 'إنزيمات تضاعف DNA وإصلاح العيوب', timestamp: '30:40', startSeconds: 1840 }
+    ],
+    transcript: [
+      { id: 'tr-dna-1', startSeconds: 0, timestamp: '00:00', speaker: 'د. سلمى', textAr: 'أهلاً بكم في أصعب وأمتع وحدات الثانوية العامة: البيولوجيا الجزيئية وتركيب الـ DNA.' }
+    ],
+    attachments: { pdfs: [], images: [] },
+    notebookMindMap: {
+      id: 'dna-root',
+      labelAr: 'البيولوجيا الجزيئية وتركيب الـ DNA',
+      label: 'Molecular Genetics',
+      timestamp: '00:00',
+      seconds: 0,
+      summaryAr: 'دراسة الأساس الكيميائي والوراثي للمعلومات الجينية وتضاعفها.',
+      children: [
+        {
+          id: 'dna-evidence',
+          labelAr: 'أدلة إثبات المادة الوراثية',
+          timestamp: '03:00',
+          seconds: 180,
+          children: [
+            { id: 'dna-grif', labelAr: 'تجربة جريفث في التحول البكتيري', timestamp: '05:00', seconds: 300 },
+            { id: 'dna-hersh', labelAr: 'تجربة هيرشي وتشيس بالبلعوم البكتيري', timestamp: '10:00', seconds: 600 }
+          ]
+        },
+        {
+          id: 'dna-structure',
+          labelAr: 'التركيب الجزيئي للولب المزدوج',
+          timestamp: '15:20',
+          seconds: 920,
+          children: [
+            { id: 'dna-nucleotide', labelAr: 'النيوكليوتيدة والقواعد النيتروجينية', timestamp: '18:00', seconds: 1080 },
+            { id: 'dna-bonds', labelAr: 'الروابط الهيدروجينية والتكاملية A=T و G≡C', timestamp: '22:00', seconds: 1320 }
+          ]
+        },
+        {
+          id: 'dna-enzymes',
+          labelAr: 'إنزيمات التضاعف والإصلاح',
+          timestamp: '30:40',
+          seconds: 1840,
+          children: [
+            { id: 'dna-helicase', labelAr: 'إنزيم اللولب (فصل الشريطين)', timestamp: '33:00', seconds: 1980 },
+            { id: 'dna-poly', labelAr: 'إنزيم بلمرة DNA (البناء في اتجاه 5 إلى 3)', timestamp: '37:00', seconds: 2220 },
+            { id: 'dna-ligase', labelAr: 'إنزيم الربط (ربط قطع أوكازاكي)', timestamp: '42:00', seconds: 2520 }
+          ]
+        }
+      ]
+    }
+  }
+];
 
 export const MOCK_CLASSES = [
   {

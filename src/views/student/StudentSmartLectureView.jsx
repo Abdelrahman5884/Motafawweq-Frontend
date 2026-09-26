@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { MOCK_LESSON } from '../../data/mockData';
-import { KnowledgeMapCanvas } from '../../components/knowledge-map/KnowledgeMapCanvas';
+import { NotebookMindMapCanvas } from '../../components/knowledge-map/NotebookMindMapCanvas';
 import { Sparkles, Brain, FileText, Layers, CheckCircle2, FolderCheck, PlayCircle } from 'lucide-react';
 import {
   LectureRecorderUploader,
@@ -355,39 +355,17 @@ export const StudentSmartLectureView = () => {
               })}
             </div>
 
-            {/* Tab 1: Interactive Knowledge Map */}
+            {/* Tab 1: Interactive Knowledge Map (NotebookLM Style) */}
             {activeTab === 'map' && selectedOutputs.includes('graph') && (
-              <div className="smart-map-wrapper">
-                <KnowledgeMapCanvas
-                  knowledgeMap={lesson.knowledgeMap}
-                  onNodeSelect={(node) => {
-                    if (node.seconds !== undefined) {
-                      handleJumpToTime(node.seconds);
-                    }
+              <div className="smart-map-wrapper" style={{ minHeight: '580px', borderRadius: '16px', overflow: 'hidden' }}>
+                <NotebookMindMapCanvas
+                  treeData={lesson.notebookMindMap}
+                  onJumpToTimestamp={(secs) => {
+                    handleJumpToTime(secs);
                   }}
+                  lang={lang}
+                  isRtl={isRtl}
                 />
-                <div style={{
-                  position: 'absolute',
-                  bottom: '12px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: 'rgba(6, 37, 78, 0.88)',
-                  color: '#FFFFFF',
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  pointerEvents: 'none',
-                  backdropFilter: 'blur(4px)',
-                  boxShadow: 'var(--shadow-xs)',
-                  fontFamily: 'var(--font-arabic)',
-                  whiteSpace: 'nowrap',
-                  maxWidth: '90%',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}>
-                  {lang === 'ar' ? 'اضغط على أي عنصر للانتقال لموقعه في الشرح الصوتي' : 'Click any node to jump to its timestamp'}
-                </div>
               </div>
             )}
 
