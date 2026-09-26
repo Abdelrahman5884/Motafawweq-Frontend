@@ -26,19 +26,61 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleShareWhatsApp = () => {
-    const studentName = isAr ? (selectedCert.studentNameAr || selectedCert.studentName || 'الطالب') : (selectedCert.studentNameEn || 'Student');
-    const courseName = isAr ? (selectedCert.courseNameAr || selectedCert.titleAr || 'المقرر') : (selectedCert.courseNameEn || selectedCert.titleEn || 'Course');
-    const scoreVal = selectedCert.score || (selectedCert.gradePercent ? `${selectedCert.gradePercent}%` : '');
-    const scoreText = scoreVal ? `بنسبة نجاح وتفوق ${scoreVal}` : '';
-    const serialCode = selectedCert.serialId || selectedCert.certNumber || 'MTF-2026';
-    const verifyUrl = selectedCert.verificationUrl || `https://motafawweq.me/verify/${serialCode}`;
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareNotice, setShareNotice] = useState(null);
 
-    const message = isAr
-      ? `شهادة تقدير وتفوق معتمدة من منصة متفوّق 🎓\n\nنبارك للطالب المتفوق: *${studentName}*\nلاجتيازه بتفوق مقرر: *${courseName}* ${scoreText}\n\nرقم التوثيق الرسمي: ${serialCode}\nرابط التحقق من صحة الشهادة واعتمادها:\n${verifyUrl}`
-      : `Official Certificate of Academic Excellence - Motafawweq Platform 🎓\n\nCongratulations to scholar: *${studentName}*\nFor outstanding completion of: *${courseName}* ${scoreText}\n\nVerification Code: ${serialCode}\nVerification Link:\n${verifyUrl}`;
+  const handleShareWhatsApp = async () => {
+    if (isSharing || !exportCertRef.current) return;
+    setIsSharing(true);
+    try {
+      const dataUrl = await toPng(exportCertRef.current, {
+        pixelRatio: 2.5,
+        cacheBust: true,
+        backgroundColor: '#FFFFFF'
+      });
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const studentName = isAr ? (selectedCert.studentNameAr || selectedCert.studentName || 'الطالب') : (selectedCert.studentNameEn || 'Student');
+      const courseName = isAr ? (selectedCert.courseNameAr || selectedCert.titleAr || 'المقرر') : (selectedCert.courseNameEn || selectedCert.titleEn || 'Course');
+      const fileName = `شهادة-${studentName}.png`.replace(/\s+/g, '-');
+      const file = new File([blob], fileName, { type: 'image/png' });
+      const serialCode = selectedCert.serialId || selectedCert.certNumber || 'MTF-2026';
+      const verifyUrl = selectedCert.verificationUrl || `https://motafawweq.me/verify/${serialCode}`;
+      const message = isAr
+        ? `شهادة تقدير وتفوق معتمدة للطالب: *${studentName}*\nفي مقرر: *${courseName}*\nمنصة متفوّق التعليمية 🎓\nرابط التوثيق: ${verifyUrl}`
+        : `Official Certificate of Excellence for: *${studentName}*\nCourse: *${courseName}*\nMotafawweq Platform 🎓\nVerification: ${verifyUrl}`;
 
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+      // 1. Mobile & Web Share API with actual image file
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `شهادة تقدير - ${studentName}`,
+          text: message
+        });
+      } else {
+        // 2. Desktop Fallback: Download PNG image + copy to clipboard + open WhatsApp Web
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = dataUrl;
+        link.click();
+
+        try {
+          if (navigator.clipboard && window.ClipboardItem) {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+          }
+        } catch (clipErr) {}
+
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+        setShareNotice(isAr ? 'تم تنزيل صورة الشهادة ونسخها للحافظة! يمكنك لصقها مباشرة في واتساب (Ctrl+V).' : 'Certificate image downloaded & copied! Paste directly in WhatsApp.');
+        setTimeout(() => setShareNotice(null), 5000);
+      }
+    } catch (err) {
+      console.error('WhatsApp image share failed:', err);
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const handleDownloadPng = async () => {
@@ -190,6 +232,25 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
           />
         </div>
 
+        {shareNotice && (
+          <div style={{
+            padding: '10px 16px',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(37, 211, 102, 0.15)',
+            border: '1px solid rgba(37, 211, 102, 0.35)',
+            color: '#4ADE80',
+            fontSize: '13px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            direction: isAr ? 'rtl' : 'ltr'
+          }}>
+            <Check size={16} />
+            <span>{shareNotice}</span>
+          </div>
+        )}
+
         {/* Bottom Actions Bar */}
         <div className="certificate-modal-chrome" style={{
           display: 'flex',
@@ -226,9 +287,10 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
               <span>{copied ? (isAr ? 'تم نسخ رابط التوثيق!' : 'Link Copied!') : (isAr ? 'نسخ رابط التوثيق الرسمي' : 'Copy Verification Link')}</span>
             </button>
 
-            {/* Share on WhatsApp */}
+            {/* Share on WhatsApp as Image */}
             <button
               onClick={handleShareWhatsApp}
+              disabled={isSharing}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -240,16 +302,17 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
                 border: 'none',
                 fontSize: '12.5px',
                 fontWeight: '800',
-                cursor: 'pointer',
+                cursor: isSharing ? 'wait' : 'pointer',
                 boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)',
+                opacity: isSharing ? 0.7 : 1,
                 transition: 'all 0.15s ease'
               }}
               onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
               onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-              title={isAr ? 'مشاركة الشهادة عبر واتساب' : 'Share certificate via WhatsApp'}
+              title={isAr ? 'مشاركة صورة الشهادة عبر واتساب' : 'Share certificate image via WhatsApp'}
             >
-              <MessageCircle size={15} />
-              <span>{isAr ? 'مشاركة واتساب' : 'Share WhatsApp'}</span>
+              {isSharing ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />}
+              <span>{isSharing ? (isAr ? 'جاري تجهيز الصورة...' : 'Preparing...') : (isAr ? 'مشاركة كـ صورة واتساب' : 'Share as Image')}</span>
             </button>
           </div>
 

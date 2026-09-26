@@ -1,25 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { TEACHER_CERTIFICATES, TEACHER_COURSES } from '../../data/teacherData';
 import { CertificateModal } from '../../features/student/certificates/CertificateModal';
+import { OfficialCertificateDocument } from '../../features/student/certificates/OfficialCertificateDocument';
+import { toPng } from 'html-to-image';
 import {
   Award,
   Plus,
   Search,
   CheckCircle2,
-  ExternalLink,
-  Printer,
-  Download,
-  QrCode,
   ShieldCheck,
-  Sparkles,
   X,
-  Share2,
   FileCheck,
   MessageCircle,
-  Copy,
-  Check
+  Loader2,
+  Check,
+  UserCheck,
+  Phone
 } from 'lucide-react';
 
 const ENROLLED_STUDENTS = [
@@ -43,15 +41,69 @@ export const TeacherCertificatesView = () => {
   const [filterCourse, setFilterCourse] = useState('all');
   const [previewCert, setPreviewCert] = useState(null);
   const [showIssueModal, setShowIssueModal] = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
 
-  // New certificate form state: student selected from roster, no school/gov
+  // Student search within modal
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+
+  // Row WhatsApp sharing state
+  const [sharingRowId, setSharingRowId] = useState(null);
+  const [sharingCert, setSharingCert] = useState(null);
+  const [toastNotice, setToastNotice] = useState(null);
+  const offscreenCertRef = useRef(null);
+
+  // Mobile viewport detection
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Format cert for OfficialCertificateDocument standard
+  const formatCertForOfficial = (cert) => {
+    if (!cert) return null;
+    const serial = cert.certNumber || cert.serialId || 'MTF-BIO-2026-0891';
+    return {
+      ...cert,
+      id: cert.id,
+      serialId: serial,
+      certNumber: serial,
+      issuerType: 'teacher',
+      category: 'teacher',
+      issuerNameAr: 'د. سلمى السيد',
+      issuerNameEn: 'Dr. Salma El-Sayed',
+      instructorAr: 'د. سلمى السيد',
+      instructorEn: 'Dr. Salma El-Sayed',
+      instructorTitleAr: 'كبير معلمي الأحياء ومؤلف سلسلة التفوق',
+      instructorTitleEn: 'Senior Biology Lecturer',
+      titleAr: cert.honorsTitleAr || 'شهادة تميز وتفوق بالدرجة النهائية (Full Mark)',
+      titleEn: 'Certificate of Academic Excellence & Course Completion',
+      courseNameAr: cert.courseNameAr,
+      courseNameEn: cert.courseNameAr,
+      studentNameAr: cert.studentNameAr,
+      studentNameEn: cert.studentNameEn || cert.studentNameAr,
+      gradeAr: cert.gradeAr || 'الصف الثالث الثانوي 2026',
+      completionDate: cert.issueDate || '27 سبتمبر 2026',
+      score: cert.score || `${cert.gradePercent}%`,
+      scoreEn: `${cert.gradePercent}%`,
+      verificationUrl: cert.verificationUrl || `https://motafawweq.me/verify/${serial}`,
+      status: 'verified'
+    };
+  };
+
+  // Form state for issuing new certificate
   const [newCert, setNewCert] = useState({
     studentId: ENROLLED_STUDENTS[0].id,
     studentNameAr: ENROLLED_STUDENTS[0].nameAr,
     studentNameEn: ENROLLED_STUDENTS[0].nameEn,
     studentEmail: ENROLLED_STUDENTS[0].email,
     gradeAr: ENROLLED_STUDENTS[0].gradeAr,
+    studentPhone: ENROLLED_STUDENTS[0].phone,
     courseNameAr: TEACHER_COURSES[0]?.titleAr || 'ماستر كلاس الأحياء: البناء الضوئي وحركية الطاقة',
     gradePercent: 98,
     honorsTitleAr: 'شهادة تميز وتفوق بالدرجة النهائية (Full Mark)'
@@ -65,12 +117,25 @@ export const TeacherCertificatesView = () => {
       studentNameAr: st.nameAr,
       studentNameEn: st.nameEn,
       studentEmail: st.email,
-      gradeAr: st.gradeAr
+      gradeAr: st.gradeAr,
+      studentPhone: st.phone
     }));
   };
 
+  // Filter students in the issue modal by name or phone
+  const filteredEnrolledStudents = useMemo(() => {
+    const q = studentSearchQuery.trim().toLowerCase();
+    if (!q) return ENROLLED_STUDENTS;
+    return ENROLLED_STUDENTS.filter(st =>
+      st.nameAr.toLowerCase().includes(q) ||
+      st.nameEn.toLowerCase().includes(q) ||
+      st.phone.includes(q)
+    );
+  }, [studentSearchQuery]);
+
+  // Main table/cards filter
   const filteredCerts = certificates.filter(c => {
-    const matchesSearch = (c.studentNameAr && c.studentNameAr.includes(searchQuery)) || 
+    const matchesSearch = (c.studentNameAr && c.studentNameAr.includes(searchQuery)) ||
       (c.certNumber && c.certNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (c.serialId && c.serialId.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCourse = filterCourse === 'all' || (c.courseNameAr && c.courseNameAr.includes(filterCourse));
@@ -118,92 +183,166 @@ export const TeacherCertificatesView = () => {
     setPreviewCert(issued);
   };
 
-  const handleCopyLink = (certNumber) => {
-    setCopiedId(certNumber);
-    navigator.clipboard?.writeText(`https://motafawweq.me/verify/${certNumber}`);
-    setTimeout(() => setCopiedId(null), 2500);
+  // WhatsApp Share as Image (using Web Share API on mobile, or download + copy + WhatsApp Web on desktop)
+  const handleShareRowWhatsApp = async (cert) => {
+    if (sharingRowId) return;
+    setSharingRowId(cert.id);
+    const formatted = formatCertForOfficial(cert);
+    setSharingCert(formatted);
+
+    try {
+      // Allow offscreen component to render with QR code
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      if (offscreenCertRef.current) {
+        const dataUrl = await toPng(offscreenCertRef.current, {
+          pixelRatio: 2.2,
+          cacheBust: true,
+          backgroundColor: '#FFFFFF'
+        });
+
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const studentName = cert.studentNameAr || 'الطالب';
+        const courseName = cert.courseNameAr || 'المقرر';
+        const fileName = `شهادة-${studentName}.png`.replace(/\s+/g, '-');
+        const file = new File([blob], fileName, { type: 'image/png' });
+        const serialCode = cert.certNumber || cert.serialId || 'MTF-2026';
+        const verifyUrl = cert.verificationUrl || `https://motafawweq.me/verify/${serialCode}`;
+        const message = lang === 'ar'
+          ? `شهادة تقدير وتفوق معتمدة للطالب: *${studentName}*\nفي مقرر: *${courseName}*\nمنصة متفوّق التعليمية 🎓\nرابط التوثيق: ${verifyUrl}`
+          : `Official Certificate of Excellence for: *${studentName}*\nCourse: *${courseName}*\nMotafawweq Platform 🎓\nVerification: ${verifyUrl}`;
+
+        // 1. Mobile & Web Share API with actual image file
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `شهادة تقدير - ${studentName}`,
+            text: message
+          });
+        } else {
+          // 2. Desktop Fallback: Download PNG image + copy to clipboard + open WhatsApp Web
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = dataUrl;
+          link.click();
+
+          try {
+            if (navigator.clipboard && window.ClipboardItem) {
+              await navigator.clipboard.write([
+                new ClipboardItem({ 'image/png': blob })
+              ]);
+            }
+          } catch (clipErr) {
+            // Ignore clipboard permission errors if unsupported
+          }
+
+          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+          setToastNotice(lang === 'ar'
+            ? 'تم تنزيل صورة الشهادة ونسخها للحافظة! يمكنك لصقها مباشرة في واتساب (Ctrl+V).'
+            : 'Certificate image downloaded & copied! Paste directly in WhatsApp (Ctrl+V).');
+          setTimeout(() => setToastNotice(null), 5000);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to share certificate image via WhatsApp:', err);
+    } finally {
+      setSharingRowId(null);
+    }
   };
 
-  const handleShareRowWhatsApp = (cert) => {
-    const studentName = cert.studentNameAr || 'الطالب';
-    const courseName = cert.courseNameAr || 'المقرر';
-    const scoreVal = cert.score || `${cert.gradePercent}%`;
-    const serialCode = cert.certNumber || cert.serialId || 'MTF-2026';
-    const verifyUrl = cert.verificationUrl || `https://motafawweq.me/verify/${serialCode}`;
-
-    const message = `شهادة تقدير وتفوق معتمدة من منصة متفوّق 🎓\n\nنبارك للطالب المتفوق: *${studentName}*\nواجتيازه بتفوق مقرر: *${courseName}* بنسبة ${scoreVal}\n\nرقم التوثيق الرسمي: ${serialCode}\nرابط التحقق من صحة الشهادة واعتمادها:\n${verifyUrl}`;
-
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-  };
-
-  // Prepares cert object with standard fields for OfficialCertificateDocument
   const formattedPreviewCert = useMemo(() => {
-    if (!previewCert) return null;
-    const serial = previewCert.certNumber || previewCert.serialId || 'MTF-BIO-2026-0891';
-    return {
-      ...previewCert,
-      id: previewCert.id,
-      serialId: serial,
-      certNumber: serial,
-      issuerType: 'teacher',
-      category: 'teacher',
-      issuerNameAr: 'د. سلمى السيد',
-      issuerNameEn: 'Dr. Salma El-Sayed',
-      instructorAr: 'د. سلمى السيد',
-      instructorEn: 'Dr. Salma El-Sayed',
-      instructorTitleAr: 'كبير معلمي الأحياء ومؤلف سلسلة التفوق',
-      instructorTitleEn: 'Senior Biology Lecturer',
-      titleAr: previewCert.honorsTitleAr || 'شهادة تميز وتفوق بالدرجة النهائية (Full Mark)',
-      titleEn: 'Certificate of Certified Course Completion',
-      courseNameAr: previewCert.courseNameAr,
-      courseNameEn: previewCert.courseNameAr,
-      studentNameAr: previewCert.studentNameAr,
-      studentNameEn: previewCert.studentNameEn || previewCert.studentNameAr,
-      gradeAr: previewCert.gradeAr || 'الصف الثالث الثانوي 2026',
-      completionDate: previewCert.issueDate || '27 سبتمبر 2026',
-      score: previewCert.score || `${previewCert.gradePercent}%`,
-      scoreEn: `${previewCert.gradePercent}%`,
-      verificationUrl: previewCert.verificationUrl || `https://motafawweq.me/verify/${serial}`,
-      status: 'verified'
-    };
+    return formatCertForOfficial(previewCert);
   }, [previewCert]);
 
   return (
     <div style={{
       maxWidth: '1240px',
       margin: '0 auto',
-      padding: '32px 24px 80px',
-      fontFamily: 'var(--font-arabic)'
+      padding: isMobile ? '16px 14px 60px' : '28px 24px 80px',
+      fontFamily: 'var(--font-arabic)',
+      direction: isRtl ? 'rtl' : 'ltr'
     }}>
+      {/* Off-screen Document for Pristine WhatsApp PNG Export */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          top: '-9999px',
+          left: '-9999px',
+          width: '960px',
+          height: '662px',
+          pointerEvents: 'none',
+          zIndex: -100,
+          opacity: 0,
+          overflow: 'hidden'
+        }}
+      >
+        {sharingCert && (
+          <OfficialCertificateDocument
+            ref={offscreenCertRef}
+            cert={sharingCert}
+            lang={lang}
+            isExport={true}
+          />
+        )}
+      </div>
+
+      {/* Toast Notification Banner */}
+      {toastNotice && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: isRtl ? '24px' : 'auto',
+          left: isRtl ? 'auto' : '24px',
+          zIndex: 10000,
+          backgroundColor: '#06254E',
+          color: '#FFFFFF',
+          padding: '12px 20px',
+          borderRadius: '14px',
+          boxShadow: '0 12px 30px rgba(0,0,0,0.3), 0 0 0 1px rgba(37, 211, 102, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          fontSize: '13px',
+          fontWeight: '700',
+          maxWidth: '440px',
+          animation: 'fadeIn 0.25s ease'
+        }}>
+          <Check size={18} color="#4ADE80" />
+          <span>{toastNotice}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: isMobile ? 'flex-start' : 'center',
         justifyContent: 'space-between',
-        flexWrap: 'wrap',
+        flexDirection: isMobile ? 'column' : 'row',
         gap: '16px',
-        marginBottom: '28px'
+        marginBottom: '26px'
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '3px 10px',
+              padding: '4px 12px',
               borderRadius: '8px',
               backgroundColor: isDark ? 'rgba(234, 179, 8, 0.16)' : 'rgba(234, 179, 8, 0.12)',
-              color: '#EAB308',
-              fontSize: '11px',
+              color: '#D97706',
+              fontSize: '11.5px',
               fontWeight: '800'
             }}>
-              <Award size={13} />
+              <Award size={14} />
               <span>{lang === 'ar' ? 'إصدار وتوثيق الشهادات المعتمدة' : 'Official Certificates Hub'}</span>
             </span>
           </div>
 
           <h1 style={{
-            fontSize: '24px',
+            fontSize: isMobile ? '20px' : '24px',
             fontWeight: '900',
             color: 'var(--text-primary)',
             margin: '0 0 6px 0',
@@ -212,23 +351,28 @@ export const TeacherCertificatesView = () => {
             {lang === 'ar' ? 'سجل واعتماد شهادات التقدير والدرجات النهائية' : 'Issued Honors & Course Certificates'}
           </h1>
           <p style={{
-            fontSize: '14px',
+            fontSize: isMobile ? '12.5px' : '13.5px',
             color: 'var(--text-secondary)',
-            margin: 0
+            margin: 0,
+            lineHeight: 1.5
           }}>
             {lang === 'ar'
-              ? 'إصدار وتوقيع شهادات التفوق رقمياً لطلاب المراكز والأكاديمية مع رمز التحقق الذكي (QR Code)'
-              : 'Issue and sign certified certificates for top students with cryptographic QR verification.'}
+              ? 'إصدار وتوقيع شهادات التفوق رقمياً لطلابك المسجلين مع رمز التحقق الذكي (QR Code) ومشاركتها كصور'
+              : 'Issue and sign certified certificates for your enrolled students with cryptographic QR verification.'}
           </p>
         </div>
 
         <button
-          onClick={() => setShowIssueModal(true)}
+          onClick={() => {
+            setStudentSearchQuery('');
+            setShowIssueModal(true);
+          }}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '8px',
-            padding: '10px 18px',
+            padding: '11px 20px',
             borderRadius: '12px',
             backgroundColor: 'var(--primary)',
             color: '#FFFFFF',
@@ -236,9 +380,12 @@ export const TeacherCertificatesView = () => {
             fontSize: '13px',
             fontWeight: '800',
             cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(0, 102, 204, 0.25)',
-            transition: 'all 0.2s'
+            boxShadow: 'var(--shadow-primary)',
+            width: isMobile ? '100%' : 'auto',
+            transition: 'opacity 0.15s ease'
           }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
         >
           <Plus size={16} />
           <span>{lang === 'ar' ? 'إصدار شهادة تقدير جديدة' : 'Issue New Certificate'}</span>
@@ -248,15 +395,16 @@ export const TeacherCertificatesView = () => {
       {/* Top Stats Banner */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px',
-        marginBottom: '28px'
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '14px',
+        marginBottom: '24px'
       }}>
         <div style={{
-          backgroundColor: isDark ? 'var(--bg-card)' : '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: '16px',
-          border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-          padding: '18px 20px'
+          border: '1px solid var(--border-subtle)',
+          padding: '18px 20px',
+          boxShadow: 'var(--shadow-xs)'
         }}>
           <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
             {lang === 'ar' ? 'إجمالي الشهادات الممنوحة' : 'Total Certificates'}
@@ -270,10 +418,11 @@ export const TeacherCertificatesView = () => {
         </div>
 
         <div style={{
-          backgroundColor: isDark ? 'var(--bg-card)' : '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: '16px',
-          border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-          padding: '18px 20px'
+          border: '1px solid var(--border-subtle)',
+          padding: '18px 20px',
+          boxShadow: 'var(--shadow-xs)'
         }}>
           <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
             {lang === 'ar' ? 'شهادات الدرجة النهائية (Full Mark)' : 'Full Mark Honors'}
@@ -287,10 +436,11 @@ export const TeacherCertificatesView = () => {
         </div>
 
         <div style={{
-          backgroundColor: isDark ? 'var(--bg-card)' : '#FFFFFF',
+          backgroundColor: 'var(--bg-surface)',
           borderRadius: '16px',
-          border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-          padding: '18px 20px'
+          border: '1px solid var(--border-subtle)',
+          padding: '18px 20px',
+          boxShadow: 'var(--shadow-xs)'
         }}>
           <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
             {lang === 'ar' ? 'شهادات صدارة الدوري' : 'League Champions'}
@@ -307,21 +457,20 @@ export const TeacherCertificatesView = () => {
       {/* Filter and Search Bar */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'stretch',
         justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '14px',
-        marginBottom: '22px'
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: '12px',
+        marginBottom: '20px'
       }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          backgroundColor: isDark ? 'var(--bg-card)' : '#FFFFFF',
-          border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: '12px',
-          padding: '4px 14px',
-          minWidth: '280px',
+          padding: '6px 14px',
           flex: 1
         }}>
           <Search size={16} color="var(--text-secondary)" />
@@ -338,9 +487,17 @@ export const TeacherCertificatesView = () => {
               fontSize: '13px',
               fontFamily: 'inherit',
               width: '100%',
-              padding: '8px 0'
+              padding: '6px 0'
             }}
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         <select
@@ -349,8 +506,8 @@ export const TeacherCertificatesView = () => {
           style={{
             padding: '10px 14px',
             borderRadius: '12px',
-            backgroundColor: isDark ? 'var(--bg-card)' : '#FFFFFF',
-            border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
             color: 'var(--text-primary)',
             fontSize: '13px',
             fontWeight: '700',
@@ -364,61 +521,60 @@ export const TeacherCertificatesView = () => {
         </select>
       </div>
 
-      {/* Certificates Table */}
-      <div style={{
-        backgroundColor: isDark ? 'var(--bg-card)' : '#FFFFFF',
-        borderRadius: '20px',
-        border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
-        overflow: 'hidden'
-      }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            textAlign: isRtl ? 'right' : 'left',
-            fontSize: '13px'
-          }}>
-            <thead>
-              <tr style={{
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#F8FAFC',
-                borderBottom: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-                color: 'var(--text-secondary)',
-                fontWeight: '800'
-              }}>
-                <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'رقم الشهادة والتاريخ' : 'Serial & Date'}</th>
-                <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
-                <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'نوع التقدير والكورس' : 'Honors & Course'}</th>
-                <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'النسبة المئوية' : 'Score'}</th>
-                <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'حالة التوثيق' : 'Verification'}</th>
-                <th style={{ padding: '16px 20px', textAlign: 'center' }}>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCerts.map((cert) => (
-                <tr
+      {/* Main Certificate View: Mobile Cards or Desktop Table */}
+      {isMobile ? (
+        /* Mobile Cards Layout (No overflowing horizontal table) */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {filteredCerts.length === 0 ? (
+            <div style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: '16px',
+              border: '1px solid var(--border-subtle)',
+              padding: '36px 20px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)'
+            }}>
+              <Award size={32} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
+              <p style={{ margin: 0, fontWeight: '700' }}>
+                {lang === 'ar' ? 'لا توجد شهادات مطابقة لخيارات البحث' : 'No matching certificates found'}
+              </p>
+            </div>
+          ) : (
+            filteredCerts.map((cert) => {
+              const isRowSharing = sharingRowId === cert.id;
+              return (
+                <div
                   key={cert.id}
                   style={{
-                    borderBottom: `1px solid ${isDark ? 'var(--border-subtle)' : '#F1F5F9'}`,
-                    transition: 'background-color 0.15s'
+                    backgroundColor: 'var(--bg-surface)',
+                    borderRadius: '16px',
+                    border: '1px solid var(--border-subtle)',
+                    padding: '16px',
+                    boxShadow: 'var(--shadow-xs)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
                   }}
                 >
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                      {cert.certNumber || cert.serialId}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {cert.issueDate}
-                    </div>
-                  </td>
-
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {/* Top: Student Name & Score */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '15px', color: 'var(--text-primary)' }}>
                       {cert.studentNameAr}
                     </div>
-                  </td>
+                    <div style={{
+                      padding: '3px 9px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      color: '#10B981',
+                      fontWeight: '900',
+                      fontSize: '13.5px'
+                    }}>
+                      {cert.gradePercent || cert.score}%
+                    </div>
+                  </div>
 
-                  <td style={{ padding: '16px 20px' }}>
+                  {/* Course & Honors Title */}
+                  <div>
                     <div style={{
                       display: 'inline-block',
                       padding: '2px 8px',
@@ -431,104 +587,266 @@ export const TeacherCertificatesView = () => {
                     }}>
                       {cert.honorsTitleAr}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                       {cert.courseNameAr}
                     </div>
-                  </td>
+                  </div>
 
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ fontSize: '15px', fontWeight: '900', color: '#10B981' }}>
-                      {cert.gradePercent || cert.score}%
-                    </div>
-                  </td>
-
-                  <td style={{ padding: '16px 20px' }}>
+                  {/* Serial, Date & Verification Badge */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '8px',
+                    borderTop: '1px solid var(--border-subtle)',
+                    fontSize: '11.5px',
+                    flexWrap: 'wrap',
+                    gap: '6px'
+                  }}>
+                    <span style={{ fontFamily: 'monospace', color: 'var(--text-secondary)', fontWeight: '700' }}>
+                      {cert.certNumber || cert.serialId}
+                    </span>
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '5px',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+                      gap: '4px',
                       color: '#10B981',
-                      fontSize: '11px',
                       fontWeight: '800'
                     }}>
                       <ShieldCheck size={13} />
                       <span>{lang === 'ar' ? 'معتمدة وموقعة' : 'Verified'}</span>
                     </span>
-                  </td>
+                  </div>
 
-                  <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <button
-                        onClick={() => setPreviewCert(cert)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.1)',
-                          color: '#3B82F6',
-                          border: 'none',
-                          fontSize: '12px',
-                          fontWeight: '800',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <FileCheck size={14} />
-                        <span>{lang === 'ar' ? 'معاينة' : 'Preview'}</span>
-                      </button>
+                  {/* Action Buttons: Preview & WhatsApp Image Share ONLY */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px',
+                    marginTop: '2px'
+                  }}>
+                    <button
+                      onClick={() => setPreviewCert(cert)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        backgroundColor: 'var(--primary-surface)',
+                        color: 'var(--primary)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '12.5px',
+                        fontWeight: '800',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <FileCheck size={14} />
+                      <span>{lang === 'ar' ? 'معاينة' : 'Preview'}</span>
+                    </button>
 
-                      <button
-                        onClick={() => handleShareRowWhatsApp(cert)}
-                        title={lang === 'ar' ? 'مشاركة عبر واتساب' : 'Share on WhatsApp'}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          backgroundColor: 'rgba(37, 211, 102, 0.12)',
-                          color: '#10B981',
-                          border: '1px solid rgba(37, 211, 102, 0.25)',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(37, 211, 102, 0.22)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(37, 211, 102, 0.12)'}
-                      >
-                        <MessageCircle size={14} color="#10B981" />
-                        <span>{lang === 'ar' ? 'واتساب' : 'WhatsApp'}</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleCopyLink(cert.certNumber || cert.serialId)}
-                        title={lang === 'ar' ? 'نسخ رابط التحقق' : 'Copy Verification Link'}
-                        style={{
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          backgroundColor: copiedId === (cert.certNumber || cert.serialId) ? '#10B981' : (isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9'),
-                          color: copiedId === (cert.certNumber || cert.serialId) ? '#FFFFFF' : 'var(--text-secondary)',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {copiedId === (cert.certNumber || cert.serialId) ? <Check size={14} /> : <Share2 size={14} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <button
+                      onClick={() => handleShareRowWhatsApp(cert)}
+                      disabled={isRowSharing}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        backgroundColor: '#25D366',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '12.5px',
+                        fontWeight: '800',
+                        cursor: isRowSharing ? 'wait' : 'pointer',
+                        opacity: isRowSharing ? 0.75 : 1,
+                        boxShadow: '0 2px 8px rgba(37, 211, 102, 0.3)'
+                      }}
+                    >
+                      {isRowSharing ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
+                      <span>{isRowSharing ? (lang === 'ar' ? 'تجهيز...' : 'Preparing...') : (lang === 'ar' ? 'صورة واتساب' : 'WhatsApp')}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
-      </div>
+      ) : (
+        /* Desktop Table */
+        <div style={{
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: '18px',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-xs)',
+          overflow: 'hidden'
+        }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              textAlign: isRtl ? 'right' : 'left',
+              fontSize: '13px'
+            }}>
+              <thead>
+                <tr style={{
+                  backgroundColor: 'var(--bg-subtle)',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  fontWeight: '800'
+                }}>
+                  <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'رقم الشهادة والتاريخ' : 'Serial & Date'}</th>
+                  <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'اسم الطالب' : 'Student Name'}</th>
+                  <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'نوع التقدير والكورس' : 'Honors & Course'}</th>
+                  <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'النسبة المئوية' : 'Score'}</th>
+                  <th style={{ padding: '16px 20px' }}>{lang === 'ar' ? 'حالة التوثيق' : 'Verification'}</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'center' }}>{lang === 'ar' ? 'إجراءات' : 'Actions'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCerts.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      <Award size={36} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                      <div>{lang === 'ar' ? 'لا توجد شهادات مطابقة لخيارات البحث' : 'No matching certificates found'}</div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCerts.map((cert) => {
+                    const isRowSharing = sharingRowId === cert.id;
+                    return (
+                      <tr
+                        key={cert.id}
+                        style={{
+                          borderBottom: '1px solid var(--border-subtle)',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                      >
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                            {cert.certNumber || cert.serialId}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {cert.issueDate}
+                          </div>
+                        </td>
 
-      {/* Official Certificate Preview Modal (Master Student Design with PNG Export & WhatsApp Sharing) */}
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                            {cert.studentNameAr}
+                          </div>
+                        </td>
+
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: isDark ? 'rgba(234, 179, 8, 0.15)' : 'rgba(234, 179, 8, 0.1)',
+                            color: '#D97706',
+                            fontWeight: '800',
+                            fontSize: '11px',
+                            marginBottom: '4px'
+                          }}>
+                            {cert.honorsTitleAr}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            {cert.courseNameAr}
+                          </div>
+                        </td>
+
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{ fontSize: '15px', fontWeight: '900', color: '#10B981' }}>
+                            {cert.gradePercent || cert.score}%
+                          </div>
+                        </td>
+
+                        <td style={{ padding: '16px 20px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+                            color: '#10B981',
+                            fontSize: '11px',
+                            fontWeight: '800'
+                          }}>
+                            <ShieldCheck size={13} />
+                            <span>{lang === 'ar' ? 'معتمدة وموقعة' : 'Verified'}</span>
+                          </span>
+                        </td>
+
+                        <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            {/* Preview Certificate */}
+                            <button
+                              onClick={() => setPreviewCert(cert)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: 'var(--primary-surface)',
+                                color: 'var(--primary)',
+                                border: '1px solid var(--border-subtle)',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                cursor: 'pointer',
+                                transition: 'opacity 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
+                              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                            >
+                              <FileCheck size={14} />
+                              <span>{lang === 'ar' ? 'معاينة' : 'Preview'}</span>
+                            </button>
+
+                            {/* WhatsApp Share as Image (3rd share button completely removed) */}
+                            <button
+                              onClick={() => handleShareRowWhatsApp(cert)}
+                              disabled={isRowSharing}
+                              title={lang === 'ar' ? 'مشاركة الشهادة كصورة عبر واتساب' : 'Share certificate image on WhatsApp'}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: '#25D366',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                cursor: isRowSharing ? 'wait' : 'pointer',
+                                opacity: isRowSharing ? 0.75 : 1,
+                                boxShadow: '0 2px 8px rgba(37, 211, 102, 0.25)',
+                                transition: 'opacity 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                            >
+                              {isRowSharing ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
+                              <span>{isRowSharing ? (lang === 'ar' ? 'جاري التجهيز...' : 'Preparing...') : (lang === 'ar' ? 'واتساب كـ صورة' : 'WhatsApp Image')}</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Official Certificate Preview Modal (Master Student Design with PNG Export & WhatsApp Image Sharing) */}
       {formattedPreviewCert && (
         <CertificateModal
           selectedCert={formattedPreviewCert}
@@ -537,7 +855,7 @@ export const TeacherCertificatesView = () => {
         />
       )}
 
-      {/* Issue Modal */}
+      {/* Issue Modal with Interactive Searchable Student Selector */}
       {showIssueModal && (
         <div style={{
           position: 'fixed',
@@ -545,22 +863,26 @@ export const TeacherCertificatesView = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backgroundColor: 'rgba(4, 25, 53, 0.75)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px',
+          padding: '16px',
           zIndex: 1100,
-          backdropFilter: 'blur(5px)'
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          direction: isRtl ? 'rtl' : 'ltr'
         }}>
           <div style={{
-            backgroundColor: isDark ? 'var(--bg-card)' : '#FFFFFF',
-            borderRadius: '24px',
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: '20px',
             width: '100%',
             maxWidth: '560px',
-            padding: '28px',
-            border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+            maxHeight: '92vh',
+            overflowY: 'auto',
+            padding: isMobile ? '20px 16px' : '26px 28px',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-lg)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -578,42 +900,144 @@ export const TeacherCertificatesView = () => {
             </div>
 
             <form onSubmit={handleIssueCertificate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Student Selector from Roster */}
+              {/* Student Selector with Interactive Search */}
               <div>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'اختيار الطالب (من قائمة الطلاب المسجلين بالمنصة)' : 'Select Student (Enrolled Roster)'} *
+                  {lang === 'ar' ? 'اختيار الطالب من قائمة طلابك المسجلين بالمقرر' : 'Select Student from Your Enrolled Course Students'} *
                 </label>
-                <select
-                  value={newCert.studentId}
-                  onChange={(e) => handleStudentSelect(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: '12px',
-                    border: `1.5px solid ${isDark ? 'var(--border-subtle)' : '#CBD5E1'}`,
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    fontWeight: '700',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {ENROLLED_STUDENTS.map(st => (
-                    <option key={st.id} value={st.id}>
-                      {st.nameAr} — {st.gradeAr}
-                    </option>
-                  ))}
-                </select>
-                <div style={{ fontSize: '11.5px', color: 'var(--primary)', fontWeight: '700', marginTop: '5px' }}>
-                  {lang === 'ar'
-                    ? `الاسم المعتمد على الشهادة: «${newCert.studentNameAr}»`
-                    : `Official Name on Certificate: ${newCert.studentNameAr}`}
+
+                {/* Search Bar for Enrolled Students */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '7px 12px',
+                  borderRadius: '10px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                  marginBottom: '8px'
+                }}>
+                  <Search size={14} color="var(--text-secondary)" />
+                  <input
+                    type="text"
+                    value={studentSearchQuery}
+                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                    placeholder={lang === 'ar' ? 'ابحث باسم الطالب أو رقم الهاتف...' : 'Search student by name or phone...'}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      color: 'var(--text-primary)',
+                      fontSize: '12.5px',
+                      width: '100%',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                  {studentSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setStudentSearchQuery('')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px' }}
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filterable Student Selection List */}
+                <div style={{
+                  maxHeight: '160px',
+                  overflowY: 'auto',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  backgroundColor: 'var(--bg-subtle)'
+                }}>
+                  {filteredEnrolledStudents.length === 0 ? (
+                    <div style={{ padding: '14px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {lang === 'ar' ? 'لا يوجد طالب يطابق هذا البحث' : 'No student matching this search'}
+                    </div>
+                  ) : (
+                    filteredEnrolledStudents.map((st) => {
+                      const isSelected = newCert.studentId === st.id;
+                      return (
+                        <div
+                          key={st.id}
+                          onClick={() => handleStudentSelect(st.id)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            backgroundColor: isSelected ? 'var(--primary-surface)' : 'var(--bg-surface)',
+                            border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div>
+                            <div style={{
+                              fontSize: '13px',
+                              fontWeight: isSelected ? '800' : '600',
+                              color: isSelected ? 'var(--primary)' : 'var(--text-primary)'
+                            }}>
+                              {st.nameAr}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '8px', marginTop: '2px' }}>
+                              <span>{st.gradeAr}</span>
+                              <span>•</span>
+                              <span style={{ direction: 'ltr' }}>{st.phone}</span>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div style={{
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              backgroundColor: 'var(--primary)',
+                              color: '#FFFFFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <Check size={12} strokeWidth={3} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Selected Student Confirmation Chip */}
+                <div style={{
+                  marginTop: '8px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--primary-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '11.5px',
+                  color: 'var(--primary)',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <UserCheck size={14} />
+                  <span>
+                    {lang === 'ar'
+                      ? `الطالب المختار: «${newCert.studentNameAr}» (${newCert.gradeAr})`
+                      : `Selected Student: ${newCert.studentNameAr} (${newCert.gradeAr})`}
+                  </span>
                 </div>
               </div>
 
               {/* Course & Score in a 2-column Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                     {lang === 'ar' ? 'المقرر الدراسي' : 'Course'} *
@@ -625,8 +1049,8 @@ export const TeacherCertificatesView = () => {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '12px',
-                      border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
                       color: 'var(--text-primary)',
                       fontSize: '13px',
                       fontWeight: '700',
@@ -655,8 +1079,8 @@ export const TeacherCertificatesView = () => {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '12px',
-                      border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
                       color: 'var(--text-primary)',
                       fontSize: '13px',
                       fontWeight: '700',
@@ -678,8 +1102,8 @@ export const TeacherCertificatesView = () => {
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '12px',
-                    border: `1px solid ${isDark ? 'var(--border-subtle)' : '#E2E8F0'}`,
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F8FAFC',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-subtle)',
                     color: 'var(--text-primary)',
                     fontSize: '13px',
                     fontWeight: '700',
@@ -703,15 +1127,15 @@ export const TeacherCertificatesView = () => {
               </div>
 
               {/* Actions Bar */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setShowIssueModal(false)}
                   style={{
                     padding: '10px 18px',
                     borderRadius: '12px',
-                    border: `1px solid ${isDark ? 'var(--border-medium)' : '#E2E8F0'}`,
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9',
+                    border: '1px solid var(--border-medium)',
+                    backgroundColor: 'var(--bg-subtle)',
                     color: 'var(--text-secondary)',
                     fontWeight: '700',
                     fontSize: '13px',
@@ -735,7 +1159,7 @@ export const TeacherCertificatesView = () => {
                     fontWeight: '800',
                     fontSize: '13px',
                     cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(21, 136, 199, 0.35)'
+                    boxShadow: 'var(--shadow-primary)'
                   }}
                 >
                   <Award size={15} />
