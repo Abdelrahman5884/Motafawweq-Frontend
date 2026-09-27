@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   X,
   FileCheck,
-  MessageCircle,
+  Share2,
   Loader2,
   Check,
   UserCheck,
@@ -45,10 +45,11 @@ export const TeacherCertificatesView = () => {
   // Student search within modal
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
-  // Row WhatsApp sharing state
+  // Row image sharing state
   const [sharingRowId, setSharingRowId] = useState(null);
   const [sharingCert, setSharingCert] = useState(null);
   const [toastNotice, setToastNotice] = useState(null);
+  const [isFramed, setIsFramed] = useState(false);
   const offscreenCertRef = useRef(null);
 
   // Mobile viewport detection
@@ -183,8 +184,8 @@ export const TeacherCertificatesView = () => {
     setPreviewCert(issued);
   };
 
-  // WhatsApp Share as Image (using Web Share API on mobile, or download + copy + WhatsApp Web on desktop)
-  const handleShareRowWhatsApp = async (cert) => {
+  // Share as Image (using Web Share API on mobile, or download + copy + WhatsApp Web on desktop)
+  const handleShareRowImage = async (cert) => {
     if (sharingRowId) return;
     setSharingRowId(cert.id);
     const formatted = formatCertForOfficial(cert);
@@ -239,13 +240,13 @@ export const TeacherCertificatesView = () => {
 
           window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
           setToastNotice(lang === 'ar'
-            ? 'تم تنزيل صورة الشهادة ونسخها للحافظة! يمكنك لصقها مباشرة في واتساب (Ctrl+V).'
-            : 'Certificate image downloaded & copied! Paste directly in WhatsApp (Ctrl+V).');
+            ? 'تم حفظ صورة الشهادة ونسخها للحافظة للمشاركة المباشرة.'
+            : 'Certificate image saved & copied for direct sharing.');
           setTimeout(() => setToastNotice(null), 5000);
         }
       }
     } catch (err) {
-      console.error('Failed to share certificate image via WhatsApp:', err);
+      console.error('Failed to share certificate image:', err);
     } finally {
       setSharingRowId(null);
     }
@@ -263,7 +264,19 @@ export const TeacherCertificatesView = () => {
       fontFamily: 'var(--font-arabic)',
       direction: isRtl ? 'rtl' : 'ltr'
     }}>
-      {/* Off-screen Document for Pristine WhatsApp PNG Export */}
+      {/* Dynamic Keyframes for Stat Card Framing Animation */}
+      <style>{`
+        @keyframes frameGlowPulse {
+          0% { box-shadow: 0 0 0 0 var(--primary-glow); transform: scale(0.99); }
+          50% { box-shadow: 0 0 0 6px var(--primary-glow); transform: scale(1.008); }
+          100% { box-shadow: 0 0 0 3px var(--primary), 0 8px 24px var(--primary-glow); transform: translateY(-2px); }
+        }
+        .stat-card-framed {
+          animation: frameGlowPulse 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+      `}</style>
+
+      {/* Off-screen Document for Pristine PNG Export */}
       <div
         aria-hidden="true"
         style={{
@@ -300,7 +313,7 @@ export const TeacherCertificatesView = () => {
           color: '#FFFFFF',
           padding: '12px 20px',
           borderRadius: '14px',
-          boxShadow: '0 12px 30px rgba(0,0,0,0.3), 0 0 0 1px rgba(37, 211, 102, 0.4)',
+          boxShadow: '0 12px 30px rgba(0,0,0,0.3), 0 0 0 1px rgba(21, 136, 199, 0.4)',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
@@ -309,7 +322,7 @@ export const TeacherCertificatesView = () => {
           maxWidth: '440px',
           animation: 'fadeIn 0.25s ease'
         }}>
-          <Check size={18} color="#4ADE80" />
+          <Check size={18} color="var(--primary-light)" />
           <span>{toastNotice}</span>
         </div>
       )}
@@ -331,12 +344,13 @@ export const TeacherCertificatesView = () => {
               gap: '6px',
               padding: '4px 12px',
               borderRadius: '8px',
-              backgroundColor: isDark ? 'rgba(234, 179, 8, 0.16)' : 'rgba(234, 179, 8, 0.12)',
-              color: '#D97706',
+              backgroundColor: 'var(--primary-surface)',
+              color: 'var(--primary)',
+              border: '1px solid rgba(21, 136, 199, 0.2)',
               fontSize: '11.5px',
               fontWeight: '800'
             }}>
-              <Award size={14} />
+              <Award size={14} color="var(--primary)" />
               <span>{lang === 'ar' ? 'إصدار وتوثيق الشهادات المعتمدة' : 'Official Certificates Hub'}</span>
             </span>
           </div>
@@ -392,64 +406,70 @@ export const TeacherCertificatesView = () => {
         </button>
       </div>
 
-      {/* Top Stats Banner */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '14px',
-        marginBottom: '24px'
-      }}>
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: '16px',
-          border: '1px solid var(--border-subtle)',
-          padding: '18px 20px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'إجمالي الشهادات الممنوحة' : 'Total Certificates'}
+      {/* Top Stats - Single Focused Card for Total Certificates with Click Framing Animation */}
+      <div style={{ marginBottom: '24px' }}>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsFramed(prev => !prev)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsFramed(prev => !prev); } }}
+          className={isFramed ? 'stat-card-framed' : ''}
+          title={lang === 'ar' ? (isFramed ? 'انقر لإلغاء التحديد' : 'انقر لتأطير البطاقة وتمييزها') : (isFramed ? 'Click to unframe' : 'Click to frame card')}
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: '16px',
+            border: isFramed ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+            padding: '18px 22px',
+            boxShadow: isFramed ? '0 0 0 3px var(--primary), 0 8px 24px var(--primary-glow)' : 'var(--shadow-xs)',
+            transform: isFramed ? 'translateY(-2px)' : 'none',
+            transition: 'border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
+            cursor: 'pointer',
+            userSelect: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            maxWidth: isMobile ? '100%' : '380px'
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'إجمالي الشهادات الممنوحة' : 'Total Certificates'}
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1 }}>
+              184
+            </div>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '11px',
+              color: 'var(--primary)',
+              fontWeight: '800',
+              marginTop: '8px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              backgroundColor: 'var(--primary-surface)',
+              border: '1px solid rgba(21, 136, 199, 0.18)'
+            }}>
+              <ShieldCheck size={13} />
+              <span>{lang === 'ar' ? 'مصدقة ومعتمدة برمز QR' : 'Cryptographically verified'}</span>
+            </div>
           </div>
-          <div style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-primary)' }}>
-            184
-          </div>
-          <div style={{ fontSize: '11px', color: '#10B981', fontWeight: '700', marginTop: '4px' }}>
-            {lang === 'ar' ? 'مصدقة ومعتمدة برمز QR' : 'Cryptographically verified'}
-          </div>
-        </div>
 
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: '16px',
-          border: '1px solid var(--border-subtle)',
-          padding: '18px 20px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'شهادات الدرجة النهائية (Full Mark)' : 'Full Mark Honors'}
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: '900', color: '#EAB308' }}>
-            62
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '4px' }}>
-            {lang === 'ar' ? 'حصلوا على 100% في امتحانات الشهور' : 'Students scored 100%'}
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: '16px',
-          border: '1px solid var(--border-subtle)',
-          padding: '18px 20px',
-          boxShadow: 'var(--shadow-xs)'
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'شهادات صدارة الدوري' : 'League Champions'}
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: '900', color: '#8B5CF6' }}>
-            24
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '4px' }}>
-            {lang === 'ar' ? 'مراكز الذهب والفضة والبرونز' : 'Podium placements'}
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            backgroundColor: isFramed ? 'var(--primary)' : 'var(--primary-surface)',
+            color: isFramed ? '#FFFFFF' : 'var(--primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.25s ease',
+            flexShrink: 0
+          }}>
+            <Award size={24} />
           </div>
         </div>
       </div>
@@ -562,10 +582,11 @@ export const TeacherCertificatesView = () => {
                       {cert.studentNameAr}
                     </div>
                     <div style={{
-                      padding: '3px 9px',
+                      padding: '3px 10px',
                       borderRadius: '8px',
-                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                      color: '#10B981',
+                      backgroundColor: 'var(--primary-surface)',
+                      color: 'var(--primary)',
+                      border: '1px solid rgba(21, 136, 199, 0.2)',
                       fontWeight: '900',
                       fontSize: '13.5px'
                     }}>
@@ -577,10 +598,11 @@ export const TeacherCertificatesView = () => {
                   <div>
                     <div style={{
                       display: 'inline-block',
-                      padding: '2px 8px',
+                      padding: '3px 9px',
                       borderRadius: '6px',
-                      backgroundColor: isDark ? 'rgba(234, 179, 8, 0.15)' : 'rgba(234, 179, 8, 0.1)',
-                      color: '#D97706',
+                      backgroundColor: 'var(--primary-surface)',
+                      color: 'var(--primary)',
+                      border: '1px solid rgba(21, 136, 199, 0.2)',
                       fontWeight: '800',
                       fontSize: '11px',
                       marginBottom: '4px'
@@ -610,7 +632,7 @@ export const TeacherCertificatesView = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
-                      color: '#10B981',
+                      color: 'var(--primary)',
                       fontWeight: '800'
                     }}>
                       <ShieldCheck size={13} />
@@ -618,7 +640,7 @@ export const TeacherCertificatesView = () => {
                     </span>
                   </div>
 
-                  {/* Action Buttons: Preview & WhatsApp Image Share ONLY */}
+                  {/* Action Buttons: Preview & Share Image ONLY */}
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
@@ -636,7 +658,7 @@ export const TeacherCertificatesView = () => {
                         borderRadius: '10px',
                         backgroundColor: 'var(--primary-surface)',
                         color: 'var(--primary)',
-                        border: '1px solid var(--border-subtle)',
+                        border: '1px solid rgba(21, 136, 199, 0.25)',
                         fontSize: '12.5px',
                         fontWeight: '800',
                         cursor: 'pointer'
@@ -647,7 +669,7 @@ export const TeacherCertificatesView = () => {
                     </button>
 
                     <button
-                      onClick={() => handleShareRowWhatsApp(cert)}
+                      onClick={() => handleShareRowImage(cert)}
                       disabled={isRowSharing}
                       style={{
                         display: 'inline-flex',
@@ -656,18 +678,19 @@ export const TeacherCertificatesView = () => {
                         gap: '6px',
                         padding: '9px 12px',
                         borderRadius: '10px',
-                        backgroundColor: '#25D366',
+                        backgroundColor: 'var(--primary)',
                         color: '#FFFFFF',
                         border: 'none',
                         fontSize: '12.5px',
                         fontWeight: '800',
                         cursor: isRowSharing ? 'wait' : 'pointer',
                         opacity: isRowSharing ? 0.75 : 1,
-                        boxShadow: '0 2px 8px rgba(37, 211, 102, 0.3)'
+                        boxShadow: '0 2px 8px var(--primary-glow)',
+                        transition: 'opacity 0.15s ease'
                       }}
                     >
-                      {isRowSharing ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
-                      <span>{isRowSharing ? (lang === 'ar' ? 'تجهيز...' : 'Preparing...') : (lang === 'ar' ? 'صورة واتساب' : 'WhatsApp')}</span>
+                      {isRowSharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                      <span>{isRowSharing ? (lang === 'ar' ? 'تجهيز...' : 'Preparing...') : (lang === 'ar' ? 'مشاركة كصورة' : 'Share Image')}</span>
                     </button>
                   </div>
                 </div>
@@ -743,10 +766,11 @@ export const TeacherCertificatesView = () => {
                         <td style={{ padding: '16px 20px' }}>
                           <div style={{
                             display: 'inline-block',
-                            padding: '2px 8px',
+                            padding: '3px 9px',
                             borderRadius: '6px',
-                            backgroundColor: isDark ? 'rgba(234, 179, 8, 0.15)' : 'rgba(234, 179, 8, 0.1)',
-                            color: '#D97706',
+                            backgroundColor: 'var(--primary-surface)',
+                            color: 'var(--primary)',
+                            border: '1px solid rgba(21, 136, 199, 0.2)',
                             fontWeight: '800',
                             fontSize: '11px',
                             marginBottom: '4px'
@@ -759,7 +783,7 @@ export const TeacherCertificatesView = () => {
                         </td>
 
                         <td style={{ padding: '16px 20px' }}>
-                          <div style={{ fontSize: '15px', fontWeight: '900', color: '#10B981' }}>
+                          <div style={{ fontSize: '15px', fontWeight: '900', color: 'var(--primary)' }}>
                             {cert.gradePercent || cert.score}%
                           </div>
                         </td>
@@ -769,10 +793,11 @@ export const TeacherCertificatesView = () => {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '5px',
-                            padding: '3px 8px',
+                            padding: '4px 9px',
                             borderRadius: '6px',
-                            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
-                            color: '#10B981',
+                            backgroundColor: 'var(--primary-surface)',
+                            color: 'var(--primary)',
+                            border: '1px solid rgba(21, 136, 199, 0.2)',
                             fontSize: '11px',
                             fontWeight: '800'
                           }}>
@@ -790,11 +815,11 @@ export const TeacherCertificatesView = () => {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '5px',
-                                padding: '6px 12px',
+                                padding: '7px 13px',
                                 borderRadius: '8px',
                                 backgroundColor: 'var(--primary-surface)',
                                 color: 'var(--primary)',
-                                border: '1px solid var(--border-subtle)',
+                                border: '1px solid rgba(21, 136, 199, 0.25)',
                                 fontSize: '12px',
                                 fontWeight: '800',
                                 cursor: 'pointer',
@@ -807,32 +832,32 @@ export const TeacherCertificatesView = () => {
                               <span>{lang === 'ar' ? 'معاينة' : 'Preview'}</span>
                             </button>
 
-                            {/* WhatsApp Share as Image (3rd share button completely removed) */}
+                            {/* Share as Image */}
                             <button
-                              onClick={() => handleShareRowWhatsApp(cert)}
+                              onClick={() => handleShareRowImage(cert)}
                               disabled={isRowSharing}
-                              title={lang === 'ar' ? 'مشاركة الشهادة كصورة عبر واتساب' : 'Share certificate image on WhatsApp'}
+                              title={lang === 'ar' ? 'مشاركة الشهادة كصورة' : 'Share certificate image'}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '5px',
-                                padding: '6px 12px',
+                                padding: '7px 13px',
                                 borderRadius: '8px',
-                                backgroundColor: '#25D366',
+                                backgroundColor: 'var(--primary)',
                                 color: '#FFFFFF',
                                 border: 'none',
                                 fontSize: '12px',
                                 fontWeight: '800',
                                 cursor: isRowSharing ? 'wait' : 'pointer',
                                 opacity: isRowSharing ? 0.75 : 1,
-                                boxShadow: '0 2px 8px rgba(37, 211, 102, 0.25)',
+                                boxShadow: '0 2px 8px var(--primary-glow)',
                                 transition: 'opacity 0.15s ease'
                               }}
                               onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
                               onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                             >
-                              {isRowSharing ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
-                              <span>{isRowSharing ? (lang === 'ar' ? 'جاري التجهيز...' : 'Preparing...') : (lang === 'ar' ? 'واتساب كـ صورة' : 'WhatsApp Image')}</span>
+                              {isRowSharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                              <span>{isRowSharing ? (lang === 'ar' ? 'جاري التجهيز...' : 'Preparing...') : (lang === 'ar' ? 'مشاركة كصورة' : 'Share Image')}</span>
                             </button>
                           </div>
                         </td>

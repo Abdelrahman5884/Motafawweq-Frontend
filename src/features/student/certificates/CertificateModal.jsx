@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { X, Download, Check, Copy, ShieldCheck, Loader2, MessageCircle } from 'lucide-react';
+import { X, Download, Check, Copy, ShieldCheck, Loader2, Share2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { OfficialCertificateDocument } from './OfficialCertificateDocument';
 
@@ -73,7 +73,7 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
         } catch (clipErr) {}
 
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-        setShareNotice(isAr ? 'تم تنزيل صورة الشهادة ونسخها للحافظة! يمكنك لصقها مباشرة في واتساب (Ctrl+V).' : 'Certificate image downloaded & copied! Paste directly in WhatsApp.');
+        setShareNotice(isAr ? 'تم حفظ صورة الشهادة ونسخها للحافظة للمشاركة المباشرة.' : 'Certificate image saved & copied for direct sharing.');
         setTimeout(() => setShareNotice(null), 5000);
       }
     } catch (err) {
@@ -236,9 +236,9 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
           <div style={{
             padding: '10px 16px',
             borderRadius: '10px',
-            backgroundColor: 'rgba(37, 211, 102, 0.15)',
-            border: '1px solid rgba(37, 211, 102, 0.35)',
-            color: '#4ADE80',
+            backgroundColor: 'rgba(21, 136, 199, 0.15)',
+            border: '1px solid rgba(21, 136, 199, 0.35)',
+            color: 'var(--primary-light)',
             fontSize: '13px',
             fontWeight: '600',
             display: 'flex',
@@ -287,7 +287,7 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
               <span>{copied ? (isAr ? 'تم نسخ رابط التوثيق!' : 'Link Copied!') : (isAr ? 'نسخ رابط التوثيق الرسمي' : 'Copy Verification Link')}</span>
             </button>
 
-            {/* Share on WhatsApp as Image */}
+            {/* Share as Image */}
             <button
               onClick={handleShareWhatsApp}
               disabled={isSharing}
@@ -297,22 +297,21 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
                 gap: '6px',
                 padding: '10px 16px',
                 borderRadius: '12px',
-                backgroundColor: '#25D366',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 color: '#FFFFFF',
-                border: 'none',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
                 fontSize: '12.5px',
-                fontWeight: '800',
+                fontWeight: '700',
                 cursor: isSharing ? 'wait' : 'pointer',
-                boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)',
                 opacity: isSharing ? 0.7 : 1,
                 transition: 'all 0.15s ease'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-              title={isAr ? 'مشاركة صورة الشهادة عبر واتساب' : 'Share certificate image via WhatsApp'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.14)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
+              title={isAr ? 'مشاركة صورة الشهادة' : 'Share certificate image'}
             >
-              {isSharing ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />}
-              <span>{isSharing ? (isAr ? 'جاري تجهيز الصورة...' : 'Preparing...') : (isAr ? 'مشاركة كـ صورة واتساب' : 'Share as Image')}</span>
+              {isSharing ? <Loader2 size={15} className="animate-spin" /> : <Share2 size={15} />}
+              <span>{isSharing ? (isAr ? 'جاري تجهيز الصورة...' : 'Preparing...') : (isAr ? 'مشاركة كصورة' : 'Share Image')}</span>
             </button>
           </div>
 
