@@ -72,6 +72,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
     if (currentPath.startsWith('/student/revision')) return lang === 'ar' ? 'المراجعة الذكية' : 'Smart Revision';
     if (currentPath.startsWith('/student/quiz')) return lang === 'ar' ? 'الكويزات والتدريبات' : 'Quizzes';
     if (currentPath.startsWith('/student/gamification')) return lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements';
+    if (currentPath.startsWith('/student/groups') || currentPath.startsWith('/student/classes')) return lang === 'ar' ? 'مجموعاتي الدراسية' : 'My Cohorts';
     if (currentPath.startsWith('/student/certificates')) return lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates';
     if (currentPath.startsWith('/student/billing')) return lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription';
     if (currentPath.startsWith('/student/settings')) return lang === 'ar' ? 'إعدادات الحساب والملف' : 'Account Settings';

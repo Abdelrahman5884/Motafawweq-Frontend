@@ -83,6 +83,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             group: lang === 'ar' ? 'الرئيسية' : 'Main',
             items: [
               { id: 'student-dashboard', path: '/student/dashboard', label: lang === 'ar' ? 'الرئيسية' : 'Home', icon: LayoutDashboard },
+              { id: 'student-groups', path: '/student/groups', label: lang === 'ar' ? 'مجموعاتي الدراسية' : 'My Cohorts', icon: Building2 },
               { id: 'my-lessons', path: '/student/lesson', label: lang === 'ar' ? 'حصصي' : 'My Lessons', icon: PlayCircle },
               { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
               { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات' : 'Exams', icon: ClipboardList },

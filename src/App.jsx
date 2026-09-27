@@ -37,6 +37,8 @@ import { StudentRoster } from './views/teacher/StudentRoster';
 import { TeacherFinancials } from './views/teacher/TeacherFinancials';
 import { AIProcessingScreen } from './views/teacher/AIProcessingScreen';
 
+import { GroupsProvider } from './context/GroupsContext';
+
 // Student Views
 import { StudentDashboard } from './views/student/StudentDashboard';
 import { StudentCoursesView } from './views/student/StudentCoursesView';
@@ -54,6 +56,7 @@ import { StudentCertificatesView } from './views/student/StudentCertificatesView
 import { StudentBillingView } from './views/student/StudentBillingView';
 import { WeakAreasHub } from './views/student/WeakAreasHub';
 import { StudentSettingsView } from './views/student/StudentSettingsView';
+import { StudentGroupsView } from './views/student/StudentGroupsView';
 
 // Parent Views
 import { ParentDashboard } from './views/parent/ParentDashboard';
@@ -222,73 +225,77 @@ export default function App() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <AppShell>
-              <Routes>
-                {/* Public & Website Routes */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/features" element={<FeaturesPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="/marketplace" element={<MarketplacePage />} />
+          <GroupsProvider>
+            <BrowserRouter>
+              <AppShell>
+                <Routes>
+                  {/* Public & Website Routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/features" element={<FeaturesPage />} />
+                  <Route path="/pricing" element={<PricingPage />} />
+                  <Route path="/marketplace" element={<MarketplacePage />} />
 
-                {/* Authentication Routes */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  {/* Authentication Routes */}
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-                {/* Teacher Routes */}
-                <Route path="/teacher" element={<Navigate to="/teacher/dashboard" replace />} />
-                <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-                <Route path="/teacher/courses" element={<TeacherCoursesView />} />
-                <Route path="/teacher/exams" element={<TeacherExamsView />} />
-                <Route path="/teacher/homework" element={<TeacherHomeworkView />} />
-                <Route path="/teacher/league" element={<TeacherLeagueView />} />
-                <Route path="/teacher/analytics" element={<TeacherAnalyticsView />} />
-                <Route path="/teacher/certificates" element={<TeacherCertificatesView />} />
-                <Route path="/teacher/settings" element={<TeacherSettingsView />} />
-                <Route path="/teacher/studio" element={<RecordingStudio />} />
-                <Route path="/teacher/workspace" element={<LessonWorkspace />} />
-                <Route path="/teacher/classes" element={<ClassManager />} />
-                <Route path="/teacher/students" element={<StudentRoster />} />
-                <Route path="/teacher/financials" element={<TeacherFinancials />} />
-                <Route path="/teacher/processing" element={<AIProcessingScreen />} />
+                  {/* Teacher Routes */}
+                  <Route path="/teacher" element={<Navigate to="/teacher/dashboard" replace />} />
+                  <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+                  <Route path="/teacher/courses" element={<TeacherCoursesView />} />
+                  <Route path="/teacher/exams" element={<TeacherExamsView />} />
+                  <Route path="/teacher/homework" element={<TeacherHomeworkView />} />
+                  <Route path="/teacher/league" element={<TeacherLeagueView />} />
+                  <Route path="/teacher/analytics" element={<TeacherAnalyticsView />} />
+                  <Route path="/teacher/certificates" element={<TeacherCertificatesView />} />
+                  <Route path="/teacher/settings" element={<TeacherSettingsView />} />
+                  <Route path="/teacher/studio" element={<RecordingStudio />} />
+                  <Route path="/teacher/workspace" element={<LessonWorkspace />} />
+                  <Route path="/teacher/classes" element={<ClassManager />} />
+                  <Route path="/teacher/students" element={<StudentRoster />} />
+                  <Route path="/teacher/financials" element={<TeacherFinancials />} />
+                  <Route path="/teacher/processing" element={<AIProcessingScreen />} />
 
-                {/* Student Routes */}
-                <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
-                <Route path="/student/dashboard" element={<StudentDashboard />} />
-                <Route path="/student/courses" element={<StudentCoursesView />} />
-                <Route path="/student/lesson" element={<StudentLessonView />} />
-                <Route path="/student/quiz" element={<StudentQuizView />} />
-                <Route path="/student/homework" element={<StudentHomeworkView />} />
-                <Route path="/student/exam" element={<ExamTakingView />} />
-                <Route path="/student/smart-lecture" element={<StudentSmartLectureView />} />
-                <Route path="/student/converted-lectures" element={<StudentConvertedLecturesView />} />
-                <Route path="/student/revision" element={<StudentRevisionView />} />
-                <Route path="/student/league" element={<StudentLeagueView />} />
-                <Route path="/student/analytics" element={<Navigate to="/student/league" replace />} />
-                <Route path="/student/gamification" element={<StudentGamificationView />} />
-                <Route path="/student/certificates" element={<StudentCertificatesView />} />
-                <Route path="/student/billing" element={<StudentBillingView />} />
-                <Route path="/student/weak-areas" element={<WeakAreasHub />} />
-                <Route path="/student/settings" element={<StudentSettingsView />} />
+                  {/* Student Routes */}
+                  <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+                  <Route path="/student/dashboard" element={<StudentDashboard />} />
+                  <Route path="/student/groups" element={<StudentGroupsView />} />
+                  <Route path="/student/classes" element={<StudentGroupsView />} />
+                  <Route path="/student/courses" element={<StudentCoursesView />} />
+                  <Route path="/student/lesson" element={<StudentLessonView />} />
+                  <Route path="/student/quiz" element={<StudentQuizView />} />
+                  <Route path="/student/homework" element={<StudentHomeworkView />} />
+                  <Route path="/student/exam" element={<ExamTakingView />} />
+                  <Route path="/student/smart-lecture" element={<StudentSmartLectureView />} />
+                  <Route path="/student/converted-lectures" element={<StudentConvertedLecturesView />} />
+                  <Route path="/student/revision" element={<StudentRevisionView />} />
+                  <Route path="/student/league" element={<StudentLeagueView />} />
+                  <Route path="/student/analytics" element={<Navigate to="/student/league" replace />} />
+                  <Route path="/student/gamification" element={<StudentGamificationView />} />
+                  <Route path="/student/certificates" element={<StudentCertificatesView />} />
+                  <Route path="/student/billing" element={<StudentBillingView />} />
+                  <Route path="/student/weak-areas" element={<WeakAreasHub />} />
+                  <Route path="/student/settings" element={<StudentSettingsView />} />
 
-                {/* Parent Portal Route */}
-                <Route path="/parent" element={<Navigate to="/parent/dashboard" replace />} />
-                <Route path="/parent/dashboard" element={<ParentDashboard />} />
+                  {/* Parent Portal Route */}
+                  <Route path="/parent" element={<Navigate to="/parent/dashboard" replace />} />
+                  <Route path="/parent/dashboard" element={<ParentDashboard />} />
 
-                {/* Center Portal Route */}
-                <Route path="/center" element={<Navigate to="/center/dashboard" replace />} />
-                <Route path="/center/dashboard" element={<CenterDashboard />} />
+                  {/* Center Portal Route */}
+                  <Route path="/center" element={<Navigate to="/center/dashboard" replace />} />
+                  <Route path="/center/dashboard" element={<CenterDashboard />} />
 
-                {/* Admin Portal Route */}
-                <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                  {/* Admin Portal Route */}
+                  <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+                  <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
-                {/* Fallback Catch-all Route */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </AppShell>
-          </BrowserRouter>
+                  {/* Fallback Catch-all Route */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </AppShell>
+            </BrowserRouter>
+          </GroupsProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
