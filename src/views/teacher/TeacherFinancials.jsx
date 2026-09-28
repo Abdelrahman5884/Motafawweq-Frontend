@@ -1,102 +1,134 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { MOCK_TEACHER_EARNINGS } from '../../data/mockData';
-import { ArrowDownRight } from 'lucide-react';
+import { MOCK_TEACHER_DIRECT_PAYMENTS } from '../../data/teacherData';
+import { CreditCard, ArrowRight, ArrowLeft } from 'lucide-react';
 import {
   FinancialsOverviewCards,
-  TransactionsHistoryList,
-  WithdrawModal
+  TransactionsHistoryList
 } from '../../features/teacher/financials';
 
 export const TeacherFinancials = () => {
+  const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('24600');
-  const [withdrawMethod, setWithdrawMethod] = useState('cib'); // 'cib' | 'instapay'
-  const [successMessage, setSuccessMessage] = useState(false);
+  const isAr = lang === 'ar';
 
   const earnings = MOCK_TEACHER_EARNINGS;
-
-  const handleWithdraw = (e) => {
-    e.preventDefault();
-    setSuccessMessage(true);
-    setTimeout(() => {
-      setSuccessMessage(false);
-      setShowWithdrawModal(false);
-    }, 2000);
-  };
+  const directPayments = MOCK_TEACHER_DIRECT_PAYMENTS;
 
   return (
-    <div style={{
-      maxWidth: '1000px',
-      margin: '0 auto',
-      padding: '36px 24px 80px'
-    }}>
+    <div
+      style={{
+        maxWidth: '1060px',
+        margin: '0 auto',
+        padding: '36px 20px 80px',
+        direction: isRtl ? 'rtl' : 'ltr',
+        fontFamily: isRtl ? 'var(--font-arabic), "Cairo", system-ui, sans-serif' : 'var(--font-heading), "Outfit", sans-serif'
+      }}
+    >
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '30px',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}
+      >
         <div>
-          <h1 style={{
-            fontSize: '26px',
-            fontWeight: '800',
-            color: 'var(--text-primary)',
-            margin: '0 0 6px 0',
-            fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
-          }}>
-            {lang === 'ar' ? 'المحفظة المالية والأرباح (بالجنيه المصري 🇪🇬)' : 'Financial Earnings & Payouts (EGP 🇪🇬)'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span
+              style={{
+                padding: '3px 10px',
+                borderRadius: '99px',
+                backgroundColor: 'var(--primary-light)',
+                color: 'var(--primary)',
+                fontSize: '11px',
+                fontWeight: '900'
+              }}
+            >
+              {isAr ? 'التحويل المباشر للمعلم' : 'Direct Educator Payout'}
+            </span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>•</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              {isAr ? 'بدون وساطة مالية من المنصة' : 'Zero Platform Escrow'}
+            </span>
+          </div>
+
+          <h1
+            style={{
+              fontSize: '25px',
+              fontWeight: '900',
+              color: 'var(--text-primary)',
+              margin: '0 0 6px 0',
+              letterSpacing: '-0.3px'
+            }}
+          >
+            {isAr ? 'سجل مدفوعات الطلاب واشتراكات المقررات' : 'Direct Student Payments & Course Enrollments'}
           </h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
-            {lang === 'ar' ? 'متابعة اشتراكات الطلاب، عمولات السناتر، والسحب عبر الحسابات البنكية وإنستاباي' : 'Track student subscriptions, center splits, and payout withdrawals to CIB & InstaPay'}
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
+            {isAr
+              ? 'متابعة الطلاب المشتركين والتحويلات المستلمة مباشرة على حساباتك (إنستاباي / فودافون كاش / بنكي).'
+              : 'Monitor student course enrollments and direct payments received to your verified receiving channels.'}
           </p>
         </div>
 
-        <button
-          onClick={() => setShowWithdrawModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 24px',
-            borderRadius: 'var(--radius-full)',
-            backgroundColor: 'var(--success)',
-            color: '#FFFFFF',
-            border: 'none',
-            fontSize: '14px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(22, 163, 74, 0.35)'
-          }}
-        >
-          <ArrowDownRight size={16} />
-          <span>{lang === 'ar' ? 'طلب سحب رصيد (Instant Payout)' : 'Request Payout'}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => navigate('/teacher/billing')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--primary)',
+              border: '1.5px solid var(--primary)',
+              fontSize: '13.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <CreditCard size={15} />
+            <span>{isAr ? 'باقات اشتراك المعلم' : 'Teacher Plans'}</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/teacher/settings')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '13.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(21, 136, 199, 0.35)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <CreditCard size={15} />
+            <span>{isAr ? 'إدارة حسابات الاستلام' : 'Manage Receiving Accounts'}</span>
+          </button>
+        </div>
       </div>
 
       {/* 3 Overview Cards */}
       <FinancialsOverviewCards earnings={earnings} lang={lang} />
 
       {/* Transactions History Table */}
-      <TransactionsHistoryList transactions={earnings.transactions} lang={lang} isRtl={isRtl} />
-
-      {/* Withdrawal Modal */}
-      <WithdrawModal
-        showWithdrawModal={showWithdrawModal}
-        withdrawAmount={withdrawAmount}
-        setWithdrawAmount={setWithdrawAmount}
-        withdrawMethod={withdrawMethod}
-        setWithdrawMethod={setWithdrawMethod}
-        successMessage={successMessage}
-        pendingPayoutEgp={earnings.pendingPayoutEgp}
-        lang={lang}
-        onWithdraw={handleWithdraw}
-        onClose={() => setShowWithdrawModal(false)}
-      />
+      <TransactionsHistoryList transactions={directPayments} lang={lang} isRtl={isRtl} />
     </div>
   );
 };
+
+export default TeacherFinancials;

@@ -73,6 +73,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: Users },
               { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Building2 },
               { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign },
+              { id: 'teacher-billing', path: '/teacher/billing', label: lang === 'ar' ? 'الاشتراكات وباقات المعلم' : 'Plans & Billing', icon: CreditCard },
               { id: 'teacher-settings', path: '/teacher/settings', label: lang === 'ar' ? 'إعدادات المعلم' : 'Teacher Settings', icon: Settings },
             ]
           }

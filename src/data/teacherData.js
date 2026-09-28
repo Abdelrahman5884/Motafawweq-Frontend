@@ -375,3 +375,298 @@ export const TEACHER_CERTIFICATES = [
     status: 'verified'
   }
 ];
+
+export const TEACHER_SUBSCRIPTION_PLANS = [
+  {
+    id: 'plan-teacher-free',
+    nameAr: 'الباقة المجانية',
+    nameEn: 'Free Plan',
+    tier: 'free',
+    pricing: {
+      monthly: { priceEgp: 0, originalPriceEgp: null, periodAr: 'دائم مجاناً', periodEn: 'Free Forever', badgeAr: 'بدون أي تكلفة', badgeEn: '100% Free' },
+      term: { priceEgp: 0, originalPriceEgp: null, periodAr: 'دائم مجاناً', periodEn: 'Free Forever', badgeAr: 'بدون أي تكلفة', badgeEn: '100% Free' },
+      annual: { priceEgp: 0, originalPriceEgp: null, periodAr: 'دائم مجاناً', periodEn: 'Free Forever', badgeAr: 'بدون أي تكلفة', badgeEn: '100% Free' }
+    },
+    priceEgp: 0,
+    periodAr: 'دائم مجاناً',
+    periodEn: 'Free Forever',
+    badgeAr: 'بدون أي تكلفة',
+    badgeEn: '100% Free',
+    featuresAr: [
+      'إنشاء دورة تدريبية واحدة (1 كورس نشط مفتوح للطلاب)',
+      'سعة استيعاب حتى 50 طالباً مسجلاً',
+      'إضافة روابط الحصص والمحاضرات الخارجية (YouTube / Google Drive / Vimeo)',
+      'بنك أسئلة يدوي أساسي (حتى 50 سؤالاً) وتصحيح بسيط',
+      'تسجيل ومتابعة حضور وغياب الطلاب',
+      'تصدير كشوف أسماء الطلاب والدرجات بصيغة PDF'
+    ],
+    featuresEn: [
+      'Create 1 active public course for students',
+      'Up to 50 enrolled students capacity',
+      'External lecture links (YouTube / Google Drive / Vimeo)',
+      'Basic manual question bank (up to 50 questions) & basic grading',
+      'Student attendance and absence tracking',
+      'Export student rosters & grades as PDF'
+    ],
+    limitationsAr: [
+      'غير شاملة استوديو المعالجة الذكي وتفريغ المحاضرات بالذكاء الاصطناعي',
+      'غير شاملة قاعات البث المباشر التفاعلي',
+      'علامة مائية عادية لمنصة متفوق على المحتوى',
+      'غير شاملة إصدار الشهادات المعتمدة برمز QR',
+      'غير شاملة الربط الآلي بواتساب لأولياء الأمور'
+    ],
+    limitationsEn: [
+      'Excludes AI lecture transcription & smart summaries',
+      'Excludes Interactive Live Rooms broadcasting',
+      'Standard Motafawweq watermark on video player',
+      'Excludes QR-verified completion certificates',
+      'Excludes automated WhatsApp alerts for parents'
+    ],
+    color: '#64748B',
+    popular: false
+  },
+  {
+    id: 'plan-teacher-plus',
+    nameAr: 'باقة المعلم بلس',
+    nameEn: 'Teacher Plus',
+    tier: 'plus',
+    pricing: {
+      monthly: { priceEgp: 120, originalPriceEgp: null, periodAr: 'شهرياً', periodEn: 'per month', badgeAr: 'الأنسب لمعلمي المجموعات', badgeEn: 'Best for Group Tutors' },
+      term: { priceEgp: 480, originalPriceEgp: 600, periodAr: 'للترم (5 شهور)', periodEn: 'per semester (5 mo)', badgeAr: 'توفير 20% (وفر 120 ج.م)', badgeEn: 'Save 20% (120 EGP off)' },
+      annual: { priceEgp: 900, originalPriceEgp: 1200, periodAr: 'للعام كاملاً (10 شهور)', periodEn: 'per full year (10 mo)', badgeAr: 'توفير 25% (وفر 300 ج.م)', badgeEn: 'Save 25% (300 EGP off)' }
+    },
+    priceEgp: 120,
+    periodAr: 'شهرياً',
+    periodEn: 'per month',
+    badgeAr: 'الأنسب لمعلمي المجموعات',
+    badgeEn: 'Best for Group Tutors',
+    featuresAr: [
+      'جميع مزايا الباقة المجانية بالكامل',
+      'إنشاء حتى 10 كورسات ومقررات دراسية نشطة',
+      'سعة حتى 500 طالب نشط عبر السناتر والمنصة أونلاين',
+      'بنك أسئلة متكامل بنظام البابل شيت مع التصحيح الفوري الآلي',
+      'إطلاق وتنظيم دوري كورس المتفوقين والتحديات التنافسية للطلاب',
+      'حماية الفيديو بعلامة مائية متحركة برقم هاتف الطالب واسم المعلم',
+      'لوحة تحليلات تفصيلية لمستوى تحصيل الطلاب ونقاط التعثر',
+      'إصدار وتوثيق شهادات إتمام المقررات برمز QR معتمد',
+      'نظام تصحيح وتصنيف الواجبات الإلكترونية والورقية',
+      'معالجة ذكية بالذكاء الاصطناعي (60 دقيقة شهرياً لتفريغ المحاضرات وتوليد الكويزات)',
+      'دعم فني قياسي ومساعد رقمي خلال 24 ساعة'
+    ],
+    featuresEn: [
+      'All Free Plan features included',
+      'Up to 10 active courses and subject curriculums',
+      'Capacity for up to 500 active students (Centers & Online)',
+      'Full Bubble Sheet exam bank with instant auto-grading',
+      'Setup and launch Course Leagues & competitive student challenges',
+      'Dynamic video watermark with teacher name & student mobile',
+      'Detailed student learning analytics & weak area detection',
+      'Verified course completion certificates with QR verification',
+      'Digital & paper homework grading and classification',
+      'AI Smart Lecture processing (60 mins/month quota)',
+      'Standard technical support with 24h SLA'
+    ],
+    limitationsAr: [
+      'بث مباشر تفاعلي محدود حتى ساعتين أسبوعياً',
+      'غير شاملة تقارير WhatsApp الفورية لأولياء الأمور'
+    ],
+    limitationsEn: [
+      'Live Room broadcasting limited to 2 hours/week',
+      'Excludes automated WhatsApp alerts for parents'
+    ],
+    color: '#0284C7',
+    popular: false
+  },
+  {
+    id: 'plan-teacher-pro',
+    nameAr: 'باقة المعلم برو',
+    nameEn: 'Teacher Pro',
+    tier: 'pro',
+    pricing: {
+      monthly: { priceEgp: 220, originalPriceEgp: null, periodAr: 'شهرياً', periodEn: 'per month', badgeAr: 'الأكثر اختياراً للمعلمين', badgeEn: 'Most Popular' },
+      term: { priceEgp: 880, originalPriceEgp: 1100, periodAr: 'للترم بالكامل (5 شهور)', periodEn: 'per semester (5 mo)', badgeAr: 'الأكثر طلباً (وفر 220 ج.م)', badgeEn: 'Most Popular (Save 220 EGP)' },
+      annual: { priceEgp: 1650, originalPriceEgp: 2200, periodAr: 'للعام كاملاً حتى الامتحانات (10 شهور)', periodEn: 'per full year (10 mo)', badgeAr: 'القيمة الأفضل (وفر 550 ج.م)', badgeEn: 'Ultimate Value (Save 550 EGP)' }
+    },
+    priceEgp: 220,
+    periodAr: 'شهرياً',
+    periodEn: 'per month',
+    badgeAr: 'الأكثر اختياراً للمعلمين',
+    badgeEn: 'Most Popular',
+    featuresAr: [
+      'جميع مزايا باقة بلس بالكامل',
+      'عدد غير محدود من المقررات والكورسات والدروس والسناتر',
+      'عدد غير محدود من الطلاب المسجلين بالسناتر والأونلاين',
+      'استوديو المعالجة الذكي بالذكاء الاصطناعي بلا حدود (تفريغ صوت وفيديو ومذكرات PDF)',
+      'توليد تلقائي لكويزات وامتحانات البابل شيت بالذكاء الاصطناعي من المحاضرات',
+      'قاعات بث مباشر تفاعلية (Live Rooms) غير محدودة بدقة فائقة وبلا تأخير',
+      'نظام حماية DRM متطور ضد تصوير الشاشة وتسريب المحتوى',
+      'ربط مباشر مع WhatsApp لإرسال درجات الامتحانات والغياب لأولياء الأمور آلياً',
+      'إطلاق دوريات وتحديات كورس المتفوقين الخاصة بالمعلم وتوزيع نقاط XP',
+      'تخصيص هوية المعلم والأكاديمية بالكامل',
+      'مدير حساب شخصي مخصص ودعم فني متواصل 24/7'
+    ],
+    featuresEn: [
+      'All Teacher Plus features included',
+      'Unlimited courses, lessons, and center branch rosters',
+      'Unlimited student enrollment capacity (In-person & Online)',
+      'Unlimited AI Smart Lecture processing (transcripts, summaries, notes)',
+      'Automated AI Bubble Sheet quiz generation from any audio/PDF',
+      'Unlimited Ultra-HD Interactive Live Rooms broadcasting',
+      'Advanced DRM anti-recording protection & screen capture prevention',
+      'Direct WhatsApp integration for automated parent grade reports',
+      'Custom course leagues & weekly student XP leaderboards',
+      'Full educator academy branding & custom identity',
+      'Dedicated personal account manager & 24/7 priority support'
+    ],
+    limitationsAr: [],
+    limitationsEn: [],
+    color: '#1588C7',
+    popular: true
+  }
+];
+
+export const MOCK_TEACHER_INVOICES = [
+  {
+    id: 'T-INV-2026-904',
+    date: '2026-09-01',
+    descriptionAr: 'اشتراك باقة المعلم بلس (Plus) - الفصل الدراسي الأول (5 شهور)',
+    descriptionEn: 'Teacher Plus Pass - Semester 1 (5 Months)',
+    amount: '480 ج.م',
+    amountEn: '480 EGP',
+    method: 'فودافون كاش',
+    methodAr: 'فودافون كاش ومحافظ المحمول',
+    methodEn: 'Vodafone Cash & Mobile Wallets',
+    status: 'مدفوع'
+  },
+  {
+    id: 'T-INV-2026-812',
+    date: '2026-08-10',
+    descriptionAr: 'ترقية باقة سعة استيعاب استوديو التسجيل الذكي (AI Studio Pack)',
+    descriptionEn: 'AI Studio Quota Expansion Pack',
+    amount: '120 ج.م',
+    amountEn: '120 EGP',
+    method: 'إنستاباي (InstaPay)',
+    methodAr: 'إنستاباي (InstaPay)',
+    methodEn: 'InstaPay Transfer',
+    status: 'مدفوع'
+  }
+];
+
+export const MOCK_TEACHER_DIRECT_PAYMENTS = [
+  {
+    id: 'PAY-2026-981',
+    studentNameAr: 'عمر طارق القاضي',
+    studentNameEn: 'Omar Tarek El-Kady',
+    studentPhone: '01123456789',
+    courseNameAr: 'ماستر كلاس الأحياء: البناء الضوئي وحركية الطاقة',
+    courseNameEn: 'Photosynthesis & Molecular Genetics Elite Program',
+    gradeAr: 'الصف الثالث الثانوي',
+    amountEgp: 350,
+    method: 'vodafone',
+    methodAr: 'فودافون كاش (محفظة محمول)',
+    methodEn: 'Vodafone Cash',
+    referenceNum: 'VF-99824102',
+    date: '2026-09-28',
+    time: '02:30 م',
+    status: 'confirmed',
+    statusAr: 'مستلم ومؤكد',
+    statusEn: 'Received & Confirmed'
+  },
+  {
+    id: 'PAY-2026-980',
+    studentNameAr: 'سارة خالد منصور',
+    studentNameEn: 'Sara Khaled Mansour',
+    studentPhone: '01098765432',
+    courseNameAr: 'معسكر المراجعة النهائية ومصائد امتحانات الثانوية',
+    courseNameEn: 'Final Revision & High-Yield Thanawya Question Bank',
+    gradeAr: 'الصف الثالث الثانوي',
+    amountEgp: 280,
+    method: 'instapay',
+    methodAr: 'إنستاباي (InstaPay)',
+    methodEn: 'InstaPay Direct IPA',
+    referenceNum: 'IPN-55410982',
+    date: '2026-09-28',
+    time: '11:15 ص',
+    status: 'confirmed',
+    statusAr: 'مستلم ومؤكد',
+    statusEn: 'Received & Confirmed'
+  },
+  {
+    id: 'PAY-2026-979',
+    studentNameAr: 'أحمد حسام الشريف',
+    studentNameEn: 'Ahmed Hossam El-Sherif',
+    studentPhone: '01234567890',
+    courseNameAr: 'ماستر كلاس الأحياء: البناء الضوئي وحركية الطاقة',
+    courseNameEn: 'Photosynthesis & Molecular Genetics Elite Program',
+    gradeAr: 'الصف الثالث الثانوي',
+    amountEgp: 350,
+    method: 'instapay',
+    methodAr: 'إنستاباي (InstaPay)',
+    methodEn: 'InstaPay Direct IPA',
+    referenceNum: 'IPN-55409811',
+    date: '2026-09-27',
+    time: '07:45 م',
+    status: 'confirmed',
+    statusAr: 'مستلم ومؤكد',
+    statusEn: 'Received & Confirmed'
+  },
+  {
+    id: 'PAY-2026-978',
+    studentNameAr: 'مريم عادل شنودة',
+    studentNameEn: 'Mariam Adel Shenouda',
+    studentPhone: '01511223344',
+    courseNameAr: 'أساسيات فسيولوجيا الإنسان والتنسيق الهرموني',
+    courseNameEn: 'Human Physiology & Coordination Fundamentals',
+    gradeAr: 'الصف الثاني الثانوي',
+    amountEgp: 250,
+    method: 'cib',
+    methodAr: 'تحويل بنكي مباشر (CIB)',
+    methodEn: 'Bank Transfer (CIB)',
+    referenceNum: 'CIB-00918234',
+    date: '2026-09-27',
+    time: '04:10 م',
+    status: 'confirmed',
+    statusAr: 'مستلم ومؤكد',
+    statusEn: 'Received & Confirmed'
+  },
+  {
+    id: 'PAY-2026-977',
+    studentNameAr: 'كريم أشرف حلمي',
+    studentNameEn: 'Karim Ashraf Helmy',
+    studentPhone: '01066778899',
+    courseNameAr: 'ماستر كلاس الأحياء: البناء الضوئي وحركية الطاقة',
+    courseNameEn: 'Photosynthesis & Molecular Genetics Elite Program',
+    gradeAr: 'الصف الثالث الثانوي',
+    amountEgp: 350,
+    method: 'vodafone',
+    methodAr: 'فودافون كاش (محفظة محمول)',
+    methodEn: 'Vodafone Cash',
+    referenceNum: 'VF-99810283',
+    date: '2026-09-26',
+    time: '01:20 م',
+    status: 'confirmed',
+    statusAr: 'مستلم ومؤكد',
+    statusEn: 'Received & Confirmed'
+  },
+  {
+    id: 'PAY-2026-976',
+    studentNameAr: 'نور الدين مصطفى كامل',
+    studentNameEn: 'Nour El-Deen Moustafa',
+    studentPhone: '01155443322',
+    courseNameAr: 'معسكر المراجعة النهائية ومصائد امتحانات الثانوية',
+    courseNameEn: 'Final Revision & High-Yield Thanawya Question Bank',
+    gradeAr: 'الصف الثالث الثانوي',
+    amountEgp: 280,
+    method: 'instapay',
+    methodAr: 'إنستاباي (InstaPay)',
+    methodEn: 'InstaPay Direct IPA',
+    referenceNum: 'IPN-55398102',
+    date: '2026-09-25',
+    time: '06:50 م',
+    status: 'confirmed',
+    statusAr: 'مستلم ومؤكد',
+    statusEn: 'Received & Confirmed'
+  }
+];
+
+

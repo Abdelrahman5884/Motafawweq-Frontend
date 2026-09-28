@@ -30,6 +30,7 @@ import { TeacherLeagueView } from './views/teacher/TeacherLeagueView';
 import { TeacherAnalyticsView } from './views/teacher/TeacherAnalyticsView';
 import { TeacherCertificatesView } from './views/teacher/TeacherCertificatesView';
 import { TeacherSettingsView } from './views/teacher/TeacherSettingsView';
+import { TeacherBillingView } from './views/teacher/TeacherBillingView';
 import { RecordingStudio } from './views/teacher/RecordingStudio';
 import { LessonWorkspace } from './views/teacher/LessonWorkspace';
 import { ClassManager } from './views/teacher/ClassManager';
@@ -255,6 +256,7 @@ export default function App() {
                   <Route path="/teacher/classes" element={<ClassManager />} />
                   <Route path="/teacher/students" element={<StudentRoster />} />
                   <Route path="/teacher/financials" element={<TeacherFinancials />} />
+                  <Route path="/teacher/billing" element={<TeacherBillingView />} />
                   <Route path="/teacher/processing" element={<AIProcessingScreen />} />
 
                   {/* Student Routes */}
