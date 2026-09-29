@@ -71,13 +71,14 @@ export const TeacherDashboard = () => {
           lessons={lessons}
           lang={lang}
           isRtl={isRtl}
-          onOpenLesson={(id) => navigate('lesson-workspace', { lessonId: id })}
+          onOpenLesson={(id) => navigate('/teacher/workspace')}
         />
 
         {/* Right Column: Active Groups & Classes Structured Responsive Table/Cards */}
         <ActiveClassesList
           lang={lang}
           onOpenClasses={() => navigate('/teacher/classes')}
+          onOpenSchedule={() => navigate('/teacher/schedule')}
         />
       </div>
     </div>

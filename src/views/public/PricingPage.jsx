@@ -275,7 +275,7 @@ export const PricingPage = () => {
             <button
               onClick={() => {
                 switchRole(plan.role);
-                navigate(plan.role === 'teacher' ? 'recording-studio' : (plan.role === 'student' ? 'student-dashboard' : 'center-portal'));
+                navigate(plan.role === 'teacher' ? '/teacher/studio' : (plan.role === 'student' ? '/student/dashboard' : '/center/dashboard'));
               }}
               style={{
                 width: '100%',

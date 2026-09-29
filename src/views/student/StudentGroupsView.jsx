@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useGroups } from '../../context/GroupsContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import {
   Building2,
   BookOpen,
@@ -17,16 +19,37 @@ import {
   UserCheck
 } from 'lucide-react';
 import { ClassQrModal } from '../../features/teacher/classes/ClassQrModal';
+import { StudentWeeklySchedule } from '../../features/student/schedule';
 
-export const StudentGroupsView = () => {
+export const StudentGroupsView = ({ defaultTab }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { lang, isRtl } = useLanguage();
   const { currentUser } = useAuth();
   const {
     groups,
     enrolledStudents,
     pendingStudents,
-    studentJoinByCode
+    studentJoinByCode,
+    studentStudySessions
   } = useGroups();
+
+  const isScheduleInitial = defaultTab === 'schedule' || 
+    location.pathname.includes('/schedule') || 
+    searchParams.get('tab') === 'schedule';
+
+  const [activeTab, setActiveTab] = useState(isScheduleInitial ? 'schedule' : 'groups');
+
+  useEffect(() => {
+    if (defaultTab === 'schedule' || location.pathname.includes('/schedule') || searchParams.get('tab') === 'schedule') {
+      setActiveTab('schedule');
+    } else if (defaultTab === 'groups' || location.pathname.endsWith('/groups') || location.pathname.endsWith('/classes')) {
+      if (searchParams.get('tab') !== 'schedule') {
+        setActiveTab('groups');
+      }
+    }
+  }, [defaultTab, location.pathname, searchParams]);
 
   const [inputCode, setInputCode] = useState('');
   const [joinResult, setJoinResult] = useState(null);
@@ -52,6 +75,40 @@ export const StudentGroupsView = () => {
     };
   }).filter(g => g.isEnrolled || g.isPending);
 
+  // Today's session calculation
+  const todayDayKey = useMemo(() => {
+    const dayNum = new Date().getDay();
+    const map = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return map[dayNum] || 'tuesday';
+  }, []);
+
+  const todaySessionsCount = useMemo(() => {
+    let centerCount = 0;
+    studentGroups.filter(g => g.isEnrolled).forEach(g => {
+      const slots = g.scheduleSlots || [];
+      centerCount += slots.filter(s => (s.day || '').toLowerCase() === todayDayKey).length;
+    });
+    const studyCount = (studentStudySessions || []).filter(
+      s => (s.day || '').toLowerCase() === todayDayKey && !s.isCompleted
+    ).length;
+    return centerCount + studyCount;
+  }, [studentGroups, studentStudySessions, todayDayKey]);
+
+  useSetBreadcrumbs(
+    activeTab === 'schedule'
+      ? [
+          {
+            labelAr: 'جدول المواعيد والمذاكرة الأسبوعي',
+            labelEn: 'Weekly Schedule & Study Plan',
+            onClick: () => {
+              setActiveTab('schedule');
+              navigate('/student/schedule');
+            }
+          }
+        ]
+      : []
+  );
+
   const handleJoinSubmit = (e) => {
     e.preventDefault();
     if (!inputCode.trim()) return;
@@ -70,11 +127,12 @@ export const StudentGroupsView = () => {
 
   return (
     <div style={{
-      maxWidth: '1100px',
+      maxWidth: activeTab === 'schedule' ? '1280px' : '1100px',
       margin: '0 auto',
       padding: '28px 20px 80px',
       fontFamily: 'var(--font-arabic)',
-      direction: isRtl ? 'rtl' : 'ltr'
+      direction: isRtl ? 'rtl' : 'ltr',
+      transition: 'max-width 0.2s ease'
     }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
@@ -85,30 +143,146 @@ export const StudentGroupsView = () => {
           margin: '0 0 6px 0',
           letterSpacing: '-0.3px'
         }}>
-          {lang === 'ar' ? 'مجموعاتي الدراسية ومجموعات السنتر' : 'My Study Groups & Cohorts'}
+          {activeTab === 'schedule'
+            ? (lang === 'ar' ? 'جدول المواعيد الأسبوعي وتنظيم المذاكرة' : 'Weekly Schedule & Study Plan')
+            : (lang === 'ar' ? 'مجموعاتي الدراسية ومجموعات السنتر' : 'My Study Groups & Cohorts')}
         </h1>
         <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-          {lang === 'ar'
-            ? 'متابعة المجموعات والقاعات المسجل بها مع معلميك، مواعيد الحصص، والانضمام لمجموعات جديدة عبر الباركود'
-            : 'Track your enrolled cohorts, class timings, and join new study groups via code or QR scan'}
+          {activeTab === 'schedule'
+            ? (lang === 'ar'
+                ? 'متابعة مواعيد حصصك وقاعات السنتر مع معلميك، تنظيم جلسات المذاكرة الشخصية، وتدوين الملاحظات اليومية'
+                : 'Track your center classes, organize personal study sessions, and manage daily notes')
+            : (lang === 'ar'
+                ? 'متابعة المجموعات والقاعات المسجل بها مع معلميك، مواعيد الحصص، والانضمام لمجموعات جديدة عبر الباركود'
+                : 'Track your enrolled cohorts, class timings, and join new study groups via code or QR scan')}
         </p>
       </div>
 
-      {/* Join Group Input Card */}
+      {/* Tab Switcher Pills */}
       <div style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: '18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        backgroundColor: 'var(--bg-subtle)',
+        padding: '4px',
+        borderRadius: '12px',
         border: '1px solid var(--border-subtle)',
-        padding: '20px 24px',
-        marginBottom: '28px',
-        boxShadow: 'var(--shadow-xs)'
+        marginBottom: '26px',
+        width: 'fit-content'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-          <Building2 size={18} color="var(--primary)" />
-          <h2 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-            {lang === 'ar' ? 'الانضمام إلى مجموعة دراسية بكود أو باركود' : 'Join a Study Group via Code'}
-          </h2>
-        </div>
+        <button
+          onClick={() => {
+            setActiveTab('groups');
+            navigate('/student/groups', { replace: true });
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13.5px',
+            fontWeight: activeTab === 'groups' ? '800' : '600',
+            backgroundColor: activeTab === 'groups' ? 'var(--bg-surface)' : 'transparent',
+            color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)',
+            boxShadow: activeTab === 'groups' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Building2 size={16} />
+          <span>{lang === 'ar' ? 'المجموعات والقاعات المسجل بها' : 'Enrolled Cohorts'}</span>
+          <span style={{
+            fontSize: '11px',
+            fontWeight: '800',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            backgroundColor: activeTab === 'groups' ? 'rgba(21, 136, 199, 0.12)' : 'var(--border-subtle)',
+            color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)'
+          }}>
+            {studentGroups.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('schedule');
+            navigate('/student/schedule', { replace: true });
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13.5px',
+            fontWeight: activeTab === 'schedule' ? '800' : '600',
+            backgroundColor: activeTab === 'schedule' ? 'var(--bg-surface)' : 'transparent',
+            color: activeTab === 'schedule' ? 'var(--primary)' : 'var(--text-secondary)',
+            boxShadow: activeTab === 'schedule' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Calendar size={16} />
+          <span>{lang === 'ar' ? 'جدول المواعيد والمذاكرة الأسبوعي' : 'Weekly Schedule'}</span>
+          {todaySessionsCount > 0 ? (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '800',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(21, 136, 199, 0.15)',
+              color: 'var(--primary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
+              {lang === 'ar' ? `${todaySessionsCount} اليوم` : `${todaySessionsCount} Today`}
+            </span>
+          ) : (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              color: '#10B981'
+            }}>
+              {lang === 'ar' ? 'محدث' : 'Active'}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Tab Body */}
+      {activeTab === 'schedule' ? (
+        <StudentWeeklySchedule
+          onSwitchToGroups={() => {
+            setActiveTab('groups');
+            navigate('/student/groups', { replace: true });
+          }}
+        />
+      ) : (
+        <>
+          {/* Join Group Input Card */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: '18px',
+            border: '1px solid var(--border-subtle)',
+            padding: '20px 24px',
+            marginBottom: '28px',
+            boxShadow: 'var(--shadow-xs)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <Building2 size={18} color="var(--primary)" />
+              <h2 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                {lang === 'ar' ? 'الانضمام إلى مجموعة دراسية بكود أو باركود' : 'Join a Study Group via Code'}
+              </h2>
+            </div>
 
         <form onSubmit={handleJoinSubmit} style={{
           display: 'flex',
@@ -160,36 +334,6 @@ export const StudentGroupsView = () => {
             <span>{lang === 'ar' ? 'انضمام للمجموعة' : 'Join Cohort'}</span>
           </button>
         </form>
-
-        {/* Quick Suggestion Chips for Available Groups */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-            {lang === 'ar' ? 'أكواد مجموعات متوفرة للتجربة:' : 'Available codes to test:'}
-          </span>
-          {groups.map(g => (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => {
-                setInputCode(g.joinCode);
-                setJoinResult(null);
-              }}
-              style={{
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-                backgroundColor: 'var(--bg-subtle)',
-                padding: '3px 8px',
-                fontSize: '11px',
-                fontFamily: 'monospace',
-                fontWeight: '700',
-                color: 'var(--primary)',
-                cursor: 'pointer'
-              }}
-            >
-              {g.joinCode} ({lang === 'ar' ? g.subjectAr.split(' ')[0] : g.subjectEn})
-            </button>
-          ))}
-        </div>
 
         {/* Join Result Feedback */}
         {joinResult && (
@@ -373,7 +517,9 @@ export const StudentGroupsView = () => {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        )}
+      </>
       )}
 
       {/* QR Code Modal for Selected Group */}

@@ -19,6 +19,7 @@ import {
   LessonTodayCard,
   useLesson
 } from '../../features/student/lesson';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 
 export const StudentLessonView = () => {
   const navigate = useNavigate();
@@ -104,6 +105,22 @@ export const StudentLessonView = () => {
     mobilePlaylistOpen,
     setMobilePlaylistOpen
   } = lessonState;
+
+  useSetBreadcrumbs(
+    courseInfo && lesson
+      ? [
+          {
+            labelAr: courseInfo.subjectAr || 'المقررات الدراسية',
+            labelEn: courseInfo.subjectEn || 'Courses',
+            path: '/student/courses'
+          },
+          {
+            labelAr: lesson.titleAr,
+            labelEn: lesson.titleEn || lesson.titleAr
+          }
+        ]
+      : []
+  );
 
   // 5 Clean Tabs
   const tabs = [
@@ -318,9 +335,9 @@ export const StudentLessonView = () => {
           <button className="lv-crumb-link" onClick={() => navigate('/student/courses')}>
             {lang === 'ar' ? 'مقرراتي (حصصي)' : 'My Courses'}
           </button>
-          <ChevronRight size={13} className="lv-crumb-sep" />
+          {isRtl ? <ChevronLeft size={13} className="lv-crumb-sep" /> : <ChevronRight size={13} className="lv-crumb-sep" />}
           <span className="lv-crumb-item">{courseInfo.subjectAr}</span>
-          <ChevronRight size={13} className="lv-crumb-sep" />
+          {isRtl ? <ChevronLeft size={13} className="lv-crumb-sep" /> : <ChevronRight size={13} className="lv-crumb-sep" />}
           <span className="lv-crumb-current">{lesson.titleAr}</span>
         </nav>
       </div>

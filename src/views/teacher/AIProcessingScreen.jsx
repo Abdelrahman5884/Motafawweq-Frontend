@@ -188,7 +188,7 @@ export const AIProcessingScreen = () => {
         {/* Action Button */}
         {isComplete ? (
           <button
-            onClick={() => navigate('lesson-workspace')}
+            onClick={() => navigate('/teacher/workspace')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

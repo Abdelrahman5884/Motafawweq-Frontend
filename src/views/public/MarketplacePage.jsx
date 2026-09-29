@@ -309,7 +309,7 @@ export const MarketplacePage = () => {
               <button
                 onClick={() => {
                   switchRole('teacher');
-                  navigate('lesson-workspace');
+                  navigate('/teacher/workspace');
                 }}
                 style={{
                   display: 'flex',

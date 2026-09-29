@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { SPage, SPageHeader, SButton } from '../../components/student/ui';
 import {
   ProfileSettingsSection,
@@ -200,6 +201,18 @@ export const StudentSettingsView = () => {
     { id: 'goals', label: lang === 'ar' ? 'أهداف المذاكرة' : 'Study Goals', icon: <Target size={15} /> },
     { id: 'notifications', label: lang === 'ar' ? 'الإشعارات والخصوصية' : 'Alerts & Privacy', icon: <Bell size={15} /> },
   ];
+
+  const currentTab = tabs.find(t => t.id === activeTab);
+  useSetBreadcrumbs(
+    activeTab !== 'profile' && currentTab
+      ? [
+          {
+            label: currentTab.label,
+            onClick: () => setActiveTab('profile')
+          }
+        ]
+      : []
+  );
 
   return (
     <SPage maxWidth={1080}>

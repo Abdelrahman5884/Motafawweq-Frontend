@@ -82,8 +82,8 @@ export const WeakAreasHub = () => {
             key={c.id}
             concept={c}
             lang={lang}
-            onListen={() => navigate('lesson-study')}
-            onPractice={() => navigate('take-exam')}
+            onListen={() => navigate('/student/lesson')}
+            onPractice={() => navigate('/student/exam')}
           />
         ))}
       </div>

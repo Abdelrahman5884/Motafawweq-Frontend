@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { BreadcrumbProvider } from './context/BreadcrumbContext';
 
 // Layout Components
 import { Navbar } from './components/layout/Navbar';
@@ -228,8 +229,9 @@ export default function App() {
         <AuthProvider>
           <GroupsProvider>
             <BrowserRouter>
-              <AppShell>
-                <Routes>
+              <BreadcrumbProvider>
+                <AppShell>
+                  <Routes>
                   {/* Public & Website Routes */}
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/features" element={<FeaturesPage />} />
@@ -254,6 +256,7 @@ export default function App() {
                   <Route path="/teacher/studio" element={<RecordingStudio />} />
                   <Route path="/teacher/workspace" element={<LessonWorkspace />} />
                   <Route path="/teacher/classes" element={<ClassManager />} />
+                  <Route path="/teacher/schedule" element={<ClassManager defaultTab="schedule" />} />
                   <Route path="/teacher/students" element={<StudentRoster />} />
                   <Route path="/teacher/financials" element={<TeacherFinancials />} />
                   <Route path="/teacher/billing" element={<TeacherBillingView />} />
@@ -264,6 +267,7 @@ export default function App() {
                   <Route path="/student/dashboard" element={<StudentDashboard />} />
                   <Route path="/student/groups" element={<StudentGroupsView />} />
                   <Route path="/student/classes" element={<StudentGroupsView />} />
+                  <Route path="/student/schedule" element={<StudentGroupsView defaultTab="schedule" />} />
                   <Route path="/student/courses" element={<StudentCoursesView />} />
                   <Route path="/student/lesson" element={<StudentLessonView />} />
                   <Route path="/student/quiz" element={<StudentQuizView />} />
@@ -296,7 +300,8 @@ export default function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AppShell>
-            </BrowserRouter>
+            </BreadcrumbProvider>
+          </BrowserRouter>
           </GroupsProvider>
         </AuthProvider>
       </LanguageProvider>

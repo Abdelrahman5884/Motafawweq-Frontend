@@ -28,19 +28,42 @@ import {
   Building2,
   Info
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { TEACHER_PROFILE } from '../../data/teacherData';
 import { SPage, SPageHeader, SCard, SSection, SButton } from '../../components/student/ui';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 
 export const TeacherSettingsView = () => {
   const { lang, isRtl, setLang } = useLanguage();
   const { theme, setTheme, isDark } = useTheme();
   const isAr = lang === 'ar';
 
-  const [activeTab, setActiveTab] = useState('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTabState] = useState(() => tabParam || 'profile');
   const [isDirty, setIsDirty] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTabState(tabParam);
+    } else if (!tabParam && activeTab !== 'profile') {
+      setActiveTabState('profile');
+    }
+  }, [tabParam]);
+
+  const setActiveTab = (newTab) => {
+    setActiveTabState(newTab);
+    if (newTab === 'profile') {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('tab');
+      setSearchParams(nextParams, { replace: true });
+    } else {
+      setSearchParams({ tab: newTab }, { replace: true });
+    }
+  };
 
   // Form State initialized from TEACHER_PROFILE
   const [formData, setFormData] = useState({
@@ -270,6 +293,19 @@ export const TeacherSettingsView = () => {
     { id: 'preferences', labelAr: 'المظهر واللغة والتنبيهات', labelEn: 'Theme, Language & Alerts', icon: Palette },
     { id: 'security', labelAr: 'الأمان وكلمة المرور', labelEn: 'Security & 2FA', icon: Shield }
   ];
+
+  const activeTabMeta = tabs.find(t => t.id === activeTab);
+  useSetBreadcrumbs(
+    activeTab !== 'profile' && activeTabMeta
+      ? [
+          {
+            labelAr: activeTabMeta.labelAr,
+            labelEn: activeTabMeta.labelEn,
+            onClick: () => setActiveTab('profile')
+          }
+        ]
+      : []
+  );
 
   return (
     <SPage maxWidth={1120}>

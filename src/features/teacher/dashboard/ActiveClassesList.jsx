@@ -10,11 +10,12 @@ import {
   X,
   Bell,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  Calendar
 } from 'lucide-react';
 import { MOCK_CLASSES } from '../../../data/mockData';
 
-export const ActiveClassesList = ({ lang, onOpenClasses }) => {
+export const ActiveClassesList = ({ lang, onOpenClasses, onOpenSchedule }) => {
   const isAr = lang === 'ar';
 
   // Modal states
@@ -66,26 +67,51 @@ export const ActiveClassesList = ({ lang, onOpenClasses }) => {
           </div>
         </div>
 
-        <button
-          onClick={onOpenClasses}
-          style={{
-            border: 'none',
-            background: 'var(--bg-subtle)',
-            color: 'var(--primary)',
-            fontSize: '12px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            padding: '6px 12px',
-            borderRadius: '8px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <span>{isAr ? 'إدارة كافة القاعات' : 'Manage All'}</span>
-          <ArrowUpRight size={13} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onOpenSchedule && (
+            <button
+              onClick={onOpenSchedule}
+              style={{
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Calendar size={13} color="var(--primary)" />
+              <span>{isAr ? 'الجدول الأسبوعي' : 'Weekly Schedule'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={onOpenClasses}
+            style={{
+              border: 'none',
+              background: 'var(--bg-subtle)',
+              color: 'var(--primary)',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>{isAr ? 'إدارة كافة القاعات' : 'Manage All'}</span>
+            <ArrowUpRight size={13} />
+          </button>
+        </div>
       </div>
 
       {/* ── RESPONSIVE TABLE VIEW (Visible on tablet & desktop) ── */}

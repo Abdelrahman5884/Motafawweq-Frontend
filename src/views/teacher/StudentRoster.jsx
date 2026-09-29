@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { useGroups } from '../../context/GroupsContext';
 import {
   Users,
@@ -35,6 +36,23 @@ export const StudentRoster = () => {
   const [activeTab, setActiveTab] = useState('enrolled'); // 'enrolled' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+
+  const tabLabels = {
+    enrolled: { ar: 'الطلاب المقيدون', en: 'Enrolled Students' },
+    pending: { ar: 'طلبات الانضمام', en: 'Pending Requests' }
+  };
+
+  useSetBreadcrumbs(
+    tabLabels[activeTab]
+      ? [
+          {
+            labelAr: tabLabels[activeTab].ar,
+            labelEn: tabLabels[activeTab].en,
+            onClick: () => setActiveTab('enrolled')
+          }
+        ]
+      : []
+  );
 
   const activeGroup = getActiveGroup();
 

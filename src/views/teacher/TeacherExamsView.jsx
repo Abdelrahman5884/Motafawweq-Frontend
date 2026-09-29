@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { TEACHER_EXAMS } from '../../data/teacherData';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { 
   ClipboardList, 
   Plus, 
@@ -394,6 +395,26 @@ export const TeacherExamsView = () => {
   };
 
   const selectedExam = exams.find(e => e.id === selectedExamId) || exams[0];
+
+  useSetBreadcrumbs(
+    viewMode === 'detail' && selectedExam
+      ? [
+          {
+            labelAr: selectedExam.titleAr,
+            labelEn: selectedExam.titleEn || selectedExam.titleAr,
+            onClick: () => setViewMode('list')
+          }
+        ]
+      : viewMode === 'create'
+      ? [
+          {
+            labelAr: 'إنشاء امتحان جديد',
+            labelEn: 'Create New Exam',
+            onClick: () => setViewMode('list')
+          }
+        ]
+      : []
+  );
 
   // Filtered exams for main list
   const filteredExams = exams.filter(exam => {

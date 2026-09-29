@@ -162,7 +162,7 @@ export const FeaturesPage = () => {
         <button
           onClick={() => {
             switchRole('teacher');
-            navigate('lesson-workspace');
+            navigate('/teacher/workspace');
           }}
           style={{
             padding: '12px 28px',

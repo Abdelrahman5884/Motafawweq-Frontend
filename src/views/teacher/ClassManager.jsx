@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useGroups } from '../../context/GroupsContext';
-import { Plus, Building2, AlertCircle } from 'lucide-react';
+import { Plus, Building2, AlertCircle, Calendar } from 'lucide-react';
 import { ClassCard, ClassQrModal, ClassFormModal } from '../../features/teacher/classes';
+import { TeacherWeeklySchedule } from '../../features/teacher/schedule';
 
-export const ClassManager = () => {
+export const ClassManager = ({ defaultTab }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { lang, isRtl } = useLanguage();
   const {
     groups,
@@ -17,6 +20,36 @@ export const ClassManager = () => {
     deleteGroup,
     setActiveGroupId
   } = useGroups();
+
+  const isScheduleInitial = defaultTab === 'schedule' || 
+    location.pathname.includes('/schedule') || 
+    searchParams.get('tab') === 'schedule';
+
+  const [activeTab, setActiveTab] = useState(isScheduleInitial ? 'schedule' : 'groups');
+
+  useEffect(() => {
+    if (defaultTab === 'schedule' || location.pathname.includes('/schedule') || searchParams.get('tab') === 'schedule') {
+      setActiveTab('schedule');
+    } else if (defaultTab === 'groups' || location.pathname.endsWith('/classes')) {
+      if (searchParams.get('tab') !== 'schedule') {
+        setActiveTab('groups');
+      }
+    }
+  }, [defaultTab, location.pathname, searchParams]);
+
+  const todayDayKey = useMemo(() => {
+    const dayNum = new Date().getDay();
+    const map = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return map[dayNum] || 'tuesday';
+  }, []);
+
+  const todaySessionsCount = useMemo(() => {
+    return groups.reduce((acc, g) => {
+      const slots = g.scheduleSlots || [];
+      const matches = slots.filter(s => s.day === todayDayKey);
+      return acc + matches.length;
+    }, 0);
+  }, [groups, todayDayKey]);
 
   const [selectedClassForQr, setSelectedClassForQr] = useState(null);
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -64,7 +97,7 @@ export const ClassManager = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '28px',
+        marginBottom: '22px',
         flexWrap: 'wrap',
         gap: '16px'
       }}>
@@ -76,12 +109,18 @@ export const ClassManager = () => {
             margin: '0 0 6px 0',
             letterSpacing: '-0.3px'
           }}>
-            {lang === 'ar' ? 'إدارة المجموعات والقاعات الدراسية' : 'Class & Hall Management'}
+            {activeTab === 'schedule'
+              ? (lang === 'ar' ? 'جدول المواعيد والقاعات الأسبوعي' : 'Weekly Schedule & Halls')
+              : (lang === 'ar' ? 'إدارة المجموعات والقاعات الدراسية' : 'Class & Hall Management')}
           </h1>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-            {lang === 'ar'
-              ? 'متابعة مواعيد القاعات، أكواد انضمام الطلاب، والباركود السريع وسجلات الحضور'
-              : 'Monitor group schedules, join codes, fast QR invitations, and student rosters'}
+            {activeTab === 'schedule'
+              ? (lang === 'ar'
+                ? 'تنظيم مواعيد الحصص الأسبوعية بالسناتر، متابعة جدول اليوم، وتدوين الملاحظات والتنبيهات السريعة'
+                : 'Manage weekly center sessions, focus on today’s timetable, and keep quick daily notes')
+              : (lang === 'ar'
+                ? 'متابعة مواعيد القاعات، أكواد انضمام الطلاب، والباركود السريع وسجلات الحضور'
+                : 'Monitor group schedules, join codes, fast QR invitations, and student rosters')}
           </p>
         </div>
 
@@ -113,8 +152,120 @@ export const ClassManager = () => {
         </button>
       </div>
 
-      {/* Classes Grid */}
-      {groups.length === 0 ? (
+      {/* Navigation Tabs (Cohorts vs Weekly Schedule) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '26px',
+        padding: '6px',
+        backgroundColor: 'var(--bg-subtle)',
+        borderRadius: '14px',
+        width: 'fit-content',
+        border: '1px solid var(--border-subtle)'
+      }}>
+        <button
+          onClick={() => {
+            setActiveTab('groups');
+            navigate('/teacher/classes', { replace: true });
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13.5px',
+            fontWeight: activeTab === 'groups' ? '800' : '600',
+            backgroundColor: activeTab === 'groups' ? 'var(--bg-surface)' : 'transparent',
+            color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)',
+            boxShadow: activeTab === 'groups' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Building2 size={16} />
+          <span>{lang === 'ar' ? 'المجموعات والقاعات الدراسية' : 'Cohorts & Centers'}</span>
+          <span style={{
+            fontSize: '11px',
+            fontWeight: '800',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            backgroundColor: activeTab === 'groups' ? 'rgba(21, 136, 199, 0.12)' : 'var(--border-subtle)',
+            color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)'
+          }}>
+            {groups.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('schedule');
+            navigate('/teacher/schedule', { replace: true });
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 18px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13.5px',
+            fontWeight: activeTab === 'schedule' ? '800' : '600',
+            backgroundColor: activeTab === 'schedule' ? 'var(--bg-surface)' : 'transparent',
+            color: activeTab === 'schedule' ? 'var(--primary)' : 'var(--text-secondary)',
+            boxShadow: activeTab === 'schedule' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Calendar size={16} />
+          <span>{lang === 'ar' ? 'جدول المواعيد والقاعات الأسبوعي' : 'Weekly Schedule'}</span>
+          {todaySessionsCount > 0 ? (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '800',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(21, 136, 199, 0.15)',
+              color: 'var(--primary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
+              {lang === 'ar' ? `${todaySessionsCount} اليوم` : `${todaySessionsCount} Today`}
+            </span>
+          ) : (
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              color: '#10B981'
+            }}>
+              {lang === 'ar' ? 'محدث' : 'Active'}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Tab Body */}
+      {activeTab === 'schedule' ? (
+        <TeacherWeeklySchedule
+          onOpenQr={(cls) => setSelectedClassForQr(cls)}
+          onEditClass={(cls) => {
+            setEditingClass(cls);
+            setFormModalOpen(true);
+          }}
+          onAddNewClass={() => {
+            setEditingClass(null);
+            setFormModalOpen(true);
+          }}
+        />
+      ) : groups.length === 0 ? (
         <div style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: '16px',

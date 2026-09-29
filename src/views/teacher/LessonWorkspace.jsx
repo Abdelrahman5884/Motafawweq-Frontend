@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { ALL_PUBLISHED_LESSONS, MOCK_LESSON } from '../../data/mockData';
 import { NotebookMindMapCanvas } from '../../components/knowledge-map/NotebookMindMapCanvas';
 import { 
@@ -44,6 +45,24 @@ export const LessonWorkspace = () => {
 
   // Active view: 'overview' | 'media' | 'text' | 'graph'
   const [activeTab, setActiveTab] = useState('overview');
+
+  const tabLabels = {
+    media: { ar: 'الوسائط والشرح', en: 'Media & Canvas' },
+    text: { ar: 'التفريغ الذكي', en: 'Smart Transcript' },
+    graph: { ar: 'الخريطة الذهنية', en: 'Mind Map' }
+  };
+
+  useSetBreadcrumbs(
+    activeTab !== 'overview' && tabLabels[activeTab]
+      ? [
+          {
+            labelAr: tabLabels[activeTab].ar,
+            labelEn: tabLabels[activeTab].en,
+            onClick: () => setActiveTab('overview')
+          }
+        ]
+      : []
+  );
 
   // Search filter for lessons list in overview
   const [lessonSearch, setLessonSearch] = useState('');
@@ -170,7 +189,7 @@ export const LessonWorkspace = () => {
             <button
               onClick={() => {
                 switchRole('student');
-                navigate('take-exam');
+                navigate('/student/exam');
               }}
               style={{
                 display: 'inline-flex',

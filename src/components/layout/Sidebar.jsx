@@ -5,6 +5,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import {
   LayoutDashboard,
+  Calendar,
   Mic,
   Users,
   BookOpen,
@@ -72,6 +73,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               { id: 'teacher-certificates', path: '/teacher/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
               { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: Users },
               { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Building2 },
+              { id: 'teacher-schedule', path: '/teacher/schedule', label: lang === 'ar' ? 'جدول المواعيد والقاعات' : 'Weekly Schedule', icon: Calendar },
               { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign },
               { id: 'teacher-billing', path: '/teacher/billing', label: lang === 'ar' ? 'الاشتراكات وباقات المعلم' : 'Plans & Billing', icon: CreditCard },
               { id: 'teacher-settings', path: '/teacher/settings', label: lang === 'ar' ? 'إعدادات المعلم' : 'Teacher Settings', icon: Settings },
@@ -85,6 +87,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             items: [
               { id: 'student-dashboard', path: '/student/dashboard', label: lang === 'ar' ? 'الرئيسية' : 'Home', icon: LayoutDashboard },
               { id: 'student-groups', path: '/student/groups', label: lang === 'ar' ? 'مجموعاتي الدراسية' : 'My Cohorts', icon: Building2 },
+              { id: 'student-schedule', path: '/student/schedule', label: lang === 'ar' ? 'جدول المواعيد والمذاكرة' : 'Weekly Schedule', icon: Calendar },
               { id: 'my-lessons', path: '/student/lesson', label: lang === 'ar' ? 'حصصي' : 'My Lessons', icon: PlayCircle },
               { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
               { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات' : 'Exams', icon: ClipboardList },

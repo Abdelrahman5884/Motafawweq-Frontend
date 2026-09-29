@@ -21,6 +21,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { STUDENT_PROFILE } from '../../data/studentData';
+import { Breadcrumbs } from './Breadcrumbs';
 
 export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, hasSidebar }) => {
   const navigate = useNavigate();
@@ -72,6 +73,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
     if (currentPath.startsWith('/student/revision')) return lang === 'ar' ? 'المراجعة الذكية' : 'Smart Revision';
     if (currentPath.startsWith('/student/quiz')) return lang === 'ar' ? 'الكويزات والتدريبات' : 'Quizzes';
     if (currentPath.startsWith('/student/gamification')) return lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements';
+    if (currentPath.startsWith('/student/schedule')) return lang === 'ar' ? 'جدول المواعيد والمذاكرة' : 'Weekly Schedule';
     if (currentPath.startsWith('/student/groups') || currentPath.startsWith('/student/classes')) return lang === 'ar' ? 'مجموعاتي الدراسية' : 'My Cohorts';
     if (currentPath.startsWith('/student/certificates')) return lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates';
     if (currentPath.startsWith('/student/billing')) return lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription';
@@ -79,6 +81,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
     if (currentPath.startsWith('/teacher/dashboard')) return lang === 'ar' ? 'لوحة المعلم' : 'Teacher Dashboard';
     if (currentPath.startsWith('/teacher/studio')) return lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio';
     if (currentPath.startsWith('/teacher/workspace')) return lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace';
+    if (currentPath.startsWith('/teacher/schedule')) return lang === 'ar' ? 'جدول المواعيد والقاعات' : 'Weekly Schedule';
     if (currentPath.startsWith('/teacher/classes')) return lang === 'ar' ? 'المجموعات والقاعات' : 'Classes';
     if (currentPath.startsWith('/teacher/students')) return lang === 'ar' ? 'سجل الطلاب' : 'Student Roster';
     if (currentPath.startsWith('/teacher/financials')) return lang === 'ar' ? 'الأرباح والمحفظة' : 'Financials';
@@ -139,28 +142,8 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
             </div>
 
             {/* Desktop Breadcrumb / Route Indicator */}
-            <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '12.5px',
-                fontWeight: '500',
-                color: 'var(--text-secondary)'
-              }}>
-                <span>{lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</span>
-                <span style={{ opacity: 0.35 }}>
-                  {isRtl ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
-                </span>
-              </div>
-              <span style={{
-                fontSize: '14px',
-                fontWeight: '700',
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.2px'
-              }}>
-                {getPageTitle()}
-              </span>
+            <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
+              <Breadcrumbs />
             </div>
           </div>
         ) : (

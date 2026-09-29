@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { MOCK_LESSON } from '../../data/mockData';
 import { NotebookMindMapCanvas } from '../../components/knowledge-map/NotebookMindMapCanvas';
 import { Sparkles, Brain, FileText, Layers, CheckCircle2, FolderCheck, PlayCircle } from 'lucide-react';
@@ -37,6 +38,25 @@ export const StudentSmartLectureView = () => {
   const [activeSeconds, setActiveSeconds] = useState(320); // 05:20
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState('map'); // 'map' | 'transcript' | 'topics' | 'quiz'
+
+  const tabLabels = {
+    map: { ar: 'الخريطة الذهنية التفاعلية', en: 'Mind Map' },
+    transcript: { ar: 'التفريغ النصي الذكي', en: 'Smart Transcript' },
+    topics: { ar: 'الفصول والموضوعات', en: 'Chapters & Topics' },
+    quiz: { ar: 'كويز المحاضرة', en: 'Lecture Quiz' }
+  };
+
+  useSetBreadcrumbs(
+    tabLabels[activeTab]
+      ? [
+          {
+            labelAr: tabLabels[activeTab].ar,
+            labelEn: tabLabels[activeTab].en,
+            onClick: () => setActiveTab('map')
+          }
+        ]
+      : []
+  );
 
   // Toggle desired output
   const handleToggleOutput = (id) => {

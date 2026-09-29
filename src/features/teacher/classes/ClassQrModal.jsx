@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Copy, Check, Smartphone, Users, BookOpen } from 'lucide-react';
 import { RealQRCode } from '../../../components/common/RealQRCode';
 import { useGroups } from '../../../context/GroupsContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export const ClassQrModal = ({
   showQrModal,
@@ -11,6 +12,8 @@ export const ClassQrModal = ({
   onOpenRoster
 }) => {
   const { studentJoinByCode } = useGroups();
+  const { currentRole } = useAuth();
+  const isStudent = currentRole === 'student';
   const [copied, setCopied] = useState(false);
   const [simulated, setSimulated] = useState(false);
 
@@ -113,9 +116,13 @@ export const ClassQrModal = ({
         </div>
 
         <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
-          {lang === 'ar'
-            ? 'امسح الباركود بكاميرا هاتف الطالب للانضمام الفوري إلى المجموعة ومراجعة طلبه'
-            : 'Scan with student mobile camera for instant cohort join request'}
+          {isStudent
+            ? (lang === 'ar'
+                ? 'كود وباركود المجموعة للمشاركة والانضمام مع زملائك'
+                : 'Cohort code & QR to share with your classmates')
+            : (lang === 'ar'
+                ? 'امسح الباركود بكاميرا هاتف الطالب للانضمام الفوري إلى المجموعة ومراجعة طلبه'
+                : 'Scan with student mobile camera for instant cohort join request')}
         </p>
 
         {/* Real High-Resolution Authentic QR Code */}
@@ -161,61 +168,103 @@ export const ClassQrModal = ({
           <span>{selectedClass.joinCode}</span>
         </div>
 
-        {/* Action Buttons: Simulate Scan + View Roster */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button
-            onClick={handleSimulateScan}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '10px 16px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-surface)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-subtle)'}
-          >
-            <Smartphone size={15} color="var(--primary)" />
-            <span>
-              {simulated
-                ? (lang === 'ar' ? 'تم تسجيل مسح الطالب بنجاح!' : 'Scan Simulated!')
-                : (lang === 'ar' ? 'محاكاة مسح الباركود بهاتف طالب' : 'Simulate Student Scan')}
-            </span>
-          </button>
+        {/* Action Buttons: Student mode vs Teacher mode */}
+        {isStudent ? (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleCopyCode}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '11px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px var(--primary-glow)'
+              }}
+            >
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+              <span>{copied ? (lang === 'ar' ? 'تم نسخ الكود!' : 'Copied!') : (lang === 'ar' ? 'نسخ كود المجموعة' : 'Copy Code')}</span>
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '11px 18px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              {lang === 'ar' ? 'إغلاق' : 'Close'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button
+              onClick={handleSimulateScan}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '12.5px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-surface)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-subtle)'}
+            >
+              <Smartphone size={15} color="var(--primary)" />
+              <span>
+                {simulated
+                  ? (lang === 'ar' ? 'تم تسجيل مسح الطالب بنجاح!' : 'Scan Simulated!')
+                  : (lang === 'ar' ? 'محاكاة مسح الباركود بهاتف طالب' : 'Simulate Student Scan')}
+              </span>
+            </button>
 
-          <button
-            onClick={() => {
-              onClose();
-              if (onOpenRoster) onOpenRoster(selectedClass);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '10px 16px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px var(--primary-glow)'
-            }}
-          >
-            <Users size={15} />
-            <span>{lang === 'ar' ? 'فتح سجل الطلاب وقبول الطلبات' : 'Open Roster & Review Requests'}</span>
-          </button>
-        </div>
+            <button
+              onClick={() => {
+                onClose();
+                if (onOpenRoster) onOpenRoster(selectedClass);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px var(--primary-glow)'
+              }}
+            >
+              <Users size={15} />
+              <span>{lang === 'ar' ? 'فتح سجل الطلاب وقبول الطلبات' : 'Open Roster & Review Requests'}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

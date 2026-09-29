@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { COURSES_CATALOG, MINISTRY_CURRICULUM } from '../../data/studentData';
 import {
   Search,
@@ -25,6 +26,23 @@ export const StudentCoursesView = () => {
   const [activeCategory, setActiveCategory] = useState('ministry');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCurriculumModal, setSelectedCurriculumModal] = useState(null);
+
+  const categoryLabels = {
+    ministry: { ar: 'مقررات الوزارة المطورة', en: 'Ministry Curriculum' },
+    teachers: { ar: 'كورسات وحصص المعلمين', en: 'Teacher Courses' }
+  };
+
+  useSetBreadcrumbs(
+    categoryLabels[activeCategory]
+      ? [
+          {
+            labelAr: categoryLabels[activeCategory].ar,
+            labelEn: categoryLabels[activeCategory].en,
+            onClick: () => setActiveCategory('ministry')
+          }
+        ]
+      : []
+  );
 
   // Local state for enrolled courses
   const [enrolledCourses, setEnrolledCourses] = useState(() => {

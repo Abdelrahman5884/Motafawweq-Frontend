@@ -147,7 +147,7 @@ export const RecordingStudio = () => {
     try {
       sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
     } catch (e) {}
-    navigate('ai-processing');
+    navigate('/teacher/processing');
   };
 
   const handleVideoStartProcessing = (vidData) => {
@@ -155,7 +155,7 @@ export const RecordingStudio = () => {
     try {
       sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
     } catch (e) {}
-    navigate('ai-processing');
+    navigate('/teacher/processing');
   };
 
   return (
@@ -489,7 +489,7 @@ export const RecordingStudio = () => {
               try {
                 sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
               } catch (e) {}
-              navigate('ai-processing');
+              navigate('/teacher/processing');
             }}
           />
         )}
