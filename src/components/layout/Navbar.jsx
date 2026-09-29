@@ -32,7 +32,8 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
     currentUser, 
     isAuthenticated, 
     logout, 
-    setSearchModalOpen 
+    setSearchModalOpen,
+    switchRole
   } = useAuth();
   const { lang, setLang, t, isRtl } = useLanguage();
   const { theme, isDark, toggleTheme } = useTheme();
@@ -256,6 +257,33 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
 
         {/* ── RIGHT / END AREA: Global Controls & Actions ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Quick Portal Switcher (Center / Teacher / Student) */}
+          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
+            <select
+              value={currentPath.startsWith('/center') ? 'center' : (currentPath.startsWith('/teacher') ? 'teacher' : (currentPath.startsWith('/student') ? 'student' : currentRole))}
+              onChange={(e) => {
+                switchRole(e.target.value);
+              }}
+              style={{
+                padding: '5px 10px',
+                borderRadius: 'var(--radius-md)',
+                border: '1.5px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--primary)',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
+              }}
+            >
+              <option value="center">{lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Portal'}</option>
+              <option value="teacher">{lang === 'ar' ? 'بوابة المعلم' : 'Teacher Portal'}</option>
+              <option value="student">{lang === 'ar' ? 'بوابة الطالب' : 'Student Portal'}</option>
+              <option value="parent">{lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal'}</option>
+            </select>
+          </div>
+
           {/* Global Cmd+K Search Bar Button (Desktop) */}
           <button
             onClick={() => setSearchModalOpen(true)}
@@ -473,6 +501,38 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
       {/* Mobile Drawer Dropdown Menu */}
       {mobileMenuOpen && (
         <div className="mobile-menu-drawer animate-fade-in">
+          {/* Mobile Portal Switcher */}
+          <div style={{ padding: '4px 0 10px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '8px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'التبديل الفوري بين البوابات:' : 'Switch Active Portal:'}
+            </label>
+            <select
+              value={currentPath.startsWith('/center') ? 'center' : (currentPath.startsWith('/teacher') ? 'teacher' : (currentPath.startsWith('/student') ? 'student' : currentRole))}
+              onChange={(e) => {
+                switchRole(e.target.value);
+                setMobileMenuOpen(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1.5px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--primary)',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
+              }}
+            >
+              <option value="center">{lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Portal'}</option>
+              <option value="teacher">{lang === 'ar' ? 'بوابة المعلم' : 'Teacher Portal'}</option>
+              <option value="student">{lang === 'ar' ? 'بوابة الطالب' : 'Student Portal'}</option>
+              <option value="parent">{lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal'}</option>
+            </select>
+          </div>
+
           {/* Navigation Links */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {navLinks.map((link, idx) => {

@@ -19,6 +19,7 @@ import {
   X,
   GraduationCap,
   QrCode,
+  Layers,
   Activity,
   Server,
   Trophy,
@@ -41,18 +42,31 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
 
-  // Role accent color
+  // Effective role derived from path or current user role
+  const effectiveRole = location.pathname.startsWith('/center')
+    ? 'center'
+    : location.pathname.startsWith('/teacher')
+    ? 'teacher'
+    : location.pathname.startsWith('/student')
+    ? 'student'
+    : location.pathname.startsWith('/parent')
+    ? 'parent'
+    : location.pathname.startsWith('/admin')
+    ? 'admin'
+    : currentRole;
+
+  // Role accent color strictly adhering to platform palette (#1588C7)
   const roleAccent = {
     teacher: '#1588C7',
     student: '#1588C7',
     parent: '#16A34A',
-    center: '#F59E0B',
+    center: '#1588C7',
     admin: '#1588C7',
   };
-  const accent = roleAccent[currentRole] || '#1588C7';
+  const accent = roleAccent[effectiveRole] || '#1588C7';
 
   const getMenuItems = () => {
-    switch (currentRole) {
+    switch (effectiveRole) {
       case 'teacher':
         return [
           {
@@ -115,10 +129,28 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         ];
       case 'center':
         return [
-          { id: 'center-portal', path: '/center/dashboard', label: lang === 'ar' ? 'لوحة تحكم السنتر' : 'Center Dashboard', icon: Building2 },
-          { id: 'center-halls', path: '/center/dashboard', label: lang === 'ar' ? 'القاعات والجداول' : 'Halls & Schedule', icon: BookOpen },
-          { id: 'center-qr', path: '/center/dashboard', label: lang === 'ar' ? 'حضور الطلاب' : 'QR Attendance', icon: QrCode },
-          { id: 'center-financials', path: '/center/dashboard', label: lang === 'ar' ? 'الفواتير والإيرادات' : 'Billing & Revenue', icon: DollarSign },
+          {
+            group: lang === 'ar' ? 'القيادة والتشغيل اليومي' : 'Command & Daily Operations',
+            items: [
+              { id: 'center-portal', path: '/center/dashboard', label: lang === 'ar' ? 'غرفة عمليات السنتر' : 'Command Center', icon: Building2 },
+              { id: 'center-groups', path: '/center/groups', label: lang === 'ar' ? 'المجموعات والصفوف الدراسية' : 'Cohorts & Groups', icon: Users },
+              { id: 'center-halls', path: '/center/halls', label: lang === 'ar' ? 'القاعات وجداول التشغيل' : 'Rooms & Schedule', icon: Calendar },
+              { id: 'center-qr', path: '/center/attendance', label: lang === 'ar' ? 'الباركود وحضور الطلاب' : 'QR Attendance', icon: QrCode },
+            ]
+          },
+          {
+            group: lang === 'ar' ? 'الإدارة المالية ومستحقات الشركاء' : 'Financials & Settlements',
+            items: [
+              { id: 'center-financials', path: '/center/financials', label: lang === 'ar' ? 'المالية ونسب المدرسين' : 'Settlements & P&L', icon: DollarSign },
+            ]
+          },
+          {
+            group: lang === 'ar' ? 'الفروع والنمو والسياسات' : 'Growth & Settings',
+            items: [
+              { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'الفروع والعمليات والـ CRM' : 'Branches & CRM', icon: Layers },
+              { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'إعدادات المنظومة والمهام' : 'Settings & Tasks', icon: Settings },
+            ]
+          }
         ];
       case 'admin':
         return [

@@ -223,9 +223,45 @@ export const ROUTE_HIERARCHY = {
 
   // ── CENTER ROUTES ──
   '/center/dashboard': {
-    titleAr: 'لوحة تحكم السنتر',
-    titleEn: 'Center Dashboard',
+    titleAr: 'غرفة عمليات السنتر',
+    titleEn: 'Command Center',
     isRoot: true,
+    role: 'center'
+  },
+  '/center/groups': {
+    titleAr: 'المجموعات والصفوف الدراسية والباركود',
+    titleEn: 'Cohorts & Barcode Attendance',
+    parent: '/center/dashboard',
+    role: 'center'
+  },
+  '/center/halls': {
+    titleAr: 'القاعات وجداول التشغيل',
+    titleEn: 'Halls & Schedule',
+    parent: '/center/dashboard',
+    role: 'center'
+  },
+  '/center/attendance': {
+    titleAr: 'الباركود وحضور الطلاب',
+    titleEn: 'QR Attendance',
+    parent: '/center/dashboard',
+    role: 'center'
+  },
+  '/center/financials': {
+    titleAr: 'المالية ومستحقات المدرسين',
+    titleEn: 'Financials & Settlements',
+    parent: '/center/dashboard',
+    role: 'center'
+  },
+  '/center/operations': {
+    titleAr: 'الفروع والعمليات والـ CRM',
+    titleEn: 'Branches & Operations',
+    parent: '/center/dashboard',
+    role: 'center'
+  },
+  '/center/settings': {
+    titleAr: 'إعدادات المنظومة والمهام',
+    titleEn: 'Settings & Cloud Backup',
+    parent: '/center/dashboard',
     role: 'center'
   },
 

@@ -525,6 +525,8 @@ export const GroupsProvider = ({ children }) => {
     const generatedCode = groupData.joinCode?.trim() || `GRP-${Date.now().toString().slice(-4)}-${randomCodeSuffix}`;
     const slots = (Array.isArray(groupData.scheduleSlots) && groupData.scheduleSlots.length > 0)
       ? groupData.scheduleSlots
+      : (Array.isArray(groupData.slots) && groupData.slots.length > 0)
+      ? groupData.slots
       : parseScheduleSlots(groupData.scheduleAr, groupData.hallName || 'القاعة الرئيسية');
 
     const newGroup = {
@@ -539,17 +541,18 @@ export const GroupsProvider = ({ children }) => {
       scheduleEn: groupData.scheduleEn || groupData.scheduleAr,
       centerName: groupData.centerName || 'السنتر التعليمي',
       hallName: groupData.hallName || 'القاعة الرئيسية',
+      maxStudents: Number(groupData.maxStudents) || 50,
       priceEgp: Number(groupData.priceEgp) || 400,
       joinCode: generatedCode,
-      teacherNameAr: 'د. سلمى السيد',
-      teacherNameEn: 'Dr. Salma El-Sayed',
+      teacherNameAr: groupData.teacherNameAr || 'د. سلمى السيد',
+      teacherNameEn: groupData.teacherNameEn || groupData.teacherNameAr || 'Teacher',
       scheduleSlots: slots
     };
 
     setGroups(prev => [newGroup, ...prev]);
     setEnrolledStudents(prev => ({ ...prev, [newGroup.id]: [] }));
     setPendingStudents(prev => ({ ...prev, [newGroup.id]: [] }));
-    showToast('تم إنشاء المجموعة وإضافتها تلقائياً لجدول الحصص الأسبوعي!');
+    showToast('تم إنشاء المجموعة وإضافتها بنجاح!');
     return newGroup;
   };
 
@@ -793,6 +796,106 @@ export const GroupsProvider = ({ children }) => {
     return { success: true, group };
   };
 
+  // Enroll student directly (Center / Admin)
+  const enrollStudentDirectly = (groupId, studentData) => {
+    const currentEnrolled = enrolledStudents[groupId] || [];
+    if (currentEnrolled.some(s => s.id === studentData.id || (studentData.phone && s.phone === studentData.phone))) {
+      showToast('هذا الطالب مقيد بالفعل في هذه المجموعة!', 'warning');
+      return false;
+    }
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const studentBarcode = studentData.barcode || `2026${randomSuffix}`;
+    const studentPasscode = studentData.passcode || `STU-${randomSuffix}`;
+
+    const newEnrolled = {
+      id: studentData.id || `std-${Date.now()}`,
+      name: studentData.nameEn || studentData.name || studentData.nameAr,
+      nameAr: studentData.nameAr || 'طالب جديد',
+      username: studentData.username || `user_${randomSuffix}`,
+      phone: studentData.phone || '+20 100 000 0000',
+      parentName: studentData.parentName || studentData.parentNameAr || 'ولي الأمر',
+      parentNameAr: studentData.parentNameAr || studentData.parentName || 'ولي الأمر',
+      parentPhone: studentData.parentPhone || studentData.phone || '+20 100 000 0000',
+      gradeAr: studentData.gradeAr || 'الصف الثالث الثانوي',
+      attendanceRate: 100,
+      attendedSessions: 1,
+      totalSessions: 1,
+      todayStatus: 'present',
+      avgQuizScore: 92,
+      streakDays: 1,
+      status: 'Active',
+      barcode: studentBarcode,
+      passcode: studentPasscode,
+      avatar: studentData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+    };
+
+    setEnrolledStudents(prev => ({
+      ...prev,
+      [groupId]: [newEnrolled, ...(prev[groupId] || [])]
+    }));
+
+    showToast(`تم قيد الطالب «${newEnrolled.nameAr}» وإصدار باركود الحضور بنجاح!`);
+    return newEnrolled;
+  };
+
+  // Toggle student attendance for today
+  const toggleStudentAttendance = (groupId, studentId) => {
+    setEnrolledStudents(prev => {
+      const list = prev[groupId] || [];
+      return {
+        ...prev,
+        [groupId]: list.map(s => {
+          if (s.id === studentId) {
+            const newStatus = s.todayStatus === 'present' ? 'absent' : 'present';
+            return {
+              ...s,
+              todayStatus: newStatus,
+              attendedSessions: newStatus === 'present' ? s.attendedSessions + 1 : Math.max(0, s.attendedSessions - 1)
+            };
+          }
+          return s;
+        })
+      };
+    });
+  };
+
+  // Record student attendance by Barcode or Passcode
+  const recordStudentAttendanceByCode = (groupId, code) => {
+    const clean = (code || '').trim().toUpperCase();
+    if (!clean) return { success: false, message: 'يرجى إدخال أو مسح الباركود' };
+
+    const list = enrolledStudents[groupId] || [];
+    const student = list.find(s => 
+      (s.barcode && s.barcode.toUpperCase() === clean) ||
+      (s.passcode && s.passcode.toUpperCase() === clean) ||
+      (s.id && s.id.toUpperCase() === clean) ||
+      (s.phone && s.phone.replace(/[^0-9]/g, '').includes(clean.replace(/[^0-9]/g, ''))) ||
+      (s.nameAr && s.nameAr.includes(clean))
+    );
+
+    if (!student) {
+      return { success: false, message: 'لم يتم العثور على طالب يطابق هذا الباركود في المجموعة!' };
+    }
+
+    setEnrolledStudents(prev => ({
+      ...prev,
+      [groupId]: (prev[groupId] || []).map(s => {
+        if (s.id === student.id) {
+          return {
+            ...s,
+            todayStatus: 'present',
+            attendedSessions: s.todayStatus === 'present' ? s.attendedSessions : s.attendedSessions + 1
+          };
+        }
+        return s;
+      })
+    }));
+
+    showToast(`تم مسح الباركود بنجاح: تم تسجيل حضور الطالب «${student.nameAr}»!`);
+    return { success: true, student };
+  };
+
   const getActiveGroup = () => {
     return groups.find(g => g.id === activeGroupId) || groups[0] || null;
   };
@@ -814,6 +917,9 @@ export const GroupsProvider = ({ children }) => {
         removeStudentFromGroup,
         inviteStudentToGroup,
         studentJoinByCode,
+        enrollStudentDirectly,
+        toggleStudentAttendance,
+        recordStudentAttendanceByCode,
         scheduleNotes,
         addScheduleNote,
         toggleScheduleNote,

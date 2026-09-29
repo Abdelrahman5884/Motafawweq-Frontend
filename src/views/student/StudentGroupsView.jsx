@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ClassQrModal } from '../../features/teacher/classes/ClassQrModal';
 import { StudentWeeklySchedule } from '../../features/student/schedule';
+import { StudentCenterQrPassModal } from '../../components/student/StudentCenterQrPassModal';
 
 export const StudentGroupsView = ({ defaultTab }) => {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ export const StudentGroupsView = ({ defaultTab }) => {
   const [inputCode, setInputCode] = useState('');
   const [joinResult, setJoinResult] = useState(null);
   const [selectedGroupForQr, setSelectedGroupForQr] = useState(null);
+  const [isCenterQrPassOpen, setIsCenterQrPassOpen] = useState(false);
 
   const studentNameAr = currentUser?.nameAr || 'عمر طارق القاضي';
   const studentPhone = currentUser?.phone || '+20 102 458 9912';
@@ -158,103 +160,134 @@ export const StudentGroupsView = ({ defaultTab }) => {
         </p>
       </div>
 
-      {/* Tab Switcher Pills */}
+      {/* Tab Switcher & Center QR Pass Bar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '6px',
-        backgroundColor: 'var(--bg-subtle)',
-        padding: '4px',
-        borderRadius: '12px',
-        border: '1px solid var(--border-subtle)',
-        marginBottom: '26px',
-        width: 'fit-content'
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px',
+        marginBottom: '26px'
       }}>
-        <button
-          onClick={() => {
-            setActiveTab('groups');
-            navigate('/student/groups', { replace: true });
-          }}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '9px 18px',
-            borderRadius: '10px',
-            border: 'none',
-            fontSize: '13.5px',
-            fontWeight: activeTab === 'groups' ? '800' : '600',
-            backgroundColor: activeTab === 'groups' ? 'var(--bg-surface)' : 'transparent',
-            color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)',
-            boxShadow: activeTab === 'groups' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Building2 size={16} />
-          <span>{lang === 'ar' ? 'المجموعات والقاعات المسجل بها' : 'Enrolled Cohorts'}</span>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: '800',
-            padding: '2px 8px',
-            borderRadius: '999px',
-            backgroundColor: activeTab === 'groups' ? 'rgba(21, 136, 199, 0.12)' : 'var(--border-subtle)',
-            color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)'
-          }}>
-            {studentGroups.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab('schedule');
-            navigate('/student/schedule', { replace: true });
-          }}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '9px 18px',
-            borderRadius: '10px',
-            border: 'none',
-            fontSize: '13.5px',
-            fontWeight: activeTab === 'schedule' ? '800' : '600',
-            backgroundColor: activeTab === 'schedule' ? 'var(--bg-surface)' : 'transparent',
-            color: activeTab === 'schedule' ? 'var(--primary)' : 'var(--text-secondary)',
-            boxShadow: activeTab === 'schedule' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Calendar size={16} />
-          <span>{lang === 'ar' ? 'جدول المواعيد والمذاكرة الأسبوعي' : 'Weekly Schedule'}</span>
-          {todaySessionsCount > 0 ? (
+        {/* Tab Switcher Pills */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          backgroundColor: 'var(--bg-subtle)',
+          padding: '4px',
+          borderRadius: '12px',
+          border: '1px solid var(--border-subtle)',
+          width: 'fit-content'
+        }}>
+          <button
+            onClick={() => {
+              setActiveTab('groups');
+              navigate('/student/groups', { replace: true });
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 18px',
+              borderRadius: '10px',
+              border: 'none',
+              fontSize: '13.5px',
+              fontWeight: activeTab === 'groups' ? '800' : '600',
+              backgroundColor: activeTab === 'groups' ? 'var(--bg-surface)' : 'transparent',
+              color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)',
+              boxShadow: activeTab === 'groups' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Building2 size={16} />
+            <span>{lang === 'ar' ? 'المجموعات والقاعات المسجل بها' : 'Enrolled Cohorts'}</span>
             <span style={{
               fontSize: '11px',
               fontWeight: '800',
               padding: '2px 8px',
               borderRadius: '999px',
-              backgroundColor: 'rgba(21, 136, 199, 0.15)',
-              color: 'var(--primary)',
+              backgroundColor: activeTab === 'groups' ? 'rgba(21, 136, 199, 0.12)' : 'var(--border-subtle)',
+              color: activeTab === 'groups' ? 'var(--primary)' : 'var(--text-secondary)'
+            }}>
+              {studentGroups.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('schedule');
+              navigate('/student/schedule', { replace: true });
+            }}
+            style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px'
-            }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-              {lang === 'ar' ? `${todaySessionsCount} اليوم` : `${todaySessionsCount} Today`}
-            </span>
-          ) : (
-            <span style={{
-              fontSize: '11px',
-              fontWeight: '700',
-              padding: '2px 8px',
-              borderRadius: '999px',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              color: '#10B981'
-            }}>
-              {lang === 'ar' ? 'محدث' : 'Active'}
-            </span>
-          )}
+              gap: '8px',
+              padding: '9px 18px',
+              borderRadius: '10px',
+              border: 'none',
+              fontSize: '13.5px',
+              fontWeight: activeTab === 'schedule' ? '800' : '600',
+              backgroundColor: activeTab === 'schedule' ? 'var(--bg-surface)' : 'transparent',
+              color: activeTab === 'schedule' ? 'var(--primary)' : 'var(--text-secondary)',
+              boxShadow: activeTab === 'schedule' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Calendar size={16} />
+            <span>{lang === 'ar' ? 'جدول المواعيد والمذاكرة الأسبوعي' : 'Weekly Schedule'}</span>
+            {todaySessionsCount > 0 ? (
+              <span style={{
+                fontSize: '11px',
+                fontWeight: '800',
+                padding: '2px 8px',
+                borderRadius: '999px',
+                backgroundColor: 'rgba(21, 136, 199, 0.15)',
+                color: 'var(--primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
+                {lang === 'ar' ? `${todaySessionsCount} اليوم` : `${todaySessionsCount} Today`}
+              </span>
+            ) : (
+              <span style={{
+                fontSize: '11px',
+                fontWeight: '700',
+                padding: '2px 8px',
+                borderRadius: '999px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                color: '#10B981'
+              }}>
+                {lang === 'ar' ? 'محدث' : 'Active'}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Smart Student Pass Button */}
+        <button
+          onClick={() => setIsCenterQrPassOpen(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '9px 16px',
+            borderRadius: '12px',
+            border: '1px solid rgba(21, 136, 199, 0.3)',
+            backgroundColor: 'rgba(21, 136, 199, 0.08)',
+            color: 'var(--primary)',
+            fontSize: '13px',
+            fontWeight: '800',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <QrCode size={16} />
+          <span>{lang === 'ar' ? 'بطاقة حضور السنتر الذكية (QR Pass)' : 'Center Smart QR Pass'}</span>
         </button>
       </div>
 
@@ -528,6 +561,18 @@ export const StudentGroupsView = ({ defaultTab }) => {
         selectedClass={selectedGroupForQr}
         lang={lang}
         onClose={() => setSelectedGroupForQr(null)}
+      />
+
+      {/* Student Center Digital QR Pass Modal */}
+      <StudentCenterQrPassModal
+        isOpen={isCenterQrPassOpen}
+        onClose={() => setIsCenterQrPassOpen(false)}
+        studentInfo={{
+          name: studentNameAr,
+          phone: studentPhone,
+          code: 'STU-88219',
+          grade: 'الصف الثالث الثانوي — علمي رياضة'
+        }}
       />
     </div>
   );

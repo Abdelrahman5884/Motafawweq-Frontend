@@ -12,23 +12,37 @@ import {
   Compass, 
   Mic, 
   ChevronDown,
-  ExternalLink,
+  Calendar,
+  QrCode,
+  DollarSign,
+  Layers,
+  Settings,
   LogIn
 } from 'lucide-react';
 
 export const RoleSwitcher = () => {
   const navigate = useNavigate();
   const { currentRole, switchRole } = useAuth();
-  const { lang, t, isRtl } = useLanguage();
+  const { lang, isRtl } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   const rolesList = [
+    {
+      id: 'center',
+      title: lang === 'ar' ? 'سنتر تعليمي (أكاديمية الرواد)' : 'Center (Al-Rowad Academy)',
+      subtitle: lang === 'ar' ? 'إدارة المدرسين، القاعات، الحضور، المالية والتشغيل' : 'Teachers, Rooms, Attendance, Financials & Ops',
+      icon: Building2,
+      color: 'var(--primary)',
+      bgLight: 'var(--primary-light)',
+      path: '/center/dashboard'
+    },
     {
       id: 'teacher',
       title: lang === 'ar' ? 'معلم (د. سلمى السيد)' : 'Teacher (Dr. Salma)',
       subtitle: lang === 'ar' ? 'استوديو التسجيل، خريطة المعرفة، بنك الأسئلة' : 'Studio, Knowledge Map, Quizzes, Roster',
       icon: GraduationCap,
-      color: 'var(--primary, #1588C7)',
+      color: 'var(--primary)',
+      bgLight: 'var(--primary-light)',
       path: '/teacher/dashboard'
     },
     {
@@ -36,7 +50,8 @@ export const RoleSwitcher = () => {
       title: lang === 'ar' ? 'طالب (عمر طارق)' : 'Student (Omar Tarek)',
       subtitle: lang === 'ar' ? 'غرفة المذاكرة، الامتحانات، تشخيص نقاط الضعف' : 'Study Room, Quizzes, Weak Areas Hub',
       icon: BookOpen,
-      color: '#06B6D4',
+      color: 'var(--color-primary-light)',
+      bgLight: 'var(--primary-light)',
       path: '/student/dashboard'
     },
     {
@@ -44,37 +59,35 @@ export const RoleSwitcher = () => {
       title: lang === 'ar' ? 'ولي أمر (م. طارق)' : 'Parent (Eng. Tarek)',
       subtitle: lang === 'ar' ? 'متابعة الأبناء، الحضور، درجات الامتحانات' : 'Children Overview, Attendance & Progress',
       icon: Users,
-      color: '#10B981',
+      color: 'var(--success)',
+      bgLight: 'var(--success-light)',
       path: '/parent/dashboard'
-    },
-    {
-      id: 'center',
-      title: lang === 'ar' ? 'سنتر تعليمي (أكاديمية الرواد)' : 'Center (Al-Rowad Academy)',
-      subtitle: lang === 'ar' ? 'إدارة المدرسين، القاعات، التقارير والبراندينج' : 'Teachers, Rooms, Financials & White-label',
-      icon: Building2,
-      color: '#F59E0B',
-      path: '/center/dashboard'
     },
     {
       id: 'admin',
       title: lang === 'ar' ? 'مدير المنصة (SuperAdmin)' : 'SaaS Admin (HQ)',
       subtitle: lang === 'ar' ? 'اقتصاديات الذكاء الاصطناعي، التوثيق، النمو' : 'AI Economics, Margin Analytics, Verification',
       icon: ShieldCheck,
-      color: '#EC4899',
+      color: 'var(--color-brand-dark)',
+      bgLight: 'var(--bg-subtle)',
       path: '/admin/dashboard'
     }
   ];
 
   const quickShowcases = [
-    { label: lang === 'ar' ? 'الموقع العام' : 'Public Website', path: '/', icon: Compass },
-    { label: lang === 'ar' ? 'تسجيل الدخول' : 'Login Page', path: '/login', icon: LogIn },
-    { label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', path: '/teacher/studio', role: 'teacher', icon: Mic },
+    { label: lang === 'ar' ? 'غرفة عمليات السنتر' : 'Center Command', path: '/center/dashboard', role: 'center', icon: Building2 },
+    { label: lang === 'ar' ? 'القاعات وجدول التشغيل' : 'Rooms & Schedule', path: '/center/halls', role: 'center', icon: Calendar },
+    { label: lang === 'ar' ? 'الباركود وحضور الطلاب' : 'QR Attendance', path: '/center/attendance', role: 'center', icon: QrCode },
+    { label: lang === 'ar' ? 'المالية ونسب المدرسين' : 'Center Financials', path: '/center/financials', role: 'center', icon: DollarSign },
+    { label: lang === 'ar' ? 'الفروع والعمليات والـ CRM' : 'Branches & CRM', path: '/center/operations', role: 'center', icon: Layers },
+    { label: lang === 'ar' ? 'إعدادات المنظومة والمهام' : 'Center Settings', path: '/center/settings', role: 'center', icon: Settings },
+    { label: lang === 'ar' ? 'استوديو تسجيل المعلم' : 'Recording Studio', path: '/teacher/studio', role: 'teacher', icon: Mic },
     { label: lang === 'ar' ? 'خريطة المعرفة' : 'Lesson Workspace', path: '/teacher/workspace', role: 'teacher', icon: Sparkles },
-    { label: lang === 'ar' ? 'اختبار الطالب' : 'Student Exam', path: '/student/exam', role: 'student', icon: BookOpen },
-    { label: lang === 'ar' ? 'سوق المعلمين' : 'Teacher Market', path: '/marketplace', icon: ExternalLink }
+    { label: lang === 'ar' ? 'امتحان الطالب التفاعلي' : 'Student Exam', path: '/student/exam', role: 'student', icon: BookOpen },
+    { label: lang === 'ar' ? 'الموقع العام' : 'Public Website', path: '/', icon: Compass }
   ];
 
-  const activeRoleObj = rolesList.find(r => r.id === currentRole) || rolesList[1];
+  const activeRoleObj = rolesList.find(r => r.id === currentRole) || rolesList[0];
   const IconComponent = activeRoleObj.icon;
 
   return (
@@ -92,13 +105,13 @@ export const RoleSwitcher = () => {
           position: 'absolute',
           bottom: '54px',
           [isRtl ? 'right' : 'left']: 0,
-          width: '360px',
-          maxHeight: '80vh',
+          width: '380px',
+          maxHeight: '82vh',
           overflowY: 'auto',
-          backgroundColor: 'var(--bg-surface-elevated)',
+          backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-medium)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.22)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: '0 20px 48px rgba(6, 37, 78, 0.22)',
           padding: '16px',
           backdropFilter: 'blur(20px)'
         }} className="animate-fade-in">
@@ -107,16 +120,25 @@ export const RoleSwitcher = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: '12px',
-            paddingBottom: '8px',
+            paddingBottom: '10px',
             borderBottom: '1px solid var(--border-subtle)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={16} color="var(--primary)" />
-              <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--primary)' }}>
-                {lang === 'ar' ? 'مبدل الأدوار الفوري - متفوّق' : 'Motafawweq Role Switcher'}
+              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                {lang === 'ar' ? 'مبدل الأدوار وبوابات متفوّق' : 'Motafawweq Role & Portal Switcher'}
               </span>
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Live Demo</span>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'var(--primary-light)',
+              color: 'var(--primary)',
+              fontWeight: '700'
+            }}>
+              100% Live
+            </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
@@ -136,9 +158,9 @@ export const RoleSwitcher = () => {
                     alignItems: 'center',
                     gap: '12px',
                     padding: '10px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: isSelected ? `1.5px solid ${item.color}` : '1px solid transparent',
-                    backgroundColor: isSelected ? 'var(--primary-surface)' : 'transparent',
+                    borderRadius: 'var(--radius-lg)',
+                    border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
+                    backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-app)',
                     cursor: 'pointer',
                     textAlign: isRtl ? 'right' : 'left',
                     transition: 'all 0.15s ease',
@@ -146,10 +168,10 @@ export const RoleSwitcher = () => {
                   }}
                 >
                   <div style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: `${item.color}20`,
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: item.bgLight,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -160,8 +182,8 @@ export const RoleSwitcher = () => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: '13px',
-                      fontWeight: '700',
-                      color: isSelected ? item.color : 'var(--text-primary)',
+                      fontWeight: '800',
+                      color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -170,12 +192,13 @@ export const RoleSwitcher = () => {
                       {isSelected && (
                         <span style={{
                           fontSize: '10px',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: item.color,
-                          color: '#FFFFFF'
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-full)',
+                          backgroundColor: 'var(--primary)',
+                          color: '#FFFFFF',
+                          fontWeight: '700'
                         }}>
-                          {lang === 'ar' ? 'نشط' : 'Active'}
+                          {lang === 'ar' ? 'النشط' : 'Active'}
                         </span>
                       )}
                     </div>
@@ -200,8 +223,8 @@ export const RoleSwitcher = () => {
             paddingTop: '10px',
             borderTop: '1px solid var(--border-subtle)'
           }}>
-            <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              {lang === 'ar' ? 'انتقال سريع لصفحة محددة:' : 'Direct URL Jump:'}
+            <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+              {lang === 'ar' ? 'انتقال سريع لأي قسم مباشر:' : 'Direct Quick Jump:'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
               {quickShowcases.map((demo, idx) => {
@@ -218,19 +241,27 @@ export const RoleSwitcher = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      padding: '7px 9px',
+                      padding: '7px 10px',
                       fontSize: '11px',
-                      fontWeight: '500',
-                      borderRadius: 'var(--radius-sm)',
+                      fontWeight: '600',
+                      borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-subtle)',
+                      backgroundColor: 'var(--bg-app)',
                       color: 'var(--text-primary)',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                       textAlign: isRtl ? 'right' : 'left'
                     }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--primary-light)';
+                      e.currentTarget.style.borderColor = 'var(--primary)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    }}
                   >
-                    <DemoIcon size={12} color="var(--primary)" />
+                    <DemoIcon size={13} color="var(--primary)" style={{ flexShrink: 0 }} />
                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {demo.label}
                     </span>
@@ -251,9 +282,9 @@ export const RoleSwitcher = () => {
           gap: '10px',
           padding: '8px 16px',
           borderRadius: 'var(--radius-full)',
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: `1.5px solid ${activeRoleObj.color}`,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1.5px solid var(--primary)',
+          boxShadow: 'var(--shadow-lg)',
           cursor: 'pointer',
           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           backdropFilter: 'blur(16px)'
@@ -265,7 +296,7 @@ export const RoleSwitcher = () => {
           width: '26px',
           height: '26px',
           borderRadius: '50%',
-          backgroundColor: `${activeRoleObj.color}25`,
+          backgroundColor: activeRoleObj.bgLight,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
@@ -274,9 +305,9 @@ export const RoleSwitcher = () => {
         </div>
         <div style={{ textAlign: isRtl ? 'right' : 'left' }}>
           <div style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: 1 }}>
-            {lang === 'ar' ? 'الدور الحالي' : 'Active Role'}
+            {lang === 'ar' ? 'البوابة الحالية' : 'Active Portal'}
           </div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+          <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1.2 }}>
             {activeRoleObj.title.split('(')[0]}
           </div>
         </div>
