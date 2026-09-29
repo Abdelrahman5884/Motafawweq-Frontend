@@ -4,6 +4,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
 import { useGroups, ALL_REGISTERED_STUDENTS } from '../../context/GroupsContext';
 import { RealQRCode } from '../../components/common/RealQRCode';
+import { CameraBarcodeScanner } from '../../components/common/CameraBarcodeScanner';
 import { 
   Building2, 
   Users, 
@@ -24,18 +25,21 @@ import {
   Printer, 
   Scan, 
   Check, 
-  ArrowRight,
-  ArrowLeft,
-  Copy,
-  ExternalLink,
-  MessageCircle,
-  LayoutGrid,
-  List,
-  Filter,
-  Sparkles,
-  RefreshCw,
-  SlidersHorizontal,
-  ChevronDown
+  ArrowRight, 
+  ArrowLeft, 
+  Copy, 
+  ExternalLink, 
+  MessageCircle, 
+  LayoutGrid, 
+  List, 
+  Filter, 
+  Sparkles, 
+  RefreshCw, 
+  SlidersHorizontal, 
+  ChevronDown,
+  Camera,
+  CameraOff,
+  Keyboard
 } from 'lucide-react';
 
 const WEEKDAYS = [
@@ -115,7 +119,9 @@ export const CenterGroupsView = () => {
   const [manualParentName, setManualParentName] = useState('');
   const [manualParentPhone, setManualParentPhone] = useState('');
 
-  // Barcode Scanner Input State
+  // Barcode Scanner Input & Camera State
+  const [scannerMode, setScannerMode] = useState('camera'); // 'camera' | 'manual'
+  const [isCameraActive, setIsCameraActive] = useState(true);
   const [scanCodeInput, setScanCodeInput] = useState('');
   const [scanFeedback, setScanFeedback] = useState(null);
   const [copiedCodeId, setCopiedCodeId] = useState(null);
@@ -139,6 +145,61 @@ export const CenterGroupsView = () => {
     } catch (err) {
       // AudioContext not allowed or not supported
     }
+  };
+
+  // Comprehensive scanner processor (processes Camera scan, Barcode Reader gun, or Manual typing)
+  const processScannedCode = (rawText) => {
+    if (!activeGroup || !rawText) return;
+    const raw = rawText.trim();
+    let candidateCodes = [raw];
+
+    // If format is like MOTAFAWWEQ:STUDENT:cls-1:STU-1042:20261042
+    if (raw.includes(':')) {
+      const parts = raw.split(':').map(p => p.trim()).filter(Boolean);
+      candidateCodes.push(...parts);
+    }
+
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        const obj = JSON.parse(raw);
+        if (obj.barcode) candidateCodes.push(obj.barcode);
+        if (obj.passcode) candidateCodes.push(obj.passcode);
+        if (obj.id) candidateCodes.push(obj.id);
+        if (obj.phone) candidateCodes.push(obj.phone);
+        if (obj.studentNameAr) candidateCodes.push(obj.studentNameAr);
+      } catch (e) {}
+    }
+
+    let result = null;
+    for (const c of candidateCodes) {
+      const res = recordStudentAttendanceByCode(activeGroup.id, c);
+      if (res?.success) {
+        result = res;
+        break;
+      }
+    }
+
+    if (result && result.success) {
+      playScannerBeep();
+      setScanFeedback({
+        success: true,
+        message: `تم مسح الباركود بنجاح! تم تسجيل حضور «${result.student.nameAr}»`,
+        student: result.student
+      });
+      setScanCodeInput('');
+      if (scannerInputRef.current) {
+        scannerInputRef.current.focus();
+      }
+    } else {
+      setScanFeedback({
+        success: false,
+        message: `تم قراءة الباركود [${raw.slice(0, 30)}] ولكن لم يتم العثور على طالب يطابقه في هذه المجموعة.`
+      });
+    }
+
+    setTimeout(() => {
+      setScanFeedback(null);
+    }, 4500);
   };
 
   // Active Selected Group
@@ -338,29 +399,7 @@ export const CenterGroupsView = () => {
   const handleScanSubmit = (e) => {
     e?.preventDefault();
     if (!activeGroup || !scanCodeInput.trim()) return;
-
-    const result = recordStudentAttendanceByCode(activeGroup.id, scanCodeInput.trim());
-    if (result.success) {
-      playScannerBeep();
-      setScanFeedback({
-        success: true,
-        message: `تم تسجيل حضور «${result.student.nameAr}» بنجاح!`,
-        student: result.student
-      });
-      setScanCodeInput('');
-      if (scannerInputRef.current) {
-        scannerInputRef.current.focus();
-      }
-    } else {
-      setScanFeedback({
-        success: false,
-        message: result.message
-      });
-    }
-
-    setTimeout(() => {
-      setScanFeedback(null);
-    }, 4000);
+    processScannedCode(scanCodeInput.trim());
   };
 
   // Handle Add Existing Platform Student
@@ -1246,10 +1285,131 @@ export const CenterGroupsView = () => {
                   boxShadow: '0 0 8px var(--success)'
                 }} />
                 <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--success)' }}>
-                  نظام المسح متصل ونشط
+                  {scannerMode === 'camera' && isCameraActive ? 'الكاميرا نشطة وجاهزة للمسح' : 'نظام المسح متصل ونشط'}
                 </span>
               </div>
             </div>
+
+            {/* Mode Switcher: Live Camera vs Manual/Gun */}
+            <div style={{
+              display: 'flex',
+              backgroundColor: 'var(--bg-app)',
+              padding: '4px',
+              borderRadius: 'var(--radius-lg)',
+              marginBottom: '18px',
+              border: '1px solid var(--border-subtle)',
+              gap: '6px'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setScannerMode('camera');
+                  setIsCameraActive(true);
+                }}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: scannerMode === 'camera' ? 'var(--primary)' : 'transparent',
+                  color: scannerMode === 'camera' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: scannerMode === 'camera' ? 'var(--shadow-sm)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Camera size={16} />
+                <span>المسح عبر الكاميرا المباشرة (وجّه الباركود للكاميرا)</span>
+                {scannerMode === 'camera' && isCameraActive && (
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFFFF' }} />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setScannerMode('manual');
+                  setIsCameraActive(false);
+                  if (scannerInputRef.current) scannerInputRef.current.focus();
+                }}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: scannerMode === 'manual' ? 'var(--primary)' : 'transparent',
+                  color: scannerMode === 'manual' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: scannerMode === 'manual' ? 'var(--shadow-sm)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Keyboard size={16} />
+                <span>قارئ الباركود اليدوي / جهاز USB</span>
+              </button>
+            </div>
+
+            {/* Live Camera Scanner View */}
+            {scannerMode === 'camera' && (
+              <div style={{ marginBottom: '18px' }}>
+                {isCameraActive ? (
+                  <CameraBarcodeScanner
+                    onScanSuccess={processScannedCode}
+                    isScanningActive={isCameraActive}
+                    showControls={true}
+                    onClose={() => setIsCameraActive(false)}
+                  />
+                ) : (
+                  <div style={{
+                    padding: '36px 20px',
+                    textAlign: 'center',
+                    backgroundColor: 'var(--bg-app)',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1.5px dashed var(--border-medium)'
+                  }}>
+                    <Camera size={36} color="var(--primary)" style={{ margin: '0 auto 10px' }} />
+                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                      الكاميرا متوقفة حالياً
+                    </h4>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                      اضغط على الزر أدناه لتشغيل الكاميرا وتوجيه باركود أو كود QR الطالب أمامها
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraActive(true)}
+                      style={{
+                        padding: '10px 22px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--primary)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '13px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <Camera size={16} />
+                      <span>تشغيل الكاميرا الآن</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Scanner Input Form */}
             <form onSubmit={handleScanSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
