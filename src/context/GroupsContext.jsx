@@ -56,23 +56,23 @@ export const parseScheduleSlots = (scheduleStr = '', defaultHall = 'القاعة
 const INITIAL_GROUPS = [
   {
     id: 'cls-1',
-    nameAr: 'أحياء 3 ثانوي 2026 — مجموعة الدقي النخبة',
-    nameEn: 'Thanawya Amma Biology 2026 — Dokki Elite Cohort',
+    nameAr: 'أحياء 3 ثانوي 2026 — مجموعة النخبة',
+    nameEn: 'Thanawya Amma Biology 2026 — Elite Cohort',
     subjectAr: 'الأحياء (الثانوية العامة)',
     subjectEn: 'Biology',
     gradeAr: 'الصف الثالث الثانوي',
     gradeEn: 'Grade 12',
     scheduleAr: 'الأحد والأربعاء 4:00 عصراً',
     scheduleEn: 'Sundays & Wednesdays 4:00 PM',
-    centerName: 'سنتر الرواد التعليمي — الدقي',
+    centerName: 'سنتر الرواد التعليمي — فرع الدقي',
     hallName: 'قاعة 1 (المحاضرات الكبرى)',
     priceEgp: 450,
     joinCode: 'BIO-DK-2026',
     teacherNameAr: 'د. سلمى السيد',
     teacherNameEn: 'Dr. Salma El-Sayed',
     scheduleSlots: [
-      { id: 'slot-1-1', day: 'sunday', dayAr: 'الأحد', dayEn: 'Sunday', startTime: '16:00', endTime: '18:00', hall: 'قاعة 1' },
-      { id: 'slot-1-2', day: 'wednesday', dayAr: 'الأربعاء', dayEn: 'Wednesday', startTime: '16:00', endTime: '18:00', hall: 'قاعة 1' }
+      { id: 'slot-1-1', day: 'sunday', dayAr: 'الأحد', dayEn: 'Sunday', startTime: '16:00', endTime: '18:00', hall: 'قاعة 1 (المحاضرات الكبرى)' },
+      { id: 'slot-1-2', day: 'wednesday', dayAr: 'الأربعاء', dayEn: 'Wednesday', startTime: '16:00', endTime: '18:00', hall: 'قاعة 1 (المحاضرات الكبرى)' }
     ]
   },
   {
@@ -85,35 +85,36 @@ const INITIAL_GROUPS = [
     gradeEn: 'Grade 12',
     scheduleAr: 'الإثنين والخميس 6:00 مساءً',
     scheduleEn: 'Mondays & Thursdays 6:00 PM',
-    centerName: 'سنتر النخبة التعليمي — مدينة نصر',
+    centerName: 'سنتر الرواد التعليمي — فرع مدينة نصر',
     hallName: 'قاعة أينشتاين للمتفوقين',
     priceEgp: 500,
     joinCode: 'PHY-OLYMP-26',
-    teacherNameAr: 'د. سلمى السيد',
-    teacherNameEn: 'Dr. Salma El-Sayed',
+    teacherNameAr: 'م. أحمد جلال',
+    teacherNameEn: 'Eng. Ahmed Galal',
     scheduleSlots: [
-      { id: 'slot-2-1', day: 'monday', dayAr: 'الاثنين', dayEn: 'Monday', startTime: '18:00', endTime: '20:00', hall: 'قاعة أينشتاين' },
-      { id: 'slot-2-2', day: 'thursday', dayAr: 'الخميس', dayEn: 'Thursday', startTime: '18:00', endTime: '20:00', hall: 'قاعة أينشتاين' }
+      { id: 'slot-2-1', day: 'monday', dayAr: 'الاثنين', dayEn: 'Monday', startTime: '18:00', endTime: '20:00', hall: 'قاعة أينشتاين للمتفوقين' },
+      { id: 'slot-2-2', day: 'thursday', dayAr: 'الخميس', dayEn: 'Thursday', startTime: '18:00', endTime: '20:00', hall: 'قاعة أينشتاين للمتفوقين' }
     ]
   },
   {
     id: 'cls-3',
-    nameAr: 'أحياء ثانية ثانوي — التغذية والنقل في الكائنات الحية',
-    nameEn: 'Grade 11 Biology — Nutrition & Transport',
-    subjectAr: 'الأحياء (الصف الثاني الثانوي)',
-    subjectEn: 'Biology',
-    gradeAr: 'الصف الثاني الثانوي',
-    gradeEn: 'Grade 11',
-    scheduleAr: 'الثلاثاء 5:00 مساءً',
-    scheduleEn: 'Tuesdays 5:00 PM',
-    centerName: 'سنتر الأوائل — المهندسين',
-    hallName: 'قاعة 3 (المعمل الذكي)',
-    priceEgp: 380,
-    joinCode: 'BIO-611-FND',
-    teacherNameAr: 'د. سلمى السيد',
-    teacherNameEn: 'Dr. Salma El-Sayed',
+    nameAr: 'كيمياء اللغات والتحليل الكهربي الحديث',
+    nameEn: 'Grade 12 Chemistry — Electrochemistry',
+    subjectAr: 'الكيمياء (الثانوية العامة)',
+    subjectEn: 'Chemistry',
+    gradeAr: 'الصف الثالث الثانوي',
+    gradeEn: 'Grade 12',
+    scheduleAr: 'الثلاثاء والجمعة 4:00 عصراً',
+    scheduleEn: 'Tuesdays & Fridays 4:00 PM',
+    centerName: 'سنتر الرواد التعليمي — فرع الدقي',
+    hallName: 'مدرج ابن الهيثم للعلوم',
+    priceEgp: 480,
+    joinCode: 'CHM-HY-26',
+    teacherNameAr: 'د. إيمان الشريف',
+    teacherNameEn: 'Dr. Iman El-Sherif',
     scheduleSlots: [
-      { id: 'slot-3-1', day: 'tuesday', dayAr: 'الثلاثاء', dayEn: 'Tuesday', startTime: '17:00', endTime: '19:00', hall: 'قاعة 3' }
+      { id: 'slot-3-1', day: 'tuesday', dayAr: 'الثلاثاء', dayEn: 'Tuesday', startTime: '16:00', endTime: '18:00', hall: 'مدرج ابن الهيثم للعلوم' },
+      { id: 'slot-3-2', day: 'friday', dayAr: 'الجمعة', dayEn: 'Friday', startTime: '16:00', endTime: '18:00', hall: 'مدرج ابن الهيثم للعلوم' }
     ]
   },
   {
@@ -126,14 +127,182 @@ const INITIAL_GROUPS = [
     gradeEn: 'Grade 12',
     scheduleAr: 'السبت 2:00 ظهراً',
     scheduleEn: 'Saturdays 2:00 PM',
-    centerName: 'سنتر الأهرام التعليمي — الجيزة',
-    hallName: 'المدرج الرئيسي',
+    centerName: 'سنتر الرواد التعليمي — فرع الدقي',
+    hallName: 'قاعة 1 (المحاضرات الكبرى)',
     priceEgp: 420,
     joinCode: 'BIO-SAT-MAX',
     teacherNameAr: 'د. سلمى السيد',
     teacherNameEn: 'Dr. Salma El-Sayed',
     scheduleSlots: [
-      { id: 'slot-4-1', day: 'saturday', dayAr: 'السبت', dayEn: 'Saturday', startTime: '14:00', endTime: '16:30', hall: 'المدرج الرئيسي' }
+      { id: 'slot-4-1', day: 'saturday', dayAr: 'السبت', dayEn: 'Saturday', startTime: '14:00', endTime: '16:30', hall: 'قاعة 1 (المحاضرات الكبرى)' }
+    ]
+  },
+  {
+    id: 'cls-5',
+    nameAr: 'الرياضيات البحتة والتفاضل والتكامل المتقدم',
+    nameEn: 'Calculus & Pure Mathematics Cohort',
+    subjectAr: 'الرياضيات البحتة',
+    subjectEn: 'Pure Mathematics',
+    gradeAr: 'الصف الثالث الثانوي',
+    gradeEn: 'Grade 12',
+    scheduleAr: 'السبت والثلاثاء 10:00 صباحاً',
+    scheduleEn: 'Saturdays & Tuesdays 10:00 AM',
+    centerName: 'سنتر الرواد التعليمي — فرع الدقي',
+    hallName: 'قاعة الخوارزمي للرياضيات',
+    priceEgp: 460,
+    joinCode: 'MTH-KHW-26',
+    teacherNameAr: 'أ. حسام فؤاد',
+    teacherNameEn: 'Mr. Hossam Fouad',
+    scheduleSlots: [
+      { id: 'slot-5-1', day: 'saturday', dayAr: 'السبت', dayEn: 'Saturday', startTime: '10:00', endTime: '12:00', hall: 'قاعة الخوارزمي للرياضيات' },
+      { id: 'slot-5-2', day: 'tuesday', dayAr: 'الثلاثاء', dayEn: 'Tuesday', startTime: '10:00', endTime: '12:00', hall: 'قاعة الخوارزمي للرياضيات' }
+    ]
+  },
+  {
+    id: 'cls-6',
+    nameAr: 'الفيزياء الحديثة والموجات الكهرومغناطيسية',
+    nameEn: 'Modern Physics & Quantum Waves',
+    subjectAr: 'الفيزياء (الثانوية العامة)',
+    subjectEn: 'Physics',
+    gradeAr: 'الصف الثالث الثانوي',
+    gradeEn: 'Grade 12',
+    scheduleAr: 'السبت والأربعاء 4:00 عصراً',
+    scheduleEn: 'Saturdays & Wednesdays 4:00 PM',
+    centerName: 'سنتر الرواد التعليمي — فرع سموحة',
+    hallName: 'قاعة نيوتن للفيزياء',
+    priceEgp: 450,
+    joinCode: 'PHY-NEWTON-26',
+    teacherNameAr: 'م. أحمد جلال',
+    teacherNameEn: 'Eng. Ahmed Galal',
+    scheduleSlots: [
+      { id: 'slot-6-1', day: 'saturday', dayAr: 'السبت', dayEn: 'Saturday', startTime: '16:00', endTime: '18:00', hall: 'قاعة نيوتن للفيزياء' },
+      { id: 'slot-6-2', day: 'wednesday', dayAr: 'الأربعاء', dayEn: 'Wednesday', startTime: '16:00', endTime: '18:00', hall: 'قاعة نيوتن للفيزياء' }
+    ]
+  },
+  {
+    id: 'cls-7',
+    nameAr: 'لغة عربية وبلاغة الثانوية العامة — القمة',
+    nameEn: 'Arabic Literature & Rhetoric',
+    subjectAr: 'اللغة العربية',
+    subjectEn: 'Arabic',
+    gradeAr: 'الصف الثالث الثانوي',
+    gradeEn: 'Grade 12',
+    scheduleAr: 'السبت والثلاثاء 6:00 مساءً',
+    scheduleEn: 'Saturdays & Tuesdays 6:00 PM',
+    centerName: 'سنتر الرواد التعليمي — فرع الدقي',
+    hallName: 'قاعة 1 (المحاضرات الكبرى)',
+    priceEgp: 500,
+    joinCode: 'ARB-FAROUK-26',
+    teacherNameAr: 'أ. رضا الفاروق',
+    teacherNameEn: 'Mr. Reda El-Farouk',
+    scheduleSlots: [
+      { id: 'slot-7-1', day: 'saturday', dayAr: 'السبت', dayEn: 'Saturday', startTime: '18:00', endTime: '20:30', hall: 'قاعة 1 (المحاضرات الكبرى)' },
+      { id: 'slot-7-2', day: 'tuesday', dayAr: 'الثلاثاء', dayEn: 'Tuesday', startTime: '18:00', endTime: '20:30', hall: 'قاعة 1 (المحاضرات الكبرى)' }
+    ]
+  },
+  {
+    id: 'cls-8',
+    nameAr: 'كيمياء 2 ثانوي — الروابط الجزيئية والغازات',
+    nameEn: 'Grade 11 Chemistry Fundamentals',
+    subjectAr: 'الكيمياء',
+    subjectEn: 'Chemistry',
+    gradeAr: 'الصف الثاني الثانوي',
+    gradeEn: 'Grade 11',
+    scheduleAr: 'الأحد والخميس 2:00 ظهراً',
+    scheduleEn: 'Sundays & Thursdays 2:00 PM',
+    centerName: 'سنتر الرواد التعليمي — فرع الدقي',
+    hallName: 'مدرج ابن الهيثم للعلوم',
+    priceEgp: 380,
+    joinCode: 'CHM-G11-26',
+    teacherNameAr: 'د. إيمان الشريف',
+    teacherNameEn: 'Dr. Iman El-Sherif',
+    scheduleSlots: [
+      { id: 'slot-8-1', day: 'sunday', dayAr: 'الأحد', dayEn: 'Sunday', startTime: '14:00', endTime: '16:00', hall: 'مدرج ابن الهيثم للعلوم' },
+      { id: 'slot-8-2', day: 'thursday', dayAr: 'الخميس', dayEn: 'Thursday', startTime: '14:00', endTime: '16:00', hall: 'مدرج ابن الهيثم للعلوم' }
+    ]
+  },
+  {
+    id: 'cls-9',
+    nameAr: 'الاستاتيكا والديناميكا التطبيقية والرياضيات 2',
+    nameEn: 'Mechanics & Applied Mathematics',
+    subjectAr: 'الميكانيكا والرياضيات التطبيقية',
+    subjectEn: 'Applied Mathematics',
+    gradeAr: 'الصف الثالث الثانوي',
+    gradeEn: 'Grade 12',
+    scheduleAr: 'الإثنين والأربعاء 6:00 مساءً',
+    scheduleEn: 'Mondays & Wednesdays 6:00 PM',
+    centerName: 'سنتر الرواد التعليمي — فرع الدقي',
+    hallName: 'قاعة الخوارزمي للرياضيات',
+    priceEgp: 440,
+    joinCode: 'MEC-KHW-26',
+    teacherNameAr: 'أ. حسام فؤاد',
+    teacherNameEn: 'Mr. Hossam Fouad',
+    scheduleSlots: [
+      { id: 'slot-9-1', day: 'monday', dayAr: 'الاثنين', dayEn: 'Monday', startTime: '18:00', endTime: '20:00', hall: 'قاعة الخوارزمي للرياضيات' },
+      { id: 'slot-9-2', day: 'wednesday', dayAr: 'الأربعاء', dayEn: 'Wednesday', startTime: '18:00', endTime: '20:00', hall: 'قاعة الخوارزمي للرياضيات' }
+    ]
+  },
+  {
+    id: 'cls-10',
+    nameAr: 'كورس التأسيس المتقدم والفيزياء العامة',
+    nameEn: 'Foundation Physics & Problem Solving',
+    subjectAr: 'الفيزياء',
+    subjectEn: 'Physics',
+    gradeAr: 'الصف الأول الثانوي',
+    gradeEn: 'Grade 10',
+    scheduleAr: 'الأحد والخميس 12:00 ظهراً',
+    scheduleEn: 'Sundays & Thursdays 12:00 PM',
+    centerName: 'سنتر الرواد التعليمي — فرع مدينة نصر',
+    hallName: 'قاعة أينشتاين للمتفوقين',
+    priceEgp: 360,
+    joinCode: 'PHY-FD-26',
+    teacherNameAr: 'م. عصام الشرقاوي',
+    teacherNameEn: 'Eng. Essam El-Sharkawy',
+    scheduleSlots: [
+      { id: 'slot-10-1', day: 'sunday', dayAr: 'الأحد', dayEn: 'Sunday', startTime: '12:00', endTime: '14:00', hall: 'قاعة أينشتاين للمتفوقين' },
+      { id: 'slot-10-2', day: 'thursday', dayAr: 'الخميس', dayEn: 'Thursday', startTime: '12:00', endTime: '14:00', hall: 'قاعة أينشتاين للمتفوقين' }
+    ]
+  },
+  {
+    id: 'cls-11',
+    nameAr: 'الجيولوجيا وعلوم البيئة والمستحاثات',
+    nameEn: 'Geology & Earth Sciences 2026',
+    subjectAr: 'الجيولوجيا وعلوم البيئة',
+    subjectEn: 'Geology',
+    gradeAr: 'الصف الثالث الثانوي',
+    gradeEn: 'Grade 12',
+    scheduleAr: 'الإثنين والخميس 10:00 صباحاً',
+    scheduleEn: 'Mondays & Thursdays 10:00 AM',
+    centerName: 'سنتر الرواد التعليمي — فرع سموحة',
+    hallName: 'قاعة نيوتن للفيزياء',
+    priceEgp: 400,
+    joinCode: 'GEO-NEWTON-26',
+    teacherNameAr: 'د. سامح نشأت',
+    teacherNameEn: 'Dr. Sameh Nashaat',
+    scheduleSlots: [
+      { id: 'slot-11-1', day: 'monday', dayAr: 'الاثنين', dayEn: 'Monday', startTime: '10:00', endTime: '12:00', hall: 'قاعة نيوتن للفيزياء' },
+      { id: 'slot-11-2', day: 'thursday', dayAr: 'الخميس', dayEn: 'Thursday', startTime: '10:00', endTime: '12:00', hall: 'قاعة نيوتن للفيزياء' }
+    ]
+  },
+  {
+    id: 'cls-12',
+    nameAr: 'اللغة الإنجليزية والترجمة والقواعد المتقدمة',
+    nameEn: 'Advanced English & Translation Skills',
+    subjectAr: 'اللغة الإنجليزية',
+    subjectEn: 'English Language',
+    gradeAr: 'الصف الثالث الثانوي',
+    gradeEn: 'Grade 12',
+    scheduleAr: 'الجمعة والأحد 6:00 مساءً',
+    scheduleEn: 'Fridays & Sundays 6:00 PM',
+    centerName: 'سنتر الرواد التعليمي — فرع مدينة نصر',
+    hallName: 'قاعة أينشتاين للمتفوقين',
+    priceEgp: 450,
+    joinCode: 'ENG-MAHER-26',
+    teacherNameAr: 'Mr. Peter Maher',
+    teacherNameEn: 'Mr. Peter Maher',
+    scheduleSlots: [
+      { id: 'slot-12-1', day: 'friday', dayAr: 'الجمعة', dayEn: 'Friday', startTime: '18:00', endTime: '20:00', hall: 'قاعة أينشتاين للمتفوقين' },
+      { id: 'slot-12-2', day: 'sunday', dayAr: 'الأحد', dayEn: 'Sunday', startTime: '18:00', endTime: '20:00', hall: 'قاعة أينشتاين للمتفوقين' }
     ]
   }
 ];
@@ -464,12 +633,29 @@ const GroupsContext = createContext(null);
 export const GroupsProvider = ({ children }) => {
   const [groups, setGroups] = useState(() => {
     const saved = localStorage.getItem('motafawweq_groups');
-    return saved ? JSON.parse(saved) : INITIAL_GROUPS;
+    if (!saved) return INITIAL_GROUPS;
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length >= INITIAL_GROUPS.length) {
+        return parsed;
+      }
+      const existingIds = new Set(parsed.map(g => g.id));
+      const missing = INITIAL_GROUPS.filter(g => !existingIds.has(g.id));
+      return [...parsed, ...missing];
+    } catch {
+      return INITIAL_GROUPS;
+    }
   });
 
   const [enrolledStudents, setEnrolledStudents] = useState(() => {
     const saved = localStorage.getItem('motafawweq_enrolled_students');
-    return saved ? JSON.parse(saved) : INITIAL_ENROLLED_STUDENTS;
+    if (!saved) return INITIAL_ENROLLED_STUDENTS;
+    try {
+      const parsed = JSON.parse(saved);
+      return { ...INITIAL_ENROLLED_STUDENTS, ...parsed };
+    } catch {
+      return INITIAL_ENROLLED_STUDENTS;
+    }
   });
 
   const [pendingStudents, setPendingStudents] = useState(() => {

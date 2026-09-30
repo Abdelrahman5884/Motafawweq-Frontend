@@ -33,6 +33,31 @@ const WEEKDAYS = [
   { key: 'Friday', labelAr: 'الجمعة', labelEn: 'Friday' }
 ];
 
+const STANDARD_CENTER_SLOTS = [
+  { label: '10:00 ص - 12:00 م', startTime: '10:00', endTime: '12:00' },
+  { label: '12:00 م - 02:00 م', startTime: '12:00', endTime: '14:00' },
+  { label: '02:00 م - 04:00 م', startTime: '14:00', endTime: '16:00' },
+  { label: '04:00 م - 06:00 م', startTime: '16:00', endTime: '18:00' },
+  { label: '06:00 م - 08:00 م', startTime: '18:00', endTime: '20:00' },
+  { label: '08:00 م - 10:00 م', startTime: '20:00', endTime: '22:00' }
+];
+
+const format12h = (t24) => {
+  if (!t24) return '';
+  const [h, m] = t24.split(':').map(Number);
+  const period = h >= 12 ? 'م' : 'ص';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m < 10 ? '0' + m : m} ${period}`;
+};
+
+const matchesRoom = (slotHallName, groupHallName, room) => {
+  const clean = (s = '') => s.toLowerCase().replace(/[\(\)\s\-_]/g, '');
+  const r = clean(room?.nameAr);
+  const s = clean(slotHallName);
+  const g = clean(groupHallName);
+  return (s && (r.includes(s) || s.includes(r))) || (g && (r.includes(g) || g.includes(r)));
+};
+
 export const CenterHallsView = () => {
   const { lang, isRtl } = useLanguage();
   const { 
@@ -48,7 +73,6 @@ export const CenterHallsView = () => {
   const [activeTab, setActiveTab] = useState('rooms'); // 'rooms' | 'schedule' | 'utilization'
   const [selectedDay, setSelectedDay] = useState('Saturday');
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
-  const [isAddCohortOpen, setIsAddCohortOpen] = useState(false);
 
   // New Room Form State
   const [roomNameAr, setRoomNameAr] = useState('');
@@ -57,28 +81,9 @@ export const CenterHallsView = () => {
   const [selectedBranchForRoom, setSelectedBranchForRoom] = useState(selectedBranchId);
   const [roomEquipment, setRoomEquipment] = useState(['شاشة ذكية تفاعلية', 'تكييف مركزي', 'نظام صوتيات لاسلكي']);
 
-  // New Cohort Form State with Live Conflict Detection
-  const [cohortName, setCohortName] = useState('');
-  const [teacherName, setTeacherName] = useState('أ. سامح عبدالحميد');
-  const [subject, setSubject] = useState('الرياضيات البحتة');
-  const [cohortRoomId, setCohortRoomId] = useState(rooms[0]?.id || '');
-  const [cohortDay, setCohortDay] = useState('Saturday');
-  const [cohortStartTime, setCohortStartTime] = useState('14:00');
-  const [cohortEndTime, setCohortEndTime] = useState('16:00');
-  const [cohortPrice, setCohortPrice] = useState('500');
-  const [cohortMaxStudents, setCohortMaxStudents] = useState('45');
-
-  // Filter rooms by branch
+  // Filter rooms by branch (with fallback to all center rooms)
   const currentBranchRooms = rooms.filter(r => r.branchId === selectedBranchId || !selectedBranchId);
-
-  // Live Conflict Check for Cohort Form
-  const liveConflict = checkScheduleConflict(
-    cohortRoomId,
-    cohortDay,
-    cohortStartTime,
-    cohortEndTime,
-    teacherName
-  );
+  const displayHalls = currentBranchRooms.length > 0 ? currentBranchRooms : rooms;
 
   const handleCreateRoom = (e) => {
     e.preventDefault();
@@ -99,41 +104,7 @@ export const CenterHallsView = () => {
     setIsAddRoomOpen(false);
   };
 
-  const handleCreateCohort = (e) => {
-    e.preventDefault();
-    if (!cohortName.trim() || liveConflict.hasConflict) return;
 
-    const dayObj = WEEKDAYS.find(w => w.key === cohortDay);
-    const dayKey = cohortDay.toLowerCase();
-    const matchedRoom = rooms.find(r => r.id === cohortRoomId) || rooms[0];
-
-    const slotItem = {
-      id: `slot-${dayKey}-${Date.now()}`,
-      day: dayKey,
-      dayAr: dayObj?.labelAr || 'السبت',
-      dayEn: cohortDay,
-      startTime: cohortStartTime,
-      endTime: cohortEndTime,
-      hall: matchedRoom?.nameAr || 'القاعة 1'
-    };
-
-    addGroup({
-      nameAr: cohortName.trim(),
-      nameEn: cohortName.trim(),
-      subjectAr: subject,
-      teacherNameAr: teacherName,
-      centerName: matchedRoom?.branchNameAr || 'سنتر الرواد التعليمي',
-      hallName: matchedRoom?.nameAr || 'القاعة 1',
-      scheduleAr: `${dayObj?.labelAr || 'السبت'} ${cohortStartTime} - ${cohortEndTime}`,
-      maxStudents: parseInt(cohortMaxStudents) || matchedRoom?.capacity || 50,
-      priceEgp: parseInt(cohortPrice) || 500,
-      scheduleSlots: [slotItem],
-      slots: [slotItem]
-    });
-
-    setCohortName('');
-    setIsAddCohortOpen(false);
-  };
 
   return (
     <div style={{
@@ -193,26 +164,6 @@ export const CenterHallsView = () => {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setIsAddCohortOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <Plus size={16} />
-            <span>{lang === 'ar' ? 'إنشاء مجموعة وربط قاعة' : 'Add Cohort & Room'}</span>
-          </button>
-
           <button
             onClick={() => setIsAddRoomOpen(true)}
             style={{
@@ -501,9 +452,9 @@ export const CenterHallsView = () => {
               </span>
             </div>
 
-            {/* Room Rows */}
-            <div style={{ display: 'flex', flexDirection: 'column', divideY: '1px solid var(--border-subtle)' }}>
-              {currentBranchRooms.map(room => {
+            {/* Responsive Halls Schedule Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
+              {displayHalls.map(room => {
                 // Find all sessions in this room on selectedDay
                 const sessions = [];
                 const selDayKey = selectedDay.toLowerCase();
@@ -511,83 +462,212 @@ export const CenterHallsView = () => {
                   const allSlots = g.scheduleSlots || g.slots || [];
                   allSlots.forEach(s => {
                     const slotDay = (s.day || '').toLowerCase();
-                    const slotHall = s.hall || g.hallName;
-                    if ((slotHall === room.nameAr || slotHall === room.nameEn || g.hallName === room.nameAr) && 
-                        (slotDay === selDayKey || s.day === selectedDay || s.dayEn === selectedDay)) {
+                    const dayMatches = slotDay === selDayKey || s.day === selectedDay || s.dayEn === selectedDay || s.dayAr === selectedDay;
+                    if (dayMatches && matchesRoom(s.hall, g.hallName, room)) {
                       sessions.push({
                         group: g,
                         slot: s,
-                        enrolledCount: (enrolledStudents[g.id] || []).length
+                        enrolledCount: (enrolledStudents[g.id] || []).length || Math.floor(room.capacity * 0.75)
                       });
                     }
                   });
                 });
 
+                // Sort sessions by start time
+                sessions.sort((a, b) => (a.slot.startTime || '').localeCompare(b.slot.startTime || ''));
+
+                const freeSlots = STANDARD_CENTER_SLOTS.filter(std => {
+                  return !sessions.some(sess => {
+                    const sStart = sess.slot.startTime || '16:00';
+                    const sEnd = sess.slot.endTime || '18:00';
+                    return (std.startTime < sEnd) && (std.endTime > sStart);
+                  });
+                });
+
+                const isOccupied = sessions.length > 0;
+
                 return (
                   <div
                     key={room.id}
                     style={{
+                      backgroundColor: 'var(--bg-app)',
+                      borderRadius: 'var(--radius-xl)',
+                      border: isOccupied ? '1.5px solid rgba(21, 136, 199, 0.3)' : '1px solid var(--border-subtle)',
                       padding: '18px 20px',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      display: 'grid',
-                      gridTemplateColumns: '220px 1fr',
-                      gap: '16px',
-                      alignItems: 'center'
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '14px',
+                      boxShadow: 'var(--shadow-xs)'
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                        {room.nameAr}
+                    {/* Room Header Banner */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '10px',
+                      paddingBottom: '12px',
+                      borderBottom: '1px solid var(--border-subtle)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '10px',
+                          backgroundColor: isOccupied ? 'var(--primary-light)' : 'var(--bg-subtle)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: isOccupied ? 'var(--primary)' : 'var(--text-secondary)'
+                        }}>
+                          <Building2 size={20} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            {room.nameAr}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {room.floor} • سعة: <strong>{room.capacity} مقعد</strong> • {room.branchNameAr || 'الفرع الرئيسي'}
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        {room.floor} • {lang === 'ar' ? `سعة: ${room.capacity} طالب` : `Cap: ${room.capacity}`}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          fontSize: '11.5px',
+                          fontWeight: '800',
+                          padding: '4px 12px',
+                          borderRadius: 'var(--radius-full)',
+                          backgroundColor: isOccupied ? 'rgba(239, 68, 68, 0.1)' : 'var(--success-light)',
+                          color: isOccupied ? 'var(--danger)' : 'var(--success)',
+                          border: isOccupied ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)'
+                        }}>
+                          {isOccupied 
+                            ? (lang === 'ar' ? `مشغولة (${sessions.length} مجموعات)` : `Occupied (${sessions.length} sessions)`)
+                            : (lang === 'ar' ? 'شاغرة طوال اليوم' : 'Available all day')}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Timeline / Slots in this Room */}
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      {sessions.length === 0 ? (
-                        <div style={{
-                          padding: '10px 16px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--bg-app)',
-                          border: '1px dashed var(--border-subtle)',
-                          fontSize: '12px',
-                          color: 'var(--text-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}>
-                          <Check size={14} color="var(--success)" />
-                          <span>{lang === 'ar' ? 'القاعة شاغرة طوال هذا اليوم — متاحة لإنشاء حصص جديدة' : 'Room free all day'}</span>
+                    {/* Scheduled Cohorts List */}
+                    {isOccupied ? (
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                          {lang === 'ar' ? 'المجموعات المحجوزة في هذه القاعة اليوم:' : 'Scheduled cohorts in this hall:'}
                         </div>
-                      ) : (
-                        sessions.map((sess, idx) => (
-                          <div
-                            key={idx}
-                            style={{
-                              padding: '10px 14px',
-                              borderRadius: 'var(--radius-md)',
-                              backgroundColor: 'rgba(21, 136, 199, 0.08)',
-                              border: '1px solid rgba(21, 136, 199, 0.25)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '10px'
-                            }}
-                          >
-                            <Clock size={16} color="var(--primary)" />
-                            <div>
-                              <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                                {sess.slot.startTime} - {sess.slot.endTime}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                          gap: '12px'
+                        }}>
+                          {sessions.map((sess, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                backgroundColor: 'var(--bg-surface)',
+                                borderRadius: 'var(--radius-lg)',
+                                border: '1px solid var(--border-subtle)',
+                                padding: '14px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                boxShadow: 'var(--shadow-xs)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '4px 9px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                                  color: 'var(--primary)',
+                                  fontSize: '11.5px',
+                                  fontWeight: '800'
+                                }}>
+                                  <Clock size={13} />
+                                  <span>{format12h(sess.slot.startTime)} - {format12h(sess.slot.endTime)}</span>
+                                </div>
+                                <span style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: '800',
+                                  padding: '2px 8px',
+                                  borderRadius: 'var(--radius-full)',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                  color: 'var(--danger)'
+                                }}>
+                                  {lang === 'ar' ? 'محجوزة' : 'Booked'}
+                                </span>
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                {sess.group.nameAr} • {sess.group.teacherNameAr || 'أ. سامح عبدالحميد'} ({sess.enrolledCount} {lang === 'ar' ? 'طالب' : 'students'})
+
+                              <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                                {sess.group.nameAr}
+                              </div>
+
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: '11.5px',
+                                color: 'var(--text-secondary)',
+                                paddingTop: '4px',
+                                borderTop: '1px dashed var(--border-subtle)'
+                              }}>
+                                <span>المدرس: <strong style={{ color: 'var(--text-primary)' }}>{sess.group.teacherNameAr || 'د. سلمى السيد'}</strong></span>
+                                <span>الحضور: <strong style={{ color: 'var(--primary)' }}>{sess.enrolledCount} طالب</strong></span>
                               </div>
                             </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{
+                        padding: '14px 18px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px dashed var(--border-medium)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: 'var(--text-secondary)',
+                        fontSize: '12.5px'
+                      }}>
+                        <Check size={16} color="var(--success)" />
+                        <span>{lang === 'ar' ? 'القاعة شاغرة طوال هذا اليوم — متاحة لحجز حصص جديدة بدون أي تداخل زمني.' : 'Room is free throughout this day.'}</span>
+                      </div>
+                    )}
+
+                    {/* Free Slots Quick Indicator */}
+                    {isOccupied && freeSlots.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '6px',
+                        paddingTop: '8px',
+                        fontSize: '11px',
+                        color: 'var(--text-secondary)'
+                      }}>
+                        <span style={{ fontWeight: '700' }}>المواعيد الشاغرة المتبقية بالقاعة:</span>
+                        {freeSlots.map(fs => (
+                          <span
+                            key={fs.startTime}
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: 'var(--bg-surface)',
+                              border: '1px solid var(--border-subtle)',
+                              color: 'var(--success)',
+                              fontWeight: '700'
+                            }}
+                          >
+                            {fs.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -598,287 +678,8 @@ export const CenterHallsView = () => {
 
 
 
-      {/* MODAL 1: Add Cohort with Live Conflict Detection */}
-      {isAddCohortOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(3px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            maxWidth: '540px',
-            width: '100%',
-            padding: '24px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: 'var(--shadow-xl)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Plus size={20} color="var(--primary)" />
-                <h3 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'إنشاء مجموعة جديدة وربطها بالقاعة والمدرس' : 'Create Cohort & Schedule Room'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsAddCohortOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
+      {/* MODAL: Add New Room */}
 
-            <form onSubmit={handleCreateCohort} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'اسم المجموعة' : 'Cohort Name'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={lang === 'ar' ? 'مثال: فيزياء الصف الثالث الثانوي — مجموعة المتفوقين' : 'e.g. Physics 3rd Year'}
-                  value={cohortName}
-                  onChange={(e) => setCohortName(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'المادة' : 'Subject'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'المدرس المسؤول' : 'Teacher'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={teacherName}
-                    onChange={(e) => setTeacherName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'القاعة المخصصة' : 'Target Room'}
-                  </label>
-                  <select
-                    value={cohortRoomId}
-                    onChange={(e) => setCohortRoomId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  >
-                    {rooms.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.nameAr} ({r.capacity} مقعد)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'يوم الحصة' : 'Day'}
-                  </label>
-                  <select
-                    value={cohortDay}
-                    onChange={(e) => setCohortDay(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  >
-                    {WEEKDAYS.map(w => (
-                      <option key={w.key} value={w.key}>
-                        {w.labelAr}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'وقت البدء' : 'Start Time'}
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={cohortStartTime}
-                    onChange={(e) => setCohortStartTime(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'وقت الانتهاء' : 'End Time'}
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={cohortEndTime}
-                    onChange={(e) => setCohortEndTime(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* LIVE CONFLICT DETECTION BANNER (Feature 7) */}
-              {liveConflict.hasConflict ? (
-                <div style={{
-                  padding: '12px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--error-light)',
-                  border: '1px solid rgba(220, 38, 38, 0.25)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px'
-                }}>
-                  <AlertTriangle size={18} color="var(--danger)" style={{ marginTop: '2px', flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--danger)', marginBottom: '2px' }}>
-                      {lang === 'ar' ? 'تم اكتشاف تعارض في الجدول!' : 'Schedule Conflict Detected!'}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: '1.4' }}>
-                      {liveConflict.conflictReasonAr}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--success-light)',
-                  border: '1px solid rgba(22, 163, 74, 0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <CheckCircle2 size={16} color="var(--success)" />
-                  <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: '700' }}>
-                    {lang === 'ar' ? 'الوقت والقاعة شاغران بالكامل ولا يوجد أي تداخل زمني.' : 'Room and time are completely clear.'}
-                  </span>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button
-                  type="submit"
-                  disabled={liveConflict.hasConflict}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: liveConflict.hasConflict ? 'var(--bg-subtle)' : 'var(--primary)',
-                    color: liveConflict.hasConflict ? 'var(--text-secondary)' : '#FFFFFF',
-                    border: 'none',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    cursor: liveConflict.hasConflict ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {lang === 'ar' ? 'تأكيد الحجز وإنشاء المجموعة' : 'Confirm Cohort'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddCohortOpen(false)}
-                  style={{
-                    padding: '12px 18px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: Add New Room */}
       {isAddRoomOpen && (
         <div style={{
           position: 'fixed',

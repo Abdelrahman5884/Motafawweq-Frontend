@@ -53,6 +53,15 @@ const WEEKDAYS = [
   { key: 'friday', labelAr: 'الجمعة', labelEn: 'Friday' }
 ];
 
+const STANDARD_CENTER_SLOTS = [
+  { label: '10:00 ص - 12:00 م', startTime: '10:00', endTime: '12:00' },
+  { label: '12:00 م - 02:00 م', startTime: '12:00', endTime: '14:00' },
+  { label: '02:00 م - 04:00 م', startTime: '14:00', endTime: '16:00' },
+  { label: '04:00 م - 06:00 م', startTime: '16:00', endTime: '18:00' },
+  { label: '06:00 م - 08:00 م', startTime: '18:00', endTime: '20:00' },
+  { label: '08:00 م - 10:00 م', startTime: '20:00', endTime: '22:00' }
+];
+
 export const CenterGroupsView = () => {
   const { lang, isRtl } = useLanguage();
   const navigate = useNavigate();
@@ -355,8 +364,49 @@ export const CenterGroupsView = () => {
     setSessions(prev => prev.map((s, idx) => idx === index ? { ...s, [field]: value } : s));
   };
 
+  // Helper: Get available and booked time slots for a specific session (by day & hall)
+  const getSlotAvailabilityForSession = (dayKey, hallName, currentSessionIdx) => {
+    const dayObj = WEEKDAYS.find(w => w.key === dayKey);
+    const dayAr = dayObj?.labelAr || dayKey;
+
+    return STANDARD_CENTER_SLOTS.map(slot => {
+      // 1. External conflict check against other cohorts in the center
+      const extConflict = checkScheduleConflict({
+        day: dayKey,
+        dayAr,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        hall: hallName
+      });
+
+      // 2. Internal conflict check against other session slots in this same modal
+      let internalConflict = false;
+      let internalReason = '';
+      sessions.forEach((otherSess, otherIdx) => {
+        if (otherIdx !== currentSessionIdx && otherSess.day === dayKey && (otherSess.hall || '').trim() === (hallName || '').trim()) {
+          const overlap = (slot.startTime < otherSess.endTime) && (slot.endTime > otherSess.startTime);
+          if (overlap) {
+            internalConflict = true;
+            internalReason = `الحصة رقم ${otherIdx + 1} محجوزة في نفس التوقيت`;
+          }
+        }
+      });
+
+      const isAvailable = !extConflict?.hasConflict && !internalConflict;
+      const conflictMsg = extConflict?.hasConflict
+        ? (extConflict.conflictingGroup ? `محجوز لـ «${extConflict.conflictingGroup.nameAr}»` : 'محجوز لمجموعة أخرى')
+        : (internalConflict ? internalReason : '');
+
+      return {
+        ...slot,
+        isAvailable,
+        conflictMsg
+      };
+    });
+  };
+
   // Conflict Checking across all session slots
-  const sessionConflicts = sessions.map(sess => {
+  const sessionConflicts = sessions.map((sess, idx) => {
     const dayObj = WEEKDAYS.find(w => w.key === sess.day);
     const conflictResult = checkScheduleConflict({
       day: sess.day,
@@ -365,11 +415,27 @@ export const CenterGroupsView = () => {
       endTime: sess.endTime,
       hall: sess.hall
     });
+
+    let internalConflict = false;
+    let internalConflictMsg = '';
+    sessions.forEach((otherSess, otherIdx) => {
+      if (otherIdx !== idx && otherSess.day === sess.day && (otherSess.hall || '').trim() === (sess.hall || '').trim()) {
+        const overlap = (sess.startTime < otherSess.endTime) && (sess.endTime > otherSess.startTime);
+        if (overlap) {
+          internalConflict = true;
+          internalConflictMsg = `تعارض داخلي: يتطابق توقيت هذه الحصة مع الحصة رقم ${otherIdx + 1} في نفس القاعة!`;
+        }
+      }
+    });
+
+    const hasConflict = conflictResult?.hasConflict || internalConflict;
+    const messageAr = conflictResult?.hasConflict ? conflictResult.messageAr : internalConflictMsg;
+
     return {
       session: sess,
       dayLabel: dayObj?.labelAr || sess.day,
-      hasConflict: conflictResult?.hasConflict || false,
-      messageAr: conflictResult?.messageAr || ''
+      hasConflict,
+      messageAr
     };
   });
 
@@ -1350,10 +1416,10 @@ export const CenterGroupsView = () => {
             />
             <div id="center-snap-decoder-box" style={{ display: 'none' }} />
 
-            {/* Mode Switcher: 3 Options (Manual USB / Live Camera / Mobile Snapshot) */}
+            {/* Mode Switcher: 2 Options (Manual USB / Live Camera) */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
               backgroundColor: 'var(--bg-app)',
               padding: '6px',
               borderRadius: 'var(--radius-lg)',
@@ -1415,40 +1481,10 @@ export const CenterGroupsView = () => {
                 }}
               >
                 <Camera size={16} />
-                <span>المسح بالكاميرا المباشرة</span>
+                <span>المسح عبر الكاميرا المباشرة</span>
                 {scannerMode === 'camera' && isCameraActive && (
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFFFF', boxShadow: '0 0 6px #FFFFFF' }} />
                 )}
-              </button>
-
-              {/* Option 3: Phone Camera Photo Snapshot */}
-              <button
-                type="button"
-                onClick={() => fileSnapRef.current?.click()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '11px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--primary)',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--primary-surface)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
-                }}
-              >
-                <Scan size={16} />
-                <span>{isProcessingSnapshot ? 'جاري تحليل الصورة...' : '📸 التقاط صورة للباركود (موبايل)'}</span>
               </button>
             </div>
 
@@ -2487,126 +2523,266 @@ export const CenterGroupsView = () => {
 
                 {/* Session Slots List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {sessions.map((sess, idx) => (
-                    <div
-                      key={sess.id || idx}
-                      style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        padding: '12px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>
-                          الحصة رقم {idx + 1}
-                        </span>
-                        {sessions.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSessionSlot(idx)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--danger)',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '2px'
-                            }}
-                          >
-                            <Trash2 size={13} />
-                            <span>حذف الحصة</span>
-                          </button>
+                  {sessions.map((sess, idx) => {
+                    const slotAvailability = getSlotAvailabilityForSession(sess.day, sess.hall, idx);
+                    const availableSlots = slotAvailability.filter(s => s.isAvailable);
+                    const busySlots = slotAvailability.filter(s => !s.isAvailable);
+                    const currentConflict = sessionConflicts[idx];
+                    const currentDayObj = WEEKDAYS.find(w => w.key === sess.day);
+
+                    return (
+                      <div
+                        key={sess.id || idx}
+                        style={{
+                          backgroundColor: 'var(--bg-surface)',
+                          padding: '12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>
+                              الحصة رقم {idx + 1}
+                            </span>
+                            {currentConflict?.hasConflict && (
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: '800',
+                                padding: '2px 6px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                color: 'var(--danger)'
+                              }}>
+                                يوجد تعارض في هذا الميعاد
+                              </span>
+                            )}
+                          </div>
+                          {sessions.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSessionSlot(idx)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--danger)',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '2px'
+                              }}
+                            >
+                              <Trash2 size={13} />
+                              <span>حذف الحصة</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
+                          {/* Day */}
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>اليوم</label>
+                            <select
+                              value={sess.day}
+                              onChange={(e) => handleUpdateSession(idx, 'day', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '7px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--border-medium)',
+                                fontSize: '11px',
+                                fontWeight: '700'
+                              }}
+                            >
+                              {WEEKDAYS.map(w => (
+                                <option key={w.key} value={w.key}>{w.labelAr}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Start Time */}
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>من</label>
+                            <input
+                              type="time"
+                              value={sess.startTime}
+                              onChange={(e) => handleUpdateSession(idx, 'startTime', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '6px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-medium)',
+                                fontSize: '11px',
+                                fontWeight: '700'
+                              }}
+                            />
+                          </div>
+
+                          {/* End Time */}
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>إلى</label>
+                            <input
+                              type="time"
+                              value={sess.endTime}
+                              onChange={(e) => handleUpdateSession(idx, 'endTime', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '6px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-medium)',
+                                fontSize: '11px',
+                                fontWeight: '700'
+                              }}
+                            />
+                          </div>
+
+                          {/* Room */}
+                          <div>
+                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>القاعة</label>
+                            <select
+                              value={sess.hall}
+                              onChange={(e) => handleUpdateSession(idx, 'hall', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '7px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--border-medium)',
+                                fontSize: '11px',
+                                fontWeight: '700'
+                              }}
+                            >
+                              {rooms.map(r => (
+                                <option key={r.id} value={r.nameAr}>{r.nameAr}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Interactive Conflict Warning & Available Alternatives Banner */}
+                        {currentConflict?.hasConflict ? (
+                          <div style={{
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', fontSize: '11.5px', fontWeight: '800' }}>
+                              <AlertCircle size={15} />
+                              <span>{currentConflict.messageAr || `الميعاد (${formatTimeTo12h(sess.startTime)} - ${formatTimeTo12h(sess.endTime)}) غير متاح في «${sess.hall}» يوم ${currentDayObj?.labelAr}!`}</span>
+                            </div>
+
+                            {availableSlots.length > 0 ? (
+                              <div style={{ marginTop: '2px' }}>
+                                <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '5px' }}>
+                                  المواعيد المتاحة البديلة في هذا اليوم بقاعة «{sess.hall}» (اضغط لاختيار الميعاد المتاح):
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                  {availableSlots.map(av => (
+                                    <button
+                                      key={av.startTime}
+                                      type="button"
+                                      onClick={() => {
+                                        handleUpdateSession(idx, 'startTime', av.startTime);
+                                        handleUpdateSession(idx, 'endTime', av.endTime);
+                                      }}
+                                      style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        backgroundColor: 'var(--success-light)',
+                                        border: '1.5px solid var(--success)',
+                                        color: 'var(--success)',
+                                        fontSize: '11px',
+                                        fontWeight: '800',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                      title="اضغط لاختيار هذا الميعاد المتاح وحل التعارض فوراً"
+                                    >
+                                      <Check size={12} />
+                                      <span>{av.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '11px', color: 'var(--danger)' }}>
+                                لا توجد فترات شاغرة متبقية في هذه القاعة لهذا اليوم. يرجى اختيار قاعة أخرى أو يوم آخر.
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* Quick Slots Picker When No Conflict */
+                          <div style={{
+                            padding: '6px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--bg-app)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '5px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10.5px' }}>
+                              <span style={{ fontWeight: '700', color: 'var(--text-secondary)' }}>
+                                المواعيد المتاحة يوم {currentDayObj?.labelAr} بقاعة «{sess.hall}»:
+                              </span>
+                              <span style={{ color: 'var(--success)', fontWeight: '800' }}>
+                                {availableSlots.length} متاح
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                              {availableSlots.map(av => {
+                                const isCurrentSelected = sess.startTime === av.startTime && sess.endTime === av.endTime;
+                                return (
+                                  <button
+                                    key={av.startTime}
+                                    type="button"
+                                    onClick={() => {
+                                      handleUpdateSession(idx, 'startTime', av.startTime);
+                                      handleUpdateSession(idx, 'endTime', av.endTime);
+                                    }}
+                                    style={{
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      border: isCurrentSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-medium)',
+                                      backgroundColor: isCurrentSelected ? 'var(--primary-light)' : 'var(--bg-surface)',
+                                      color: isCurrentSelected ? 'var(--primary)' : 'var(--text-primary)',
+                                      fontSize: '10.5px',
+                                      fontWeight: isCurrentSelected ? '800' : '600',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {isCurrentSelected && <Check size={10} style={{ display: 'inline', marginLeft: '3px' }} />}
+                                    {av.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {busySlots.length > 0 && (
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                <span>المواعيد غير المتاحة (محجوزة):</span>
+                                {busySlots.map(bs => (
+                                  <span key={bs.startTime} style={{ color: 'var(--danger)', textDecoration: 'line-through', opacity: 0.8 }}>
+                                    {bs.label}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
-                        {/* Day */}
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>اليوم</label>
-                          <select
-                            value={sess.day}
-                            onChange={(e) => handleUpdateSession(idx, 'day', e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '7px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-medium)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          >
-                            {WEEKDAYS.map(w => (
-                              <option key={w.key} value={w.key}>{w.labelAr}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Start Time */}
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>من</label>
-                          <input
-                            type="time"
-                            value={sess.startTime}
-                            onChange={(e) => handleUpdateSession(idx, 'startTime', e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '6px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-medium)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          />
-                        </div>
-
-                        {/* End Time */}
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>إلى</label>
-                          <input
-                            type="time"
-                            value={sess.endTime}
-                            onChange={(e) => handleUpdateSession(idx, 'endTime', e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '6px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-medium)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          />
-                        </div>
-
-                        {/* Room */}
-                        <div>
-                          <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>القاعة</label>
-                          <select
-                            value={sess.hall}
-                            onChange={(e) => handleUpdateSession(idx, 'hall', e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '7px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-medium)',
-                              fontSize: '11px',
-                              fontWeight: '700'
-                            }}
-                          >
-                            {rooms.map(r => (
-                              <option key={r.id} value={r.nameAr}>{r.nameAr}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Add Session Slot Button */}
