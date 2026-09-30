@@ -5,6 +5,7 @@ import { useCenter } from '../../context/CenterContext';
 import { useGroups, ALL_REGISTERED_STUDENTS } from '../../context/GroupsContext';
 import { RealQRCode } from '../../components/common/RealQRCode';
 import { CameraBarcodeScanner } from '../../components/common/CameraBarcodeScanner';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { 
   Building2, 
   Users, 
@@ -87,7 +88,9 @@ export const CenterGroupsView = () => {
   // Search & Filter for Group Students
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [studentStatusFilter, setStudentStatusFilter] = useState('ALL'); // ALL, present, absent
-  const [studentsViewMode, setStudentsViewMode] = useState('table'); // 'table' | 'cards'
+  const [studentsViewMode, setStudentsViewMode] = useState(() => 
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table'
+  );
 
   // Modals
   const [isAddCohortOpen, setIsAddCohortOpen] = useState(false);
@@ -119,14 +122,60 @@ export const CenterGroupsView = () => {
   const [manualParentName, setManualParentName] = useState('');
   const [manualParentPhone, setManualParentPhone] = useState('');
 
+  // Mobile screen responsiveness detection
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Barcode Scanner Input & Camera State
-  const [scannerMode, setScannerMode] = useState('camera'); // 'camera' | 'manual'
-  const [isCameraActive, setIsCameraActive] = useState(true);
+  // Default: Manual/choice mode so camera does NOT open automatically on page load
+  const [scannerMode, setScannerMode] = useState('manual'); // 'manual' | 'camera'
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const [scanCodeInput, setScanCodeInput] = useState('');
   const [scanFeedback, setScanFeedback] = useState(null);
   const [copiedCodeId, setCopiedCodeId] = useState(null);
+  const [isProcessingSnapshot, setIsProcessingSnapshot] = useState(false);
 
   const scannerInputRef = useRef(null);
+  const fileSnapRef = useRef(null);
+
+  // Handle Snapshot / Phone Camera Photo Barcode Scan
+  const handleSnapshotChosen = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeGroup) return;
+
+    setIsProcessingSnapshot(true);
+    try {
+      const decoder = new Html5Qrcode('center-snap-decoder-box', {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.UPC_A
+        ],
+        verbose: false
+      });
+      const decodedText = await decoder.scanFile(file, true);
+      if (decodedText) {
+        processScannedCode(decodedText);
+      } else {
+        alert('لم يتم العثور على باركود أو كود QR في الصورة الملتقطة. يرجى التأكد من وضوح الصورة وتكرار المحاولة.');
+      }
+    } catch (err) {
+      console.warn('Snapshot decode error:', err);
+      alert('تعذر قراءة الباركود من هذه الصورة. يرجى تقريب الكاميرا وضبط الإضاءة على الباركود جيداً.');
+    } finally {
+      setIsProcessingSnapshot(false);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   // Play realistic scanner beep audio on success
   const playScannerBeep = () => {
@@ -1290,47 +1339,29 @@ export const CenterGroupsView = () => {
               </div>
             </div>
 
-            {/* Mode Switcher: Live Camera vs Manual/Gun */}
+            {/* Hidden file input for mobile snapshot barcode scan */}
+            <input 
+              ref={fileSnapRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleSnapshotChosen}
+              style={{ display: 'none' }}
+            />
+            <div id="center-snap-decoder-box" style={{ display: 'none' }} />
+
+            {/* Mode Switcher: 3 Options (Manual USB / Live Camera / Mobile Snapshot) */}
             <div style={{
-              display: 'flex',
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
               backgroundColor: 'var(--bg-app)',
-              padding: '4px',
+              padding: '6px',
               borderRadius: 'var(--radius-lg)',
               marginBottom: '18px',
               border: '1px solid var(--border-subtle)',
               gap: '6px'
             }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setScannerMode('camera');
-                  setIsCameraActive(true);
-                }}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  backgroundColor: scannerMode === 'camera' ? 'var(--primary)' : 'transparent',
-                  color: scannerMode === 'camera' ? '#FFFFFF' : 'var(--text-secondary)',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  boxShadow: scannerMode === 'camera' ? 'var(--shadow-sm)' : 'none',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <Camera size={16} />
-                <span>المسح عبر الكاميرا المباشرة (وجّه الباركود للكاميرا)</span>
-                {scannerMode === 'camera' && isCameraActive && (
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFFFF' }} />
-                )}
-              </button>
-
+              {/* Option 1: Manual Input / USB Gun (Default) */}
               <button
                 type="button"
                 onClick={() => {
@@ -1339,12 +1370,11 @@ export const CenterGroupsView = () => {
                   if (scannerInputRef.current) scannerInputRef.current.focus();
                 }}
                 style={{
-                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  padding: '10px 16px',
+                  padding: '11px 14px',
                   borderRadius: 'var(--radius-md)',
                   border: 'none',
                   backgroundColor: scannerMode === 'manual' ? 'var(--primary)' : 'transparent',
@@ -1357,7 +1387,68 @@ export const CenterGroupsView = () => {
                 }}
               >
                 <Keyboard size={16} />
-                <span>قارئ الباركود اليدوي / جهاز USB</span>
+                <span>قارئ الباركود اليدوي / USB</span>
+              </button>
+
+              {/* Option 2: Live Video Camera */}
+              <button
+                type="button"
+                onClick={() => {
+                  setScannerMode('camera');
+                  setIsCameraActive(false); // Give choice first, user clicks to start
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '11px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: scannerMode === 'camera' ? 'var(--primary)' : 'transparent',
+                  color: scannerMode === 'camera' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: scannerMode === 'camera' ? 'var(--shadow-sm)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Camera size={16} />
+                <span>المسح بالكاميرا المباشرة</span>
+                {scannerMode === 'camera' && isCameraActive && (
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFFFF', boxShadow: '0 0 6px #FFFFFF' }} />
+                )}
+              </button>
+
+              {/* Option 3: Phone Camera Photo Snapshot */}
+              <button
+                type="button"
+                onClick={() => fileSnapRef.current?.click()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '11px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-medium)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--primary)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--primary-surface)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
+                }}
+              >
+                <Scan size={16} />
+                <span>{isProcessingSnapshot ? 'جاري تحليل الصورة...' : '📸 التقاط صورة للباركود (موبايل)'}</span>
               </button>
             </div>
 
@@ -1379,33 +1470,57 @@ export const CenterGroupsView = () => {
                     borderRadius: 'var(--radius-xl)',
                     border: '1.5px dashed var(--border-medium)'
                   }}>
-                    <Camera size={36} color="var(--primary)" style={{ margin: '0 auto 10px' }} />
-                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                      الكاميرا متوقفة حالياً
+                    <Camera size={38} color="var(--primary)" style={{ margin: '0 auto 12px' }} />
+                    <h4 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                      جاهز لتشغيل الكاميرا المباشرة
                     </h4>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                      اضغط على الزر أدناه لتشغيل الكاميرا وتوجيه باركود أو كود QR الطالب أمامها
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto 18px', lineHeight: '1.5' }}>
+                      اضغط على الزر أدناه لتشغيل الكاميرا وتوجيه باركود أو كود QR الطالب أمامها ليتم تسجيل حضوره فوراً.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setIsCameraActive(true)}
-                      style={{
-                        padding: '10px 22px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--primary)',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        fontSize: '13px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <Camera size={16} />
-                      <span>تشغيل الكاميرا الآن</span>
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIsCameraActive(true)}
+                        style={{
+                          padding: '11px 24px',
+                          borderRadius: 'var(--radius-md)',
+                          backgroundColor: 'var(--primary)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          fontSize: '13px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          boxShadow: 'var(--shadow-sm)'
+                        }}
+                      >
+                        <Camera size={16} />
+                        <span>تشغيل الكاميرا الآن</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => fileSnapRef.current?.click()}
+                        style={{
+                          padding: '11px 20px',
+                          borderRadius: 'var(--radius-md)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border-medium)',
+                          fontSize: '13px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <Scan size={15} color="var(--primary)" />
+                        <span>أو التقط صورة للباركود</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1731,8 +1846,44 @@ export const CenterGroupsView = () => {
               </div>
             ) : studentsViewMode === 'table' ? (
               /* Students Table View */
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
+              <div style={{ 
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '10px'
+              }}>
+                {isMobile && (
+                  <div style={{
+                    padding: '8px 14px',
+                    backgroundColor: 'var(--primary-surface)',
+                    color: 'var(--primary)',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid var(--border-subtle)'
+                  }}>
+                    <span>↔️ اسحب الجدول أفقياً للاطلاع على كامل بيانات الطلاب</span>
+                    <button
+                      type="button"
+                      onClick={() => setStudentsViewMode('cards')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--primary)',
+                        textDecoration: 'underline',
+                        fontWeight: '900',
+                        fontSize: '11px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      التحويل لعرض البطاقات الذكية 📱
+                    </button>
+                  </div>
+                )}
+                <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1.5px solid var(--border-subtle)' }}>
                       <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>الطالب</th>
@@ -1896,10 +2047,10 @@ export const CenterGroupsView = () => {
                 </table>
               </div>
             ) : (
-              /* Students Cards View */
+              /* Students Cards View - Mobile-First & Touch-Friendly */
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
                 gap: '16px'
               }}>
                 {filteredStudents.map((std, idx) => {
@@ -1908,74 +2059,205 @@ export const CenterGroupsView = () => {
                     <div
                       key={std.id || idx}
                       style={{
-                        padding: '16px',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1.5px solid var(--border-subtle)',
+                        padding: '18px',
+                        borderRadius: 'var(--radius-xl)',
+                        border: isPresent ? '2px solid rgba(22, 163, 74, 0.4)' : '1.5px solid var(--border-subtle)',
                         backgroundColor: 'var(--bg-app)',
+                        boxShadow: isPresent ? '0 6px 20px rgba(22, 163, 74, 0.08)' : 'var(--shadow-sm)',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        gap: '12px'
+                        gap: '14px',
+                        transition: 'all 0.2s ease',
+                        position: 'relative'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <img
-                          src={std.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                          alt={std.nameAr}
-                          style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                            {std.nameAr || std.name}
+                      {/* Top Header: Avatar + Student info + Remove button */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ position: 'relative' }}>
+                            <img
+                              src={std.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                              alt={std.nameAr}
+                              style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                border: `2.5px solid ${isPresent ? 'var(--success)' : 'var(--primary)'}`
+                              }}
+                            />
+                            <div style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              right: 0,
+                              width: '12px',
+                              height: '12px',
+                              borderRadius: '50%',
+                              backgroundColor: isPresent ? 'var(--success)' : 'var(--text-disabled)',
+                              border: '2px solid var(--bg-app)'
+                            }} />
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                            {std.gradeAr || 'الصف الثالث الثانوي'}
+                          <div>
+                            <div style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                              {std.nameAr || std.name}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              {std.gradeAr || 'الصف الثالث الثانوي'}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--primary)', fontWeight: '700' }}>
-                            {std.passcode || 'STU-101'} • {std.phone}
-                          </div>
+                        </div>
+
+                        {/* Remove Student Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`هل أنت متأكد من إلغاء قيد الطالب «${std.nameAr || std.name}» من هذه المجموعة؟`)) {
+                              removeStudentFromGroup(activeGroup.id, std.id);
+                            }
+                          }}
+                          title="إلغاء قيد الطالب من المجموعة"
+                          style={{
+                            padding: '6px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+
+                      {/* Barcode & Passcode tags */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        backgroundColor: 'var(--bg-surface)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '11px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>كود الطالب:</span>
+                          <span 
+                            onClick={() => handleCopyCode(std.passcode || `STU-${std.id?.slice(-4)}`, `code-${std.id}`)}
+                            title="اضغط للنسخ"
+                            style={{
+                              fontFamily: 'monospace',
+                              fontWeight: '900',
+                              color: 'var(--primary)',
+                              cursor: 'pointer',
+                              backgroundColor: 'var(--bg-app)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-medium)'
+                            }}
+                          >
+                            {std.passcode || `STU-${std.id?.slice(-4)}`}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>الباركود:</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            ||| {std.barcode || '2026001'} |||
+                          </span>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      {/* Phone & Parent Contacts */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>هاتف الطالب:</span>
+                          <a 
+                            href={`tel:${std.phone}`} 
+                            style={{ 
+                              color: 'var(--primary)', 
+                              fontWeight: '800', 
+                              fontFamily: 'monospace', 
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Phone size={12} />
+                            <span>{std.phone}</span>
+                          </a>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>ولي الأمر:</span>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: '700', fontSize: '11px' }}>
+                            {std.parentNameAr || std.parentName || 'ولي الأمر'} ({std.parentPhone || std.phone})
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Bottom Actions: Attendance Toggle & ID Card Modal */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                         <button
                           type="button"
                           onClick={() => toggleStudentAttendance(activeGroup.id, std.id)}
                           style={{
-                            flex: 1,
-                            padding: '7px 10px',
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: isPresent ? 'rgba(22, 163, 74, 0.12)' : 'rgba(220, 38, 38, 0.12)',
-                            color: isPresent ? 'var(--success)' : 'var(--danger)',
-                            border: `1px solid ${isPresent ? 'var(--success)' : 'var(--danger)'}`,
-                            fontSize: '11px',
-                            fontWeight: '800',
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: 'var(--radius-lg)',
+                            backgroundColor: isPresent ? 'var(--success)' : 'transparent',
+                            color: isPresent ? '#FFFFFF' : 'var(--danger)',
+                            border: `2px solid ${isPresent ? 'var(--success)' : 'var(--danger)'}`,
+                            fontSize: '13px',
+                            fontWeight: '900',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: '4px'
+                            gap: '8px',
+                            boxShadow: isPresent ? '0 4px 12px rgba(22, 163, 74, 0.22)' : 'none',
+                            transition: 'all 0.2s ease'
                           }}
                         >
-                          {isPresent ? <Check size={12} /> : <X size={12} />}
-                          <span>{isPresent ? 'حاضر اليوم' : 'غائب'}</span>
+                          {isPresent ? <CheckCircle2 size={16} /> : <X size={16} />}
+                          <span>{isPresent ? 'حاضر اليوم ✓ (اضغط للإلغاء)' : 'غائب اليوم ✕ (اضغط لتسجيل الحضور)'}</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setStudentCardModal(std)}
                           style={{
-                            padding: '7px 10px',
+                            width: '100%',
+                            padding: '9px 12px',
                             borderRadius: 'var(--radius-md)',
                             backgroundColor: 'var(--bg-surface)',
                             border: '1px solid var(--border-medium)',
-                            color: 'var(--primary)',
-                            fontSize: '11px',
+                            color: 'var(--text-primary)',
+                            fontSize: '12px',
                             fontWeight: '800',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--primary-surface)';
+                            e.currentTarget.style.color = 'var(--primary)';
+                            e.currentTarget.style.borderColor = 'var(--primary)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
+                            e.currentTarget.style.color = 'var(--text-primary)';
+                            e.currentTarget.style.borderColor = 'var(--border-medium)';
                           }}
                         >
-                          بطاقة الباركود
+                          <QrCode size={14} color="var(--primary)" />
+                          <span>عرض بطاقة الباركود الذكية للطالب</span>
                         </button>
                       </div>
                     </div>

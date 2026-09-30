@@ -217,6 +217,8 @@ const INITIAL_ENROLLED_STUDENTS = {
       nameAr: 'عمر طارق القاضي',
       avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80',
       phone: '+20 102 458 9912',
+      passcode: 'STU-td-1',
+      barcode: '2026001',
       parentName: 'Eng. Tarek El-Kady',
       parentNameAr: 'م. طارق القاضي',
       parentPhone: '+20 100 123 4567',
@@ -233,6 +235,8 @@ const INITIAL_ENROLLED_STUDENTS = {
       nameAr: 'سارة خالد منصور',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
       phone: '+20 111 876 5432',
+      passcode: 'STU-td-2',
+      barcode: '2026002',
       parentName: 'Dr. Khaled Mansour',
       parentNameAr: 'د. خالد منصور',
       parentPhone: '+20 122 987 6543',
@@ -249,6 +253,8 @@ const INITIAL_ENROLLED_STUDENTS = {
       nameAr: 'كريم مصطفى بدوي',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
       phone: '+20 106 332 1980',
+      passcode: 'STU-td-3',
+      barcode: '2026003',
       parentName: 'Mostafa Badawi',
       parentNameAr: 'أ. مصطفى بدوي',
       parentPhone: '+20 106 554 4332',
@@ -265,6 +271,8 @@ const INITIAL_ENROLLED_STUDENTS = {
       nameAr: 'مريم عادل شنودة',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
       phone: '+20 120 445 7789',
+      passcode: 'STU-td-4',
+      barcode: '2026004',
       parentName: 'Adel Shenouda',
       parentNameAr: 'أ. عادل شنودة',
       parentPhone: '+20 122 334 5566',
@@ -862,17 +870,38 @@ export const GroupsProvider = ({ children }) => {
 
   // Record student attendance by Barcode or Passcode
   const recordStudentAttendanceByCode = (groupId, code) => {
-    const clean = (code || '').trim().toUpperCase();
-    if (!clean) return { success: false, message: 'يرجى إدخال أو مسح الباركود' };
+    const rawCode = (code || '').trim();
+    if (!rawCode) return { success: false, message: 'يرجى إدخال أو مسح الباركود' };
 
+    const clean = rawCode.toUpperCase();
+    const cleanNumbers = rawCode.replace(/[^0-9]/g, '');
     const list = enrolledStudents[groupId] || [];
-    const student = list.find(s => 
-      (s.barcode && s.barcode.toUpperCase() === clean) ||
-      (s.passcode && s.passcode.toUpperCase() === clean) ||
-      (s.id && s.id.toUpperCase() === clean) ||
-      (s.phone && s.phone.replace(/[^0-9]/g, '').includes(clean.replace(/[^0-9]/g, ''))) ||
-      (s.nameAr && s.nameAr.includes(clean))
-    );
+
+    const student = list.find((s, idx) => {
+      const sBarcode = (s.barcode || (2026000 + idx + 1).toString()).toUpperCase();
+      const sPasscode = (s.passcode || `STU-TD-${idx + 1}`).toUpperCase();
+      const sId = (s.id || '').toUpperCase();
+      const sPhoneDigits = (s.phone || '').replace(/[^0-9]/g, '');
+      const sNameAr = s.nameAr || '';
+      const sNameEn = (s.name || '').toUpperCase();
+
+      // Direct matches
+      if (sBarcode === clean || clean.includes(sBarcode)) return true;
+      if (sPasscode === clean || clean.includes(sPasscode)) return true;
+      if (sId && (sId === clean || clean.includes(sId))) return true;
+
+      // Digits match (e.g. phone or barcode digits)
+      if (cleanNumbers && cleanNumbers.length >= 6 && sPhoneDigits.includes(cleanNumbers)) return true;
+
+      // Name matches
+      if (sNameAr && clean.includes(sNameAr.toUpperCase())) return true;
+      if (sNameEn && clean.includes(sNameEn)) return true;
+
+      // QR string token payload (e.g. MOTAFAWWEQ:STUDENT:cls-1:std-1:2026001)
+      if (clean.includes(sId) || clean.includes(sBarcode) || clean.includes(sPasscode)) return true;
+
+      return false;
+    });
 
     if (!student) {
       return { success: false, message: 'لم يتم العثور على طالب يطابق هذا الباركود في المجموعة!' };
@@ -881,11 +910,11 @@ export const GroupsProvider = ({ children }) => {
     setEnrolledStudents(prev => ({
       ...prev,
       [groupId]: (prev[groupId] || []).map(s => {
-        if (s.id === student.id) {
+        if (s.id === student.id || (s.nameAr && s.nameAr === student.nameAr)) {
           return {
             ...s,
             todayStatus: 'present',
-            attendedSessions: s.todayStatus === 'present' ? s.attendedSessions : s.attendedSessions + 1
+            attendedSessions: s.todayStatus === 'present' ? s.attendedSessions : (s.attendedSessions || 0) + 1
           };
         }
         return s;
