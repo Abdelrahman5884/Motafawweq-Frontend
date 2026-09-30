@@ -46,6 +46,7 @@ const INITIAL_BRANCHES = [
 ];
 
 const INITIAL_ROOMS = [
+  // فرع الدقي
   {
     id: 'room-1',
     nameAr: 'قاعة 1 (المحاضرات الكبرى)',
@@ -56,17 +57,6 @@ const INITIAL_ROOMS = [
     equipped: ['شاشة عرض تفاعلية 85 بوصة', 'نظام صوتي محيطي لاسلكي', 'تكييف مركزي', 'كاميرا تسجيل ذكية'],
     isAvailable: true,
     floor: 'الطابق الثاني'
-  },
-  {
-    id: 'room-2',
-    nameAr: 'قاعة أينشتاين للمتفوقين',
-    nameEn: 'Einstein Hall',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    capacity: 50,
-    equipped: ['بروجيكتور 4K', 'ميكروفون لاسلكي', 'تكييف سبليت', 'لوحة ذكية'],
-    isAvailable: true,
-    floor: 'الطابق الأول'
   },
   {
     id: 'room-3',
@@ -80,6 +70,87 @@ const INITIAL_ROOMS = [
     floor: 'الطابق الأول'
   },
   {
+    id: 'room-5',
+    nameAr: 'قاعة الخوارزمي للرياضيات',
+    nameEn: 'Al-Khwarizmi Hall',
+    branchId: 'br-dokki',
+    branchNameAr: 'فرع الدقي',
+    capacity: 35,
+    equipped: ['سبورة ذكية تفاعلية', 'نظام صوتي مدمج', 'تكييف'],
+    isAvailable: true,
+    floor: 'الطابق الثالث'
+  },
+  {
+    id: 'room-6',
+    nameAr: 'قاعة نجيب محفوظ للغات',
+    nameEn: 'Naguib Mahfouz Languages Hall',
+    branchId: 'br-dokki',
+    branchNameAr: 'فرع الدقي',
+    capacity: 40,
+    equipped: ['شاشة ذكية 75 بوصة', 'نظام صوتي معزول', 'تكييف سبليت'],
+    isAvailable: true,
+    floor: 'الطابق الثاني'
+  },
+  {
+    id: 'room-7',
+    nameAr: 'مختبر المتفوق الرقمي',
+    nameEn: 'Digital Excellence Lab',
+    branchId: 'br-dokki',
+    branchNameAr: 'فرع الدقي',
+    capacity: 30,
+    equipped: ['شاشة تفاعلية 4K', 'محطات حاسب آلي', 'إنترنت ألياف ضوئية'],
+    isAvailable: true,
+    floor: 'الطابق الأرضي'
+  },
+
+  // فرع مدينة نصر
+  {
+    id: 'room-2',
+    nameAr: 'قاعة أينشتاين للمتفوقين',
+    nameEn: 'Einstein Hall',
+    branchId: 'br-nasrcity',
+    branchNameAr: 'فرع مدينة نصر',
+    capacity: 50,
+    equipped: ['بروجيكتور 4K', 'ميكروفون لاسلكي', 'تكييف سبليت', 'لوحة ذكية'],
+    isAvailable: true,
+    floor: 'الطابق الأول'
+  },
+  {
+    id: 'room-8',
+    nameAr: 'مدرج الفارابي للغات',
+    nameEn: 'Al-Farabi Auditorium',
+    branchId: 'br-nasrcity',
+    branchNameAr: 'فرع مدينة نصر',
+    capacity: 55,
+    equipped: ['شاشة ذكية 85 بوصة', 'نظام صوتيات متطور', 'تكييف مركزي'],
+    isAvailable: true,
+    floor: 'الطابق الثاني'
+  },
+  {
+    id: 'room-9',
+    nameAr: 'قاعة زويل للعلوم والكيمياء',
+    nameEn: 'Zewail Science Hall',
+    branchId: 'br-nasrcity',
+    branchNameAr: 'فرع مدينة نصر',
+    capacity: 45,
+    equipped: ['شاشة تفاعلية', 'تكييف مركزي', 'سبورة رقمية'],
+    isAvailable: true,
+    floor: 'الطابق الأول'
+  },
+  {
+    id: 'room-10',
+    nameAr: 'قاعة عباس العقاد للمحاضرات',
+    nameEn: 'Abbas El-Akkad Lecture Hall',
+    branchId: 'br-nasrcity',
+    branchNameAr: 'فرع مدينة نصر',
+    capacity: 40,
+    equipped: ['شاشة عرض ذكية', 'تكييف سبليت', 'ميكروفونات مدمجة'],
+    isAvailable: true,
+    floor: 'الطابق الثالث'
+  },
+
+  // فرع سموحة
+  {
     id: 'room-4',
     nameAr: 'قاعة نيوتن للفيزياء',
     nameEn: 'Newton Hall',
@@ -91,15 +162,37 @@ const INITIAL_ROOMS = [
     floor: 'الطابق الأرضي'
   },
   {
-    id: 'room-5',
-    nameAr: 'قاعة الخوارزمي للرياضيات',
-    nameEn: 'Al-Khwarizmi Hall',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    capacity: 35,
-    equipped: ['سبورة ذكية تفاعلية', 'نظام صوتي مدمج', 'تكييف'],
+    id: 'room-11',
+    nameAr: 'قاعة الإسكندرية الكبرى',
+    nameEn: 'Grand Alexandria Auditorium',
+    branchId: 'br-smouha',
+    branchNameAr: 'فرع سموحة',
+    capacity: 60,
+    equipped: ['شاشة 85 بوصة 4K', 'نظام صوت محيطي', 'تكييف مركزي'],
     isAvailable: true,
-    floor: 'الطابق الثالث'
+    floor: 'الطابق الأول'
+  },
+  {
+    id: 'room-12',
+    nameAr: 'قاعة ابن خلدون للدراسات',
+    nameEn: 'Ibn Khaldun Hall',
+    branchId: 'br-smouha',
+    branchNameAr: 'فرع سموحة',
+    capacity: 35,
+    equipped: ['شاشة ذكية', 'تكييف سبليت', 'صوتيات لاسلكية'],
+    isAvailable: true,
+    floor: 'الطابق الثاني'
+  },
+  {
+    id: 'room-13',
+    nameAr: 'قاعة البيروني للرياضيات',
+    nameEn: 'Al-Biruni Math Hall',
+    branchId: 'br-smouha',
+    branchNameAr: 'فرع سموحة',
+    capacity: 45,
+    equipped: ['شاشة تفاعلية ذكية', 'تكييف مركزي', 'سبورة قلم رقمي'],
+    isAvailable: true,
+    floor: 'الطابق الثاني'
   }
 ];
 

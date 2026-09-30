@@ -223,8 +223,8 @@ export const ROUTE_HIERARCHY = {
 
   // ── CENTER ROUTES ──
   '/center/dashboard': {
-    titleAr: 'غرفة عمليات السنتر',
-    titleEn: 'Command Center',
+    titleAr: 'لوحة التحكم',
+    titleEn: 'Dashboard',
     isRoot: true,
     role: 'center'
   },

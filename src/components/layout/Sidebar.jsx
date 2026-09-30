@@ -132,10 +132,9 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
           {
             group: lang === 'ar' ? 'القيادة والتشغيل اليومي' : 'Command & Daily Operations',
             items: [
-              { id: 'center-portal', path: '/center/dashboard', label: lang === 'ar' ? 'غرفة عمليات السنتر' : 'Command Center', icon: Building2 },
+              { id: 'center-portal', path: '/center/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: Building2 },
               { id: 'center-groups', path: '/center/groups', label: lang === 'ar' ? 'المجموعات والصفوف الدراسية' : 'Cohorts & Groups', icon: Users },
               { id: 'center-halls', path: '/center/halls', label: lang === 'ar' ? 'القاعات وجداول التشغيل' : 'Rooms & Schedule', icon: Calendar },
-              { id: 'center-qr', path: '/center/attendance', label: lang === 'ar' ? 'الباركود وحضور الطلاب' : 'QR Attendance', icon: QrCode },
             ]
           },
           {

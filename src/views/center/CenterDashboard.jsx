@@ -145,7 +145,7 @@ export const CenterDashboard = () => {
                 letterSpacing: '0.6px',
                 textTransform: 'uppercase'
               }}>
-                {lang === 'ar' ? 'غرفة العمليات الرئيسية للسنتر' : 'Center Command Center'}
+                {lang === 'ar' ? 'لوحة التحكم' : 'Control Panel'}
               </span>
               <span style={{
                 fontSize: '11px',
@@ -186,6 +186,9 @@ export const CenterDashboard = () => {
               outline: 'none'
             }}
           >
+            <option value="all">
+              {lang === 'ar' ? 'جميع الفروع' : 'All Branches'}
+            </option>
             {branches.map(b => (
               <option key={b.id} value={b.id}>
                 {lang === 'ar' ? b.nameAr : b.nameEn}
@@ -236,7 +239,7 @@ export const CenterDashboard = () => {
         marginBottom: '24px'
       }}>
         {/* KPI 1: Active Students from Total Students */}
-        <div style={{
+        <div className="center-interactive-card" style={{
           backgroundColor: 'var(--bg-surface)',
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
@@ -270,7 +273,7 @@ export const CenterDashboard = () => {
         </div>
 
         {/* KPI 2: Teachers Count */}
-        <div style={{
+        <div className="center-interactive-card" style={{
           backgroundColor: 'var(--bg-surface)',
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
@@ -303,7 +306,7 @@ export const CenterDashboard = () => {
         </div>
 
         {/* KPI 3: Rooms Count */}
-        <div style={{
+        <div className="center-interactive-card" style={{
           backgroundColor: 'var(--bg-surface)',
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
@@ -336,7 +339,7 @@ export const CenterDashboard = () => {
         </div>
 
         {/* KPI 4: Room Utilization */}
-        <div style={{
+        <div className="center-interactive-card" style={{
           backgroundColor: 'var(--bg-surface)',
           padding: '18px 20px',
           borderRadius: 'var(--radius-lg)',
@@ -370,14 +373,9 @@ export const CenterDashboard = () => {
       </div>
 
       {/* ── MAIN DASHBOARD ROW: ATTENDANCE SPLINE GRAPH & HALL OCCUPANCY CARD ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '20px',
-        alignItems: 'stretch'
-      }}>
-        {/* Left Column: Curved Spline Attendance Graph (Identical to Teacher/Student & User screenshot) */}
-        <div style={{
+      <div className="executive-charts-grid" style={{ alignItems: 'stretch' }}>
+        {/* Left Column: Curved Spline Attendance Graph (Takes span 8 for wide, elegant curve) */}
+        <div className="executive-chart-main center-interactive-card" style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--border-subtle)',
@@ -504,12 +502,13 @@ export const CenterDashboard = () => {
                   );
                 })}
 
-                {/* Spline Area Fill */}
-                <path d={areaPath} fill="url(#centerAreaGrad)" />
+                {/* Spline Area Fill with animation */}
+                <path d={areaPath} fill="url(#centerAreaGrad)" className="spline-area" />
 
-                {/* Spline Line */}
+                {/* Spline Line with smooth draw animation */}
                 <path
                   d={linePath}
+                  className="spline-line"
                   fill="none"
                   stroke={themeAccent}
                   strokeWidth="2.8"
@@ -580,6 +579,17 @@ export const CenterDashboard = () => {
                           filter="url(#centerGlow)"
                         />
                       )}
+                      {p.isToday && (
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r="10"
+                          fill="none"
+                          stroke={themeAccent}
+                          strokeWidth="1.5"
+                          className="pulse-ring-indicator"
+                        />
+                      )}
                       <circle
                         cx={p.x}
                         cy={p.y}
@@ -589,7 +599,7 @@ export const CenterDashboard = () => {
                         strokeWidth="2.5"
                       />
 
-                      {/* Day Axis Label */}
+                      {/* Day Axis Label — Strictly clean without (الذروة) or (اليوم) */}
                       <text
                         x={p.x}
                         y={chartHeight - 12}
@@ -600,7 +610,6 @@ export const CenterDashboard = () => {
                         fontWeight={p.isToday || p.isPeak ? '800' : '600'}
                       >
                         {p.dayAr}
-                        {p.isPeak ? ' (الذروة)' : p.isToday ? ' (اليوم)' : ''}
                       </text>
                     </g>
                   );
@@ -609,35 +618,87 @@ export const CenterDashboard = () => {
             </div>
           </div>
 
-          {/* Quick Insights Row Below Chart */}
+          {/* Quick Insights Metric Strip Below Chart */}
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: '16px',
-            paddingTop: '14px',
-            borderTop: '1px solid var(--border-subtle)',
-            fontSize: '12px',
-            flexWrap: 'wrap',
-            gap: '8px'
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: '10px',
+            marginTop: '18px',
+            paddingTop: '16px',
+            borderTop: '1px solid var(--border-subtle)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>
-                {lang === 'ar' ? 'ذروة الأسبوع:' : 'Weekly Peak:'}{' '}
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'الخميس (960 طالباً • 61 ساعة استماع)' : 'Thursday (960 students • 61 hrs)'}
-                </strong>
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px'
+            }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                {lang === 'ar' ? 'متوسط الحضور اليومي' : 'Daily Average'}
+              </span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>
+                780 {lang === 'ar' ? 'طالب/يوم' : 'students'}
               </span>
             </div>
-            <span style={{ color: 'var(--text-muted)' }}>
-              {lang === 'ar' ? 'متوسط الاستماع الأسبوعي: 48.5 ساعة/يوم' : 'Weekly average: 48.5 hrs/day'}
-            </span>
+
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px'
+            }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                {lang === 'ar' ? 'ذروة الأسبوع' : 'Weekly Peak'}
+              </span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: '#10B981' }}>
+                {lang === 'ar' ? 'الخميس (960 طالب)' : 'Thursday (960)'}
+              </span>
+            </div>
+
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px'
+            }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                {lang === 'ar' ? 'نسبة الالتزام والنشاط' : 'Active Rate'}
+              </span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                94.2% {lang === 'ar' ? 'حضور منتظم' : 'active'}
+              </span>
+            </div>
+
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px'
+            }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                {lang === 'ar' ? 'إجمالي ساعات التدريس' : 'Total Teaching Hrs'}
+              </span>
+              <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                340 {lang === 'ar' ? 'ساعة أسبوعياً' : 'hrs/wk'}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Right Column: Hall Occupancy Side Widget (No progress bars under rooms, clean percentage badge) */}
-        <div style={{
+        <div className="executive-chart-side center-interactive-card" style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--border-subtle)',
@@ -722,6 +783,7 @@ export const CenterDashboard = () => {
                     strokeDasharray={donutCircumference}
                     strokeDashoffset={donutDashOffset}
                     strokeLinecap="round"
+                    className="executive-donut-segment"
                     style={{ transition: 'stroke-dashoffset 0.6s ease' }}
                   />
                 </svg>
@@ -773,6 +835,7 @@ export const CenterDashboard = () => {
               {roomOccupancyStats.slice(0, 5).map((room) => (
                 <div
                   key={room.id}
+                  className="center-interactive-card"
                   style={{
                     padding: '10px 14px',
                     borderRadius: 'var(--radius-md)',
@@ -811,6 +874,7 @@ export const CenterDashboard = () => {
           {/* Quick Link to Halls View */}
           <Link
             to="/center/halls"
+            className="center-interactive-card"
             style={{
               marginTop: '16px',
               padding: '10px',

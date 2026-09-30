@@ -81,9 +81,13 @@ export const CenterHallsView = () => {
   const [selectedBranchForRoom, setSelectedBranchForRoom] = useState(selectedBranchId);
   const [roomEquipment, setRoomEquipment] = useState(['شاشة ذكية تفاعلية', 'تكييف مركزي', 'نظام صوتيات لاسلكي']);
 
-  // Filter rooms by branch (with fallback to all center rooms)
-  const currentBranchRooms = rooms.filter(r => r.branchId === selectedBranchId || !selectedBranchId);
-  const displayHalls = currentBranchRooms.length > 0 ? currentBranchRooms : rooms;
+  // Filter rooms by branch (or all branches)
+  const currentBranchRooms = React.useMemo(() => {
+    if (!selectedBranchId || selectedBranchId === 'all') return rooms;
+    return rooms.filter(r => r.branchId === selectedBranchId);
+  }, [rooms, selectedBranchId]);
+
+  const displayHalls = currentBranchRooms;
 
   const handleCreateRoom = (e) => {
     e.preventDefault();
@@ -200,6 +204,9 @@ export const CenterHallsView = () => {
               outline: 'none'
             }}
           >
+            <option value="all">
+              {lang === 'ar' ? 'جميع الفروع (كافة القاعات)' : 'All Branches (All Rooms)'}
+            </option>
             {branches.map(b => (
               <option key={b.id} value={b.id}>
                 {lang === 'ar' ? b.nameAr : b.nameEn}
@@ -255,27 +262,84 @@ export const CenterHallsView = () => {
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: '20px'
         }}>
-          {currentBranchRooms.map(room => {
-            // Find cohorts assigned to this room
-            const assignedCohorts = groups.filter(
-              g => g.hallName === room.nameAr || (g.slots && g.slots.some(s => s.hall === room.nameAr))
-            );
-
-            return (
-              <div
-                key={room.id}
+          {currentBranchRooms.length === 0 ? (
+            <div style={{
+              gridColumn: '1 / -1',
+              textAlign: 'center',
+              padding: '60px 24px',
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px dashed var(--border-subtle)',
+              boxShadow: 'var(--shadow-xs)'
+            }}>
+              <div style={{
+                width: '54px',
+                height: '54px',
+                borderRadius: '14px',
+                backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--primary)',
+                margin: '0 auto 16px'
+              }}>
+                <Building2 size={28} />
+              </div>
+              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>
+                {lang === 'ar' ? 'لم يتم إضافة قاعات دراسية في هذا الفرع بعد' : 'No classrooms added to this branch yet'}
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 20px', lineHeight: 1.6 }}>
+                {lang === 'ar'
+                  ? 'يمكنك إضافة قاعة دراسية جديدة وتحديد سعتها المجهزة بالشاشات والتكييف ونظام الصوتيات الآن.'
+                  : 'You can add a classroom, define its seating capacity and multimedia equipment now.'}
+              </p>
+              <button
+                onClick={() => {
+                  setSelectedBranchForRoom(selectedBranchId !== 'all' ? selectedBranchId : (branches[0]?.id || 'br-dokki'));
+                  setIsAddRoomOpen(true);
+                }}
+                className="center-interactive-card"
                 style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  borderRadius: 'var(--radius-xl)',
-                  border: '1px solid var(--border-subtle)',
-                  padding: '22px',
-                  boxShadow: 'var(--shadow-sm)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '16px'
+                  padding: '10px 22px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}
               >
+                <Plus size={16} />
+                <span>{lang === 'ar' ? 'إضافة قاعة جديدة الآن' : 'Add Classroom Now'}</span>
+              </button>
+            </div>
+          ) : (
+            currentBranchRooms.map(room => {
+              // Find cohorts assigned to this room
+              const assignedCohorts = groups.filter(
+                g => g.hallName === room.nameAr || (g.slots && g.slots.some(s => s.hall === room.nameAr))
+              );
+
+              return (
+                <div
+                  key={room.id}
+                  className="center-interactive-card"
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid var(--border-subtle)',
+                    padding: '22px',
+                    boxShadow: 'var(--shadow-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '16px'
+                  }}
+                >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <div>
@@ -383,7 +447,7 @@ export const CenterHallsView = () => {
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       )}
 
@@ -454,52 +518,70 @@ export const CenterHallsView = () => {
 
             {/* Responsive Halls Schedule Cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
-              {displayHalls.map(room => {
-                // Find all sessions in this room on selectedDay
-                const sessions = [];
-                const selDayKey = selectedDay.toLowerCase();
-                groups.forEach(g => {
-                  const allSlots = g.scheduleSlots || g.slots || [];
-                  allSlots.forEach(s => {
-                    const slotDay = (s.day || '').toLowerCase();
-                    const dayMatches = slotDay === selDayKey || s.day === selectedDay || s.dayEn === selectedDay || s.dayAr === selectedDay;
-                    if (dayMatches && matchesRoom(s.hall, g.hallName, room)) {
-                      sessions.push({
-                        group: g,
-                        slot: s,
-                        enrolledCount: (enrolledStudents[g.id] || []).length || Math.floor(room.capacity * 0.75)
-                      });
-                    }
+              {displayHalls.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '60px 24px',
+                  backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 'var(--radius-xl)',
+                  border: '1px dashed var(--border-subtle)'
+                }}>
+                  <Building2 size={36} style={{ color: 'var(--text-muted)', margin: '0 auto 12px', display: 'block' }} />
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                    {lang === 'ar' ? 'لم يتم إضافة قاعات دراسية لعرض الجدول في هذا الفرع' : 'No classrooms available for this branch schedule'}
+                  </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {lang === 'ar' ? 'يرجى اختيار فرع آخر أو إضافة قاعة دراسية جديدة' : 'Please select another branch or add a classroom'}
+                  </p>
+                </div>
+              ) : (
+                displayHalls.map(room => {
+                  // Find all sessions in this room on selectedDay
+                  const sessions = [];
+                  const selDayKey = selectedDay.toLowerCase();
+                  groups.forEach(g => {
+                    const allSlots = g.scheduleSlots || g.slots || [];
+                    allSlots.forEach(s => {
+                      const slotDay = (s.day || '').toLowerCase();
+                      const dayMatches = slotDay === selDayKey || s.day === selectedDay || s.dayEn === selectedDay || s.dayAr === selectedDay;
+                      if (dayMatches && matchesRoom(s.hall, g.hallName, room)) {
+                        sessions.push({
+                          group: g,
+                          slot: s,
+                          enrolledCount: (enrolledStudents[g.id] || []).length || Math.floor(room.capacity * 0.75)
+                        });
+                      }
+                    });
                   });
-                });
 
-                // Sort sessions by start time
-                sessions.sort((a, b) => (a.slot.startTime || '').localeCompare(b.slot.startTime || ''));
+                  // Sort sessions by start time
+                  sessions.sort((a, b) => (a.slot.startTime || '').localeCompare(b.slot.startTime || ''));
 
-                const freeSlots = STANDARD_CENTER_SLOTS.filter(std => {
-                  return !sessions.some(sess => {
-                    const sStart = sess.slot.startTime || '16:00';
-                    const sEnd = sess.slot.endTime || '18:00';
-                    return (std.startTime < sEnd) && (std.endTime > sStart);
+                  const freeSlots = STANDARD_CENTER_SLOTS.filter(std => {
+                    return !sessions.some(sess => {
+                      const sStart = sess.slot.startTime || '16:00';
+                      const sEnd = sess.slot.endTime || '18:00';
+                      return (std.startTime < sEnd) && (std.endTime > sStart);
+                    });
                   });
-                });
 
-                const isOccupied = sessions.length > 0;
+                  const isOccupied = sessions.length > 0;
 
-                return (
-                  <div
-                    key={room.id}
-                    style={{
-                      backgroundColor: 'var(--bg-app)',
-                      borderRadius: 'var(--radius-xl)',
-                      border: isOccupied ? '1.5px solid rgba(21, 136, 199, 0.3)' : '1px solid var(--border-subtle)',
-                      padding: '18px 20px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '14px',
-                      boxShadow: 'var(--shadow-xs)'
-                    }}
-                  >
+                  return (
+                    <div
+                      key={room.id}
+                      className="center-interactive-card"
+                      style={{
+                        backgroundColor: 'var(--bg-app)',
+                        borderRadius: 'var(--radius-xl)',
+                        border: isOccupied ? '1.5px solid rgba(21, 136, 199, 0.3)' : '1px solid var(--border-subtle)',
+                        padding: '18px 20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '14px',
+                        boxShadow: 'var(--shadow-xs)'
+                      }}
+                    >
                     {/* Room Header Banner */}
                     <div style={{
                       display: 'flex',
@@ -670,7 +752,7 @@ export const CenterHallsView = () => {
                     )}
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         </div>

@@ -300,7 +300,7 @@ export default function App() {
                     <Route path="/center/groups" element={<CenterGroupsView />} />
                     <Route path="/center/groups/:groupId" element={<CenterGroupsView />} />
                     <Route path="/center/halls" element={<CenterHallsView />} />
-                    <Route path="/center/attendance" element={<CenterAttendanceView />} />
+                    <Route path="/center/attendance" element={<Navigate to="/center/groups" replace />} />
                     <Route path="/center/financials" element={<CenterFinancialsView />} />
                     <Route path="/center/operations" element={<CenterOperationsView />} />
                     <Route path="/center/settings" element={<CenterSettingsView />} />

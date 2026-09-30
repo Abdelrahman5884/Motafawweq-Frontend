@@ -75,9 +75,8 @@ export const RoleSwitcher = () => {
   ];
 
   const quickShowcases = [
-    { label: lang === 'ar' ? 'غرفة عمليات السنتر' : 'Center Command', path: '/center/dashboard', role: 'center', icon: Building2 },
+    { label: lang === 'ar' ? 'لوحة التحكم' : 'Control Panel', path: '/center/dashboard', role: 'center', icon: Building2 },
     { label: lang === 'ar' ? 'القاعات وجدول التشغيل' : 'Rooms & Schedule', path: '/center/halls', role: 'center', icon: Calendar },
-    { label: lang === 'ar' ? 'الباركود وحضور الطلاب' : 'QR Attendance', path: '/center/attendance', role: 'center', icon: QrCode },
     { label: lang === 'ar' ? 'المالية ونسب المدرسين' : 'Center Financials', path: '/center/financials', role: 'center', icon: DollarSign },
     { label: lang === 'ar' ? 'الفروع والعمليات والـ CRM' : 'Branches & CRM', path: '/center/operations', role: 'center', icon: Layers },
     { label: lang === 'ar' ? 'إعدادات المنظومة والمهام' : 'Center Settings', path: '/center/settings', role: 'center', icon: Settings },

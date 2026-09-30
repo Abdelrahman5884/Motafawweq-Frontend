@@ -1875,6 +1875,35 @@ button, input, select, textarea {
   }
 }
 
+/* Center Interactive Cards & Micro-interactions */
+.center-interactive-card {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  cursor: pointer;
+}
+
+.center-interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -4px rgba(0, 102, 204, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 102, 204, 0.35) !important;
+}
+
+.center-interactive-card:active {
+  transform: translateY(1px) scale(0.985);
+  box-shadow: 0 2px 6px rgba(0, 102, 204, 0.1);
+  transition-duration: 0.1s;
+}
+
+@keyframes pulseDotGlow {
+  0% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.6); opacity: 0.25; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.pulse-ring-indicator {
+  animation: pulseDotGlow 2.2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+  transform-origin: center;
+}
+
 /* ── Teacher Executive Dashboard Responsive Layout ── */
 .teacher-dashboard-container {
   max-width: 1240px;
