@@ -138,15 +138,9 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             ]
           },
           {
-            group: lang === 'ar' ? 'الإدارة المالية ومستحقات الشركاء' : 'Financials & Settlements',
+            group: lang === 'ar' ? 'الفروع وشبكة المعلمين' : 'Branches & Teachers',
             items: [
-              { id: 'center-financials', path: '/center/financials', label: lang === 'ar' ? 'المالية ونسب المدرسين' : 'Settlements & P&L', icon: DollarSign },
-            ]
-          },
-          {
-            group: lang === 'ar' ? 'الفروع والنمو والسياسات' : 'Growth & Settings',
-            items: [
-              { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'الفروع والعمليات والـ CRM' : 'Branches & CRM', icon: Layers },
+              { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'إدارة الفروع وشبكة المعلمين' : 'Branches & Teachers', icon: Layers },
               { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'إعدادات المنظومة والمهام' : 'Settings & Tasks', icon: Settings },
             ]
           }

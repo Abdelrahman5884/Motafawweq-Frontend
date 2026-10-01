@@ -480,6 +480,7 @@ export const ClassFormModal = ({
                           border: '1px solid var(--border-subtle)',
                           backgroundColor: 'var(--bg-subtle)',
                           color: 'var(--text-primary)',
+                          colorScheme: 'dark light',
                           fontSize: '12px',
                           fontWeight: '700',
                           outline: 'none',
@@ -487,7 +488,7 @@ export const ClassFormModal = ({
                         }}
                       >
                         {DAYS_LIST.map(d => (
-                          <option key={d.key} value={d.key}>
+                          <option key={d.key} value={d.key} style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
                             {lang === 'ar' ? d.ar : d.en}
                           </option>
                         ))}
@@ -510,6 +511,7 @@ export const ClassFormModal = ({
                           border: '1px solid var(--border-subtle)',
                           backgroundColor: 'var(--bg-subtle)',
                           color: 'var(--text-primary)',
+                          colorScheme: 'dark light',
                           fontSize: '12px',
                           fontWeight: '700',
                           outline: 'none',
@@ -534,6 +536,7 @@ export const ClassFormModal = ({
                           border: '1px solid var(--border-subtle)',
                           backgroundColor: 'var(--bg-subtle)',
                           color: 'var(--text-primary)',
+                          colorScheme: 'dark light',
                           fontSize: '12px',
                           fontWeight: '700',
                           outline: 'none',

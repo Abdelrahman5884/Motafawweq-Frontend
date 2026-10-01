@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
-import { useGroups } from '../../context/GroupsContext';
+import { useGroups, parseScheduleSlots } from '../../context/GroupsContext';
 import { useTheme } from '../../context/ThemeContext';
 import { 
   Building2, 
@@ -14,10 +14,70 @@ import {
   ChevronLeft, 
   Sparkles,
   CheckCircle2,
-  Clock
+  Clock,
+  PlayCircle,
+  Check,
+  RotateCcw,
+  Maximize2,
+  X,
+  ExternalLink,
+  ChevronRight,
+  ListOrdered,
+  ArrowRight,
+  UserCheck
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { generateSplinePaths } from '../../utils';
+
+const getTodayDayKey = () => {
+  const dayIndex = new Date().getDay(); // 0 = sunday, 1 = monday, ...
+  const map = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return map[dayIndex];
+};
+
+const QUEUE_WEEKDAYS = [
+  { key: 'saturday', labelAr: 'السبت', labelEn: 'Saturday' },
+  { key: 'sunday', labelAr: 'الأحد', labelEn: 'Sunday' },
+  { key: 'monday', labelAr: 'الاثنين', labelEn: 'Monday' },
+  { key: 'tuesday', labelAr: 'الثلاثاء', labelEn: 'Tuesday' },
+  { key: 'wednesday', labelAr: 'الأربعاء', labelEn: 'Wednesday' },
+  { key: 'thursday', labelAr: 'الخميس', labelEn: 'Thursday' },
+  { key: 'friday', labelAr: 'الجمعة', labelEn: 'Friday' }
+];
+
+const formatTime12h = (timeStr = '', lang = 'ar') => {
+  if (!timeStr) return '';
+  const [hStr, mStr] = timeStr.split(':');
+  let h = parseInt(hStr, 10);
+  const m = mStr || '00';
+  if (isNaN(h)) return timeStr;
+  const isPm = h >= 12;
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  const formattedH = h.toString().padStart(2, '0');
+  const suffix = lang === 'ar' ? (isPm ? 'م' : 'ص') : (isPm ? 'PM' : 'AM');
+  return `${formattedH}:${m} ${suffix}`;
+};
+
+const RenderQueueTimeRange = ({ startTime, endTime, lang, isRtl, color, style = {} }) => {
+  return (
+    <span 
+      dir={isRtl ? 'rtl' : 'ltr'} 
+      style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        gap: '6px',
+        color: color || 'inherit',
+        fontVariantNumeric: 'tabular-nums',
+        ...style
+      }}
+    >
+      <bdi>{formatTime12h(startTime, lang)}</bdi>
+      <span style={{ opacity: 0.65, fontSize: '0.85em' }}>{lang === 'ar' ? 'إلى' : '–'}</span>
+      <bdi>{formatTime12h(endTime, lang)}</bdi>
+    </span>
+  );
+};
 
 // Attendance Spline Data exactly matching Teacher View & User screenshot
 const WEEKLY_ATTENDANCE_DATA = [
@@ -31,6 +91,7 @@ const WEEKLY_ATTENDANCE_DATA = [
 ];
 
 export const CenterDashboard = () => {
+  const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
   const { 
@@ -39,11 +100,120 @@ export const CenterDashboard = () => {
     setSelectedBranchId, 
     rooms 
   } = useCenter();
-  const { groups } = useGroups();
+  const { groups = [], enrolledStudents = {} } = useGroups();
 
   // Time filter: 'today' | 'month' | 'year'
   const [timePeriod, setTimePeriod] = useState('month');
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
+
+  // ── LIVE COHORTS QUEUE STATE ──
+  const todayKey = useMemo(() => getTodayDayKey(), []);
+  const [selectedQueueDay, setSelectedQueueDay] = useState(todayKey);
+  const [isFullQueueOpen, setIsFullQueueOpen] = useState(false);
+  const [queueModalFilter, setQueueModalFilter] = useState('ALL'); // ALL, ACTIVE, COMPLETED
+  const [queueToast, setQueueToast] = useState(null);
+
+  const [completedQueueIds, setCompletedQueueIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`motafawweq_queue_completed_${todayKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const handleSelectQueueDay = (dayKey) => {
+    setSelectedQueueDay(dayKey);
+    try {
+      const saved = localStorage.getItem(`motafawweq_queue_completed_${dayKey}`);
+      setCompletedQueueIds(saved ? JSON.parse(saved) : []);
+    } catch (e) {
+      setCompletedQueueIds([]);
+    }
+  };
+
+  const handleCompleteQueueItem = (uniqueId, groupName, e) => {
+    if (e) e.stopPropagation();
+    setCompletedQueueIds(prev => {
+      if (prev.includes(uniqueId)) return prev;
+      const next = [...prev, uniqueId];
+      try {
+        localStorage.setItem(`motafawweq_queue_completed_${selectedQueueDay}`, JSON.stringify(next));
+      } catch (err) {}
+      return next;
+    });
+    setQueueToast(`تم إنهاء حصة «${groupName}» وإزالتها من الطابور! تقدمت المجموعة التالية.`);
+    setTimeout(() => setQueueToast(null), 3500);
+  };
+
+  const handleRestoreQueueItem = (uniqueId, groupName, e) => {
+    if (e) e.stopPropagation();
+    setCompletedQueueIds(prev => {
+      const next = prev.filter(id => id !== uniqueId);
+      try {
+        localStorage.setItem(`motafawweq_queue_completed_${selectedQueueDay}`, JSON.stringify(next));
+      } catch (err) {}
+      return next;
+    });
+    setQueueToast(`تمت إعادة حصة «${groupName}» إلى الطابور.`);
+    setTimeout(() => setQueueToast(null), 3500);
+  };
+
+  const handleResetQueue = () => {
+    setCompletedQueueIds([]);
+    try {
+      localStorage.removeItem(`motafawweq_queue_completed_${selectedQueueDay}`);
+    } catch (err) {}
+    setQueueToast('تمت إعادة ضبط طابور اليوم.');
+    setTimeout(() => setQueueToast(null), 3500);
+  };
+
+  // Compile today's queue items strictly sorted chronologically by startTime
+  const todayQueueItems = useMemo(() => {
+    const items = [];
+    (groups || []).forEach(group => {
+      const slots = group.scheduleSlots && group.scheduleSlots.length > 0
+        ? group.scheduleSlots
+        : (parseScheduleSlots ? parseScheduleSlots(group.scheduleAr, group.hallName) : []);
+
+      slots.forEach(slot => {
+        if (slot.day === selectedQueueDay) {
+          const studentList = enrolledStudents[group.id] || [];
+          const studentCount = studentList.length > 0 ? studentList.length : 38;
+          items.push({
+            uniqueId: `${group.id}_${slot.id || slot.startTime}`,
+            groupId: group.id,
+            slotId: slot.id,
+            groupNameAr: group.nameAr,
+            groupNameEn: group.nameEn,
+            subjectAr: group.subjectAr,
+            gradeAr: group.gradeAr,
+            teacherNameAr: group.teacherNameAr,
+            hall: slot.hall || group.hallName || 'القاعة الرئيسية',
+            startTime: slot.startTime || '12:00',
+            endTime: slot.endTime || '14:00',
+            studentCount,
+            capacity: 60,
+            priceEgp: group.priceEgp || 450
+          });
+        }
+      });
+    });
+
+    // Strictly sort chronologically by startTime (e.g. 10:00 -> 12:00 -> 14:00 -> 16:00 -> 18:00)
+    return items.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+  }, [groups, selectedQueueDay, enrolledStudents]);
+
+  const activeQueue = useMemo(() => {
+    return todayQueueItems.filter(item => !completedQueueIds.includes(item.uniqueId));
+  }, [todayQueueItems, completedQueueIds]);
+
+  const completedQueue = useMemo(() => {
+    return todayQueueItems.filter(item => completedQueueIds.includes(item.uniqueId));
+  }, [todayQueueItems, completedQueueIds]);
+
+  const currentActiveItem = activeQueue[0] || null;
+  const upcomingQueueItems = activeQueue.slice(1);
 
   const selectedBranch = branches.find(b => b.id === selectedBranchId) || branches[0];
 
@@ -93,7 +263,7 @@ export const CenterDashboard = () => {
   const baseline = chartHeight - paddingBottom;
   const maxStudents = 1000;
 
-  const themeAccent = isDark ? '#38BDF8' : '#0066CC';
+  const themeAccent = isDark ? '#5CB6DB' : '#1588C7';
   const themeGridStroke = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(15, 23, 42, 0.08)';
   const themeAxisFill = isDark ? '#94A3B8' : '#64748B';
 
@@ -926,6 +1096,1205 @@ export const CenterDashboard = () => {
           </Link>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          SECTION: LIVE COHORTS QUEUE (طابور مجموعات اليوم المجدولة)
+          ═══════════════════════════════════════════════════════════════════════ */}
+      <div
+        style={{
+          marginTop: '32px',
+          backgroundColor: isDark ? 'rgba(15, 23, 42, 0.75)' : '#FFFFFF',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--border-subtle)',
+          padding: '24px 28px',
+          boxShadow: isDark ? '0 12px 36px rgba(0,0,0,0.35)' : '0 6px 24px rgba(0,0,0,0.04)',
+          backdropFilter: 'blur(10px)',
+          position: 'relative'
+        }}
+      >
+        {/* Header: Live Badge, Title, Day Selector, Full Queue Button */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+          paddingBottom: '20px',
+          borderBottom: '1px solid var(--border-subtle)',
+          marginBottom: '22px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#10B981',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  letterSpacing: '0.2px'
+                }}>
+                  <span style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    backgroundColor: '#10B981',
+                    boxShadow: '0 0 8px #10B981'
+                  }} />
+                  {lang === 'ar' ? 'طابور الحصص المباشر — Live Queue' : 'Live Daily Queue'}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                  {todayQueueItems.length} {lang === 'ar' ? 'حصص مجدولة لليوم' : 'sessions scheduled'}
+                  {completedQueue.length > 0 && ` (${completedQueue.length} منجزة)`}
+                </span>
+              </div>
+
+              <h2 style={{
+                fontSize: '21px',
+                fontWeight: '900',
+                color: 'var(--text-primary)',
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <ListOrdered size={24} style={{ color: themeAccent }} />
+                <span>{lang === 'ar' ? 'طابور مجموعات اليوم المتسلسل' : 'Today’s Cohorts Chronological Queue'}</span>
+              </h2>
+              <p style={{
+                margin: '4px 0 0 0',
+                fontSize: '13px',
+                color: 'var(--text-secondary)'
+              }}>
+                {lang === 'ar'
+                  ? 'المجموعات مرتبة زمنياً تصاعدياً حسب مواعيد اليوم. اضغط على أي مجموعة للدخول، وعند الانتهاء انقر "إنهاء الحصة" لتتقدم المجموعة التالية تلقائياً.'
+                  : 'Cohorts ordered chronologically by today’s schedule. Click to enter, or finish a session to advance the next group.'}
+              </p>
+            </div>
+
+            {/* Top Action Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {completedQueue.length > 0 && (
+                <button
+                  onClick={handleResetQueue}
+                  title={lang === 'ar' ? 'إعادة ضبط الطابور واستعادة الحصص المكتملة' : 'Reset Queue'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'var(--bg-app)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <RotateCcw size={14} />
+                  <span>{lang === 'ar' ? 'إعادة ضبط الطابور' : 'Reset Queue'}</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setIsFullQueueOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-medium)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.color = 'var(--primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-medium)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+              >
+                <Maximize2 size={15} />
+                <span>{lang === 'ar' ? 'عرض الطابور كاملاً (Full Queue)' : 'View Full Queue'}</span>
+                <span style={{
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  borderRadius: '12px',
+                  padding: '2px 8px',
+                  fontSize: '11px',
+                  fontWeight: '800'
+                }}>
+                  {todayQueueItems.length}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Weekdays Selector Pills */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            overflowX: 'auto',
+            paddingBottom: '2px'
+          }}>
+            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', marginInlineEnd: '4px' }}>
+              {lang === 'ar' ? 'اليوم المعروض:' : 'View Day:'}
+            </span>
+            {QUEUE_WEEKDAYS.map(day => {
+              const isSelected = selectedQueueDay === day.key;
+              const isToday = todayKey === day.key;
+              return (
+                <button
+                  key={day.key}
+                  onClick={() => handleSelectQueueDay(day.key)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
+                    backgroundColor: isSelected 
+                      ? 'var(--primary)'
+                      : 'var(--bg-app)',
+                    color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: isSelected ? '800' : '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.18s ease'
+                  }}
+                >
+                  <span>{lang === 'ar' ? day.labelAr : day.labelEn}</span>
+                  {isToday && (
+                    <span style={{
+                      fontSize: '10px',
+                      padding: '1px 6px',
+                      borderRadius: '8px',
+                      backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'var(--primary-surface)',
+                      color: isSelected ? '#FFFFFF' : 'var(--primary)',
+                      fontWeight: '800'
+                    }}>
+                      {lang === 'ar' ? 'اليوم' : 'Today'}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Queue Content Body */}
+        {activeQueue.length > 0 ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 1fr)',
+            gap: '24px'
+          }}>
+            {/* ── HERO SPOTLIGHT CARD: CURRENT ACTIVE COHORT (#1) ── */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '10px'
+              }}>
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: '900',
+                  color: themeAccent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <PlayCircle size={16} />
+                  {lang === 'ar' ? 'الحصة النشطة حالياً في مقدمة الطابور (#1)' : 'Current Active Cohort (#1)'}
+                </span>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0, 102, 204, 0.1)',
+                  color: themeAccent
+                }}>
+                  {lang === 'ar' ? 'جارية / الترتيب الزمني الأول' : 'In Progress / First Slot'}
+                </span>
+              </div>
+
+              <div style={{
+                borderRadius: 'var(--radius-xl)',
+                border: '1.5px solid var(--primary)',
+                backgroundColor: 'var(--bg-surface)',
+                padding: '22px',
+                boxShadow: 'var(--shadow-sm)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                transition: 'all 0.25s ease'
+              }}>
+                {/* Top Pill: Time Range & Duration */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--primary-surface)',
+                    color: 'var(--primary)',
+                    border: '1px solid rgba(21, 136, 199, 0.2)',
+                    fontSize: '13px',
+                    fontWeight: '800'
+                  }}>
+                    <Clock size={15} />
+                    <RenderQueueTimeRange 
+                      startTime={currentActiveItem.startTime} 
+                      endTime={currentActiveItem.endTime} 
+                      lang={lang} 
+                      isRtl={isRtl} 
+                      color="var(--primary)" 
+                    />
+                  </div>
+
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)'
+                  }}>
+                    {lang === 'ar' ? 'ساعتان • موعد اليوم' : '2 Hours • Today'}
+                  </span>
+                </div>
+
+                {/* Group Name & Subject */}
+                <div>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '900',
+                    color: 'var(--text-primary)',
+                    margin: '0 0 6px 0',
+                    lineHeight: 1.35
+                  }}>
+                    {currentActiveItem.groupNameAr}
+                  </h3>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: 'var(--bg-app)',
+                      border: '1px solid var(--border-subtle)',
+                      fontWeight: '700'
+                    }}>
+                      {currentActiveItem.subjectAr}
+                    </span>
+                    <span>•</span>
+                    <span>{currentActiveItem.gradeAr}</span>
+                  </div>
+                </div>
+
+                {/* Teacher & Hall details */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                  gap: '10px',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                      {lang === 'ar' ? 'المحاضر / المعلم' : 'Instructor'}
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {currentActiveItem.teacherNameAr}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                      {lang === 'ar' ? 'القاعة المخصصة' : 'Hall / Room'}
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)' }}>
+                      {currentActiveItem.hall}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                      {lang === 'ar' ? 'الطلاب المسجلين' : 'Enrolled'}
+                    </div>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {currentActiveItem.studentCount} / {currentActiveItem.capacity} طالب
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons: Navigate into Group & Finish from Queue */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginTop: '4px'
+                }}>
+                  <button
+                    onClick={() => navigate(`/center/groups/${currentActiveItem.groupId}`)}
+                    style={{
+                      flex: 1.2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px 18px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontSize: '13.5px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      boxShadow: 'var(--shadow-sm)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
+                  >
+                    <span>{lang === 'ar' ? 'الدخول للحصة وتسجيل الحضور' : 'Enter Cohort & Attendance'}</span>
+                    <ArrowUpRight size={16} />
+                  </button>
+
+                  <button
+                    onClick={(e) => handleCompleteQueueItem(currentActiveItem.uniqueId, currentActiveItem.groupNameAr, e)}
+                    title={lang === 'ar' ? 'إنهاء هذه الحصة وإزالتها من الطابور لتظهر المجموعة التالية' : 'Finish Session'}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px 16px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-app)',
+                      border: '1px solid var(--border-medium)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--success)';
+                      e.currentTarget.style.color = 'var(--success)';
+                      e.currentTarget.style.backgroundColor = 'rgba(22, 163, 74, 0.08)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-medium)';
+                      e.currentTarget.style.color = 'var(--text-primary)';
+                      e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                    }}
+                  >
+                    <Check size={16} />
+                    <span>{lang === 'ar' ? 'إنهاء الحصة وإزالتها' : 'Finish & Pop'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── UPCOMING QUEUE COLUMN: NEXT IN LINE (#2, #3, ...) ── */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '10px'
+              }}>
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: '900',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <Clock size={16} />
+                  {lang === 'ar' ? `التالي في الطابور (${upcomingQueueItems.length} في الانتظار)` : `Next in Queue (${upcomingQueueItems.length})`}
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {lang === 'ar' ? 'مرتبة تصاعدياً بالمواعيد' : 'Sorted by time'}
+                </span>
+              </div>
+
+              {upcomingQueueItems.length > 0 ? (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  maxHeight: '380px',
+                  overflowY: 'auto',
+                  paddingRight: isRtl ? '0' : '4px',
+                  paddingLeft: isRtl ? '4px' : '0'
+                }}>
+                  {upcomingQueueItems.map((item, idx) => (
+                    <div
+                      key={item.uniqueId}
+                      onClick={() => navigate(`/center/groups/${item.groupId}`)}
+                      className="center-interactive-card"
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid var(--border-subtle)',
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-app)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Header row: Queue order badge & Time */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+                            color: 'var(--text-secondary)',
+                            fontSize: '11px',
+                            fontWeight: '900'
+                          }}>
+                            #{idx + 2} {lang === 'ar' ? 'في الانتظار' : 'Waiting'}
+                          </span>
+                          <span style={{
+                            fontSize: '12px',
+                            fontWeight: '800',
+                            color: 'var(--primary)'
+                          }}>
+                            <RenderQueueTimeRange 
+                              startTime={item.startTime} 
+                              endTime={item.endTime} 
+                              lang={lang} 
+                              isRtl={isRtl} 
+                              color="var(--primary)" 
+                            />
+                          </span>
+                        </div>
+
+                        <span style={{
+                          fontSize: '11px',
+                          color: 'var(--text-muted)',
+                          fontWeight: '600'
+                        }}>
+                          {item.hall}
+                        </span>
+                      </div>
+
+                      {/* Cohort Name & Teacher */}
+                      <div style={{
+                        fontSize: '14px',
+                        fontWeight: '800',
+                        color: 'var(--text-primary)',
+                        lineHeight: 1.3
+                      }}>
+                        {item.groupNameAr}
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: '2px',
+                        fontSize: '11.5px',
+                        color: 'var(--text-muted)'
+                      }}>
+                        <span>{item.teacherNameAr} • {item.subjectAr}</span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/center/groups/${item.groupId}`);
+                            }}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'transparent',
+                              color: themeAccent,
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {lang === 'ar' ? 'دخول' : 'Enter'}
+                          </button>
+
+                          <button
+                            onClick={(e) => handleCompleteQueueItem(item.uniqueId, item.groupNameAr, e)}
+                            title={lang === 'ar' ? 'إنهاء وإزالة من الطابور' : 'Finish & Pop'}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                              color: '#10B981',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {lang === 'ar' ? 'إنهاء' : 'Done'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '24px',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px dashed var(--border-subtle)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.015)' : 'var(--bg-app)',
+                  color: 'var(--text-muted)'
+                }}>
+                  <Sparkles size={28} style={{ color: themeAccent, marginBottom: '8px', opacity: 0.8 }} />
+                  <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    {lang === 'ar' ? 'هذه آخر حصة مجدولة لهذا اليوم!' : 'Last Session Scheduled for Today!'}
+                  </div>
+                  <div style={{ fontSize: '12px' }}>
+                    {lang === 'ar' ? 'لا توجد حصص أخرى في الانتظار بعد الحصة النشطة الحالية.' : 'No more cohorts queued up for today.'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : todayQueueItems.length > 0 ? (
+          /* ── ALL DONE CELEBRATION STATE ── */
+          <div style={{
+            textAlign: 'center',
+            padding: '36px 20px',
+            borderRadius: 'var(--radius-lg)',
+            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.06)' : 'rgba(16, 185, 129, 0.04)',
+            border: '1.5px solid rgba(16, 185, 129, 0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#10B981'
+            }}>
+              <CheckCircle2 size={32} />
+            </div>
+
+            <div>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '900',
+                color: 'var(--text-primary)',
+                margin: '0 0 6px 0'
+              }}>
+                {lang === 'ar' ? 'تم إتمام جميع حصص اليوم بنجاح' : 'All Today Sessions Finished!'}
+              </h3>
+              <p style={{
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                margin: 0,
+                maxWidth: '500px'
+              }}>
+                {lang === 'ar'
+                  ? `تم إنهاء وإزالة جميع المجموعات الـ ${todayQueueItems.length} المجدولة لهذا اليوم من الطابور وتسجيل الحضور بالكامل.`
+                  : `All ${todayQueueItems.length} scheduled cohorts have been finished and removed from the active queue.`}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
+              <button
+                onClick={handleResetQueue}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: '#10B981',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }}
+              >
+                <RotateCcw size={15} />
+                <span>{lang === 'ar' ? 'إعادة فتح الطابور من البداية' : 'Re-open Queue from Start'}</span>
+              </button>
+
+              <button
+                onClick={() => setIsFullQueueOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer'
+                }}
+              >
+                <Maximize2 size={15} />
+                <span>{lang === 'ar' ? 'استعراض الحصص المكتملة' : 'View Completed History'}</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ── EMPTY SCHEDULE STATE ── */
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            borderRadius: 'var(--radius-lg)',
+            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-app)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-muted)'
+          }}>
+            <Calendar size={36} style={{ color: themeAccent, marginBottom: '10px', opacity: 0.7 }} />
+            <div style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '4px' }}>
+              {lang === 'ar' ? 'لا توجد حصص مجدولة لهذا اليوم' : 'No Sessions Scheduled for This Day'}
+            </div>
+            <div style={{ fontSize: '12.5px', marginBottom: '14px' }}>
+              {lang === 'ar' ? 'اختر يوماً آخر من الأيام أعلاه أو أضف مجموعة جديدة في جدول السنتر.' : 'Select another day above or create a new group.'}
+            </div>
+            <Link
+              to="/center/groups"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: themeAccent,
+                color: '#FFFFFF',
+                fontSize: '12.5px',
+                fontWeight: '800',
+                textDecoration: 'none'
+              }}
+            >
+              <span>{lang === 'ar' ? 'إدارة المجموعات وإضافة مواعيد' : 'Manage Cohorts'}</span>
+              <ArrowUpRight size={14} />
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MODAL: EXPANDED FULL QUEUE (عرض الطابور كاملاً بترتيب اليوم)
+          ═══════════════════════════════════════════════════════════════════════ */}
+      {isFullQueueOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.78)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '860px',
+            maxHeight: '90vh',
+            backgroundColor: isDark ? '#0F172A' : '#FFFFFF',
+            borderRadius: '24px',
+            border: `1.5px solid ${isDark ? 'rgba(56, 189, 248, 0.3)' : 'rgba(0, 102, 204, 0.2)'}`,
+            boxShadow: '0 24px 60px rgba(0, 0, 0, 0.45)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-app)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0, 102, 204, 0.1)',
+                  color: themeAccent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <ListOrdered size={22} />
+                </div>
+
+                <div>
+                  <h3 style={{
+                    fontSize: '17px',
+                    fontWeight: '900',
+                    color: 'var(--text-primary)',
+                    margin: '0 0 2px 0'
+                  }}>
+                    {lang === 'ar' ? 'طابور مجموعات اليوم المتسلسل كاملاً' : 'Full Daily Cohorts Queue'}
+                  </h3>
+                  <div style={{
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>
+                      {QUEUE_WEEKDAYS.find(w => w.key === selectedQueueDay)?.[lang === 'ar' ? 'labelAr' : 'labelEn']}
+                    </span>
+                    <span>•</span>
+                    <span>{todayQueueItems.length} {lang === 'ar' ? 'مجموعات مجدولة' : 'total cohorts'}</span>
+                    <span>•</span>
+                    <span style={{ color: '#10B981', fontWeight: '800' }}>
+                      {completedQueue.length} {lang === 'ar' ? 'منجزة' : 'completed'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsFullQueueOpen(false)}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Filter Tabs in Modal */}
+            <div style={{
+              padding: '12px 24px',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {[
+                  { id: 'ALL', labelAr: `الكل (${todayQueueItems.length})`, labelEn: `All (${todayQueueItems.length})` },
+                  { id: 'ACTIVE', labelAr: `النشطة في الطابور (${activeQueue.length})`, labelEn: `In Queue (${activeQueue.length})` },
+                  { id: 'COMPLETED', labelAr: `المكتملة (${completedQueue.length})`, labelEn: `Completed (${completedQueue.length})` }
+                ].map(tab => {
+                  const isTabActive = queueModalFilter === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setQueueModalFilter(tab.id)}
+                      style={{
+                        padding: '5px 14px',
+                        borderRadius: '16px',
+                        border: isTabActive ? `1px solid ${themeAccent}` : '1px solid transparent',
+                        backgroundColor: isTabActive 
+                          ? (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0, 102, 204, 0.1)')
+                          : 'transparent',
+                        color: isTabActive ? themeAccent : 'var(--text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: isTabActive ? '800' : '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {lang === 'ar' ? tab.labelAr : tab.labelEn}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {completedQueue.length > 0 && (
+                <button
+                  onClick={handleResetQueue}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F1F5F9',
+                    color: 'var(--text-secondary)',
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <RotateCcw size={12} />
+                  <span>{lang === 'ar' ? 'إعادة ضبط واستعادة الكل' : 'Reset All'}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Modal Scrollable Timeline */}
+            <div style={{
+              padding: '24px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {todayQueueItems
+                .filter(item => {
+                  const isComp = completedQueueIds.includes(item.uniqueId);
+                  if (queueModalFilter === 'ACTIVE') return !isComp;
+                  if (queueModalFilter === 'COMPLETED') return isComp;
+                  return true;
+                })
+                .map((item, index) => {
+                  const isCompleted = completedQueueIds.includes(item.uniqueId);
+                  const isActiveHead = activeQueue[0]?.uniqueId === item.uniqueId;
+
+                  return (
+                    <div
+                      key={item.uniqueId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'stretch',
+                        gap: '16px',
+                        position: 'relative'
+                      }}
+                    >
+                      {/* Time & Queue Number Column */}
+                      <div style={{
+                        width: '120px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '12px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: isActiveHead
+                          ? 'var(--primary-surface)'
+                          : isCompleted
+                          ? 'rgba(22, 163, 74, 0.08)'
+                          : 'var(--bg-app)',
+                        border: isActiveHead 
+                          ? '1.5px solid var(--primary)' 
+                          : isCompleted
+                          ? '1px solid rgba(22, 163, 74, 0.25)'
+                          : '1px solid var(--border-subtle)',
+                        textAlign: 'center'
+                      }}>
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: '900',
+                          color: isActiveHead ? 'var(--primary)' : isCompleted ? 'var(--success)' : 'var(--text-muted)',
+                          marginBottom: '4px'
+                        }}>
+                          {isCompleted ? 'مكتملة' : isActiveHead ? 'الحالية #1' : `#${index + 1} في الطابور`}
+                        </span>
+                        <span style={{
+                          fontSize: '13px',
+                          fontWeight: '800',
+                          color: 'var(--text-primary)'
+                        }}>
+                          <bdi>{formatTime12h(item.startTime, lang)}</bdi>
+                        </span>
+                        <span style={{
+                          fontSize: '11px',
+                          color: 'var(--text-muted)'
+                        }}>
+                          {lang === 'ar' ? 'إلى' : 'to'} <bdi>{formatTime12h(item.endTime, lang)}</bdi>
+                        </span>
+                      </div>
+
+                      {/* Cohort Card */}
+                      <div style={{
+                        flex: 1,
+                        padding: '16px 20px',
+                        borderRadius: 'var(--radius-md)',
+                        border: isActiveHead
+                          ? '1.5px solid var(--primary)'
+                          : '1px solid var(--border-subtle)',
+                        backgroundColor: isActiveHead
+                          ? 'var(--primary-surface)'
+                          : isCompleted
+                          ? 'var(--bg-app)'
+                          : 'var(--bg-surface)',
+                        opacity: isCompleted ? 0.72 : 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '8px'
+                        }}>
+                          <div>
+                            <h4 style={{
+                              fontSize: '15px',
+                              fontWeight: '900',
+                              color: 'var(--text-primary)',
+                              margin: '0 0 3px 0',
+                              textDecoration: isCompleted ? 'line-through' : 'none'
+                            }}>
+                              {item.groupNameAr}
+                            </h4>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                              {item.subjectAr} • {item.gradeAr}
+                            </div>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div>
+                            {isActiveHead ? (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                backgroundColor: 'var(--primary-surface)',
+                                color: 'var(--primary)',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                border: '1px solid var(--primary)'
+                              }}>
+                                {lang === 'ar' ? 'الحصة النشطة الآن' : 'Active Now'}
+                              </span>
+                            ) : isCompleted ? (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                                color: 'var(--success)',
+                                fontSize: '11px',
+                                fontWeight: '800'
+                              }}>
+                                {lang === 'ar' ? 'تم إتمام الحصة وإزالتها' : 'Completed'}
+                              </span>
+                            ) : (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                backgroundColor: 'var(--bg-app)',
+                                color: 'var(--text-secondary)',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                border: '1px solid var(--border-subtle)'
+                              }}>
+                                {lang === 'ar' ? 'قادمة في الطابور' : 'Queued'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Cohort Meta */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '14px',
+                          flexWrap: 'wrap',
+                          fontSize: '12px',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          <span>{lang === 'ar' ? 'المحاضر:' : 'Teacher:'} <strong>{item.teacherNameAr}</strong></span>
+                          <span>{lang === 'ar' ? 'القاعة:' : 'Hall:'} <strong style={{ color: themeAccent }}>{item.hall}</strong></span>
+                          <span>{lang === 'ar' ? 'الطلاب:' : 'Students:'} <strong>{item.studentCount} طالب</strong></span>
+                        </div>
+
+                        {/* Actions inside Modal */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          marginTop: '4px'
+                        }}>
+                          <button
+                            onClick={() => {
+                              setIsFullQueueOpen(false);
+                              navigate(`/center/groups/${item.groupId}`);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '7px 14px',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: themeAccent,
+                              color: '#FFFFFF',
+                              border: 'none',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <span>{lang === 'ar' ? 'فتح تفاصيل المجموعة وتسجيل الحضور' : 'Open Cohort'}</span>
+                            <ArrowUpRight size={14} />
+                          </button>
+
+                          {isCompleted ? (
+                            <button
+                              onClick={(e) => handleRestoreQueueItem(item.uniqueId, item.groupNameAr, e)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '7px 14px',
+                                borderRadius: 'var(--radius-md)',
+                                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9',
+                                border: '1px solid var(--border-subtle)',
+                                color: 'var(--text-secondary)',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <RotateCcw size={13} />
+                              <span>{lang === 'ar' ? 'إلغاء الإتمام وإعادة للطابور' : 'Restore to Queue'}</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => handleCompleteQueueItem(item.uniqueId, item.groupNameAr, e)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '7px 14px',
+                                borderRadius: 'var(--radius-md)',
+                                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                color: '#10B981',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Check size={14} />
+                              <span>{lang === 'ar' ? 'إتمام وإزالة من الطابور' : 'Finish & Pop'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Queue Toast Notification */}
+      {queueToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: isRtl ? '24px' : 'auto',
+          right: isRtl ? 'auto' : '24px',
+          zIndex: 100000,
+          backgroundColor: '#0F172A',
+          color: '#FFFFFF',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          boxShadow: '0 12px 30px rgba(0,0,0,0.35), 0 0 0 1px rgba(56, 189, 248, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          fontSize: '13px',
+          fontWeight: '800',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <Sparkles size={16} style={{ color: '#38BDF8' }} />
+          <span>{queueToast}</span>
+        </div>
+      )}
     </div>
   );
 };

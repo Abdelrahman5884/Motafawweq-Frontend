@@ -41,7 +41,8 @@ import {
   Camera,
   CameraOff,
   Keyboard,
-  Pencil
+  Pencil,
+  Mail
 } from 'lucide-react';
 
 const WEEKDAYS = [
@@ -68,7 +69,7 @@ export const CenterGroupsView = () => {
   const navigate = useNavigate();
   const { groupId: routeGroupId } = useParams();
 
-  const { branches, rooms, checkScheduleConflict } = useCenter();
+  const { branches, rooms, checkScheduleConflict, centerTeachers = [] } = useCenter();
   const { 
     groups, 
     addGroup, 
@@ -133,6 +134,8 @@ export const CenterGroupsView = () => {
   // Manual Student Registration Form State
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
+  const [manualEmail, setManualEmail] = useState('');
+  const [sendPlatformInvite, setSendPlatformInvite] = useState(true);
   const [manualGrade, setManualGrade] = useState('الصف الثالث الثانوي');
   const [manualParentName, setManualParentName] = useState('');
   const [manualParentPhone, setManualParentPhone] = useState('');
@@ -605,13 +608,16 @@ export const CenterGroupsView = () => {
     enrollStudentDirectly(activeGroup.id, {
       nameAr: manualName.trim(),
       phone: manualPhone.trim(),
+      email: manualEmail.trim(),
       gradeAr: manualGrade,
       parentNameAr: manualParentName.trim() || 'ولي الأمر',
-      parentPhone: manualParentPhone.trim() || manualPhone.trim()
+      parentPhone: manualParentPhone.trim() || manualPhone.trim(),
+      sendPlatformInvite
     });
 
     setManualName('');
     setManualPhone('');
+    setManualEmail('');
     setManualParentName('');
     setManualParentPhone('');
     setIsAddStudentOpen(false);
@@ -1463,8 +1469,9 @@ export const CenterGroupsView = () => {
                     fontSize: '11px',
                     padding: '3px 8px',
                     borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'rgba(22, 163, 74, 0.12)',
-                    color: 'var(--success)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)',
                     fontWeight: '800'
                   }}>
                     القاعة: {activeGroupRoom.nameAr} ({activeGroupRoom.capacity} مقعد)
@@ -1480,43 +1487,87 @@ export const CenterGroupsView = () => {
                 </div>
               </div>
 
-              {/* Live Group Stats Pills */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* Clean Unified Group Stats Cards */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'stretch',
+                gap: '12px',
+                flexWrap: 'wrap',
+                minWidth: '320px'
+              }}>
                 <div style={{
-                  padding: '10px 16px',
+                  flex: '1 1 120px',
+                  minWidth: '120px',
+                  padding: '12px 18px',
                   backgroundColor: 'var(--bg-app)',
-                  borderRadius: 'var(--radius-lg)',
+                  borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--border-subtle)',
-                  textAlign: 'center'
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '6px'
                 }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>إجمالي المقيدين</div>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--primary)' }}>
-                    {activeGroupStudents.length} <span style={{ fontSize: '12px' }}>طالب</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                      إجمالي المقيدين
+                    </span>
+                    <Users size={14} color="var(--primary)" />
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                    {activeGroupStudents.length} <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>طالب</span>
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '10px 16px',
-                  backgroundColor: 'rgba(22, 163, 74, 0.08)',
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid rgba(22, 163, 74, 0.25)',
-                  textAlign: 'center'
+                  flex: '1 1 120px',
+                  minWidth: '120px',
+                  padding: '12px 18px',
+                  backgroundColor: 'var(--bg-app)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '6px'
                 }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--success)' }}>حاضر اليوم</div>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--success)' }}>
-                    {presentCount} <span style={{ fontSize: '12px' }}>({groupAttendanceRate}%)</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                      حاضر اليوم
+                    </span>
+                    <UserCheck size={14} color="var(--success)" />
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span>{presentCount}</span>
+                    <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--success)' }}>
+                      ({groupAttendanceRate}%)
+                    </span>
                   </div>
                 </div>
 
                 <div style={{
-                  padding: '10px 16px',
-                  backgroundColor: 'rgba(220, 38, 38, 0.08)',
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid rgba(220, 38, 38, 0.2)',
-                  textAlign: 'center'
+                  flex: '1 1 120px',
+                  minWidth: '120px',
+                  padding: '12px 18px',
+                  backgroundColor: 'var(--bg-app)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '6px'
                 }}>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--danger)' }}>غائب اليوم</div>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--danger)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                      غائب اليوم
+                    </span>
+                    <span style={{ 
+                      width: '7px', 
+                      height: '7px', 
+                      borderRadius: '50%', 
+                      backgroundColor: absentCount > 0 ? 'var(--text-muted)' : 'var(--border-medium)' 
+                    }} />
+                  </div>
+                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)' }}>
                     {absentCount}
                   </div>
                 </div>
@@ -1539,20 +1590,21 @@ export const CenterGroupsView = () => {
                 <div
                   key={sIdx}
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '4px 10px',
-                    backgroundColor: 'var(--primary-surface)',
-                    color: 'var(--primary)',
-                    borderRadius: 'var(--radius-md)',
+                    padding: '5px 12px',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    borderRadius: 'var(--radius-sm)',
                     fontSize: '12px',
-                    fontWeight: '800',
-                    border: '1px solid rgba(21, 136, 199, 0.2)'
+                    fontWeight: '700',
+                    border: '1px solid var(--border-subtle)'
                   }}
                 >
-                  <Clock size={13} />
-                  <span>{slot.dayAr || slot.day}: {formatTimeTo12h(slot.startTime)} - {formatTimeTo12h(slot.endTime)} ({slot.hall || activeGroupRoom.nameAr})</span>
+                  <Clock size={13} color="var(--primary)" />
+                  <span>{slot.dayAr || slot.day}: {formatTimeTo12h(slot.startTime)} - {formatTimeTo12h(slot.endTime)}</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>({slot.hall || activeGroupRoom.nameAr})</span>
                 </div>
               ))}
             </div>
@@ -2109,7 +2161,7 @@ export const CenterGroupsView = () => {
                     justifyContent: 'space-between',
                     borderBottom: '1px solid var(--border-subtle)'
                   }}>
-                    <span>↔️ اسحب الجدول أفقياً للاطلاع على كامل بيانات الطلاب</span>
+                    <span>اسحب الجدول أفقياً للاطلاع على كامل بيانات الطلاب</span>
                     <button
                       type="button"
                       onClick={() => setStudentsViewMode('cards')}
@@ -2123,7 +2175,7 @@ export const CenterGroupsView = () => {
                         cursor: 'pointer'
                       }}
                     >
-                      التحويل لعرض البطاقات الذكية 📱
+                      التحويل لعرض البطاقات الذكية
                     </button>
                   </div>
                 )}
@@ -2131,8 +2183,8 @@ export const CenterGroupsView = () => {
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1.5px solid var(--border-subtle)' }}>
                       <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>الطالب</th>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>الهاتف وولي الأمر</th>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>كود الطالب والباركود</th>
+                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>بيانات ولي الأمر</th>
+                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>رقم تليفون الطالب</th>
                       <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>حضور اليوم</th>
                       <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>بطاقة الباركود</th>
                       <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>إجراءات</th>
@@ -2170,34 +2222,33 @@ export const CenterGroupsView = () => {
                             </div>
                           </td>
 
-                          {/* Contact & Parent */}
+                          {/* Parent Details */}
                           <td style={{ padding: '14px 16px', fontSize: '12px' }}>
-                            <div style={{ color: 'var(--text-primary)', fontWeight: '700', fontFamily: 'monospace' }}>
-                              {std.phone}
+                            <div style={{ color: 'var(--text-primary)', fontWeight: '700' }}>
+                              {std.parentNameAr || std.parentName || 'ولي الأمر'}
                             </div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px' }}>
-                              ولي الأمر: {std.parentNameAr || std.parentName || 'ولي الأمر'} ({std.parentPhone || std.phone})
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px', fontFamily: 'monospace', direction: 'ltr', display: 'inline-block' }}>
+                              {std.parentPhone || '-'}
                             </div>
                           </td>
 
-                          {/* Passcode & Barcode */}
+                          {/* Student Phone (Replaced Code & Barcode) */}
                           <td style={{ padding: '14px 16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{
-                                fontFamily: 'monospace',
-                                fontSize: '12px',
-                                fontWeight: '800',
-                                padding: '3px 8px',
-                                borderRadius: 'var(--radius-sm)',
-                                backgroundColor: 'var(--bg-app)',
-                                border: '1px solid var(--border-medium)',
-                                color: 'var(--primary)'
-                              }}>
-                                {std.passcode || `STU-${std.id?.slice(-4) || '2026'}`}
-                              </span>
-                              <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'monospace', letterSpacing: '1px' }}>
-                                ||| {std.barcode || '2026001'} |||
-                              </span>
+                              <Phone size={14} color="var(--primary)" />
+                              <a 
+                                href={std.phone ? `tel:${std.phone}` : '#'} 
+                                style={{ 
+                                  color: 'var(--text-primary)', 
+                                  fontWeight: '800', 
+                                  fontFamily: 'monospace', 
+                                  fontSize: '13px', 
+                                  direction: 'ltr', 
+                                  textDecoration: 'none' 
+                                }}
+                              >
+                                {std.phone || '-'}
+                              </a>
                             </div>
                           </td>
 
@@ -2222,7 +2273,7 @@ export const CenterGroupsView = () => {
                               }}
                             >
                               {isPresent ? <Check size={13} /> : <X size={13} />}
-                              <span>{isPresent ? 'حاضر اليوم ✓' : 'غائب ✕'}</span>
+                              <span>{isPresent ? 'حاضر اليوم' : 'غائب'}</span>
                             </button>
                           </td>
 
@@ -2467,7 +2518,7 @@ export const CenterGroupsView = () => {
                           }}
                         >
                           {isPresent ? <CheckCircle2 size={16} /> : <X size={16} />}
-                          <span>{isPresent ? 'حاضر اليوم ✓ (اضغط للإلغاء)' : 'غائب اليوم ✕ (اضغط لتسجيل الحضور)'}</span>
+                          <span>{isPresent ? 'حاضر اليوم (اضغط للإلغاء)' : 'غائب اليوم (اضغط لتسجيل الحضور)'}</span>
                         </button>
 
                         <button
@@ -2629,14 +2680,25 @@ export const CenterGroupsView = () => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'المدرس المسؤول *' : 'Teacher *'}
-                  </label>
-                  <input
-                    type="text"
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '800' }}>
+                      {lang === 'ar' ? 'المدرس المسؤول (من معلمي السنتر المعتمدين) *' : 'Assigned Teacher *'}
+                    </label>
+                    <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '700' }}>
+                      {centerTeachers.length} {lang === 'ar' ? 'معلمين متاحين' : 'available'}
+                    </span>
+                  </div>
+                  <select
                     required
                     value={teacherName}
-                    onChange={(e) => setTeacherName(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTeacherName(val);
+                      const matched = centerTeachers.find(t => t.nameAr === val);
+                      if (matched?.subjectAr) {
+                        setSubject(matched.subjectAr);
+                      }
+                    }}
                     style={{
                       width: '100%',
                       padding: '11px 14px',
@@ -2645,9 +2707,19 @@ export const CenterGroupsView = () => {
                       backgroundColor: 'var(--bg-app)',
                       color: 'var(--text-primary)',
                       fontSize: '13px',
-                      fontWeight: '700'
+                      fontWeight: '700',
+                      cursor: 'pointer'
                     }}
-                  />
+                  >
+                    {centerTeachers.map(tch => (
+                      <option key={tch.id} value={tch.nameAr}>
+                        {tch.nameAr} ({tch.subjectAr}) — {tch.branchNameAr || 'فرع معتمد'}
+                      </option>
+                    ))}
+                    {teacherName && !centerTeachers.some(t => t.nameAr === teacherName) && (
+                      <option value={teacherName}>{teacherName}</option>
+                    )}
+                  </select>
                 </div>
               </div>
 
@@ -2801,78 +2873,108 @@ export const CenterGroupsView = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
                           {/* Day */}
                           <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>اليوم</label>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                              {lang === 'ar' ? 'اليوم' : 'Day'}
+                            </label>
                             <select
                               value={sess.day}
                               onChange={(e) => handleUpdateSession(idx, 'day', e.target.value)}
                               style={{
                                 width: '100%',
-                                padding: '7px 8px',
+                                padding: '8px 10px',
                                 borderRadius: 'var(--radius-sm)',
                                 border: '1px solid var(--border-medium)',
-                                fontSize: '11px',
-                                fontWeight: '700'
+                                backgroundColor: 'var(--bg-app)',
+                                color: 'var(--text-primary)',
+                                colorScheme: 'dark light',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                outline: 'none',
+                                cursor: 'pointer'
                               }}
                             >
                               {WEEKDAYS.map(w => (
-                                <option key={w.key} value={w.key}>{w.labelAr}</option>
+                                <option key={w.key} value={w.key} style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
+                                  {w.labelAr}
+                                </option>
                               ))}
                             </select>
                           </div>
 
                           {/* Start Time */}
                           <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>من</label>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                              {lang === 'ar' ? 'من' : 'From'}
+                            </label>
                             <input
                               type="time"
                               value={sess.startTime}
                               onChange={(e) => handleUpdateSession(idx, 'startTime', e.target.value)}
                               style={{
                                 width: '100%',
-                                padding: '6px 8px',
+                                padding: '7px 10px',
                                 borderRadius: 'var(--radius-sm)',
                                 border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-medium)',
-                                fontSize: '11px',
-                                fontWeight: '700'
+                                backgroundColor: 'var(--bg-app)',
+                                color: 'var(--text-primary)',
+                                colorScheme: 'dark light',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                outline: 'none'
                               }}
                             />
                           </div>
 
                           {/* End Time */}
                           <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>إلى</label>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                              {lang === 'ar' ? 'إلى' : 'To'}
+                            </label>
                             <input
                               type="time"
                               value={sess.endTime}
                               onChange={(e) => handleUpdateSession(idx, 'endTime', e.target.value)}
                               style={{
                                 width: '100%',
-                                padding: '6px 8px',
+                                padding: '7px 10px',
                                 borderRadius: 'var(--radius-sm)',
                                 border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-medium)',
-                                fontSize: '11px',
-                                fontWeight: '700'
+                                backgroundColor: 'var(--bg-app)',
+                                color: 'var(--text-primary)',
+                                colorScheme: 'dark light',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                outline: 'none'
                               }}
                             />
                           </div>
 
                           {/* Room */}
                           <div>
-                            <label style={{ display: 'block', fontSize: '10px', fontWeight: '700', marginBottom: '3px' }}>القاعة</label>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                              {lang === 'ar' ? 'القاعة' : 'Hall'}
+                            </label>
                             <select
                               value={sess.hall}
                               onChange={(e) => handleUpdateSession(idx, 'hall', e.target.value)}
                               style={{
                                 width: '100%',
-                                padding: '7px 8px',
+                                padding: '8px 10px',
                                 borderRadius: 'var(--radius-sm)',
                                 border: '1px solid var(--border-medium)',
-                                fontSize: '11px',
-                                fontWeight: '700'
+                                backgroundColor: 'var(--bg-app)',
+                                color: 'var(--text-primary)',
+                                colorScheme: 'dark light',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                outline: 'none',
+                                cursor: 'pointer'
                               }}
                             >
                               {rooms.map(r => (
-                                <option key={r.id} value={r.nameAr}>{r.nameAr}</option>
+                                <option key={r.id} value={r.nameAr} style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
+                                  {r.nameAr}
+                                </option>
                               ))}
                             </select>
                           </div>
@@ -2881,23 +2983,23 @@ export const CenterGroupsView = () => {
                         {/* Interactive Conflict Warning & Available Alternatives Banner */}
                         {currentConflict?.hasConflict ? (
                           <div style={{
-                            padding: '10px 12px',
+                            padding: '12px',
                             borderRadius: 'var(--radius-md)',
-                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
                             border: '1px solid rgba(239, 68, 68, 0.35)',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '6px'
+                            gap: '8px'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', fontSize: '11.5px', fontWeight: '800' }}>
-                              <AlertCircle size={15} />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', fontSize: '12px', fontWeight: '800' }}>
+                              <AlertCircle size={16} />
                               <span>{currentConflict.messageAr || `الميعاد (${formatTimeTo12h(sess.startTime)} - ${formatTimeTo12h(sess.endTime)}) غير متاح في «${sess.hall}» يوم ${currentDayObj?.labelAr}!`}</span>
                             </div>
 
                             {availableSlots.length > 0 ? (
-                              <div style={{ marginTop: '2px' }}>
-                                <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '5px' }}>
-                                  المواعيد المتاحة البديلة في هذا اليوم بقاعة «{sess.hall}» (اضغط لاختيار الميعاد المتاح):
+                              <div style={{ marginTop: '4px' }}>
+                                <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                                  {lang === 'ar' ? 'المواعيد المتاحة البديلة في هذا اليوم بقاعة' : 'Available slots on this day in'} «{sess.hall}» ({lang === 'ar' ? 'اضغط لاختيار الميعاد المتاح' : 'Click to select'}):
                                 </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                   {availableSlots.map(av => (
@@ -2909,12 +3011,12 @@ export const CenterGroupsView = () => {
                                         handleUpdateSession(idx, 'endTime', av.endTime);
                                       }}
                                       style={{
-                                        padding: '4px 10px',
+                                        padding: '5px 10px',
                                         borderRadius: 'var(--radius-sm)',
-                                        backgroundColor: 'var(--success-light)',
+                                        backgroundColor: 'rgba(22, 163, 74, 0.18)',
                                         border: '1.5px solid var(--success)',
                                         color: 'var(--success)',
-                                        fontSize: '11px',
+                                        fontSize: '11.5px',
                                         fontWeight: '800',
                                         cursor: 'pointer',
                                         display: 'inline-flex',
@@ -2922,7 +3024,7 @@ export const CenterGroupsView = () => {
                                         gap: '4px',
                                         transition: 'all 0.15s ease'
                                       }}
-                                      title="اضغط لاختيار هذا الميعاد المتاح وحل التعارض فوراً"
+                                      title={lang === 'ar' ? 'اضغط لاختيار هذا الميعاد المتاح وحل التعارض فوراً' : 'Select slot'}
                                     >
                                       <Check size={12} />
                                       <span>{av.label}</span>
@@ -2931,31 +3033,37 @@ export const CenterGroupsView = () => {
                                 </div>
                               </div>
                             ) : (
-                              <div style={{ fontSize: '11px', color: 'var(--danger)' }}>
-                                لا توجد فترات شاغرة متبقية في هذه القاعة لهذا اليوم. يرجى اختيار قاعة أخرى أو يوم آخر.
+                              <div style={{ fontSize: '11.5px', color: 'var(--danger)', fontWeight: '700' }}>
+                                {lang === 'ar' ? 'لا توجد فترات شاغرة متبقية في هذه القاعة لهذا اليوم. يرجى اختيار قاعة أخرى أو يوم آخر.' : 'No slots remaining in this hall for this day.'}
                               </div>
                             )}
                           </div>
                         ) : (
                           /* Quick Slots Picker When No Conflict */
                           <div style={{
-                            padding: '6px 10px',
-                            borderRadius: 'var(--radius-sm)',
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-md)',
                             backgroundColor: 'var(--bg-app)',
                             border: '1px solid var(--border-subtle)',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '5px'
+                            gap: '8px'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '10.5px' }}>
-                              <span style={{ fontWeight: '700', color: 'var(--text-secondary)' }}>
-                                المواعيد المتاحة يوم {currentDayObj?.labelAr} بقاعة «{sess.hall}»:
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px' }}>
+                              <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                                {lang === 'ar' ? 'المواعيد المتاحة يوم' : 'Available slots on'} {currentDayObj?.labelAr} {lang === 'ar' ? 'بقاعة' : 'in hall'} «{sess.hall}»:
                               </span>
-                              <span style={{ color: 'var(--success)', fontWeight: '800' }}>
-                                {availableSlots.length} متاح
+                              <span style={{
+                                color: 'var(--success)',
+                                fontWeight: '800',
+                                backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-full)'
+                              }}>
+                                {availableSlots.length} {lang === 'ar' ? 'متاح' : 'available'}
                               </span>
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                               {availableSlots.map(av => {
                                 const isCurrentSelected = sess.startTime === av.startTime && sess.endTime === av.endTime;
                                 return (
@@ -2967,27 +3075,31 @@ export const CenterGroupsView = () => {
                                       handleUpdateSession(idx, 'endTime', av.endTime);
                                     }}
                                     style={{
-                                      padding: '3px 8px',
-                                      borderRadius: '4px',
+                                      padding: '6px 12px',
+                                      borderRadius: 'var(--radius-sm)',
                                       border: isCurrentSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-medium)',
-                                      backgroundColor: isCurrentSelected ? 'var(--primary-light)' : 'var(--bg-surface)',
+                                      backgroundColor: isCurrentSelected ? 'rgba(21, 136, 199, 0.22)' : 'var(--bg-surface)',
                                       color: isCurrentSelected ? 'var(--primary)' : 'var(--text-primary)',
-                                      fontSize: '10.5px',
+                                      fontSize: '11.5px',
                                       fontWeight: isCurrentSelected ? '800' : '600',
-                                      cursor: 'pointer'
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      transition: 'all 0.15s ease'
                                     }}
                                   >
-                                    {isCurrentSelected && <Check size={10} style={{ display: 'inline', marginLeft: '3px' }} />}
-                                    {av.label}
+                                    {isCurrentSelected && <Check size={12} />}
+                                    <span>{av.label}</span>
                                   </button>
                                 );
                               })}
                             </div>
                             {busySlots.length > 0 && (
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                                <span>المواعيد غير المتاحة (محجوزة):</span>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <span>{lang === 'ar' ? 'المواعيد غير المتاحة (محجوزة):' : 'Booked slots:'}</span>
                                 {busySlots.map(bs => (
-                                  <span key={bs.startTime} style={{ color: 'var(--danger)', textDecoration: 'line-through', opacity: 0.8 }}>
+                                  <span key={bs.startTime} style={{ color: 'var(--danger)', textDecoration: 'line-through', opacity: 0.85, fontSize: '11px' }}>
                                     {bs.label}
                                   </span>
                                 ))}
@@ -3514,6 +3626,57 @@ export const CenterGroupsView = () => {
                   </div>
                 </div>
 
+                {/* Student Email & Platform Invitation (Requested feature) */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
+                    البريد الإلكتروني للطالب (اختياري / لدعوة المنصة والباركود الرقمي)
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="email"
+                      placeholder="student@example.com"
+                      value={manualEmail}
+                      onChange={(e) => setManualEmail(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 38px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1.5px solid var(--border-medium)',
+                        backgroundColor: 'var(--bg-app)',
+                        color: 'var(--text-primary)',
+                        fontSize: '13px'
+                      }}
+                    />
+                    <Mail size={16} color="var(--text-secondary)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+                  </div>
+                </div>
+
+                {manualEmail.trim() && (
+                  <div style={{
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'rgba(21, 136, 199, 0.08)',
+                    border: '1px solid rgba(21, 136, 199, 0.25)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px'
+                  }}>
+                    <input
+                      type="checkbox"
+                      id="inviteCheckbox"
+                      checked={sendPlatformInvite}
+                      onChange={(e) => setSendPlatformInvite(e.target.checked)}
+                      style={{ marginTop: '3px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="inviteCheckbox" style={{ fontSize: '11.5px', color: 'var(--text-primary)', lineHeight: 1.5, cursor: 'pointer' }}>
+                      <strong style={{ color: 'var(--primary)' }}>إرسال رابط دعوة وتفعيل المنصة تلقائياً:</strong>
+                      <span style={{ display: 'block', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        سيتم إرسال بريد إلكتروني للطالب يحتوي على رابط التفعيل؛ وبمجرد أن يقبل الطالب الرابط، يسجل دخوله للمنصة ويظهر له باركود الحضور الذكي فوراً على هاتفه.
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   style={{
@@ -3528,7 +3691,7 @@ export const CenterGroupsView = () => {
                     marginTop: '8px'
                   }}
                 >
-                  تسجيل الطالب وإصدار الباركود فوراً ✓
+                  تسجيل الطالب وإصدار الباركود فوراً
                 </button>
               </form>
             )}
@@ -3597,6 +3760,43 @@ export const CenterGroupsView = () => {
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
               {studentCardModal.gradeAr || 'الصف الثالث الثانوي'} • هاتف: {studentCardModal.phone}
             </div>
+
+            {studentCardModal.email && (
+              <div style={{
+                backgroundColor: 'rgba(21, 136, 199, 0.08)',
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid rgba(21, 136, 199, 0.2)',
+                fontSize: '11.5px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px'
+              }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                  دعوة المنصة: <strong style={{ color: 'var(--primary)' }}>{studentCardModal.email}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showToast) showToast(`تمت إعادة إرسال رابط تفعيل المنصة والباركود إلى (${studentCardModal.email}) بنجاح! ✉️`);
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '10.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  إعادة الإرسال
+                </button>
+              </div>
+            )}
 
             {/* Real QR Code */}
             <div style={{ marginBottom: '14px' }}>

@@ -1001,12 +1001,15 @@ export const GroupsProvider = ({ children }) => {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const studentBarcode = studentData.barcode || `2026${randomSuffix}`;
     const studentPasscode = studentData.passcode || `STU-${randomSuffix}`;
+    const studentEmail = (studentData.email || '').trim().toLowerCase();
+    const activationLink = studentEmail ? `https://motafawweq.edu.eg/student/activate?barcode=${studentBarcode}&code=${studentPasscode}` : null;
 
     const newEnrolled = {
       id: studentData.id || `std-${Date.now()}`,
       name: studentData.nameEn || studentData.name || studentData.nameAr,
       nameAr: studentData.nameAr || 'طالب جديد',
       username: studentData.username || `user_${randomSuffix}`,
+      email: studentEmail,
       phone: studentData.phone || '+20 100 000 0000',
       parentName: studentData.parentName || studentData.parentNameAr || 'ولي الأمر',
       parentNameAr: studentData.parentNameAr || studentData.parentName || 'ولي الأمر',
@@ -1021,6 +1024,9 @@ export const GroupsProvider = ({ children }) => {
       status: 'Active',
       barcode: studentBarcode,
       passcode: studentPasscode,
+      inviteSent: !!studentEmail,
+      inviteAccepted: false,
+      activationLink,
       avatar: studentData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
     };
 
@@ -1029,7 +1035,11 @@ export const GroupsProvider = ({ children }) => {
       [groupId]: [newEnrolled, ...(prev[groupId] || [])]
     }));
 
-    showToast(`تم قيد الطالب «${newEnrolled.nameAr}» وإصدار باركود الحضور بنجاح!`);
+    if (studentEmail) {
+      showToast(`تم قيد الطالب «${newEnrolled.nameAr}» وإرسال رابط تفعيل المنصة والباركود إلى (${studentEmail}) بنجاح! ✉️`);
+    } else {
+      showToast(`تم قيد الطالب «${newEnrolled.nameAr}» وإصدار باركود الحضور بنجاح!`);
+    }
     return newEnrolled;
   };
 

@@ -13,8 +13,7 @@ const INITIAL_BRANCHES = [
     managerNameAr: 'أ. سامح عبدالحميد',
     roomsCount: 6,
     activeStudents: 680,
-    monthlyRevenueEgp: 235000,
-    monthlyExpensesEgp: 84000,
+    teachersCount: 8,
     utilizationRate: 88
   },
   {
@@ -26,8 +25,7 @@ const INITIAL_BRANCHES = [
     managerNameAr: 'أ. مروة الشريف',
     roomsCount: 5,
     activeStudents: 510,
-    monthlyRevenueEgp: 172000,
-    monthlyExpensesEgp: 68000,
+    teachersCount: 6,
     utilizationRate: 82
   },
   {
@@ -39,9 +37,123 @@ const INITIAL_BRANCHES = [
     managerNameAr: 'أ. أحمد جلال',
     roomsCount: 4,
     activeStudents: 340,
-    monthlyRevenueEgp: 118000,
-    monthlyExpensesEgp: 45000,
+    teachersCount: 5,
     utilizationRate: 76
+  }
+];
+
+export const INITIAL_CENTER_TEACHERS = [
+  {
+    id: 'tch-1',
+    nameAr: 'د. سلمى السيد',
+    nameEn: 'Dr. Salma El-Sayed',
+    subjectAr: 'الأحياء (الثانوية العامة)',
+    phone: '01012345678',
+    email: 'salma.sayed@motafawweq.com',
+    branchId: 'br-dokki',
+    branchNameAr: 'فرع الدقي (الرئيسي)',
+    status: 'active',
+    statusAr: 'معتمد ونشط بالمنصة',
+    inviteSent: true,
+    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=salma2026',
+    enrolledGroupsCount: 2,
+    createdAt: '2026-08-15'
+  },
+  {
+    id: 'tch-2',
+    nameAr: 'م. أحمد جلال',
+    nameEn: 'Eng. Ahmed Galal',
+    subjectAr: 'الفيزياء (الثانوية العامة)',
+    phone: '01123456789',
+    email: 'ahmed.galal@motafawweq.com',
+    branchId: 'br-nasrcity',
+    branchNameAr: 'فرع مدينة نصر',
+    status: 'active',
+    statusAr: 'معتمد ونشط بالمنصة',
+    inviteSent: true,
+    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=ahmed2026',
+    enrolledGroupsCount: 2,
+    createdAt: '2026-08-20'
+  },
+  {
+    id: 'tch-3',
+    nameAr: 'د. إيمان الشريف',
+    nameEn: 'Dr. Iman El-Sherif',
+    subjectAr: 'الكيمياء (الثانوية العامة)',
+    phone: '01234567891',
+    email: 'iman.sherif@motafawweq.com',
+    branchId: 'br-dokki',
+    branchNameAr: 'فرع الدقي (الرئيسي)',
+    status: 'active',
+    statusAr: 'معتمد ونشط بالمنصة',
+    inviteSent: true,
+    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=iman2026',
+    enrolledGroupsCount: 2,
+    createdAt: '2026-08-25'
+  },
+  {
+    id: 'tch-4',
+    nameAr: 'أ. حسام فؤاد',
+    nameEn: 'Mr. Hossam Fouad',
+    subjectAr: 'الرياضيات البحتة والتطبيقية',
+    phone: '01512345678',
+    email: 'hossam.fouad@motafawweq.com',
+    branchId: 'br-dokki',
+    branchNameAr: 'فرع الدقي (الرئيسي)',
+    status: 'active',
+    statusAr: 'معتمد ونشط بالمنصة',
+    inviteSent: true,
+    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=hossam2026',
+    enrolledGroupsCount: 2,
+    createdAt: '2026-09-01'
+  },
+  {
+    id: 'tch-5',
+    nameAr: 'أ. رضا الفاروق',
+    nameEn: 'Mr. Reda El-Farouk',
+    subjectAr: 'اللغة العربية والبلاغة',
+    phone: '01098765432',
+    email: 'reda.farouk@motafawweq.com',
+    branchId: 'br-dokki',
+    branchNameAr: 'فرع الدقي (الرئيسي)',
+    status: 'active',
+    statusAr: 'معتمد ونشط بالمنصة',
+    inviteSent: true,
+    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=reda2026',
+    enrolledGroupsCount: 1,
+    createdAt: '2026-09-05'
+  },
+  {
+    id: 'tch-6',
+    nameAr: 'م. عصام الشرقاوي',
+    nameEn: 'Eng. Essam El-Sharkawy',
+    subjectAr: 'الفيزياء',
+    phone: '01187654321',
+    email: 'essam.sharkawy@motafawweq.com',
+    branchId: 'br-nasrcity',
+    branchNameAr: 'فرع مدينة نصر',
+    status: 'active',
+    statusAr: 'معتمد ونشط بالمنصة',
+    inviteSent: true,
+    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=essam2026',
+    enrolledGroupsCount: 1,
+    createdAt: '2026-09-10'
+  },
+  {
+    id: 'tch-7',
+    nameAr: 'د. سامح نشأت',
+    nameEn: 'Dr. Sameh Nashaat',
+    subjectAr: 'الجيولوجيا وعلوم البيئة',
+    phone: '01287654321',
+    email: 'sameh.nashaat@motafawweq.com',
+    branchId: 'br-smouha',
+    branchNameAr: 'فرع سموحة (الإسكندرية)',
+    status: 'active',
+    statusAr: 'معتمد ونشط بالمنصة',
+    inviteSent: true,
+    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=sameh2026',
+    enrolledGroupsCount: 1,
+    createdAt: '2026-09-12'
   }
 ];
 
@@ -276,7 +388,8 @@ const INITIAL_STAFF = [
     branchId: 'br-dokki',
     branchNameAr: 'فرع الدقي',
     status: 'active',
-    salaryEgp: 16000
+    salaryEgp: 16000,
+    permissions: ['إدارة الفرع', 'تعيين الموظفين', 'التقارير الإدارية']
   },
   {
     id: 'staff-2',
@@ -289,7 +402,8 @@ const INITIAL_STAFF = [
     branchId: 'br-dokki',
     branchNameAr: 'فرع الدقي',
     status: 'active',
-    salaryEgp: 7500
+    salaryEgp: 7500,
+    permissions: ['إدارة الحضور بالباركود', 'تسجيل الطلاب', 'تحصيل الرسوم']
   },
   {
     id: 'staff-3',
@@ -302,7 +416,8 @@ const INITIAL_STAFF = [
     branchId: 'br-nasrcity',
     branchNameAr: 'فرع مدينة نصر',
     status: 'active',
-    salaryEgp: 9500
+    salaryEgp: 9500,
+    permissions: ['التحصيل المالي', 'التقارير المالية', 'إدارة الفواتير']
   },
   {
     id: 'staff-4',
@@ -315,7 +430,8 @@ const INITIAL_STAFF = [
     branchId: 'br-nasrcity',
     branchNameAr: 'فرع مدينة نصر',
     status: 'active',
-    salaryEgp: 14000
+    salaryEgp: 14000,
+    permissions: ['إدارة الفرع', 'تعيين الموظفين', 'التقارير الإدارية']
   }
 ];
 
@@ -373,7 +489,105 @@ const INITIAL_LEADS = [
 export const CenterProvider = ({ children }) => {
   const { groups, enrolledStudents } = useGroups();
 
-  const [branches, setBranches] = useState(INITIAL_BRANCHES);
+  const [branches, setBranches] = useState(() => {
+    try {
+      const saved = localStorage.getItem('motafawweq_center_branches');
+      return saved ? JSON.parse(saved) : INITIAL_BRANCHES;
+    } catch {
+      return INITIAL_BRANCHES;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('motafawweq_center_branches', JSON.stringify(branches));
+    } catch {}
+  }, [branches]);
+
+  const addBranch = (branchData) => {
+    const newBranch = {
+      id: `br-${Date.now()}`,
+      nameAr: branchData.nameAr || 'فرع جديد',
+      nameEn: branchData.nameEn || 'New Branch',
+      addressAr: branchData.addressAr || '',
+      phone: branchData.phone || '',
+      managerNameAr: branchData.managerNameAr || '',
+      roomsCount: 0,
+      activeStudents: 0,
+      teachersCount: 0,
+      utilizationRate: 0
+    };
+    setBranches(prev => [newBranch, ...prev]);
+    return newBranch;
+  };
+
+  const updateBranch = (branchId, branchData) => {
+    setBranches(prev => prev.map(b => b.id === branchId ? { ...b, ...branchData } : b));
+  };
+
+  const deleteBranch = (branchId) => {
+    setBranches(prev => prev.filter(b => b.id !== branchId));
+    if (selectedBranchId === branchId) {
+      setSelectedBranchId('all');
+    }
+  };
+
+  // Center Teachers State & Platform Activation
+  const [centerTeachers, setCenterTeachers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('motafawweq_center_teachers');
+      return saved ? JSON.parse(saved) : INITIAL_CENTER_TEACHERS;
+    } catch {
+      return INITIAL_CENTER_TEACHERS;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('motafawweq_center_teachers', JSON.stringify(centerTeachers));
+    } catch {}
+  }, [centerTeachers]);
+
+  const addCenterTeacher = (teacherData) => {
+    const token = Math.random().toString(36).substring(2, 10);
+    const activationLink = `https://motafawweq.edu.eg/teacher/activate?token=${token}`;
+    const branchObj = branches.find(b => b.id === teacherData.branchId) || branches[0];
+
+    const newTeacher = {
+      id: `tch-${Date.now()}`,
+      nameAr: teacherData.nameAr,
+      nameEn: teacherData.nameEn || '',
+      subjectAr: teacherData.subjectAr,
+      phone: teacherData.phone,
+      email: teacherData.email,
+      branchId: branchObj?.id || 'br-dokki',
+      branchNameAr: branchObj?.nameAr || 'فرع الدقي (الرئيسي)',
+      status: 'active',
+      statusAr: 'معتمد ونشط بالمنصة',
+      inviteSent: true,
+      activationLink,
+      enrolledGroupsCount: 0,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    setCenterTeachers(prev => [newTeacher, ...prev]);
+    return { success: true, teacher: newTeacher };
+  };
+
+  const updateCenterTeacher = (teacherId, teacherData) => {
+    setCenterTeachers(prev => prev.map(t => t.id === teacherId ? { ...t, ...teacherData } : t));
+  };
+
+  const deleteCenterTeacher = (teacherId) => {
+    setCenterTeachers(prev => prev.filter(t => t.id !== teacherId));
+  };
+
+  const resendTeacherInvite = (teacherId) => {
+    const teacher = centerTeachers.find(t => t.id === teacherId);
+    if (!teacher) return false;
+    return { success: true, link: teacher.activationLink };
+  };
+
   const [selectedBranchId, setSelectedBranchId] = useState('all');
   const [rooms, setRooms] = useState(() => {
     const saved = localStorage.getItem('motafawweq_center_rooms');
@@ -754,6 +968,7 @@ export const CenterProvider = ({ children }) => {
     const newStaff = {
       id: `staff-${Date.now()}`,
       status: 'active',
+      permissions: staffData.permissions || ['إدارة الحضور بالباركود', 'تسجيل الطلاب'],
       ...staffData
     };
     setStaff(prev => [...prev, newStaff]);
@@ -941,6 +1156,14 @@ export const CenterProvider = ({ children }) => {
         branches,
         selectedBranchId,
         setSelectedBranchId,
+        addBranch,
+        updateBranch,
+        deleteBranch,
+        centerTeachers,
+        addCenterTeacher,
+        updateCenterTeacher,
+        deleteCenterTeacher,
+        resendTeacherInvite,
         rooms,
         addRoom,
         updateRoom,

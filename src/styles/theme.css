@@ -16,6 +16,7 @@
    LIGHT MODE (default)
    ══════════════════════════════════════════════════════════════════════════════ */
 :root {
+  color-scheme: light;
 
   /* ── 1. BRAND IDENTITY (the 3 core brand hexes — change here only) ── */
   --color-primary:        #1588C7;
@@ -135,6 +136,7 @@
    DARK MODE
    ══════════════════════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
+  color-scheme: dark;
 
   /* Brand (inverted lightness for dark bg) */
   --color-primary:        #5CB6DB;
@@ -185,3 +187,16 @@
   --shadow-lg:      0 16px 36px rgba(0, 0, 0, 0.6);
   --shadow-primary: 0 8px 30px rgba(21, 136, 199, 0.35);
 }
+
+/* ── Dark Mode Form Controls & Pickers ── */
+[data-theme="dark"] input[type="time"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] select option {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
