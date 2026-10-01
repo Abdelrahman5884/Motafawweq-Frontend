@@ -117,16 +117,17 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
   // Chart coordinate mapping (viewBox: 680 x 230)
   const chartWidth = 680;
   const chartHeight = 230;
-  const paddingLeft = 72;
-  const paddingRight = 36;
+  const axisLeft = 56;
+  const graphLeft = 90;
+  const graphRight = chartWidth - 36;
   const paddingTop = 36;
   const paddingBottom = 46;
   const baseline = chartHeight - paddingBottom;
   const maxStudents = 1000;
 
   const points = WEEKLY_TEACHER_ATTENDANCE.map((item, idx) => {
-    const xStep = (chartWidth - paddingLeft - paddingRight) / (WEEKLY_TEACHER_ATTENDANCE.length - 1);
-    const x = paddingLeft + idx * xStep;
+    const xStep = (graphRight - graphLeft) / (WEEKLY_TEACHER_ATTENDANCE.length - 1);
+    const x = graphLeft + idx * xStep;
     const yRatio = item.students / maxStudents;
     const y = baseline - yRatio * (baseline - paddingTop);
     return { ...item, x, y };
@@ -235,7 +236,7 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
 
               {/* Y-Axis Label */}
               <text
-                x={paddingLeft - 10}
+                x={axisLeft - 10}
                 y={paddingTop - 14}
                 textAnchor="end"
                 fill={themeAccent}
@@ -253,7 +254,7 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
                 return (
                   <g key={tick}>
                     <text
-                      x={paddingLeft - 12}
+                      x={axisLeft - 10}
                       y={y + 4}
                       textAnchor="end"
                       fill={themeAxisFill}
@@ -264,9 +265,9 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
                       {tick}
                     </text>
                     <line
-                      x1={paddingLeft}
+                      x1={axisLeft}
                       y1={y}
-                      x2={chartWidth - paddingRight}
+                      x2={graphRight}
                       y2={y}
                       stroke={themeGridStroke}
                       strokeDasharray="4 4"

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useGroups } from './GroupsContext';
 
 const CenterContext = createContext(null);
@@ -375,7 +375,20 @@ export const CenterProvider = ({ children }) => {
 
   const [branches, setBranches] = useState(INITIAL_BRANCHES);
   const [selectedBranchId, setSelectedBranchId] = useState('all');
-  const [rooms, setRooms] = useState(INITIAL_ROOMS);
+  const [rooms, setRooms] = useState(() => {
+    const saved = localStorage.getItem('motafawweq_center_rooms');
+    if (!saved) return INITIAL_ROOMS;
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_ROOMS;
+    } catch {
+      return INITIAL_ROOMS;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('motafawweq_center_rooms', JSON.stringify(rooms));
+  }, [rooms]);
   const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
   const [staff, setStaff] = useState(INITIAL_STAFF);
   const [leads, setLeads] = useState(INITIAL_LEADS);
@@ -668,6 +681,50 @@ export const CenterProvider = ({ children }) => {
       },
       ...prev
     ]);
+    return newRoom;
+  };
+
+  // Update Room
+  const updateRoom = (roomId, updatedData) => {
+    setRooms(prev => prev.map(r => {
+      if (r.id === roomId) {
+        const branchObj = branches.find(b => b.id === (updatedData.branchId || r.branchId));
+        return {
+          ...r,
+          ...updatedData,
+          branchNameAr: branchObj?.nameAr || r.branchNameAr,
+          capacity: parseInt(updatedData.capacity) || r.capacity
+        };
+      }
+      return r;
+    }));
+
+    setAuditLogs(prev => [
+      {
+        id: `log-${Date.now()}`,
+        actionAr: 'تعديل بيانات قاعة',
+        userAr: 'إدارة السنتر',
+        detailsAr: `تم تحديث بيانات القاعة «${updatedData.nameAr || roomId}»`,
+        timestamp: 'الآن'
+      },
+      ...prev
+    ]);
+  };
+
+  // Delete Room
+  const deleteRoom = (roomId) => {
+    const targetRoom = rooms.find(r => r.id === roomId);
+    setRooms(prev => prev.filter(r => r.id !== roomId));
+    setAuditLogs(prev => [
+      {
+        id: `log-${Date.now()}`,
+        actionAr: 'حذف قاعة دراسية',
+        userAr: 'إدارة السنتر',
+        detailsAr: `تم حذف القاعة «${targetRoom?.nameAr || roomId}» بنجاح`,
+        timestamp: 'الآن'
+      },
+      ...prev
+    ]);
   };
 
   // Add Expense
@@ -886,6 +943,8 @@ export const CenterProvider = ({ children }) => {
         setSelectedBranchId,
         rooms,
         addRoom,
+        updateRoom,
+        deleteRoom,
         expenses,
         addExpense,
         staff,

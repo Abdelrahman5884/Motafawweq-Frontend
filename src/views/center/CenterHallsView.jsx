@@ -20,7 +20,9 @@ import {
   X,
   MapPin,
   Sparkles,
-  BarChart3
+  BarChart3,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
 const WEEKDAYS = [
@@ -66,15 +68,19 @@ export const CenterHallsView = () => {
     setSelectedBranchId, 
     rooms, 
     addRoom, 
+    updateRoom,
+    deleteRoom,
     checkScheduleConflict 
   } = useCenter();
-  const { groups, enrolledStudents, addGroup } = useGroups();
+  const { groups, enrolledStudents, addGroup, showToast } = useGroups();
 
   const [activeTab, setActiveTab] = useState('rooms'); // 'rooms' | 'schedule' | 'utilization'
   const [selectedDay, setSelectedDay] = useState('Saturday');
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
+  const [deleteConfirmRoom, setDeleteConfirmRoom] = useState(null);
 
-  // New Room Form State
+  // Room Form State
   const [roomNameAr, setRoomNameAr] = useState('');
   const [roomCapacity, setRoomCapacity] = useState('50');
   const [roomFloor, setRoomFloor] = useState('الطابق الأول');
@@ -89,23 +95,62 @@ export const CenterHallsView = () => {
 
   const displayHalls = currentBranchRooms;
 
-  const handleCreateRoom = (e) => {
+  const handleOpenAddRoom = () => {
+    setEditingRoom(null);
+    setRoomNameAr('');
+    setRoomCapacity('50');
+    setRoomFloor('الطابق الأول');
+    setSelectedBranchForRoom(selectedBranchId !== 'all' ? selectedBranchId : (branches[0]?.id || 'br-dokki'));
+    setRoomEquipment(['شاشة ذكية تفاعلية', 'تكييف مركزي', 'نظام صوتيات لاسلكي']);
+    setIsAddRoomOpen(true);
+  };
+
+  const handleOpenEditRoom = (room, e) => {
+    if (e) e.stopPropagation();
+    setEditingRoom(room);
+    setRoomNameAr(room.nameAr || '');
+    setRoomCapacity(String(room.capacity || 50));
+    setRoomFloor(room.floor || 'الطابق الأول');
+    setSelectedBranchForRoom(room.branchId || branches[0]?.id || 'br-dokki');
+    setRoomEquipment(room.equipped || ['شاشة ذكية تفاعلية', 'تكييف مركزي']);
+    setIsAddRoomOpen(true);
+  };
+
+  const handleSaveRoom = (e) => {
     e.preventDefault();
     if (!roomNameAr.trim()) return;
 
-    addRoom({
-      nameAr: roomNameAr,
-      nameEn: roomNameAr,
+    const branchObj = branches.find(b => b.id === selectedBranchForRoom) || branches[0];
+    const roomPayload = {
+      nameAr: roomNameAr.trim(),
+      nameEn: roomNameAr.trim(),
       branchId: selectedBranchForRoom,
-      branchNameAr: branches.find(b => b.id === selectedBranchForRoom)?.nameAr || 'الفرع الرئيسي',
+      branchNameAr: branchObj?.nameAr || 'الفرع الرئيسي',
       capacity: parseInt(roomCapacity) || 40,
       equipped: roomEquipment,
       floor: roomFloor,
       isAvailable: true
-    });
+    };
+
+    if (editingRoom) {
+      updateRoom(editingRoom.id, roomPayload);
+      if (showToast) showToast(`تم حفظ تعديلات القاعة «${roomPayload.nameAr}» بنجاح!`);
+    } else {
+      addRoom(roomPayload);
+      if (showToast) showToast(`تمت إضافة القاعة «${roomPayload.nameAr}» بنجاح!`);
+    }
 
     setRoomNameAr('');
+    setEditingRoom(null);
     setIsAddRoomOpen(false);
+  };
+
+  const handleConfirmDeleteRoom = () => {
+    if (!deleteConfirmRoom) return;
+    const deletedName = deleteConfirmRoom.nameAr;
+    deleteRoom(deleteConfirmRoom.id);
+    setDeleteConfirmRoom(null);
+    if (showToast) showToast(`تم حذف القاعة «${deletedName}» بنجاح.`, 'warning');
   };
 
 
@@ -169,7 +214,7 @@ export const CenterHallsView = () => {
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
-            onClick={() => setIsAddRoomOpen(true)}
+            onClick={handleOpenAddRoom}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -294,10 +339,7 @@ export const CenterHallsView = () => {
                   : 'You can add a classroom, define its seating capacity and multimedia equipment now.'}
               </p>
               <button
-                onClick={() => {
-                  setSelectedBranchForRoom(selectedBranchId !== 'all' ? selectedBranchId : (branches[0]?.id || 'br-dokki'));
-                  setIsAddRoomOpen(true);
-                }}
+                onClick={handleOpenAddRoom}
                 className="center-interactive-card"
                 style={{
                   padding: '10px 22px',
@@ -350,16 +392,81 @@ export const CenterHallsView = () => {
                         {lang === 'ar' ? room.nameAr : room.nameEn}
                       </h3>
                     </div>
-                    <span style={{
-                      fontSize: '12px',
-                      fontWeight: '800',
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-full)',
-                      backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                      color: 'var(--primary)'
-                    }}>
-                      {room.capacity} {lang === 'ar' ? 'مقعد' : 'seats'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                        color: 'var(--primary)'
+                      }}>
+                        {room.capacity} {lang === 'ar' ? 'مقعد' : 'seats'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenEditRoom(room, e)}
+                        title={lang === 'ar' ? 'تعديل بيانات القاعة' : 'Edit Room'}
+                        aria-label={lang === 'ar' ? 'تعديل القاعة' : 'Edit Room'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-subtle)',
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.12)';
+                          e.currentTarget.style.color = 'var(--primary)';
+                          e.currentTarget.style.borderColor = 'var(--primary)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--bg-subtle)';
+                          e.currentTarget.style.color = 'var(--text-primary)';
+                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                        }}
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirmRoom(room);
+                        }}
+                        title={lang === 'ar' ? 'حذف القاعة' : 'Delete Room'}
+                        aria-label={lang === 'ar' ? 'حذف القاعة' : 'Delete Room'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-subtle)',
+                          color: 'var(--danger, #EF4444)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
+                          e.currentTarget.style.borderColor = 'var(--danger, #EF4444)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--bg-subtle)';
+                          e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                        }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Room Equipment Pills */}
@@ -760,8 +867,7 @@ export const CenterHallsView = () => {
 
 
 
-      {/* MODAL: Add New Room */}
-
+      {/* MODAL: Add / Edit Room */}
       {isAddRoomOpen && (
         <div style={{
           position: 'fixed',
@@ -787,18 +893,23 @@ export const CenterHallsView = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Building2 size={20} color="var(--primary)" />
                 <h3 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'إضافة قاعة دراسية جديدة' : 'Add New Classroom'}
+                  {editingRoom
+                    ? (lang === 'ar' ? 'تعديل بيانات القاعة' : 'Edit Classroom')
+                    : (lang === 'ar' ? 'إضافة قاعة دراسية جديدة' : 'Add New Classroom')}
                 </h3>
               </div>
               <button
-                onClick={() => setIsAddRoomOpen(false)}
+                onClick={() => {
+                  setIsAddRoomOpen(false);
+                  setEditingRoom(null);
+                }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateRoom} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleSaveRoom} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
                   {lang === 'ar' ? 'اسم القاعة' : 'Room Name'}
@@ -907,11 +1018,16 @@ export const CenterHallsView = () => {
                     cursor: 'pointer'
                   }}
                 >
-                  {lang === 'ar' ? 'حفظ وإضافة القاعة' : 'Save Room'}
+                  {editingRoom
+                    ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')
+                    : (lang === 'ar' ? 'حفظ وإضافة القاعة' : 'Save Room')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsAddRoomOpen(false)}
+                  onClick={() => {
+                    setIsAddRoomOpen(false);
+                    setEditingRoom(null);
+                  }}
                   style={{
                     padding: '12px 18px',
                     borderRadius: 'var(--radius-md)',
@@ -927,6 +1043,124 @@ export const CenterHallsView = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Confirm Delete Room */}
+      {deleteConfirmRoom && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            maxWidth: '440px',
+            width: '100%',
+            padding: '24px',
+            boxShadow: 'var(--shadow-xl)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--danger, #EF4444)',
+                flexShrink: 0
+              }}>
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'تأكيد حذف القاعة' : 'Confirm Delete Room'}
+                </h3>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {deleteConfirmRoom.nameAr} • {deleteConfirmRoom.branchNameAr}
+                </span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
+              {lang === 'ar'
+                ? `هل أنت متأكد من رغبتك في حذف القاعة «${deleteConfirmRoom.nameAr}» نهائياً؟`
+                : `Are you sure you want to permanently delete room "${deleteConfirmRoom.nameAr}"?`}
+            </p>
+
+            {/* Check if any cohorts are currently in this room */}
+            {(() => {
+              const activeCohorts = groups.filter(
+                g => g.hallName === deleteConfirmRoom.nameAr || (g.slots && g.slots.some(s => s.hall === deleteConfirmRoom.nameAr))
+              );
+              if (activeCohorts.length > 0) {
+                return (
+                  <div style={{
+                    padding: '12px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    color: 'var(--warning, #D97706)',
+                    fontSize: '12px',
+                    marginBottom: '16px',
+                    lineHeight: 1.5
+                  }}>
+                    <strong>{lang === 'ar' ? 'تنبيه هام:' : 'Warning:'}</strong>{' '}
+                    {lang === 'ar'
+                      ? `هناك ${activeCohorts.length} مجموعة دراسية مرتبطة حالياً بهذه القاعة. حذفها سيؤدي لتفريغ القاعة المسندة لتلك المجموعات.`
+                      : `There are ${activeCohorts.length} cohorts currently assigned to this room.`}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteRoom}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--danger, #EF4444)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'نعم، حذف القاعة' : 'Yes, Delete Room'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmRoom(null)}
+                style={{
+                  padding: '11px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-subtle)',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+            </div>
           </div>
         </div>
       )}

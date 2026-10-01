@@ -40,7 +40,8 @@ import {
   ChevronDown,
   Camera,
   CameraOff,
-  Keyboard
+  Keyboard,
+  Pencil
 } from 'lucide-react';
 
 const WEEKDAYS = [
@@ -71,6 +72,9 @@ export const CenterGroupsView = () => {
   const { 
     groups, 
     addGroup, 
+    updateGroup,
+    deleteGroup,
+    showToast,
     enrolledStudents, 
     enrollStudentDirectly, 
     toggleStudentAttendance, 
@@ -103,6 +107,8 @@ export const CenterGroupsView = () => {
 
   // Modals
   const [isAddCohortOpen, setIsAddCohortOpen] = useState(false);
+  const [editingCohort, setEditingCohort] = useState(null);
+  const [deleteConfirmCohort, setDeleteConfirmCohort] = useState(null);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [studentCardModal, setStudentCardModal] = useState(null); // student object
 
@@ -377,7 +383,7 @@ export const CenterGroupsView = () => {
         startTime: slot.startTime,
         endTime: slot.endTime,
         hall: hallName
-      });
+      }, null, editingCohort?.id || null);
 
       // 2. Internal conflict check against other session slots in this same modal
       let internalConflict = false;
@@ -414,7 +420,7 @@ export const CenterGroupsView = () => {
       startTime: sess.startTime,
       endTime: sess.endTime,
       hall: sess.hall
-    });
+    }, null, editingCohort?.id || null);
 
     let internalConflict = false;
     let internalConflictMsg = '';
@@ -453,8 +459,55 @@ export const CenterGroupsView = () => {
     return `${daysStr} من ${formatTimeTo12h(firstSess.startTime)} إلى ${formatTimeTo12h(firstSess.endTime)}`;
   };
 
-  // Handle Add Cohort Submit
-  const handleCreateCohort = (e) => {
+  // Cohort Form Reset & Open Add
+  const handleOpenAddCohort = () => {
+    setEditingCohort(null);
+    setCohortName('');
+    setTeacherName('د. سلمى السيد');
+    setSubject('الرياضيات البحتة');
+    setCohortPrice('500');
+    setCohortMaxStudents('50');
+    setCohortDefaultRoomId(rooms[0]?.id || '');
+    setSessions([
+      { id: 'sess-1', day: 'sunday', startTime: '16:00', endTime: '18:00', hall: rooms[0]?.nameAr || 'قاعة 1 (المحاضرات الكبرى)' },
+      { id: 'sess-2', day: 'wednesday', startTime: '16:00', endTime: '18:00', hall: rooms[0]?.nameAr || 'قاعة 1 (المحاضرات الكبرى)' }
+    ]);
+    setIsAddCohortOpen(true);
+  };
+
+  // Open Edit Cohort Modal
+  const handleOpenEditCohort = (cohort, e) => {
+    if (e) e.stopPropagation();
+    setEditingCohort(cohort);
+    setCohortName(cohort.nameAr || cohort.nameEn || '');
+    setTeacherName(cohort.teacherNameAr || 'د. سلمى السيد');
+    setSubject(cohort.subjectAr || 'الرياضيات البحتة');
+    setCohortPrice(String(cohort.priceEgp || 500));
+    setCohortMaxStudents(String(cohort.maxStudents || 50));
+
+    const matchingRoom = rooms.find(r => r.nameAr === cohort.hallName || r.id === cohort.hallName);
+    setCohortDefaultRoomId(matchingRoom?.id || rooms[0]?.id || '');
+
+    const existingSlots = cohort.scheduleSlots || cohort.slots || [];
+    if (existingSlots.length > 0) {
+      setSessions(existingSlots.map((s, idx) => ({
+        id: s.id || `sess-${idx}-${Date.now()}`,
+        day: (s.day || 'sunday').toLowerCase(),
+        startTime: s.startTime || '16:00',
+        endTime: s.endTime || '18:00',
+        hall: s.hall || cohort.hallName || rooms[0]?.nameAr || 'قاعة 1'
+      })));
+    } else {
+      setSessions([
+        { id: 'sess-1', day: 'sunday', startTime: '16:00', endTime: '18:00', hall: cohort.hallName || rooms[0]?.nameAr || 'قاعة 1' }
+      ]);
+    }
+
+    setIsAddCohortOpen(true);
+  };
+
+  // Handle Save (Create or Update) Cohort Submit
+  const handleSaveCohort = (e) => {
     e.preventDefault();
     if (!cohortName.trim() || hasAnyConflict) return;
 
@@ -475,7 +528,7 @@ export const CenterGroupsView = () => {
 
     const scheduleSummary = generateScheduleSummary();
 
-    const newGrp = addGroup({
+    const cohortPayload = {
       nameAr: cohortName.trim(),
       nameEn: cohortName.trim(),
       subjectAr: subject,
@@ -487,12 +540,31 @@ export const CenterGroupsView = () => {
       priceEgp: parseInt(cohortPrice) || 500,
       scheduleSlots: formattedSlots,
       slots: formattedSlots
-    });
+    };
+
+    if (editingCohort) {
+      updateGroup(editingCohort.id, cohortPayload);
+      setEditingCohort(null);
+    } else {
+      const newGrp = addGroup(cohortPayload);
+      if (newGrp?.id) {
+        handleOpenGroupStudents(newGrp.id);
+      }
+    }
 
     setCohortName('');
     setIsAddCohortOpen(false);
-    if (newGrp?.id) {
-      handleOpenGroupStudents(newGrp.id);
+  };
+
+  // Handle Delete Cohort Confirmation
+  const handleConfirmDeleteCohort = () => {
+    if (!deleteConfirmCohort) return;
+    const deletedId = deleteConfirmCohort.id;
+    deleteGroup(deletedId);
+    setDeleteConfirmCohort(null);
+    if (activeGroupId === deletedId) {
+      setActiveGroupId(null);
+      navigate('/center/groups');
     }
   };
 
@@ -632,7 +704,7 @@ export const CenterGroupsView = () => {
 
             {/* Action Button: Create Cohort */}
             <button
-              onClick={() => setIsAddCohortOpen(true)}
+              onClick={handleOpenAddCohort}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -920,33 +992,102 @@ export const CenterGroupsView = () => {
                           {group.subjectAr}
                         </span>
 
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCopyCode(group.joinCode, group.id);
-                          }}
-                          title="اضغط لنسخ كود المجموعة"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '11px',
-                            fontWeight: '800',
-                            fontFamily: 'monospace',
-                            backgroundColor: 'var(--bg-app)',
-                            padding: '3px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <span>كود: {group.joinCode}</span>
-                          {copiedCodeId === group.id ? (
-                            <Check size={12} color="var(--success)" />
-                          ) : (
-                            <Copy size={12} />
-                          )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyCode(group.joinCode, group.id);
+                            }}
+                            title="اضغط لنسخ كود المجموعة"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              fontFamily: 'monospace',
+                              backgroundColor: 'var(--bg-app)',
+                              padding: '3px 8px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-subtle)',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <span>كود: {group.joinCode}</span>
+                            {copiedCodeId === group.id ? (
+                              <Check size={12} color="var(--success)" />
+                            ) : (
+                              <Copy size={12} />
+                            )}
+                          </div>
+
+                          {/* Edit Group Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenEditCohort(group, e)}
+                            title={lang === 'ar' ? 'تعديل بيانات المجموعة' : 'Edit Cohort'}
+                            aria-label={lang === 'ar' ? 'تعديل المجموعة' : 'Edit Cohort'}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-app)',
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.12)';
+                              e.currentTarget.style.borderColor = 'var(--primary)';
+                              e.currentTarget.style.color = 'var(--primary)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                              e.currentTarget.style.color = 'var(--text-primary)';
+                            }}
+                          >
+                            <Pencil size={13} />
+                          </button>
+
+                          {/* Delete Group Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmCohort(group);
+                            }}
+                            title={lang === 'ar' ? 'حذف المجموعة' : 'Delete Cohort'}
+                            aria-label={lang === 'ar' ? 'حذف المجموعة' : 'Delete Cohort'}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: 'var(--radius-sm)',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-app)',
+                              color: 'var(--danger, #EF4444)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
+                              e.currentTarget.style.borderColor = 'var(--danger, #EF4444)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
                       </div>
 
@@ -1181,30 +1322,97 @@ export const CenterGroupsView = () => {
               </select>
             </div>
 
-            {/* Action: Add Student Button */}
-            <button
-              onClick={() => setIsAddStudentOpen(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 18px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'all 0.15s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-            >
-              <UserPlus size={16} />
-              <span>{lang === 'ar' ? '+ إضافة طالب للمجموعة' : 'Add Student'}</span>
-            </button>
+            {/* Action Buttons: Edit, Delete, Add Student */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={(e) => handleOpenEditCohort(activeGroup, e)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-medium)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.12)';
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.color = 'var(--primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                  e.currentTarget.style.borderColor = 'var(--border-medium)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+              >
+                <Pencil size={15} />
+                <span>{lang === 'ar' ? 'تعديل بيانات المجموعة' : 'Edit Cohort'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteConfirmCohort(activeGroup);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--danger, #EF4444)',
+                  border: '1px solid var(--border-medium)',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
+                  e.currentTarget.style.borderColor = 'var(--danger, #EF4444)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--bg-app)';
+                  e.currentTarget.style.borderColor = 'var(--border-medium)';
+                }}
+              >
+                <Trash2 size={15} />
+                <span>{lang === 'ar' ? 'حذف المجموعة' : 'Delete Cohort'}</span>
+              </button>
+
+              <button
+                onClick={() => setIsAddStudentOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
+              >
+                <UserPlus size={16} />
+                <span>{lang === 'ar' ? '+ إضافة طالب للمجموعة' : 'Add Student'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Group Hero Details Banner */}
@@ -2348,23 +2556,30 @@ export const CenterGroupsView = () => {
                 </div>
                 <div>
                   <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                    {lang === 'ar' ? 'إنشاء مجموعة جديدة وتحديد الحصص الأسبوعية' : 'Create New Cohort'}
+                    {editingCohort
+                      ? (lang === 'ar' ? 'تعديل بيانات المجموعة والمواعيد' : 'Edit Cohort & Schedule')
+                      : (lang === 'ar' ? 'إنشاء مجموعة جديدة وتحديد الحصص الأسبوعية' : 'Create New Cohort')}
                   </h3>
                   <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    إضافة حصة أو أكثر في الأسبوع وربط القاعات والجدول الزمني
+                    {editingCohort
+                      ? (lang === 'ar' ? 'تعديل اسم ومدرس ومواعيد وقاعات المجموعة' : 'Update cohort details and schedule')
+                      : (lang === 'ar' ? 'إضافة حصة أو أكثر في الأسبوع وربط القاعات والجدول الزمني' : 'Add weekly sessions and room assignment')}
                   </span>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setIsAddCohortOpen(false)}
+                onClick={() => {
+                  setIsAddCohortOpen(false);
+                  setEditingCohort(null);
+                }}
                 style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCohort} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={handleSaveCohort} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Group Name */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '6px' }}>
@@ -2854,11 +3069,16 @@ export const CenterGroupsView = () => {
                     cursor: hasAnyConflict || !cohortName.trim() ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  {lang === 'ar' ? 'تأكيد الحجز وإنشاء المجموعة' : 'Confirm Cohort'}
+                  {editingCohort
+                    ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')
+                    : (lang === 'ar' ? 'تأكيد الحجز وإنشاء المجموعة' : 'Confirm Cohort')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsAddCohortOpen(false)}
+                  onClick={() => {
+                    setIsAddCohortOpen(false);
+                    setEditingCohort(null);
+                  }}
                   style={{
                     padding: '12px 20px',
                     borderRadius: 'var(--radius-md)',
@@ -2874,6 +3094,122 @@ export const CenterGroupsView = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Confirm Delete Cohort */}
+      {deleteConfirmCohort && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.65)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            maxWidth: '460px',
+            width: '100%',
+            padding: '24px',
+            boxShadow: 'var(--shadow-xl)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--danger, #EF4444)',
+                flexShrink: 0
+              }}>
+                <Trash2 size={22} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'تأكيد حذف المجموعة' : 'Confirm Delete Cohort'}
+                </h3>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {deleteConfirmCohort.nameAr} • {deleteConfirmCohort.subjectAr}
+                </span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
+              {lang === 'ar'
+                ? `هل أنت متأكد من رغبتك في حذف المجموعة «${deleteConfirmCohort.nameAr}» نهائياً من النظام؟`
+                : `Are you sure you want to permanently delete cohort "${deleteConfirmCohort.nameAr}"?`}
+            </p>
+
+            {/* Warning about enrolled students */}
+            {(() => {
+              const enrolled = enrolledStudents[deleteConfirmCohort.id] || [];
+              if (enrolled.length > 0) {
+                return (
+                  <div style={{
+                    padding: '12px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: 'var(--danger, #EF4444)',
+                    fontSize: '12px',
+                    marginBottom: '16px',
+                    lineHeight: 1.5
+                  }}>
+                    <strong>{lang === 'ar' ? 'تحذير هام:' : 'Important Warning:'}</strong>{' '}
+                    {lang === 'ar'
+                      ? `يوجد ${enrolled.length} طالب مقيد في هذه المجموعة. حذفها سيؤدي لحذف قيود الطلاب وسجلات الحضور والغياب المرتبطة بهذه المجموعة نهائياً!`
+                      : `There are ${enrolled.length} students currently enrolled in this cohort.`}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteCohort}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--danger, #EF4444)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontWeight: '800',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'نعم، حذف المجموعة' : 'Yes, Delete Cohort'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmCohort(null)}
+                style={{
+                  padding: '11px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-subtle)',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+            </div>
           </div>
         </div>
       )}
