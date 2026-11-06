@@ -30,7 +30,19 @@ export class ApiError extends Error {
   }
 }
 
-// ─── Token Storage Helper ──────────────────────────────────────────────────────
+// ─── Token & Locale Helpers ────────────────────────────────────────────────────
+
+const getActiveLang = () => {
+  try {
+    const stored =
+      localStorage.getItem('motafawweq_lang') ||
+      localStorage.getItem(STORAGE_KEYS.LANGUAGE) ||
+      (typeof document !== 'undefined' ? document.documentElement.getAttribute('lang') : null);
+    return stored === 'en' ? 'en' : 'ar';
+  } catch {
+    return 'ar';
+  }
+};
 
 const getActiveStore = () => {
   try {
@@ -113,9 +125,13 @@ let refreshInFlight = null;
 async function refreshTokenPair() {
   if (refreshInFlight) return refreshInFlight;
 
+  const lang = getActiveLang();
   const refreshToken = tokenStorage.getRefreshToken();
   if (!refreshToken) {
-    throw new ApiError({ message: 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً.', status: 401 });
+    throw new ApiError({
+      message: lang === 'en' ? 'Session expired. Please sign in again.' : 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً.',
+      status: 401,
+    });
   }
 
   refreshInFlight = (async () => {
@@ -124,6 +140,8 @@ async function refreshTokenPair() {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'Accept-Language': lang,
+        'X-Locale': lang,
         'Authorization': `Bearer ${refreshToken}`,
       },
     });
@@ -136,7 +154,9 @@ async function refreshTokenPair() {
         window.dispatchEvent(new CustomEvent('motafawweq:auth-expired'));
       }
       throw new ApiError({
-        message: payload?.message || 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً.',
+        message:
+          payload?.message ||
+          (lang === 'en' ? 'Session expired. Please sign in again.' : 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً.'),
         status: res.status,
         errorCode: payload?.error_code || 'INVALID_REFRESH_TOKEN',
       });
@@ -157,11 +177,14 @@ const NON_REFRESHABLE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh',
 
 async function apiRequest(path, { method = 'GET', body, tokenOverride, skipAuthRefresh = false } = {}) {
   const token = tokenOverride ?? tokenStorage.getAccessToken();
+  const lang = getActiveLang();
 
   const buildHeaders = (bearer) => {
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'Accept-Language': lang,
+      'X-Locale': lang,
     };
     if (bearer) {
       headers['Authorization'] = `Bearer ${bearer}`;
@@ -178,7 +201,10 @@ async function apiRequest(path, { method = 'GET', body, tokenOverride, skipAuthR
     });
   } catch {
     throw new ApiError({
-      message: 'تعذر الاتصال بالخادم. تأكد من تشغيل السيرفر أو اتصالك بالإنترنت.',
+      message:
+        lang === 'en'
+          ? 'Unable to connect to the server. Please check your internet connection.'
+          : 'تعذر الاتصال بالخادم. تأكد من تشغيل السيرفر أو اتصالك بالإنترنت.',
       status: 0,
       errorCode: 'NETWORK_ERROR',
     });

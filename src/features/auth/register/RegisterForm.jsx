@@ -161,6 +161,7 @@ export const RegisterForm = ({
         setSubject={setSubject}
         centerName={centerName}
         setCenterName={setCenterName}
+        fieldErrors={fieldErrors}
       />
 
       {/* Password & Confirmation */}

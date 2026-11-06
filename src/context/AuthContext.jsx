@@ -23,6 +23,8 @@ export const ROLES = {
     roleLabelAr: 'طالب 3 ثانوي - شعبة علمي علوم',
     email: 'omar.tarek@motafawweq.me',
     phone: '01123456789',
+    student_code: 'OMAR-2026',
+    studentCode: 'OMAR-2026',
     avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
     center: 'Al-Rowad Center',
     grade: '3rd Secondary (Thanawya Amma)',
@@ -93,6 +95,9 @@ function buildFrontendUser(apiUser, extras = {}) {
     roleLabelAr: extras.roleLabelAr || apiUser?.role_label || baseRole.roleLabelAr,
     status: apiUser?.status || 'active',
     statusLabel: apiUser?.status_label || 'نشط',
+    student_code: apiUser?.student_code || extras.student_code || extras.studentCode || baseRole.student_code || null,
+    studentCode: apiUser?.student_code || extras.studentCode || extras.student_code || baseRole.studentCode || '',
+    linked_children: apiUser?.linked_children || extras.linked_children || [],
     email_verified: apiUser?.email_verified ?? true,
     email_verified_at: apiUser?.email_verified_at ?? null,
     last_login_at: apiUser?.last_login_at ?? null,
@@ -332,6 +337,10 @@ export const AuthProvider = ({ children }) => {
 
     if (userData.phone && String(userData.phone).trim()) {
       payload.phone = String(userData.phone).trim();
+    }
+
+    if (role === 'parent') {
+      payload.student_code = String(userData.studentCode || '').trim().toUpperCase();
     }
 
     const response = await authService.register(payload);

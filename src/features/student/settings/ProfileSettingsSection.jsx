@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { Camera, RefreshCw, Sparkles, User, School, MapPin, Building2, CheckCircle2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Camera, RefreshCw, Sparkles, User, School, MapPin, Building2, CheckCircle2, Copy, KeyRound } from 'lucide-react';
 import { SCard, SSection, SBadge, SButton } from '../../../components/student/ui';
 
 // Curated avatars library for Egyptian high-school students
@@ -46,6 +46,19 @@ export const ProfileSettingsSection = ({
   isRtl
 }) => {
   const fileInputRef = useRef(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const studentLinkCode = formData.studentCode || formData.student_code || 'OMAR-2026';
+
+  const handleCopyStudentCode = async () => {
+    try {
+      await navigator.clipboard.writeText(studentLinkCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
 
   const onFileInput = (e) => {
     const file = e.target.files?.[0];
@@ -249,6 +262,77 @@ export const ProfileSettingsSection = ({
             </div>
           </div>
         </SSection>
+      </SCard>
+
+      {/* ── كود الطالب لربط حساب ولي الأمر ── */}
+      <SCard
+        padding={20}
+        style={{
+          border: '1px solid var(--primary)',
+          background: 'linear-gradient(135deg, var(--primary-surface, rgba(21, 136, 199, 0.08)) 0%, var(--bg-surface) 100%)',
+          boxShadow: 'var(--shadow-xs)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--primary)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <KeyRound size={20} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'كود الطالب الخاص بك (لربط حساب ولي الأمر)' : 'Your Unique Student Code (Parent Link)'}
+                </span>
+                <SBadge variant="primary" size="xs">
+                  {lang === 'ar' ? 'كود رسمي' : 'Official Code'}
+                </SBadge>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                {lang === 'ar'
+                  ? 'شارك هذا الكود مع ولي أمرك ليستخدمه أثناء إنشاء حساب ولي الأمر على المنصة ومتابعة مستواك الدراسي.'
+                  : 'Share this code with your parent so they can enter it when registering a Parent Account.'}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <code
+              dir="ltr"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1.5px dashed var(--primary)',
+                color: 'var(--primary)',
+                fontSize: '15px',
+                fontWeight: '800',
+                letterSpacing: '1px'
+              }}
+            >
+              {studentLinkCode}
+            </code>
+            <SButton
+              variant={copiedCode ? 'success' : 'primary'}
+              size="sm"
+              icon={copiedCode ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+              onClick={handleCopyStudentCode}
+            >
+              {copiedCode
+                ? (lang === 'ar' ? 'تم النسخ!' : 'Copied!')
+                : (lang === 'ar' ? 'نسخ الكود' : 'Copy Code')}
+            </SButton>
+          </div>
+        </div>
       </SCard>
 
       {/* ── 2. الاسم والبيانات الأساسية ── */}

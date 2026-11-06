@@ -45,6 +45,7 @@ export const StudentSettingsView = () => {
     email: currentUser?.email || 'omar.tarek@motafawweq.me',
     phone: currentUser?.phone || '01123456789',
     parentPhone: currentUser?.parentPhone || '01223344556',
+    studentCode: currentUser?.student_code || currentUser?.studentCode || 'OMAR-2026',
     playbackSpeed: currentUser?.playbackSpeed || '1.25x',
     autoCornell: currentUser?.autoCornell !== false,
     soundEffects: currentUser?.soundEffects !== false,
