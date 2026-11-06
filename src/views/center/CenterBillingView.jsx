@@ -59,8 +59,8 @@ export const CenterBillingView = () => {
         descriptionEn: `${plan.nameEn} (${selectedPeriod})`,
         amount: `${finalPrice} ج.م`,
         amountEn: `${finalPrice} EGP`,
-        method: lang === 'ar' ? 'إنستاباي (InstaPay)' : 'InstaPay Transfer',
-        methodAr: 'إنستاباي (InstaPay)',
+        method: lang === 'ar' ? 'إنستاباي' : 'InstaPay Transfer',
+        methodAr: 'إنستاباي',
         methodEn: 'InstaPay Transfer',
         status: lang === 'ar' ? 'مدفوع' : 'Paid'
       };
@@ -185,7 +185,7 @@ export const CenterBillingView = () => {
             </div>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
               {currentPlan.id === 'plan-center-pro'
-                ? (lang === 'ar' ? 'مستخدمين وطلاب غير محدودين (Unlimited) • السعر: 400 ج.م شهرياً' : 'Unlimited users capacity • 400 EGP / mo')
+                ? (lang === 'ar' ? 'مستخدمين وطلاب غير محدودين • السعر: 400 ج.م شهرياً' : 'Unlimited users capacity • 400 EGP / mo')
                 : currentPlan.id === 'plan-center-plus'
                 ? (lang === 'ar' ? 'سعة 500 مستخدم (نشط حالياً: 340 طالب ومعلم) • السعر: 200 ج.م شهرياً' : 'Capacity: 500 users (340 active) • 200 EGP / mo')
                 : (lang === 'ar' ? 'سعة 100 مستخدم • باقة مجانية دائمة' : 'Capacity: 100 users • Free')}

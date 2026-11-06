@@ -51,16 +51,10 @@ export const CenterSettingsView = () => {
   });
   const [saveSettingsSuccess, setSaveSettingsSuccess] = useState(false);
 
-  // Modern Operational & Gate Policies
-  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
-  const [unpaidGateWarning, setUnpaidGateWarning] = useState(true);
-  const [preventDuplicateCheckIn, setPreventDuplicateCheckIn] = useState(true);
-  const [allowTrialSessions, setAllowTrialSessions] = useState(true);
+  // Financial & Operational Policies
   const [siblingDiscountPercent, setSiblingDiscountPercent] = useState('10');
   const [mandatoryCashClose, setMandatoryCashClose] = useState(true);
   const [refundPolicy, setRefundPolicy] = useState('credit'); // 'credit' | 'replacement' | 'cash'
-  const [receiptFooterNote, setReceiptFooterNote] = useState('تنبيه: يُرجى الاحتفاظ بالإيصال وإبراز كارت الطالب الذكي عند بوابة القاعة.');
-  const [showQrOnReceipts, setShowQrOnReceipts] = useState(true);
 
   // Task Management State (Feature 74)
   const [tasks, setTasks] = useState([
@@ -73,11 +67,12 @@ export const CenterSettingsView = () => {
   const [newTaskAssignee, setNewTaskAssignee] = useState('أ. ياسمين نبيل');
   const [newTaskDeadline, setNewTaskDeadline] = useState('اليوم 06:00 م');
 
-  // Task Edit & Swipe/Delete State
+  // Task Edit, Delete Dialog & Swipe State
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
   const [editTaskAssignee, setEditTaskAssignee] = useState('');
   const [editTaskDeadline, setEditTaskDeadline] = useState('');
+  const [taskToDelete, setTaskToDelete] = useState(null);
   const [swipedTaskId, setSwipedTaskId] = useState(null);
   const [touchStartX, setTouchStartX] = useState(null);
 
@@ -302,11 +297,11 @@ export const CenterSettingsView = () => {
       }}>
         {[
           { id: 'settings', labelAr: 'بيانات وسياسات السنتر', labelEn: 'Center Policies', icon: Settings },
-          { id: 'tasks', labelAr: 'إدارة المهام اليومية (Tasks)', labelEn: 'Daily Tasks', icon: CheckSquare },
-          { id: 'announcements', labelAr: 'التعليمات والإعلانات الداخلية', labelEn: 'Announcements', icon: Bell },
-          { id: 'import', labelAr: 'استيراد البيانات من Excel', labelEn: 'Excel Import', icon: Upload },
-          { id: 'backup', labelAr: 'النسخ السحابي والأمان (Backup)', labelEn: 'Cloud Backup', icon: Database },
-          { id: 'kpis', labelAr: 'تخصيص مؤشرات الأداء (KPI Builder)', labelEn: 'KPI Builder', icon: Sliders }
+          { id: 'tasks', labelAr: 'إدارة المهام اليومية', labelEn: 'Daily Tasks', icon: CheckSquare },
+          { id: 'announcements', labelAr: 'التعليمات والإعلانات الداخلية', labelEn: 'Internal Announcements', icon: Bell },
+          { id: 'import', labelAr: 'استيراد البيانات', labelEn: 'Data Import', icon: Upload },
+          { id: 'backup', labelAr: 'النسخ الاحتياطي السحابي والأمان', labelEn: 'Cloud Backup & Security', icon: Database },
+          { id: 'kpis', labelAr: 'تخصيص مؤشرات الأداء', labelEn: 'KPI Performance Builder', icon: Sliders }
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -462,7 +457,7 @@ export const CenterSettingsView = () => {
             </div>
           </div>
 
-          {/* SECTION 2: Gate & Attendance Policies (Competitor Edge) */}
+          {/* SECTION 2: Operational & Financial Policies */}
           <div style={{
             backgroundColor: 'var(--bg-surface)',
             borderRadius: 'var(--radius-xl)',
@@ -481,19 +476,44 @@ export const CenterSettingsView = () => {
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <ShieldCheck size={18} />
+                <CreditCard size={18} />
               </div>
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'سياسات بوابة الحضور والباركود والواتساب' : 'Gate Attendance & WhatsApp Automation'}
+                  {lang === 'ar' ? 'السياسات التشغيلية والمالية' : 'Operational & Financial Policies'}
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                  {lang === 'ar' ? 'قواعد مسح الباركود، رصد الغياب، والتنبيهات المباشرة لأولياء الأمور' : 'QR gate check-in rules and parent alerting'}
+                  {lang === 'ar' ? 'مهلة التأخير، طرق الدفع المعتمدة، خصم الإخوة، وإغلاق الخزينة' : 'Grace period, payment methods, sibling discount, and cash drawer'}
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+            {/* Approved Payment Methods with pure Arabic */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>
+                {lang === 'ar' ? 'طرق الدفع والتحصيل المعتمدة في السنتر:' : 'Approved Payment Methods:'}
+              </label>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'cash', labelAr: 'دفع نقدي بمكتب الاستقبال', labelEn: 'Cash at Reception Desk' },
+                  { key: 'vodafoneCash', labelAr: 'محافظ المحمول الإلكترونية', labelEn: 'Mobile Wallets' },
+                  { key: 'instaPay', labelAr: 'تحويل إنستاباي', labelEn: 'InstaPay Transfer' },
+                  { key: 'visa', labelAr: 'بطاقات الدفع البنكية', labelEn: 'Bank Cards' }
+                ].map(item => (
+                  <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={paymentMethods[item.key]}
+                      onChange={(e) => setPaymentMethods(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                      style={{ accentColor: 'var(--primary)' }}
+                    />
+                    <span>{lang === 'ar' ? item.labelAr : item.labelEn}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '18px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
                   {lang === 'ar' ? 'مهلة التأخير المسموحة قبل احتساب الغياب (بالدقائق)' : 'Grace Period (Minutes)'}
@@ -517,155 +537,7 @@ export const CenterSettingsView = () => {
                   }}
                 />
               </div>
-            </div>
 
-            {/* Automation Toggles */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {[
-                {
-                  id: 'whatsappAlerts',
-                  titleAr: 'إرسال إشعار WhatsApp فوري لولي الأمر عند حضور أو غياب الطالب',
-                  titleEn: 'Instant WhatsApp attendance alert to parent upon check-in/absence',
-                  descAr: 'يتم إرسال رسالة آلية بمجرد مسح كود الطالب بالبوابة تذكر موعد الدخول واسم الحصة والقاعة.',
-                  value: whatsappAlerts,
-                  setter: setWhatsappAlerts
-                },
-                {
-                  id: 'unpaidGateWarning',
-                  titleAr: 'تنبيه مسؤولي البوابة فوراً عند مسح كود طالب غير مسدد أو عليه متأخرات',
-                  titleEn: 'Immediate gate alert when scanning student with overdue dues',
-                  descAr: 'يصدر جهاز المسح نغمة تحذيرية لإرشاد الطالب إلى شباك الاستقبال لتسوية الرسوم قبل دخول القاعة.',
-                  value: unpaidGateWarning,
-                  setter: setUnpaidGateWarning
-                },
-                {
-                  id: 'preventDuplicateCheckIn',
-                  titleAr: 'منع تسجيل الحضور المكرر لنفس الحصة تلقائياً',
-                  titleEn: 'Prevent duplicate check-ins for the same class session',
-                  descAr: 'حظر إعادة تمرير كارت الطالب أكثر من مرة في نفس الحصة لمنع التلاعب.',
-                  value: preventDuplicateCheckIn,
-                  setter: setPreventDuplicateCheckIn
-                },
-                {
-                  id: 'allowTrialSessions',
-                  titleAr: 'السماح بحضور حصص تجريبية مجانية للطلاب الجدد (Free Trial)',
-                  titleEn: 'Allow free trial sessions for prospective new students',
-                  descAr: 'إمكانية إصدار تصريح دخول تجريبي لمرة واحدة لطالب جديد بتنسيق مسبق مع المدرس.',
-                  value: allowTrialSessions,
-                  setter: setAllowTrialSessions
-                }
-              ].map(toggle => (
-                <div
-                  key={toggle.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    borderRadius: '12px',
-                    backgroundColor: 'var(--bg-app)',
-                    border: '1px solid var(--border-subtle)',
-                    gap: '14px'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      {toggle.titleAr}
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {toggle.descAr}
-                    </div>
-                  </div>
-
-                  {/* Clean Modern Primary Toggle Switch */}
-                  <button
-                    type="button"
-                    onClick={() => toggle.setter(v => !v)}
-                    style={{
-                      width: '44px',
-                      height: '24px',
-                      borderRadius: '9999px',
-                      backgroundColor: toggle.value ? 'var(--primary, #1588C7)' : 'var(--border-medium, #CBD5E1)',
-                      border: 'none',
-                      padding: '2px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: toggle.value ? 'flex-end' : 'flex-start',
-                      transition: 'all 0.2s ease',
-                      flexShrink: 0
-                    }}
-                  >
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '50%',
-                      backgroundColor: '#FFFFFF',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                    }} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SECTION 3: Financial Policies & Sibling Discounts */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
-                color: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <CreditCard size={18} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'السياسات المالية وخصومات الإخوة' : 'Financial Policies & Cash Drawer'}
-                </h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                  {lang === 'ar' ? 'طرق الدفع، خصم الإخوة، وإغلاق الخزينة اليومي' : 'Accepted payment channels, sibling discounts, and drawer closing'}
-                </p>
-              </div>
-            </div>
-
-            {/* Approved Payment Methods */}
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                {lang === 'ar' ? 'طرق الدفع والتحصيل المعتمدة في السنتر:' : 'Approved Payment Methods:'}
-              </label>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                {[
-                  { key: 'cash', label: 'دفع نقدي بالاستقبال (Cash Desk)' },
-                  { key: 'vodafoneCash', label: 'محافظ إلكترونية / فودافون كاش' },
-                  { key: 'instaPay', label: 'إنستاباي (InstaPay IPN)' },
-                  { key: 'visa', label: 'بطاقات دفع بنكية (Visa / MasterCard)' }
-                ].map(item => (
-                  <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={paymentMethods[item.key]}
-                      onChange={(e) => setPaymentMethods(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    <span>{item.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '18px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
                   {lang === 'ar' ? 'نسبة خصم الإخوة المعتمدة (%)' : 'Sibling Discount Percentage (%)'}
@@ -760,107 +632,6 @@ export const CenterSettingsView = () => {
                   boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                 }} />
               </button>
-            </div>
-          </div>
-
-          {/* SECTION 4: Receipt & Student Card Customization */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
-                color: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <FileText size={18} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'تخصيص الإيصالات وكروت الطلاب المطبوعة' : 'Receipts & Student ID Card Printing'}
-                </h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                  {lang === 'ar' ? 'النصوص التوجيهية وتذييل فواتير الدفع المطبوعة للطلاب' : 'Footer notes and QR codes printed on student receipts'}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'ملاحظة تذييل الإيصال (Receipt Footer Note)' : 'Receipt Footer Note'}
-                </label>
-                <input
-                  type="text"
-                  value={receiptFooterNote}
-                  onChange={(e) => setReceiptFooterNote(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-app)',
-                border: '1px solid var(--border-subtle)'
-              }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                    {lang === 'ar' ? 'طباعة رمز QR للتحقق السريع ومطابقة السداد على الإيصال' : 'Print verification QR code on receipts'}
-                  </div>
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {lang === 'ar' ? 'يمكّن موظف البوابة من مسح إيصال الطالب في ثانية للتأكد من صحة الدفع.' : 'Allows gate staff to scan printed receipt for instant validation.'}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowQrOnReceipts(v => !v)}
-                  style={{
-                    width: '44px',
-                    height: '24px',
-                    borderRadius: '9999px',
-                    backgroundColor: showQrOnReceipts ? 'var(--primary, #1588C7)' : 'var(--border-medium, #CBD5E1)',
-                    border: 'none',
-                    padding: '2px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: showQrOnReceipts ? 'flex-end' : 'flex-start',
-                    transition: 'all 0.2s ease',
-                    flexShrink: 0
-                  }}
-                >
-                  <div style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    backgroundColor: '#FFFFFF',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                  }} />
-                </button>
-              </div>
             </div>
           </div>
 
@@ -1176,7 +947,7 @@ export const CenterSettingsView = () => {
                       }}
                       onTouchEnd={() => {
                         if (swipedTaskId === t.id) {
-                          handleDeleteTask(t.id);
+                          setTaskToDelete(t);
                           setSwipedTaskId(null);
                         }
                         setTouchStartX(null);
@@ -1260,7 +1031,7 @@ export const CenterSettingsView = () => {
                         {/* Delete Button (with smooth red styling) */}
                         <button
                           type="button"
-                          onClick={() => handleDeleteTask(t.id)}
+                          onClick={() => setTaskToDelete(t)}
                           title={lang === 'ar' ? 'حذف المهمة' : 'Delete Task'}
                           style={{
                             width: '32px',
@@ -1435,7 +1206,7 @@ export const CenterSettingsView = () => {
           boxShadow: 'var(--shadow-sm)'
         }}>
           <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-            {lang === 'ar' ? 'استيراد بيانات الطلاب والمجموعات من ملف Excel' : 'Import Center Data from Excel'}
+            {lang === 'ar' ? 'استيراد بيانات الطلاب والمجموعات من ملف إكسيل' : 'Import Center Data from Excel'}
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
             {lang === 'ar'
@@ -1468,7 +1239,7 @@ export const CenterSettingsView = () => {
               }}
             >
               <Download size={15} />
-              <span>{lang === 'ar' ? 'تحميل نموذج Excel الفارغ' : 'Download Template'}</span>
+              <span>{lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}</span>
             </button>
 
             <button
@@ -1489,7 +1260,7 @@ export const CenterSettingsView = () => {
               }}
             >
               <Upload size={15} />
-              <span>{isImporting ? (lang === 'ar' ? 'جاري الفحص والاستيراد...' : 'Processing...') : (lang === 'ar' ? 'رفع ملف Excel وتدقيق البيانات' : 'Upload & Process Excel')}</span>
+              <span>{isImporting ? (lang === 'ar' ? 'جاري الفحص والاستيراد...' : 'Processing...') : (lang === 'ar' ? 'رفع ملف البيانات وتدقيق السجلات' : 'Upload & Process Excel')}</span>
             </button>
           </div>
 
@@ -1559,7 +1330,7 @@ export const CenterSettingsView = () => {
           boxShadow: 'var(--shadow-sm)'
         }}>
           <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-            {lang === 'ar' ? 'النسخ الاحتياطي السحابي واسترجاع البيانات (Cloud Backup & Recovery)' : 'Cloud Backup & Data Recovery'}
+            {lang === 'ar' ? 'النسخ الاحتياطي السحابي واسترجاع البيانات' : 'Cloud Backup & Data Recovery'}
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
             {lang === 'ar'
@@ -1581,7 +1352,7 @@ export const CenterSettingsView = () => {
           }}>
             <div>
               <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? 'حالة المزامنة السحابية:' : 'Sync Status:'} <span style={{ color: 'var(--success)' }}>نشط ومتزامن بالكامل (256-bit AES)</span>
+                {lang === 'ar' ? 'حالة المزامنة السحابية:' : 'Sync Status:'} <span style={{ color: 'var(--success)' }}>{lang === 'ar' ? 'نشط ومتزامن ومشفر بالكامل' : 'Active & Synchronized (256-bit AES)'}</span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 آخر نسخة احتياطية ناجحة: {lastBackupTime}
@@ -1640,7 +1411,7 @@ export const CenterSettingsView = () => {
           boxShadow: 'var(--shadow-sm)'
         }}>
           <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-            {lang === 'ar' ? 'تخصيص مؤشرات الأداء والحدود المستهدفة (KPI Targets & Thresholds)' : 'Custom KPI Target Builder'}
+            {lang === 'ar' ? 'تخصيص مؤشرات الأداء والحدود المستهدفة' : 'Custom KPI Target Builder'}
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
             {lang === 'ar'
@@ -1755,9 +1526,120 @@ export const CenterSettingsView = () => {
               }}
             >
               <Save size={15} />
-              <span>{lang === 'ar' ? 'حفظ مستهدفات الـ KPIs' : 'Save Targets'}</span>
+              <span>{lang === 'ar' ? 'حفظ مستهدفات مؤشرات الأداء' : 'Save Targets'}</span>
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Delete Task Confirmation Dialog Modal */}
+      {taskToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setTaskToDelete(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid var(--border-subtle)',
+              padding: '26px 28px',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
+              textAlign: 'center',
+              animation: 'fadeIn 0.15s ease'
+            }}
+          >
+            <div style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(220, 38, 38, 0.1)',
+              color: 'var(--color-danger, #DC2626)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto'
+            }}>
+              <Trash2 size={24} />
+            </div>
+
+            <h4 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 10px 0' }}>
+              {lang === 'ar' ? 'هل تريد حذف هذه المهمة؟' : 'Delete this task?'}
+            </h4>
+
+            <p style={{
+              fontSize: '13.5px',
+              color: 'var(--text-secondary)',
+              margin: '0 0 20px 0',
+              lineHeight: '1.6',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              backgroundColor: 'var(--bg-app)',
+              padding: '12px 14px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              textAlign: 'start'
+            }}>
+              {taskToDelete.titleAr}
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  handleDeleteTask(taskToDelete.id);
+                  setTaskToDelete(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '11px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--color-danger, #DC2626)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'نعم، حذف' : 'Yes, Delete'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTaskToDelete(null)}
+                style={{
+                  flex: 1,
+                  padding: '11px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
