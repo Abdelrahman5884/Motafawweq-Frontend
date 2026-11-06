@@ -14,6 +14,7 @@ import { SearchModal } from './components/search/SearchModal';
 import { LoginPage } from './views/auth/LoginPage';
 import { RegisterPage } from './views/auth/RegisterPage';
 import { ForgotPasswordPage } from './views/auth/ForgotPasswordPage';
+import { EmailVerificationBanner } from './features/auth/common';
 
 // Public Views
 import { LandingPage } from './views/public/LandingPage';
@@ -159,6 +160,9 @@ function AppShell({ children }) {
             hasSidebar={hasSidebar}
           />
         )}
+
+        {/* Email OTP Verification / Pending Approval Banner */}
+        {hasSidebar && <EmailVerificationBanner />}
 
         {/* Page content */}
         {isFullPage ? (

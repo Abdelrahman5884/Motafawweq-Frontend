@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, DEMO_PASSWORD } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { 
   BookOpen, 
@@ -23,35 +23,56 @@ export const LoginPage = () => {
   const [emailOrPhone, setEmailOrPhone] = useState(
     selectedRole === 'teacher' ? 'salma.biology@motafawweq.me' : 'omar.tarek@motafawweq.me'
   );
-  const [password, setPassword] = useState('motafawweq2026');
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleRoleTabChange = (roleKey) => {
     setSelectedRole(roleKey);
+    setErrorMsg('');
     if (roleKey === 'teacher') setEmailOrPhone('salma.biology@motafawweq.me');
     else if (roleKey === 'student') setEmailOrPhone('omar.tarek@motafawweq.me');
     else if (roleKey === 'parent') setEmailOrPhone('tarek.kady@gmail.com');
     else if (roleKey === 'center') setEmailOrPhone('admin@alrowad.edu.eg');
     else if (roleKey === 'admin') setEmailOrPhone('hq@motafawweq.me');
+    setPassword(DEMO_PASSWORD);
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      const targetRoute = login({ email: emailOrPhone, password, role: selectedRole });
+    try {
+      const targetRoute = await login({
+        email: emailOrPhone,
+        password,
+        role: selectedRole,
+        rememberMe
+      });
       navigate(targetRoute);
-    }, 600);
+    } catch (err) {
+      setErrorMsg(
+        err?.message ||
+          (lang === 'ar' ? 'فشل تسجيل الدخول، تحقق من البريد وكلمة المرور.' : 'Login failed. Please check your credentials.')
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleQuickDemo = (roleKey) => {
-    const targetRoute = quickDemoLogin(roleKey);
-    navigate(targetRoute);
+  const handleQuickDemo = async (roleKey) => {
+    setErrorMsg('');
+    setIsLoading(true);
+    try {
+      const targetRoute = await quickDemoLogin(roleKey);
+      navigate(targetRoute);
+    } catch (err) {
+      setErrorMsg(err?.message || 'تعذر الدخول التجريبي');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const roleOptions = [

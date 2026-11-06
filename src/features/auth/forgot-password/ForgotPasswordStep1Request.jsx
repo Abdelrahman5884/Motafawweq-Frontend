@@ -1,10 +1,11 @@
 import React from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, AlertCircle } from 'lucide-react';
 
 export const ForgotPasswordStep1Request = ({
   emailOrPhone,
   setEmailOrPhone,
+  errorMsg,
   isLoading,
   onSubmit
 }) => {
@@ -34,17 +35,34 @@ export const ForgotPasswordStep1Request = ({
         </p>
       </div>
 
+      {errorMsg && (
+        <div style={{
+          padding: '10px 12px',
+          backgroundColor: 'var(--error-light, rgba(220, 38, 38, 0.1))',
+          color: 'var(--error, #dc2626)',
+          borderRadius: 'var(--radius-md)',
+          fontSize: '12.5px',
+          marginBottom: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <AlertCircle size={15} />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'البريد أو رقم الهاتف المسجل' : 'Registered Email or Phone'}
+            {lang === 'ar' ? 'البريد الإلكتروني المسجل' : 'Registered Email Address'}
           </label>
           <input
-            type="text"
+            type="email"
             required
             value={emailOrPhone}
             onChange={(e) => setEmailOrPhone(e.target.value)}
-            placeholder="omar@motafawweq.me"
+            placeholder="omar.tarek@motafawweq.me"
             style={{
               width: '100%',
               padding: '11px 14px',

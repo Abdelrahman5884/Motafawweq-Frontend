@@ -24,7 +24,7 @@ import {
 } from '../../features/student/settings';
 
 export const StudentSettingsView = () => {
-  const { currentUser, updateUserProfile } = useAuth();
+  const { currentUser, updateUserProfile, changePassword, fetchSessions, revokeSession } = useAuth();
   const { lang, isRtl } = useLanguage();
 
   // Active Tab: 'profile' | 'security' | 'preferences' | 'goals' | 'notifications'
@@ -69,6 +69,7 @@ export const StudentSettingsView = () => {
     newPassword: '',
     confirmPassword: ''
   });
+  const [securityFeedback, setSecurityFeedback] = useState(null);
 
   // Handle generic input change
   const handleChange = (e) => {
@@ -108,29 +109,36 @@ export const StudentSettingsView = () => {
   };
 
   // Save changes handler
-  const handleSaveChanges = (e) => {
+  const handleSaveChanges = async (e) => {
     if (e) e.preventDefault();
 
-    if (updateUserProfile) {
-      updateUserProfile(formData);
-    }
-
-    setIsDirty(false);
-    setSaveSuccess(true);
-
     try {
-      confetti({
-        particleCount: 35,
-        spread: 50,
-        origin: { y: 0.8 }
-      });
-    } catch {
-      // ignore
-    }
+      if (updateUserProfile) {
+        await updateUserProfile(formData);
+      }
 
-    setTimeout(() => {
-      setSaveSuccess(false);
-    }, 3500);
+      setIsDirty(false);
+      setSaveSuccess(true);
+
+      try {
+        confetti({
+          particleCount: 35,
+          spread: 50,
+          origin: { y: 0.8 }
+        });
+      } catch {
+        // ignore
+      }
+
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3500);
+    } catch (err) {
+      setSecurityFeedback({
+        type: 'error',
+        text: err?.message || (lang === 'ar' ? 'تعذر حفظ التعديلات.' : 'Could not save changes.')
+      });
+    }
   };
 
   // Reset changes
@@ -168,18 +176,50 @@ export const StudentSettingsView = () => {
   };
 
   // Handle password change submit
-  const handlePasswordSave = () => {
-    alert(lang === 'ar' ? 'تم تحديث كلمة المرور بنجاح 🔒' : 'Password updated successfully 🔒');
-    setSecurityState({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
+  const handlePasswordSave = async () => {
+    setSecurityFeedback(null);
+    try {
+      await changePassword({
+        currentPassword: securityState.currentPassword,
+        newPassword: securityState.newPassword,
+        confirmPassword: securityState.confirmPassword
+      });
+      setSecurityFeedback({
+        type: 'success',
+        text: lang === 'ar'
+          ? 'تم تحديث كلمة المرور بنجاح وتسجيل الخروج من الأجهزة الأخرى 🔒'
+          : 'Password updated and other devices signed out 🔒'
+      });
+      setSecurityState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (err) {
+      setSecurityFeedback({
+        type: 'error',
+        text: err?.message || (lang === 'ar' ? 'تعذر تحديث كلمة المرور.' : 'Failed to update password.')
+      });
+    }
   };
 
   // Terminate other sessions
-  const handleTerminateOtherSessions = () => {
-    alert(lang === 'ar' ? 'تم تسجيل الخروج بنجاح من جميع الأجهزة الأخرى.' : 'All other devices logged out.');
+  const handleTerminateOtherSessions = async () => {
+    setSecurityFeedback(null);
+    try {
+      const list = await fetchSessions();
+      const others = list.filter((s) => !s.is_current);
+      await Promise.all(others.map((s) => revokeSession(s.id)));
+      setSecurityFeedback({
+        type: 'success',
+        text: lang === 'ar' ? 'تم تسجيل الخروج بنجاح من جميع الأجهزة الأخرى.' : 'All other devices logged out.'
+      });
+    } catch (err) {
+      setSecurityFeedback({
+        type: 'error',
+        text: err?.message || (lang === 'ar' ? 'تعذر إنهاء الجلسات الأخرى.' : 'Could not revoke other sessions.')
+      });
+    }
   };
 
   // Export student data
@@ -373,6 +413,7 @@ export const StudentSettingsView = () => {
               handleSecurityChange={handleSecurityChange}
               handlePasswordSave={handlePasswordSave}
               handleTerminateOtherSessions={handleTerminateOtherSessions}
+              securityFeedback={securityFeedback}
               lang={lang}
               isRtl={isRtl}
             />

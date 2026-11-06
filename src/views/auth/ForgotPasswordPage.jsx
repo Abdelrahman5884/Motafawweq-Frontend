@@ -19,41 +19,52 @@ export const ForgotPasswordPage = () => {
   const [step, setStep] = useState(1); // 1: request, 2: verify OTP, 3: set new password, 4: success
   const [emailOrPhone, setEmailOrPhone] = useState('omar.tarek@motafawweq.me');
   const [otpCode, setOtpCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [infoMsg, setInfoMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleRequestOtp = (e) => {
-    e.preventDefault();
+  const handleRequestOtp = async (e) => {
+    if (e) e.preventDefault();
     setIsLoading(true);
     setErrorMsg('');
+    setInfoMsg('');
 
-    setTimeout(() => {
-      setIsLoading(false);
-      const code = requestPasswordReset(emailOrPhone);
-      setGeneratedCode(code);
+    try {
+      await requestPasswordReset(emailOrPhone);
+      setInfoMsg(
+        lang === 'ar'
+          ? 'تم إرسال رمز مكون من 6 أرقام إلى بريدك الإلكتروني (صالح لمدة 10 دقائق).'
+          : 'A 6-digit verification code has been sent to your email (valid for 10 minutes).'
+      );
       setStep(2);
-    }, 600);
+    } catch (err) {
+      setErrorMsg(
+        err?.message ||
+          (lang === 'ar' ? 'تعذر إرسال رمز التحقق، يرجى المحاولة لاحقاً.' : 'Could not send verification code.')
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyOtp = (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMsg('');
 
-    setTimeout(() => {
-      setIsLoading(false);
-      if (verifyOtp(otpCode)) {
-        setStep(3);
-      } else {
-        setErrorMsg(lang === 'ar' ? 'رمز التحقق غير صحيح، يرجى المحاولة مجدداً' : 'Invalid OTP code. Try again.');
-      }
-    }, 500);
+    if (verifyOtp(otpCode)) {
+      setStep(3);
+    } else {
+      setErrorMsg(
+        lang === 'ar'
+          ? 'رمز التحقق يجب أن يتكون من 6 أرقام.'
+          : 'OTP code must be 6 digits.'
+      );
+    }
   };
 
-  const handleSetNewPassword = (e) => {
+  const handleSetNewPassword = async (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       setErrorMsg(lang === 'ar' ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match');
@@ -62,11 +73,29 @@ export const ForgotPasswordPage = () => {
     setIsLoading(true);
     setErrorMsg('');
 
-    setTimeout(() => {
-      setIsLoading(false);
-      completePasswordReset(newPassword);
+    try {
+      await completePasswordReset({
+        email: emailOrPhone,
+        code: otpCode,
+        newPassword,
+        confirmPassword
+      });
       setStep(4);
-    }, 600);
+    } catch (err) {
+      const fieldErrors = err?.getFieldErrors ? err.getFieldErrors() : {};
+      // If the OTP code itself was rejected by backend, return user to Step 2
+      if (fieldErrors.code) {
+        setStep(2);
+        setErrorMsg(fieldErrors.code);
+      } else {
+        setErrorMsg(
+          err?.message ||
+            (lang === 'ar' ? 'فشل إعادة تعيين كلمة المرور.' : 'Failed to reset password.')
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const stepInfo = {
@@ -74,7 +103,7 @@ export const ForgotPasswordPage = () => {
       img: '/characters/student.png',
       badge: lang === 'ar' ? 'استعادة الحساب' : 'Account Recovery',
       title: lang === 'ar' ? 'لا تقلق.. سنساعدك!' : 'Don\'t worry, we\'ve got you!',
-      quote: lang === 'ar' ? 'أدخل بريدك أو رقم هاتفك وسنرسل لك كود التحقق فوراً.' : 'Enter your registered email or phone to receive your OTP code.'
+      quote: lang === 'ar' ? 'أدخل بريدك المسجل وسنرسل لك كود التحقق فوراً.' : 'Enter your registered email to receive your OTP code.'
     },
     2: {
       img: '/characters/teacher.png',
@@ -86,13 +115,13 @@ export const ForgotPasswordPage = () => {
       img: '/characters/parent.png',
       badge: lang === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
       title: lang === 'ar' ? 'اختر كلمة سر قوية' : 'Choose Strong Password',
-      quote: lang === 'ar' ? 'احرص على استخدام حروف وأرقام لتأمين حسابك بالكامل.' : 'Ensure strong security with a mix of characters and numbers.'
+      quote: lang === 'ar' ? 'احرص على استخدام 10 أحرف تشمل حروفاً كبيرة وصغيرة وأرقاماً ورمزاً خاصاً.' : 'Ensure strong security with 10+ chars, upper/lower case, numbers & symbols.'
     },
     4: {
       img: '/characters/student.png',
       badge: lang === 'ar' ? 'تم بنجاح' : 'Success',
       title: lang === 'ar' ? 'أهلاً بعودتك يا بطل!' : 'Welcome Back!',
-      quote: lang === 'ar' ? 'تم تعيين كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول مباشرة.' : 'Password reset successfully. You can now login.'
+      quote: lang === 'ar' ? 'تم تعيين كلمة المرور بنجاح وإبطال الجلسات القديمة. يمكنك الآن تسجيل الدخول مباشرة.' : 'Password reset successfully. You can now login.'
     }
   };
 
@@ -112,6 +141,7 @@ export const ForgotPasswordPage = () => {
             <ForgotPasswordStep1Request
               emailOrPhone={emailOrPhone}
               setEmailOrPhone={setEmailOrPhone}
+              errorMsg={errorMsg}
               isLoading={isLoading}
               onSubmit={handleRequestOtp}
             />
@@ -122,9 +152,10 @@ export const ForgotPasswordPage = () => {
               emailOrPhone={emailOrPhone}
               otpCode={otpCode}
               setOtpCode={setOtpCode}
-              generatedCode={generatedCode}
               errorMsg={errorMsg}
+              infoMsg={infoMsg}
               isLoading={isLoading}
+              onResend={() => handleRequestOtp()}
               onSubmit={handleVerifyOtp}
             />
           )}

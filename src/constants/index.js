@@ -75,10 +75,13 @@ export const LEAGUE_TIER_IDS = {
 
 // ─── Storage Keys ──────────────────────────────────────────────────────────────
 export const STORAGE_KEYS = {
-  THEME:    'motafawweq-theme',
-  LANGUAGE: 'motafawweq-lang',
-  AUTH:     'motafawweq-auth',
+  THEME:         'motafawweq-theme',
+  LANGUAGE:      'motafawweq-lang',
+  AUTH:          'motafawweq-auth',
+  ACCESS_TOKEN:  'motafawweq_access_token',
+  REFRESH_TOKEN: 'motafawweq_refresh_token',
+  TOKEN_STORAGE: 'motafawweq_token_persistence',
 };
 
 // ─── API ───────────────────────────────────────────────────────────────────────
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';

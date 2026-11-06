@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authService, tokenStorage } from '../services/api';
 
 export const ROLES = {
   teacher: {
@@ -65,25 +66,65 @@ export const ROLES = {
   }
 };
 
+export const DEMO_PASSWORD = 'Motafawweq@2026';
+
+/**
+ * Merges a backend UserResource payload with frontend role defaults & local profile extras.
+ */
+function buildFrontendUser(apiUser, extras = {}) {
+  const roleKey = ROLES[apiUser?.role] ? apiUser.role : (ROLES[extras?.role] ? extras.role : 'student');
+  const baseRole = ROLES[roleKey] || ROLES.student;
+
+  const grade = extras.grade || baseRole.grade || '3rd Secondary (Thanawya Amma)';
+  const track = extras.track || 'علمي علوم';
+  const displayName = apiUser?.name || extras.fullName || baseRole.name;
+
+  return {
+    ...baseRole,
+    ...extras,
+    id: apiUser?.id ?? extras.id ?? baseRole.id,
+    name: displayName,
+    nameAr: extras.nameAr || displayName || baseRole.nameAr,
+    email: apiUser?.email || extras.email || baseRole.email,
+    phone: apiUser?.phone ?? extras.phone ?? baseRole.phone,
+    avatar: apiUser?.avatar || extras.avatar || baseRole.avatar,
+    role: roleKey,
+    roleLabel: extras.roleLabel || apiUser?.role_label || baseRole.roleLabel,
+    roleLabelAr: extras.roleLabelAr || apiUser?.role_label || baseRole.roleLabelAr,
+    status: apiUser?.status || 'active',
+    statusLabel: apiUser?.status_label || 'نشط',
+    email_verified: apiUser?.email_verified ?? true,
+    email_verified_at: apiUser?.email_verified_at ?? null,
+    last_login_at: apiUser?.last_login_at ?? null,
+    created_at: apiUser?.created_at ?? null,
+    grade,
+    track,
+    defaultRoute: baseRole.defaultRoute,
+  };
+}
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Load initial session from localStorage or default to student demo
   const [currentRole, setCurrentRole] = useState(() => {
     const saved = localStorage.getItem('motafawweq_role');
     return saved && ROLES[saved] ? saved : 'student';
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('motafawweq_authenticated') !== 'false';
+    const hasToken = Boolean(tokenStorage.getAccessToken());
+    const savedFlag = localStorage.getItem('motafawweq_authenticated');
+    return hasToken || savedFlag === 'true';
   });
+
+  const [authLoading, setAuthLoading] = useState(() => Boolean(tokenStorage.getAccessToken()));
 
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem('motafawweq_custom_user');
     if (savedUser) {
       try {
         return JSON.parse(savedUser);
-      } catch (e) {
+      } catch {
         // fallback
       }
     }
@@ -93,9 +134,8 @@ export const AuthProvider = ({ children }) => {
 
   const [selectedLessonId, setSelectedLessonId] = useState('les-bio-301');
   const [searchModalOpen, setSearchModalOpen] = useState(false);
-  
-  // OTP simulation state for forgot password
-  const [otpSentCode, setOtpSentCode] = useState(null);
+
+  // Password reset state
   const [otpTargetEmail, setOtpTargetEmail] = useState('');
 
   // View to URL Route mapping
@@ -142,7 +182,7 @@ export const AuthProvider = ({ children }) => {
 
   const [routerNavigator, setRouterNavigator] = useState(null);
 
-  const navigate = (target, extra = null) => {
+  const navigate = useCallback((target, extra = null) => {
     if (extra?.lessonId) {
       setSelectedLessonId(extra.lessonId);
     }
@@ -151,9 +191,83 @@ export const AuthProvider = ({ children }) => {
       routerNavigator(resolvedPath);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, [routerNavigator]);
 
-  // Persist role change
+  const applyAuthenticatedSession = useCallback((apiUser, tokens = null, rememberMe = true, extras = {}) => {
+    if (tokens?.access_token) {
+      tokenStorage.setTokens(tokens, rememberMe);
+    }
+    const savedExtrasRaw = localStorage.getItem('motafawweq_custom_user');
+    let savedExtras = {};
+    if (savedExtrasRaw) {
+      try {
+        const parsed = JSON.parse(savedExtrasRaw);
+        if (parsed?.email === apiUser?.email) {
+          savedExtras = parsed;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const mergedUser = buildFrontendUser(apiUser, { ...savedExtras, ...extras });
+    const roleKey = mergedUser.role;
+
+    setCurrentRole(roleKey);
+    setCurrentUser(mergedUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('motafawweq_role', roleKey);
+    localStorage.setItem('motafawweq_authenticated', 'true');
+    localStorage.setItem('motafawweq_custom_user', JSON.stringify(mergedUser));
+
+    return mergedUser;
+  }, []);
+
+  const clearLocalSession = useCallback(() => {
+    tokenStorage.clearTokens();
+    setIsAuthenticated(false);
+    localStorage.setItem('motafawweq_authenticated', 'false');
+    localStorage.removeItem('motafawweq_custom_user');
+  }, []);
+
+  // Hydrate user from /api/v1/auth/me on mount when a token is stored
+  const refreshUser = useCallback(async () => {
+    const token = tokenStorage.getAccessToken();
+    if (!token) {
+      setAuthLoading(false);
+      return null;
+    }
+
+    try {
+      const response = await authService.me();
+      if (response?.data) {
+        return applyAuthenticatedSession(response.data, null, true);
+      }
+    } catch {
+      clearLocalSession();
+    } finally {
+      setAuthLoading(false);
+    }
+    return null;
+  }, [applyAuthenticatedSession, clearLocalSession]);
+
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
+  // Listen for forced sign-out when refresh token expires or is revoked
+  useEffect(() => {
+    const onExpired = () => {
+      clearLocalSession();
+      if (routerNavigator) {
+        routerNavigator('/login');
+      }
+    };
+    window.addEventListener('motafawweq:auth-expired', onExpired);
+    return () => window.removeEventListener('motafawweq:auth-expired', onExpired);
+  }, [clearLocalSession, routerNavigator]);
+
+  // Switch role (used by role switcher / quick demo)
   const switchRole = (newRole) => {
     if (ROLES[newRole]) {
       setCurrentRole(newRole);
@@ -169,55 +283,68 @@ export const AuthProvider = ({ children }) => {
     return '/';
   };
 
-  // 1-Click Quick Demo Login
-  const quickDemoLogin = (roleId) => {
-    return switchRole(roleId);
+  // 1-Click Quick Demo Login (attempts real backend login with seeded demo account first)
+  const quickDemoLogin = async (roleId) => {
+    const demoRole = ROLES[roleId] || ROLES.student;
+    try {
+      const res = await authService.login({
+        email: demoRole.email,
+        password: DEMO_PASSWORD,
+      });
+      const user = applyAuthenticatedSession(res.data.user, res.data.tokens, true, { role: roleId });
+      return user.defaultRoute;
+    } catch {
+      // Fallback to local role switch if backend isn't seeded/running
+      return switchRole(roleId);
+    }
   };
 
-  // Standard Login
-  const login = ({ email, password, role = 'student' }) => {
-    const matchedRole = ROLES[role] ? role : 'student';
-    const baseUser = ROLES[matchedRole];
-    const loggedUser = {
-      ...baseUser,
-      email: email || baseUser.email,
-      name: email ? email.split('@')[0] : baseUser.name
-    };
-    setCurrentRole(matchedRole);
-    setCurrentUser(loggedUser);
-    setIsAuthenticated(true);
-    localStorage.setItem('motafawweq_role', matchedRole);
-    localStorage.setItem('motafawweq_authenticated', 'true');
-    localStorage.setItem('motafawweq_custom_user', JSON.stringify(loggedUser));
-    return baseUser.defaultRoute;
+  // Real Backend Login -> POST /api/v1/auth/login
+  const login = async ({ email, password, role = 'student', rememberMe = true }) => {
+    const response = await authService.login({
+      email: String(email).trim(),
+      password,
+    });
+
+    const user = applyAuthenticatedSession(
+      response.data.user,
+      response.data.tokens,
+      rememberMe,
+      { role: response.data.user?.role || role }
+    );
+
+    return user.defaultRoute;
   };
 
-  // Register New Account
-  const register = (userData) => {
+  // Real Backend Register -> POST /api/v1/auth/register
+  const register = async (userData) => {
     const role = userData.role || 'student';
-    const baseUser = ROLES[role] || ROLES.student;
     const grade = userData.grade || '3rd Secondary (Thanawya Amma)';
     const track = userData.track || 'علمي علوم';
 
-    let roleLabel = role === 'teacher' ? (userData.subject || 'Teacher') : grade;
-    let roleLabelAr = role === 'teacher' ? (userData.subject || 'معلم متخصص') : `طالب ${grade} (${track})`;
+    const payload = {
+      name: String(userData.fullName || '').trim(),
+      email: String(userData.email || '').trim().toLowerCase(),
+      password: userData.password,
+      password_confirmation: userData.passwordConfirmation ?? userData.password,
+      role,
+    };
 
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      name: userData.fullName || 'New User',
-      nameAr: userData.fullName || 'مستخدم جديد',
-      role: role,
-      roleLabel: roleLabel,
-      roleLabelAr: roleLabelAr,
-      email: userData.email,
-      phone: userData.phone || '01000000000',
-      parentPhone: userData.parentPhone || '',
-      avatar: baseUser.avatar,
-      center: userData.centerName || userData.center || 'Online Learning',
-      grade: grade,
-      track: track,
+    if (userData.phone && String(userData.phone).trim()) {
+      payload.phone = String(userData.phone).trim();
+    }
+
+    const response = await authService.register(payload);
+
+    const extraMetadata = {
+      role,
+      grade,
+      track,
       governorate: userData.governorate || 'الجيزة',
-      school: userData.school || '',
+      parentPhone: userData.parentPhone || '',
+      subject: userData.subject || '',
+      center: userData.centerName || userData.center || 'Online Learning',
+      studentCode: userData.studentCode || '',
       nickname: userData.fullName ? `العبقري ${userData.fullName.split(' ')[0]}` : 'طالب متفوق',
       targetGoal: 'التميز الأكاديمي والتفوق في الامتحانات',
       dailyGoalMinutes: 60,
@@ -232,61 +359,137 @@ export const AuthProvider = ({ children }) => {
       notifyHomework: true,
       leaderboardVisible: true,
       parentReportSync: true,
-      defaultRoute: baseUser.defaultRoute
     };
 
-    setCurrentRole(role);
-    setCurrentUser(newUser);
-    setIsAuthenticated(true);
-    localStorage.setItem('motafawweq_role', role);
-    localStorage.setItem('motafawweq_authenticated', 'true');
-    localStorage.setItem('motafawweq_custom_user', JSON.stringify(newUser));
-    return baseUser.defaultRoute;
+    const user = applyAuthenticatedSession(response.data.user, response.data.tokens, true, extraMetadata);
+    return user.defaultRoute;
   };
 
-  // Logout
-  const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.setItem('motafawweq_authenticated', 'false');
+  // Real Backend Logout -> POST /api/v1/auth/logout
+  const logout = async () => {
+    try {
+      if (tokenStorage.getAccessToken()) {
+        await authService.logout();
+      }
+    } catch {
+      // Ignore network/token errors during logout
+    } finally {
+      clearLocalSession();
+    }
   };
 
-  // Forgot password OTP trigger
-  const requestPasswordReset = (emailOrPhone) => {
-    const demoCode = '4829';
-    setOtpSentCode(demoCode);
-    setOtpTargetEmail(emailOrPhone);
-    return demoCode;
+  // Real Backend Logout All Devices -> POST /api/v1/auth/logout-all
+  const logoutAllDevices = async () => {
+    try {
+      if (tokenStorage.getAccessToken()) {
+        await authService.logoutAll();
+      }
+    } finally {
+      clearLocalSession();
+    }
   };
 
-  const verifyOtp = (code) => {
-    return code === otpSentCode || code === '4829';
+  // Email OTP Verification -> POST /api/v1/auth/email/verify & /resend
+  const verifyEmailOtp = async (code) => {
+    const response = await authService.verifyEmail(code);
+    const updated = applyAuthenticatedSession(response.data, null, true);
+    return updated;
   };
 
-  const completePasswordReset = (newPassword) => {
-    setOtpSentCode(null);
+  const resendEmailOtp = async () => {
+    return authService.resendEmailOtp();
+  };
+
+  // Password Reset Flow -> POST /api/v1/auth/password/forgot & /reset
+  const requestPasswordReset = async (email) => {
+    const cleanEmail = String(email).trim().toLowerCase();
+    await authService.forgotPassword(cleanEmail);
+    setOtpTargetEmail(cleanEmail);
     return true;
   };
 
-  // Update User Profile (e.g. name, avatar, email, grade, settings)
-  const updateUserProfile = (updatedFields) => {
+  const verifyOtp = (code) => {
+    return /^\d{6}$/.test(String(code).trim());
+  };
+
+  const completePasswordReset = async ({ email, code, newPassword, confirmPassword }) => {
+    await authService.resetPassword({
+      email: email || otpTargetEmail,
+      code,
+      password: newPassword,
+      password_confirmation: confirmPassword ?? newPassword,
+    });
+    return true;
+  };
+
+  // Update User Profile -> PUT /api/v1/auth/profile + local preferences
+  const updateUserProfile = async (updatedFields) => {
+    let nextSnapshot = null;
+
     setCurrentUser((prevUser) => {
-      const newUser = {
-        ...prevUser,
-        ...(typeof updatedFields === 'function' ? updatedFields(prevUser) : updatedFields)
-      };
+      const resolved = typeof updatedFields === 'function' ? updatedFields(prevUser) : updatedFields;
+      nextSnapshot = { ...prevUser, ...resolved };
       try {
-        localStorage.setItem('motafawweq_custom_user', JSON.stringify(newUser));
-      } catch (e) {
-        // localStorage quota or private mode fallback
+        localStorage.setItem('motafawweq_custom_user', JSON.stringify(nextSnapshot));
+      } catch {
+        // ignore
       }
-      return newUser;
+      return nextSnapshot;
+    });
+
+    if (tokenStorage.getAccessToken() && nextSnapshot) {
+      const apiPayload = {};
+      if (nextSnapshot.nameAr || nextSnapshot.name) {
+        apiPayload.name = nextSnapshot.nameAr || nextSnapshot.name;
+      }
+      if (nextSnapshot.phone) {
+        apiPayload.phone = nextSnapshot.phone;
+      }
+      if (nextSnapshot.avatar && String(nextSnapshot.avatar).length <= 255) {
+        apiPayload.avatar = nextSnapshot.avatar;
+      }
+
+      if (Object.keys(apiPayload).length > 0) {
+        const response = await authService.updateProfile(apiPayload);
+        if (response?.data) {
+          applyAuthenticatedSession(response.data, null, true, nextSnapshot);
+        }
+      }
+    }
+
+    return nextSnapshot;
+  };
+
+  // Change Password -> POST /api/v1/auth/change-password
+  const changePassword = async ({ currentPassword, newPassword, confirmPassword }) => {
+    return authService.changePassword({
+      current_password: currentPassword,
+      new_password: newPassword,
+      new_password_confirmation: confirmPassword ?? newPassword,
     });
   };
+
+  // Active Sessions & Login History -> GET/DELETE /api/v1/auth/sessions, GET /api/v1/auth/login-history
+  const fetchSessions = useCallback(async () => {
+    const res = await authService.getSessions();
+    return res?.data || [];
+  }, []);
+
+  const revokeSession = useCallback(async (sessionId) => {
+    return authService.revokeSession(sessionId);
+  }, []);
+
+  const fetchLoginHistory = useCallback(async (perPage = 20) => {
+    const res = await authService.getLoginHistory(perPage);
+    return res?.data || [];
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
+        authLoading,
+        hasActiveToken: Boolean(tokenStorage.getAccessToken()),
         currentRole,
         currentUser,
         selectedLessonId,
@@ -298,11 +501,18 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        logoutAllDevices,
+        refreshUser,
         updateUserProfile,
+        changePassword,
+        verifyEmailOtp,
+        resendEmailOtp,
         requestPasswordReset,
         verifyOtp,
         completePasswordReset,
-        otpSentCode,
+        fetchSessions,
+        revokeSession,
+        fetchLoginHistory,
         otpTargetEmail,
         navigate,
         setRouterNavigator,

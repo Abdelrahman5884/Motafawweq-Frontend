@@ -25,6 +25,7 @@ export const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [grade, setGrade] = useState('3rd Secondary (Thanawya Amma)');
   const [track, setTrack] = useState('علمي علوم');
   const [governorate, setGovernorate] = useState('الجيزة');
@@ -34,25 +35,31 @@ export const RegisterPage = () => {
   const [studentCode, setStudentCode] = useState('');
   const [agreedTerms, setAgreedTerms] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     if (!agreedTerms) return;
+
+    setErrorMsg('');
+    setFieldErrors({});
+
+    if (password !== passwordConfirmation) {
+      setErrorMsg(lang === 'ar' ? 'تأكيد كلمة المرور غير متطابق.' : 'Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-
-      const targetRoute = register({
+    try {
+      const targetRoute = await register({
         role,
         fullName,
         email,
         phone,
+        password,
+        passwordConfirmation,
         parentPhone,
         grade,
         track,
@@ -62,8 +69,28 @@ export const RegisterPage = () => {
         studentCode
       });
 
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch {
+        // ignore confetti error
+      }
+
       navigate(targetRoute);
-    }, 700);
+    } catch (err) {
+      if (err?.getFieldErrors) {
+        setFieldErrors(err.getFieldErrors());
+      }
+      setErrorMsg(
+        err?.message ||
+          (lang === 'ar' ? 'تعذر إنشاء الحساب، يرجى مراجعة البيانات المدخلة.' : 'Registration failed. Please check your input.')
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const roleCards = [
@@ -152,7 +179,11 @@ export const RegisterPage = () => {
             <RegisterRoleCards
               roleCards={roleCards}
               selectedRole={role}
-              onSelectRole={setRole}
+              onSelectRole={(r) => {
+                setRole(r);
+                setErrorMsg('');
+                setFieldErrors({});
+              }}
             />
           </div>
 
@@ -166,6 +197,8 @@ export const RegisterPage = () => {
             setPhone={setPhone}
             password={password}
             setPassword={setPassword}
+            passwordConfirmation={passwordConfirmation}
+            setPasswordConfirmation={setPasswordConfirmation}
             grade={grade}
             setGrade={setGrade}
             track={track}
@@ -183,6 +216,8 @@ export const RegisterPage = () => {
             agreedTerms={agreedTerms}
             setAgreedTerms={setAgreedTerms}
             isLoading={isLoading}
+            errorMsg={errorMsg}
+            fieldErrors={fieldErrors}
             onSubmit={handleRegisterSubmit}
           />
 

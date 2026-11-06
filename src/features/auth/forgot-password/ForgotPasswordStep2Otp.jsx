@@ -1,14 +1,15 @@
 import React from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, RotateCw } from 'lucide-react';
 
 export const ForgotPasswordStep2Otp = ({
   emailOrPhone,
   otpCode,
   setOtpCode,
-  generatedCode,
   errorMsg,
+  infoMsg,
   isLoading,
+  onResend,
   onSubmit
 }) => {
   const { lang } = useLanguage();
@@ -30,46 +31,25 @@ export const ForgotPasswordStep2Otp = ({
           <ShieldCheck size={22} />
         </div>
         <h2 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
-          {lang === 'ar' ? 'أدخل رمز التحقق (OTP)' : 'Enter Verification Code'}
+          {lang === 'ar' ? 'أدخل رمز التحقق (6 أرقام)' : 'Enter 6-Digit Verification Code'}
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
           {lang === 'ar' ? `تم إرسال الرمز إلى ${emailOrPhone}` : `Code sent to ${emailOrPhone}`}
         </p>
       </div>
 
-      {/* Demo Helper Banner */}
-      <div style={{
-        padding: '10px 14px',
-        borderRadius: 'var(--radius-md)',
-        backgroundColor: 'var(--primary-surface)',
-        border: '1px solid var(--border-medium)',
-        marginBottom: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        fontSize: '12px'
-      }}>
-        <span style={{ color: 'var(--text-secondary)' }}>
-          {lang === 'ar' ? `رمز التحقق التجريبي هو: ` : `Demo OTP is: `}
-          <strong style={{ color: 'var(--primary)', letterSpacing: '2px', fontSize: '14px' }}>{generatedCode || '4829'}</strong>
-        </span>
-        <button
-          type="button"
-          onClick={() => setOtpCode(generatedCode || '4829')}
-          style={{
-            padding: '4px 8px',
-            borderRadius: 'var(--radius-xs)',
-            backgroundColor: 'var(--primary)',
-            color: '#fff',
-            border: 'none',
-            fontSize: '11px',
-            fontWeight: '700',
-            cursor: 'pointer'
-          }}
-        >
-          {lang === 'ar' ? 'تعبئة تلقائية' : 'Auto Fill'}
-        </button>
-      </div>
+      {infoMsg && (
+        <div style={{
+          padding: '8px 12px',
+          backgroundColor: 'var(--primary-surface)',
+          color: 'var(--primary)',
+          borderRadius: 'var(--radius-xs)',
+          fontSize: '12.5px',
+          marginBottom: '14px'
+        }}>
+          {infoMsg}
+        </div>
+      )}
 
       {errorMsg && (
         <div style={{
@@ -88,11 +68,14 @@ export const ForgotPasswordStep2Otp = ({
         <div>
           <input
             type="text"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
             required
-            maxLength={4}
+            maxLength={6}
             value={otpCode}
-            onChange={(e) => setOtpCode(e.target.value)}
-            placeholder="4829"
+            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            dir="ltr"
             style={{
               width: '100%',
               padding: '14px',
@@ -102,7 +85,7 @@ export const ForgotPasswordStep2Otp = ({
               color: 'var(--text-primary)',
               fontSize: '24px',
               fontWeight: '800',
-              letterSpacing: '12px',
+              letterSpacing: '10px',
               textAlign: 'center'
             }}
           />
@@ -110,7 +93,7 @@ export const ForgotPasswordStep2Otp = ({
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || otpCode.length !== 6}
           className="btn btn-primary"
           style={{
             width: '100%',
@@ -121,6 +104,29 @@ export const ForgotPasswordStep2Otp = ({
         >
           {isLoading ? (lang === 'ar' ? 'جاري التحقق...' : 'Verifying...') : (lang === 'ar' ? 'تأكيد الرمز والمتابعة' : 'Verify & Continue')}
         </button>
+
+        {onResend && (
+          <button
+            type="button"
+            onClick={onResend}
+            disabled={isLoading}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--primary)',
+              fontSize: '12.5px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <RotateCw size={13} />
+            <span>{lang === 'ar' ? 'إعادة إرسال الرمز' : 'Resend Code'}</span>
+          </button>
+        )}
       </form>
     </div>
   );

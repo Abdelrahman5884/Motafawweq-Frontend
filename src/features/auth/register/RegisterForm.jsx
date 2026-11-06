@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
-import { User, Mail, Phone, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
+import { User, Mail, Phone, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { RegisterRoleFields } from './RegisterRoleFields';
 
 export const RegisterForm = ({
@@ -13,6 +13,8 @@ export const RegisterForm = ({
   setPhone,
   password,
   setPassword,
+  passwordConfirmation,
+  setPasswordConfirmation,
   grade,
   setGrade,
   track,
@@ -30,12 +32,31 @@ export const RegisterForm = ({
   agreedTerms,
   setAgreedTerms,
   isLoading,
+  errorMsg,
+  fieldErrors = {},
   onSubmit
 }) => {
   const { lang, t, isRtl } = useLanguage();
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {errorMsg && (
+        <div style={{
+          padding: '10px 14px',
+          backgroundColor: 'var(--error-light, rgba(220, 38, 38, 0.1))',
+          color: 'var(--error, #dc2626)',
+          borderRadius: 'var(--radius-md)',
+          fontSize: '13px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <AlertCircle size={16} />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
       {/* Common Fields */}
       <div className="auth-grid-2">
         <div style={{ gridColumn: '1 / -1' }}>
@@ -53,7 +74,7 @@ export const RegisterForm = ({
                 width: '100%',
                 padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
+                border: fieldErrors.name ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
                 backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text-primary)',
                 fontSize: '13px'
@@ -61,6 +82,9 @@ export const RegisterForm = ({
             />
             <User size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
           </div>
+          {fieldErrors.name && (
+            <span style={{ fontSize: '11.5px', color: 'var(--error, #dc2626)', marginTop: '4px', display: 'block' }}>{fieldErrors.name}</span>
+          )}
         </div>
 
         <div>
@@ -78,7 +102,7 @@ export const RegisterForm = ({
                 width: '100%',
                 padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
+                border: fieldErrors.email ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
                 backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text-primary)',
                 fontSize: '13px'
@@ -86,6 +110,9 @@ export const RegisterForm = ({
             />
             <Mail size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
           </div>
+          {fieldErrors.email && (
+            <span style={{ fontSize: '11.5px', color: 'var(--error, #dc2626)', marginTop: '4px', display: 'block' }}>{fieldErrors.email}</span>
+          )}
         </div>
 
         <div>
@@ -103,7 +130,7 @@ export const RegisterForm = ({
                 width: '100%',
                 padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
+                border: fieldErrors.phone ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
                 backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text-primary)',
                 fontSize: '13px'
@@ -111,6 +138,9 @@ export const RegisterForm = ({
             />
             <Phone size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
           </div>
+          {fieldErrors.phone && (
+            <span style={{ fontSize: '11.5px', color: 'var(--error, #dc2626)', marginTop: '4px', display: 'block' }}>{fieldErrors.phone}</span>
+          )}
         </div>
       </div>
 
@@ -133,29 +163,83 @@ export const RegisterForm = ({
         setCenterName={setCenterName}
       />
 
-      {/* Password */}
-      <div>
-        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-          {t('passwordLabel')}
-        </label>
-        <div style={{ position: 'relative' }}>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            style={{
-              width: '100%',
-              padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-medium)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '13px'
-            }}
-          />
-          <Lock size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
+      {/* Password & Confirmation */}
+      <div className="auth-grid-2">
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+            {t('passwordLabel')}
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••"
+              style={{
+                width: '100%',
+                padding: '10px 38px 10px 38px',
+                borderRadius: 'var(--radius-md)',
+                border: fieldErrors.password ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '13px'
+              }}
+            />
+            <Lock size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                [isRtl ? 'left' : 'right']: '10px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer'
+              }}
+            >
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+            {lang === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm Password'}
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              placeholder="••••••••••"
+              style={{
+                width: '100%',
+                padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
+                borderRadius: 'var(--radius-md)',
+                border: fieldErrors.password ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '13px'
+              }}
+            />
+            <Lock size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
+          </div>
+        </div>
+
+        <div style={{ gridColumn: '1 / -1' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            {lang === 'ar'
+              ? '10 أحرف على الأقل تشمل حروفاً كبيرة وصغيرة وأرقاماً ورمزاً خاصاً (مثل: Motafawweq@2026)'
+              : 'At least 10 chars with uppercase, lowercase, number, and symbol (e.g. Motafawweq@2026)'}
+          </span>
+          {fieldErrors.password && (
+            <span style={{ fontSize: '11.5px', color: 'var(--error, #dc2626)', marginTop: '4px', display: 'block' }}>{fieldErrors.password}</span>
+          )}
         </div>
       </div>
 
