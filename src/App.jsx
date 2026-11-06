@@ -67,6 +67,7 @@ import { CenterHallsView } from './views/center/CenterHallsView';
 import { CenterAttendanceView } from './views/center/CenterAttendanceView';
 import { CenterFinancialsView } from './views/center/CenterFinancialsView';
 import { CenterOperationsView } from './views/center/CenterOperationsView';
+import { CenterBillingView } from './views/center/CenterBillingView';
 import { CenterSettingsView } from './views/center/CenterSettingsView';
 import { CenterGroupsView } from './views/center/CenterGroupsView';
 import { CenterProvider } from './context/CenterContext';
@@ -303,6 +304,7 @@ export default function App() {
                     <Route path="/center/attendance" element={<Navigate to="/center/groups" replace />} />
                     <Route path="/center/financials" element={<Navigate to="/center/operations" replace />} />
                     <Route path="/center/operations" element={<CenterOperationsView />} />
+                    <Route path="/center/billing" element={<CenterBillingView />} />
                     <Route path="/center/settings" element={<CenterSettingsView />} />
 
                     {/* Admin Portal Route */}
