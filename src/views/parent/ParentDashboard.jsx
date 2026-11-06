@@ -574,17 +574,6 @@ export const ParentDashboard = () => {
     setTimeout(() => setContactSuccessToast(''), 5000);
   };
 
-  // Tab Definitions (Removed Weak Areas, Added Settings)
-  const tabs = [
-    { id: 'overview', labelAr: 'نظرة عامة والملخص', labelEn: 'Overview', icon: Users },
-    { id: 'courses', labelAr: 'المقررات والدروس', labelEn: 'Enrolled Courses', icon: BookOpen },
-    { id: 'attendance', labelAr: 'سجل حضور السنتر', labelEn: 'Gate Attendance', icon: Calendar },
-    { id: 'exams', labelAr: 'الامتحانات والدرجات', labelEn: 'Exam Scorecards', icon: Award },
-    { id: 'homework', labelAr: 'الواجبات والتسليمات', labelEn: 'Homework Tracker', icon: FileText },
-    { id: 'financials', labelAr: 'المصروفات والاشتراكات', labelEn: 'Tuition & Fees', icon: CreditCard },
-    { id: 'settings', labelAr: 'الإعدادات والملف الشخصي', labelEn: 'Settings & Profile', icon: Settings }
-  ];
-
   return (
     <div style={{
       maxWidth: '1200px',
@@ -707,46 +696,6 @@ export const ParentDashboard = () => {
         lang={lang}
         isRtl={isRtl}
       />
-
-      {/* ══════════════════ NAVIGATION TABS ══════════════════ */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        overflowX: 'auto',
-        borderBottom: '1px solid var(--border-subtle)',
-        paddingBottom: '8px',
-        marginBottom: '24px'
-      }}>
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '9px 16px',
-                borderRadius: 'var(--radius-md)',
-                border: 'none',
-                backgroundColor: isActive ? 'var(--primary-surface, rgba(21, 136, 199, 0.1))' : 'transparent',
-                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                fontSize: '13px',
-                fontWeight: isActive ? '800' : '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Icon size={16} />
-              <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* ══════════════════ TAB 1: OVERVIEW ══════════════════ */}
       {activeTab === 'overview' && (
