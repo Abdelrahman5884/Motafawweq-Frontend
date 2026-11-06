@@ -33,7 +33,8 @@ import {
   PlayCircle,
   FolderCheck,
   Flame,
-  Settings
+  Settings,
+  Target
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -59,7 +60,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
   const roleAccent = {
     teacher: '#1588C7',
     student: '#1588C7',
-    parent: '#16A34A',
+    parent: '#1588C7',
     center: '#1588C7',
     admin: '#1588C7',
   };
@@ -123,9 +124,13 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         ];
       case 'parent':
         return [
-          { id: 'parent-portal', path: '/parent/dashboard', label: lang === 'ar' ? 'متابعة الأبناء' : 'Children Overview', icon: Users },
-          { id: 'parent-reports', path: '/parent/dashboard', label: lang === 'ar' ? 'التقارير الأسبوعية' : 'Weekly Reports', icon: Activity },
-          { id: 'parent-feedback', path: '/parent/dashboard', label: lang === 'ar' ? 'ملاحظات المعلمين' : 'Teacher Feedback', icon: BookMarked },
+          { id: 'parent-portal', path: '/parent/dashboard?tab=overview', label: lang === 'ar' ? 'متابعة الأبناء' : 'Children Overview', icon: Users },
+          { id: 'parent-courses', path: '/parent/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات والدروس' : 'Enrolled Courses', icon: BookOpen },
+          { id: 'parent-attendance', path: '/parent/dashboard?tab=attendance', label: lang === 'ar' ? 'سجل حضور السنتر' : 'Center Attendance', icon: Calendar },
+          { id: 'parent-exams', path: '/parent/dashboard?tab=exams', label: lang === 'ar' ? 'الدرجات والامتحانات' : 'Exam Scorecards', icon: Award },
+          { id: 'parent-homework', path: '/parent/dashboard?tab=homework', label: lang === 'ar' ? 'الواجبات والتسليمات' : 'Homework Tracker', icon: FileText },
+          { id: 'parent-diagnostics', path: '/parent/dashboard?tab=diagnostics', label: lang === 'ar' ? 'نقاط الضعف والتوجيه' : 'Weak Area Guidance', icon: Target },
+          { id: 'parent-financials', path: '/parent/dashboard?tab=financials', label: lang === 'ar' ? 'المصروفات والاشتراكات' : 'Tuition & Fees', icon: CreditCard },
         ];
       case 'center':
         return [
@@ -168,7 +173,10 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
 
   const renderNavItem = (item) => {
     const ItemIcon = item.icon;
-    const isActive = location.pathname === item.path;
+    const currentFullPath = location.pathname + (location.search || '');
+    const isActive = item.path.includes('?')
+      ? (currentFullPath === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.endsWith('?tab=overview')))
+      : location.pathname === item.path;
 
     return (
       <div key={item.id} className="sidebar-item-wrapper">
