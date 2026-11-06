@@ -51,6 +51,17 @@ export const CenterSettingsView = () => {
   });
   const [saveSettingsSuccess, setSaveSettingsSuccess] = useState(false);
 
+  // Modern Operational & Gate Policies
+  const [whatsappAlerts, setWhatsappAlerts] = useState(true);
+  const [unpaidGateWarning, setUnpaidGateWarning] = useState(true);
+  const [preventDuplicateCheckIn, setPreventDuplicateCheckIn] = useState(true);
+  const [allowTrialSessions, setAllowTrialSessions] = useState(true);
+  const [siblingDiscountPercent, setSiblingDiscountPercent] = useState('10');
+  const [mandatoryCashClose, setMandatoryCashClose] = useState(true);
+  const [refundPolicy, setRefundPolicy] = useState('credit'); // 'credit' | 'replacement' | 'cash'
+  const [receiptFooterNote, setReceiptFooterNote] = useState('تنبيه: يُرجى الاحتفاظ بالإيصال وإبراز كارت الطالب الذكي عند بوابة القاعة.');
+  const [showQrOnReceipts, setShowQrOnReceipts] = useState(true);
+
   // Task Management State (Feature 74)
   const [tasks, setTasks] = useState([
     { id: 'tsk-1', titleAr: 'مراجعة كشوفات حضور القاعة الكبرى ومطابقة الباركود', assignee: 'أ. ياسمين نبيل', deadline: 'اليوم 04:00 م', completed: true },
@@ -328,19 +339,39 @@ export const CenterSettingsView = () => {
 
       {/* TAB 1: Center Settings & Policies (Feature 13) */}
       {activeTab === 'settings' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 16px 0' }}>
-            {lang === 'ar' ? 'إدارة بيانات السنتر وأوقات العمل والسياسات' : 'Center Identity & Operational Policies'}
-          </h3>
+        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+          {/* SECTION 1: Center Profile & Identity */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Building2 size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                  {lang === 'ar' ? 'بيانات السنتر والتواصل الرسمي' : 'Center Identity & Contacts'}
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                  {lang === 'ar' ? 'المعلومات المعروضة للطلاب وأولياء الأمور وعلى المنظومة' : 'Information visible to students & guardians'}
+                </p>
+              </div>
+            </div>
 
-          <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
                   {lang === 'ar' ? 'اسم السنتر / الأكاديمية' : 'Center Name'}
@@ -357,14 +388,15 @@ export const CenterSettingsView = () => {
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px'
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'رقم الهاتف الرئيسي' : 'Primary Phone'}
+                  {lang === 'ar' ? 'رقم الهاتف الرئيسي وخدمة العملاء' : 'Primary Phone & Support'}
                 </label>
                 <input
                   type="text"
@@ -378,7 +410,30 @@ export const CenterSettingsView = () => {
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px'
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'العنوان والمقر (الفرع الرئيسي)' : 'Branch Location & Address'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={centerAddress}
+                  onChange={(e) => setCenterAddress(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -399,14 +454,49 @@ export const CenterSettingsView = () => {
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px'
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
+            </div>
+          </div>
 
+          {/* SECTION 2: Gate & Attendance Policies (Competitor Edge) */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <ShieldCheck size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                  {lang === 'ar' ? 'سياسات بوابة الحضور والباركود والواتساب' : 'Gate Attendance & WhatsApp Automation'}
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                  {lang === 'ar' ? 'قواعد مسح الباركود، رصد الغياب، والتنبيهات المباشرة لأولياء الأمور' : 'QR gate check-in rules and parent alerting'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'مهلة التأخير المسموحة قبل تسجيل الغياب (بالدقائق)' : 'Grace Period (Minutes)'}
+                  {lang === 'ar' ? 'مهلة التأخير المسموحة قبل احتساب الغياب (بالدقائق)' : 'Grace Period (Minutes)'}
                 </label>
                 <input
                   type="number"
@@ -422,17 +512,139 @@ export const CenterSettingsView = () => {
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px'
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
             </div>
 
-            {/* Payment Methods */}
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                {lang === 'ar' ? 'طرق الدفع والتحصيل المعتمدة في السنتر:' : 'Approved Payment Methods:'}
+            {/* Automation Toggles */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {[
+                {
+                  id: 'whatsappAlerts',
+                  titleAr: 'إرسال إشعار WhatsApp فوري لولي الأمر عند حضور أو غياب الطالب',
+                  titleEn: 'Instant WhatsApp attendance alert to parent upon check-in/absence',
+                  descAr: 'يتم إرسال رسالة آلية بمجرد مسح كود الطالب بالبوابة تذكر موعد الدخول واسم الحصة والقاعة.',
+                  value: whatsappAlerts,
+                  setter: setWhatsappAlerts
+                },
+                {
+                  id: 'unpaidGateWarning',
+                  titleAr: 'تنبيه مسؤولي البوابة فوراً عند مسح كود طالب غير مسدد أو عليه متأخرات',
+                  titleEn: 'Immediate gate alert when scanning student with overdue dues',
+                  descAr: 'يصدر جهاز المسح نغمة تحذيرية لإرشاد الطالب إلى شباك الاستقبال لتسوية الرسوم قبل دخول القاعة.',
+                  value: unpaidGateWarning,
+                  setter: setUnpaidGateWarning
+                },
+                {
+                  id: 'preventDuplicateCheckIn',
+                  titleAr: 'منع تسجيل الحضور المكرر لنفس الحصة تلقائياً',
+                  titleEn: 'Prevent duplicate check-ins for the same class session',
+                  descAr: 'حظر إعادة تمرير كارت الطالب أكثر من مرة في نفس الحصة لمنع التلاعب.',
+                  value: preventDuplicateCheckIn,
+                  setter: setPreventDuplicateCheckIn
+                },
+                {
+                  id: 'allowTrialSessions',
+                  titleAr: 'السماح بحضور حصص تجريبية مجانية للطلاب الجدد (Free Trial)',
+                  titleEn: 'Allow free trial sessions for prospective new students',
+                  descAr: 'إمكانية إصدار تصريح دخول تجريبي لمرة واحدة لطالب جديد بتنسيق مسبق مع المدرس.',
+                  value: allowTrialSessions,
+                  setter: setAllowTrialSessions
+                }
+              ].map(toggle => (
+                <div
+                  key={toggle.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-subtle)',
+                    gap: '14px'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                      {toggle.titleAr}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {toggle.descAr}
+                    </div>
+                  </div>
+
+                  {/* Clean Modern Primary Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => toggle.setter(v => !v)}
+                    style={{
+                      width: '44px',
+                      height: '24px',
+                      borderRadius: '9999px',
+                      backgroundColor: toggle.value ? 'var(--primary, #1588C7)' : 'var(--border-medium, #CBD5E1)',
+                      border: 'none',
+                      padding: '2px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: toggle.value ? 'flex-end' : 'flex-start',
+                      transition: 'all 0.2s ease',
+                      flexShrink: 0
+                    }}
+                  >
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SECTION 3: Financial Policies & Sibling Discounts */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CreditCard size={18} />
               </div>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                  {lang === 'ar' ? 'السياسات المالية وخصومات الإخوة' : 'Financial Policies & Cash Drawer'}
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                  {lang === 'ar' ? 'طرق الدفع، خصم الإخوة، وإغلاق الخزينة اليومي' : 'Accepted payment channels, sibling discounts, and drawer closing'}
+                </p>
+              </div>
+            </div>
+
+            {/* Approved Payment Methods */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>
+                {lang === 'ar' ? 'طرق الدفع والتحصيل المعتمدة في السنتر:' : 'Approved Payment Methods:'}
+              </label>
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 {[
                   { key: 'cash', label: 'دفع نقدي بالاستقبال (Cash Desk)' },
@@ -445,6 +657,7 @@ export const CenterSettingsView = () => {
                       type="checkbox"
                       checked={paymentMethods[item.key]}
                       onChange={(e) => setPaymentMethods(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                      style={{ accentColor: 'var(--primary)' }}
                     />
                     <span>{item.label}</span>
                   </label>
@@ -452,46 +665,248 @@ export const CenterSettingsView = () => {
               </div>
             </div>
 
-            {saveSettingsSuccess && (
-              <div style={{
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                border: '1px solid rgba(22, 163, 74, 0.25)',
-                color: 'var(--success)',
-                fontSize: '13px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <CheckCircle2 size={16} />
-                <span>{lang === 'ar' ? 'تم حفظ وتحديث إعدادات السنتر بنجاح.' : 'Settings updated successfully.'}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '18px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'نسبة خصم الإخوة المعتمدة (%)' : 'Sibling Discount Percentage (%)'}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={siblingDiscountPercent}
+                  onChange={(e) => setSiblingDiscountPercent(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
+                  }}
+                />
               </div>
-            )}
 
-            <button
-              type="submit"
-              style={{
-                alignSelf: 'flex-start',
-                padding: '12px 24px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'سياسة استرداد الحصص الملغاة أو الغياب بعذر' : 'Refund & Cancellation Policy'}
+                </label>
+                <select
+                  value={refundPolicy}
+                  onChange={(e) => setRefundPolicy(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="credit">{lang === 'ar' ? 'إضافة رصيد تلقائي لمحفظة الطالب بالسنتر' : 'Credit to Student Center Wallet'}</option>
+                  <option value="replacement">{lang === 'ar' ? 'حضور حصة بديلة في نفس الأسبوع مجاناً' : 'Free Replacement Class in Same Week'}</option>
+                  <option value="cash">{lang === 'ar' ? 'استرداد نقدي من الخزينة' : 'Cash Refund at Reception Desk'}</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Mandatory Cash Close Toggle */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-subtle)'
+            }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'الإغلاق الإجباري لدرج الخزينة اليومي بنهاية الوردية' : 'Mandatory daily cash drawer reconciliation'}
+                </div>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {lang === 'ar' ? 'مطابقة المبالغ المحصلة نقدياً مع تقارير السيستم قبل تسجيل خروج الكاشير.' : 'Cashiers must reconcile physical cash with system ledger before clock-out.'}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMandatoryCashClose(v => !v)}
+                style={{
+                  width: '44px',
+                  height: '24px',
+                  borderRadius: '9999px',
+                  backgroundColor: mandatoryCashClose ? 'var(--primary, #1588C7)' : 'var(--border-medium, #CBD5E1)',
+                  border: 'none',
+                  padding: '2px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: mandatoryCashClose ? 'flex-end' : 'flex-start',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0
+                }}
+              >
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                }} />
+              </button>
+            </div>
+          </div>
+
+          {/* SECTION 4: Receipt & Student Card Customization */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
+                color: 'var(--primary)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Save size={15} />
-              <span>{lang === 'ar' ? 'حفظ السياسات والإعدادات' : 'Save Policies'}</span>
-            </button>
-          </form>
-        </div>
+                justifyContent: 'center'
+              }}>
+                <FileText size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                  {lang === 'ar' ? 'تخصيص الإيصالات وكروت الطلاب المطبوعة' : 'Receipts & Student ID Card Printing'}
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                  {lang === 'ar' ? 'النصوص التوجيهية وتذييل فواتير الدفع المطبوعة للطلاب' : 'Footer notes and QR codes printed on student receipts'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'ملاحظة تذييل الإيصال (Receipt Footer Note)' : 'Receipt Footer Note'}
+                </label>
+                <input
+                  type="text"
+                  value={receiptFooterNote}
+                  onChange={(e) => setReceiptFooterNote(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    {lang === 'ar' ? 'طباعة رمز QR للتحقق السريع ومطابقة السداد على الإيصال' : 'Print verification QR code on receipts'}
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    {lang === 'ar' ? 'يمكّن موظف البوابة من مسح إيصال الطالب في ثانية للتأكد من صحة الدفع.' : 'Allows gate staff to scan printed receipt for instant validation.'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowQrOnReceipts(v => !v)}
+                  style={{
+                    width: '44px',
+                    height: '24px',
+                    borderRadius: '9999px',
+                    backgroundColor: showQrOnReceipts ? 'var(--primary, #1588C7)' : 'var(--border-medium, #CBD5E1)',
+                    border: 'none',
+                    padding: '2px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: showQrOnReceipts ? 'flex-end' : 'flex-start',
+                    transition: 'all 0.2s ease',
+                    flexShrink: 0
+                  }}
+                >
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                  }} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Success Message Banner */}
+          {saveSettingsSuccess && (
+            <div style={{
+              padding: '14px 18px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'rgba(22, 163, 74, 0.1)',
+              border: '1px solid rgba(22, 163, 74, 0.25)',
+              color: 'var(--color-success, #16A34A)',
+              fontSize: '13.5px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <CheckCircle2 size={18} />
+              <span>{lang === 'ar' ? 'تم حفظ وتحديث كافة سياسات وإعدادات السنتر بنجاح.' : 'Center policies saved successfully.'}</span>
+            </div>
+          )}
+
+          {/* Save Button */}
+          <button
+            type="submit"
+            style={{
+              alignSelf: 'flex-start',
+              padding: '13px 28px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '13.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 14px rgba(21, 136, 199, 0.3)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Save size={16} />
+            <span>{lang === 'ar' ? 'حفظ السياسات والإعدادات' : 'Save Policies'}</span>
+          </button>
+        </form>
       )}
 
       {/* TAB 2: Task Management (Feature 74) */}
@@ -512,13 +927,10 @@ export const CenterSettingsView = () => {
             <form onSubmit={handleAddTask} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Multi-line Task Title / Description */}
               <div>
-                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'تفاصيل المهمة (يقبل أسطر متعددة)' : 'Task Description (Multi-line supported)'}
-                </label>
                 <textarea
                   required
                   rows={3}
-                  placeholder={lang === 'ar' ? 'اكتب تفاصيل المهمة والتعليمات هنا (اضغط Enter لكتابة أسطر جديدة)...' : 'Write task details and bullet points (press Enter for new lines)...'}
+                  placeholder={lang === 'ar' ? 'اكتب تفاصيل المهمة هنا...' : 'Write task details here...'}
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                   style={{
