@@ -325,8 +325,8 @@ export const PricingPage = () => {
       {/* ══════════════════ ROLE INTRO BANNER ══════════════════ */}
       {selectedRole === 'center' && (
         <div style={{
-          backgroundColor: 'rgba(139, 92, 246, 0.08)',
-          border: '1px solid rgba(139, 92, 246, 0.25)',
+          backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.08))',
+          border: '1px solid var(--primary-light, rgba(21, 136, 199, 0.25))',
           borderRadius: '16px',
           padding: '18px 24px',
           maxWidth: '820px',
@@ -336,7 +336,7 @@ export const PricingPage = () => {
           gap: '14px',
           textAlign: isRtl ? 'right' : 'left'
         }}>
-          <Building2 size={28} color="#8B5CF6" style={{ flexShrink: 0 }} />
+          <Building2 size={28} color="var(--primary, #1588C7)" style={{ flexShrink: 0 }} />
           <div>
             <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px' }}>
               {lang === 'ar' ? 'تقسيمة باقات السنتر التعليمي (مجاني — بلس 200 ج.م — برو 400 ج.م)' : 'Learning Center Pricing Tiers (Free — Plus 200 EGP — Pro 400 EGP)'}

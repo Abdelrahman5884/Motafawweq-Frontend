@@ -1,6 +1,7 @@
 /**
  * Motafawweq — Center Subscription Plans and Mock Data
  * Single Source of Truth for Center Pricing & Billing
+ * Strictly adheres to Motafawweq unified brand palette (#1588C7)
  */
 
 export const CENTER_SUBSCRIPTION_PLANS = [
@@ -42,7 +43,7 @@ export const CENTER_SUBSCRIPTION_PLANS = [
     limitationsAr: [
       'غير شاملة الحضور السريع بمسح الباركود وQR Code',
       'غير شاملة إشعارات WhatsApp التلقائية لأولياء الأمور',
-      'غير شاملة نظام تسوية نسب الأرباح المعقدة والخزينة',
+      'غير شاملة نظام تسوية نسب الأرباح والخزينة',
       'علامة متفوق المائية على الكروت والإيصالات'
     ],
     limitationsEn: [
@@ -105,7 +106,7 @@ export const CENTER_SUBSCRIPTION_PLANS = [
       'Excludes unlimited automated WhatsApp parent messages',
       'Excludes custom domain and full white-label suite'
     ],
-    color: '#0284C7',
+    color: '#1588C7',
     popular: false
   },
   {
@@ -114,14 +115,14 @@ export const CENTER_SUBSCRIPTION_PLANS = [
     nameEn: 'Center Pro',
     tier: 'pro',
     pricing: {
-      monthly: { priceEgp: 400, originalPriceEgp: null, periodAr: 'شهرياً', periodEn: 'per month', badgeAr: 'الأكثر اختياراً للسناتر الكبرى', badgeEn: 'Most Popular for Centers' },
-      term: { priceEgp: 1600, originalPriceEgp: 2000, periodAr: 'للترم بالكامل (5 شهور)', periodEn: 'per semester (5 mo)', badgeAr: 'الأكثر طلباً (وفر 400 ج.م)', badgeEn: 'Most Popular (Save 400 EGP)' },
+      monthly: { priceEgp: 400, originalPriceEgp: null, periodAr: 'شهرياً', periodEn: 'per month', badgeAr: 'الأكثر طلباً للسناتر الكبرى', badgeEn: 'Most Popular for Centers' },
+      term: { priceEgp: 1600, originalPriceEgp: 2000, periodAr: 'للترم بالكامل (5 شهور)', periodEn: 'per semester (5 mo)', badgeAr: 'الأكثر اختياراً (وفر 400 ج.م)', badgeEn: 'Most Popular (Save 400 EGP)' },
       annual: { priceEgp: 3000, originalPriceEgp: 4000, periodAr: 'للعام كاملاً (10 شهور)', periodEn: 'per full year (10 mo)', badgeAr: 'القيمة القصوى (وفر 1000 ج.م)', badgeEn: 'Ultimate Value (Save 1000 EGP)' }
     },
     priceEgp: 400,
     periodAr: 'شهرياً',
     periodEn: 'per month',
-    badgeAr: 'الأكثر اختياراً للسناتر الكبرى',
+    badgeAr: 'الأكثر طلباً للسناتر الكبرى',
     badgeEn: 'Most Popular for Centers',
     taglineAr: 'الحل الشامل المتكامل: مستخدمين غير محدودين وهوية خاصة ودعم VIP',
     taglineEn: 'The ultimate enterprise solution: unlimited users & white-label',
@@ -151,7 +152,7 @@ export const CENTER_SUBSCRIPTION_PLANS = [
     ],
     limitationsAr: [],
     limitationsEn: [],
-    color: '#8B5CF6',
+    color: '#1588C7',
     popular: true
   }
 ];

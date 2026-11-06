@@ -141,6 +141,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             group: lang === 'ar' ? 'الفروع وشبكة المعلمين' : 'Branches & Teachers',
             items: [
               { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'إدارة الفروع وشبكة المعلمين' : 'Branches & Teachers', icon: Layers },
+              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الاشتراك وباقات السنتر' : 'Plans & Pricing', icon: CreditCard, badge: lang === 'ar' ? 'الأسعار' : 'Pricing' },
               { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'إعدادات المنظومة والمهام' : 'Settings & Tasks', icon: Settings },
             ]
           }

@@ -632,7 +632,7 @@ export const CenterSettingsView = () => {
                   key={plan.id}
                   style={{
                     backgroundColor: 'var(--bg-surface)',
-                    border: isCurrent ? '2px solid var(--primary)' : (plan.popular ? '2px solid #8B5CF6' : '1px solid var(--border-subtle)'),
+                    border: isCurrent ? '2px solid var(--primary)' : (plan.popular ? '2px solid var(--primary-light, #5CB6DB)' : '1px solid var(--border-subtle)'),
                     borderRadius: '18px',
                     padding: '24px',
                     display: 'flex',
@@ -738,7 +738,7 @@ export const CenterSettingsView = () => {
                       width: '100%',
                       padding: '11px',
                       borderRadius: '10px',
-                      backgroundColor: isCurrent ? 'var(--bg-subtle)' : (plan.popular ? '#8B5CF6' : 'var(--primary)'),
+                      backgroundColor: isCurrent ? 'var(--bg-subtle)' : 'var(--primary)',
                       color: isCurrent ? 'var(--text-muted)' : '#FFFFFF',
                       border: 'none',
                       fontSize: '13px',
