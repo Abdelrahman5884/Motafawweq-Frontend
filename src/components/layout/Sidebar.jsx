@@ -129,8 +129,8 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
           { id: 'parent-attendance', path: '/parent/dashboard?tab=attendance', label: lang === 'ar' ? 'سجل حضور السنتر' : 'Center Attendance', icon: Calendar },
           { id: 'parent-exams', path: '/parent/dashboard?tab=exams', label: lang === 'ar' ? 'الدرجات والامتحانات' : 'Exam Scorecards', icon: Award },
           { id: 'parent-homework', path: '/parent/dashboard?tab=homework', label: lang === 'ar' ? 'الواجبات والتسليمات' : 'Homework Tracker', icon: FileText },
-          { id: 'parent-diagnostics', path: '/parent/dashboard?tab=diagnostics', label: lang === 'ar' ? 'نقاط الضعف والتوجيه' : 'Weak Area Guidance', icon: Target },
           { id: 'parent-financials', path: '/parent/dashboard?tab=financials', label: lang === 'ar' ? 'المصروفات والاشتراكات' : 'Tuition & Fees', icon: CreditCard },
+          { id: 'parent-settings', path: '/parent/dashboard?tab=settings', label: lang === 'ar' ? 'الإعدادات والملف الشخصي' : 'Settings', icon: Settings },
         ];
       case 'center':
         return [

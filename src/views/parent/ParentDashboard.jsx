@@ -12,15 +12,12 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  AlertCircle,
   BookOpen,
   FileText,
   Award,
-  TrendingUp,
   CreditCard,
   Phone,
   ShieldCheck,
-  Target,
   X,
   Send,
   Bell,
@@ -28,7 +25,10 @@ import {
   MessageSquare,
   QrCode,
   Download,
-  AlertTriangle
+  Settings,
+  User,
+  Save,
+  Lock
 } from 'lucide-react';
 
 export const ParentDashboard = () => {
@@ -60,6 +60,38 @@ export const ParentDashboard = () => {
   const [contactSubject, setContactSubject] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [contactSuccessToast, setContactSuccessToast] = useState('');
+
+  // ══════════════════ PARENT SETTINGS STATE ══════════════════
+  const [parentName, setParentName] = useState('طارق عبد الرحمن القاضي');
+  const [parentPhone, setParentPhone] = useState('01001234567');
+  const [parentEmergencyPhone, setParentEmergencyPhone] = useState('01122334455');
+  const [parentEmail, setParentEmail] = useState('tarek.elkady@motafawweq.me');
+
+  const [notifyGateCheckIn, setNotifyGateCheckIn] = useState(true);
+  const [notifyAbsenceLate, setNotifyAbsenceLate] = useState(true);
+  const [notifyExamResults, setNotifyExamResults] = useState(true);
+  const [notifyHomeworkDue, setNotifyHomeworkDue] = useState(true);
+  const [notifyTuitionRenewal, setNotifyTuitionRenewal] = useState(true);
+
+  const [settingsSavedToast, setSettingsSavedToast] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordSuccessToast, setPasswordSuccessToast] = useState('');
+
+  const handleSaveSettings = (e) => {
+    e.preventDefault();
+    setSettingsSavedToast(lang === 'ar' ? 'تم حفظ وتحديث إعدادات ولي الأمر بنجاح.' : 'Settings saved successfully.');
+    setTimeout(() => setSettingsSavedToast(''), 4000);
+  };
+
+  const handleChangePassword = (e) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) return;
+    setPasswordSuccessToast(lang === 'ar' ? 'تم تحديث كلمة المرور وتأمين الحساب بنجاح.' : 'Password updated successfully.');
+    setCurrentPassword('');
+    setNewPassword('');
+    setTimeout(() => setPasswordSuccessToast(''), 4000);
+  };
 
   // ══════════════════ STUDENTS DATA (LINKED DIRECTLY TO PLATFORM DATA) ══════════════════
   const childrenData = {
@@ -336,26 +368,6 @@ export const ParentDashboard = () => {
         }
       ],
 
-      // Weak Points & AI Insights
-      weakAreas: [
-        {
-          id: 'weak-1',
-          subjectAr: 'الأحياء',
-          topicAr: 'دورة كالفن والتفاعلات اللاضوئية في الظلام التام',
-          mistakeAr: 'الاعتقاد بأن دورة كالفن تستمر بالعمل طوال 48 ساعة في الظلام التام دون توقف.',
-          correctionAr: 'الصحيح أنها تتوقف سريعاً بمجرد نفاد مخزون مركبات الطاقة التثبيتية الناتجة في تفاعلات الضوء.',
-          adviceAr: 'يرجى تذكير الطالب بمراجعة مخطط تفاعلات الستروما بالملخص الذكي قبل امتحان نصف الفصل.'
-        },
-        {
-          id: 'weak-2',
-          subjectAr: 'الفيزياء',
-          topicAr: 'إشارات فروق الجهد وقوة البطاريات بقانون كيرشوف الثاني',
-          mistakeAr: 'الخلط في إشارة القوة الدافعة الكهربية عند الدخول من القطب الموجب للبطارية في المسار المفترض.',
-          correctionAr: 'عند المرور في البطارية من القطب الموجب إلى السالب تؤخذ القوة الدافعة بإشارة سالبة طبقاً لاتجاه المسار.',
-          adviceAr: 'نوصي بحل مسألتين إضافيتين على الدوائر متعددة البطاريات لتثبيت الفكرة.'
-        }
-      ],
-
       // Financials & Invoices
       invoices: [
         {
@@ -519,17 +531,6 @@ export const ParentDashboard = () => {
         }
       ],
 
-      weakAreas: [
-        {
-          id: 'weak-s1',
-          subjectAr: 'الرياضيات',
-          topicAr: 'تبسيط الكسور الجبرية السالبة',
-          mistakeAr: 'نسيان تغيير إشارة البسط عند ضرب طرفي المعادلة في عدد سالب.',
-          correctionAr: 'ضرب طرفي المتباينة أو المعادلة في عدد سالب يغير إشارة التباين مباشرة.',
-          adviceAr: 'حل 3 تمارين إضافية من كتاب المدرسة قبل الحصة القادمة لتثبيت القاعدة.'
-        }
-      ],
-
       invoices: [
         {
           id: 'INV-2026-S01',
@@ -588,15 +589,15 @@ export const ParentDashboard = () => {
     setTimeout(() => setContactSuccessToast(''), 5000);
   };
 
-  // Tab Definitions
+  // Tab Definitions (Removed Weak Areas, Added Settings)
   const tabs = [
     { id: 'overview', labelAr: 'نظرة عامة والملخص', labelEn: 'Overview', icon: Users },
     { id: 'courses', labelAr: 'المقررات والدروس', labelEn: 'Enrolled Courses', icon: BookOpen },
     { id: 'attendance', labelAr: 'سجل حضور السنتر', labelEn: 'Gate Attendance', icon: Calendar },
     { id: 'exams', labelAr: 'الامتحانات والدرجات', labelEn: 'Exam Scorecards', icon: Award },
     { id: 'homework', labelAr: 'الواجبات والتسليمات', labelEn: 'Homework Tracker', icon: FileText },
-    { id: 'diagnostics', labelAr: 'نقاط الضعف والتوجيه', labelEn: 'Weak Areas & AI', icon: Target },
-    { id: 'financials', labelAr: 'المصروفات والاشتراكات', labelEn: 'Tuition & Fees', icon: CreditCard }
+    { id: 'financials', labelAr: 'المصروفات والاشتراكات', labelEn: 'Tuition & Fees', icon: CreditCard },
+    { id: 'settings', labelAr: 'الإعدادات والملف الشخصي', labelEn: 'Settings & Profile', icon: Settings }
   ];
 
   return (
@@ -1307,102 +1308,7 @@ export const ParentDashboard = () => {
         </div>
       )}
 
-      {/* ══════════════════ TAB 6: WEAK AREAS & AI GUIDANCE ══════════════════ */}
-      {activeTab === 'diagnostics' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <Target size={20} color="var(--primary)" />
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-              {lang === 'ar' ? 'تقرير التدخل المبكر وكشف نقاط الضعف ومصائد الامتحانات' : 'Early Intervention & Knowledge Gap Diagnostics'}
-            </h3>
-          </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: 1.5 }}>
-            {lang === 'ar'
-              ? 'تحليل استباقي مستخلص من أخطاء الطالب في الكويزات الدورية مع توجيهات عملية لولي الأمر لمساعدة ابنه بالمنزل قبل الاختبارات الرسمية.'
-              : 'Proactive diagnostic insights generated from recent quizzes with concrete guidance for parents.'}
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {activeChild.weakAreas.map(item => (
-              <div
-                key={item.id}
-                style={{
-                  padding: '20px',
-                  borderRadius: 'var(--radius-lg)',
-                  backgroundColor: 'var(--bg-app)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '2px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                    color: 'var(--color-danger, #DC2626)',
-                    fontWeight: '800'
-                  }}>
-                    {item.subjectAr}
-                  </span>
-                  <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                    {item.topicAr}
-                  </h4>
-                </div>
-
-                <div style={{
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(220, 38, 38, 0.05)',
-                  border: '1px solid rgba(220, 38, 38, 0.15)',
-                  fontSize: '12.5px',
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.5
-                }}>
-                  <strong style={{ color: 'var(--color-danger, #DC2626)' }}>{lang === 'ar' ? 'الخطأ المتكرر:' : 'Observed misconception:'} </strong>
-                  {item.mistakeAr}
-                </div>
-
-                <div style={{
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(22, 163, 74, 0.06)',
-                  border: '1px solid rgba(22, 163, 74, 0.18)',
-                  fontSize: '12.5px',
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.5
-                }}>
-                  <strong style={{ color: 'var(--color-success, #16A34A)' }}>{lang === 'ar' ? 'التصحيح العلمي:' : 'Correct concept:'} </strong>
-                  {item.correctionAr}
-                </div>
-
-                <div style={{
-                  fontSize: '12.5px',
-                  color: 'var(--primary)',
-                  fontWeight: '700',
-                  marginTop: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <ShieldCheck size={15} />
-                  <span>{lang === 'ar' ? `نصيحة المعلم لولي الأمر: ${item.adviceAr}` : `Teacher recommendation: ${item.adviceAr}`}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════ TAB 7: FINANCIALS & INVOICES ══════════════════ */}
+      {/* ══════════════════ TAB 6: FINANCIALS & INVOICES ══════════════════ */}
       {activeTab === 'financials' && (
         <div style={{
           backgroundColor: 'var(--bg-surface)',
@@ -1485,6 +1391,468 @@ export const ParentDashboard = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════ TAB 7: SETTINGS & PROFILE ══════════════════ */}
+      {activeTab === 'settings' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Section 1: Parent Profile & Contact Info */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <User size={18} color="var(--primary)" />
+              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                {lang === 'ar' ? 'بيانات ولي الأمر والاتصال' : 'Parent Profile & Contact Information'}
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
+              {lang === 'ar'
+                ? 'تُستخدم هذه البيانات للتواصل المباشر مع إدارة السنتر والمعلمين وإرسال التقارير الشهرية.'
+                : 'Used by center administration and teachers to reach you and dispatch reports.'}
+            </p>
+
+            <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
+                    {lang === 'ar' ? 'اسم ولي الأمر بالكامل' : 'Full Name'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={parentName}
+                    onChange={(e) => setParentName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '11px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
+                    {lang === 'ar' ? 'رقم الهاتف الأساسي (تلقي الرسائل)' : 'Primary Mobile Number'}
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={parentPhone}
+                    onChange={(e) => setParentPhone(e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '11px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
+                    {lang === 'ar' ? 'رقم هاتف إضافي أو للطوارئ' : 'Secondary Emergency Number'}
+                  </label>
+                  <input
+                    type="tel"
+                    value={parentEmergencyPhone}
+                    onChange={(e) => setParentEmergencyPhone(e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '11px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
+                    {lang === 'ar' ? 'البريد الإلكتروني للتقارير' : 'Email for Reports'}
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={parentEmail}
+                    onChange={(e) => setParentEmail(e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '11px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {settingsSavedToast && (
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                  border: '1px solid rgba(22, 163, 74, 0.25)',
+                  color: 'var(--success, #16A34A)',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <CheckCircle2 size={16} />
+                  <span>{settingsSavedToast}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                style={{
+                  alignSelf: 'flex-start',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 22px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                <Save size={15} />
+                <span>{lang === 'ar' ? 'حفظ تعديلات الملف الشخصي' : 'Save Profile'}</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Section 2: Notification & Alert Preferences */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <Bell size={18} color="var(--primary)" />
+              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                {lang === 'ar' ? 'تخصيص الإشعارات والتنبيهات المباشرة' : 'Instant Alert & Notification Preferences'}
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
+              {lang === 'ar'
+                ? 'تحكم في نوعية الإشعارات والتنبيهات الفورية التي تصلك على هاتفك عند حركة الطالب.'
+                : 'Configure automated push and SMS alerts for gate entries, grades, and sessions.'}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {[
+                {
+                  key: 'gate',
+                  titleAr: 'إشعار فوري عند مسح كود الطالب بالبوابة (دخول وخروج السنتر)',
+                  titleEn: 'Instant gate barcode check-in and check-out notification',
+                  descAr: 'يصلك إشعار بالوقت المحدد واسم القاعة فور تمرير كارت الطالب بالبوابة.',
+                  descEn: 'Receive a timestamped alert the second student card is scanned at center gate.',
+                  value: notifyGateCheckIn,
+                  setter: setNotifyGateCheckIn
+                },
+                {
+                  key: 'absence',
+                  titleAr: 'تنبيه فوري في حال تأخر الطالب أو غيابه عن موعد الحصة',
+                  titleEn: 'Immediate warning if student is absent or late to class',
+                  descAr: 'إرسال تنبيه عاجل لولي الأمر إذا لم يمر الطالب من البوابة بعد بدء الحصة بربع ساعة.',
+                  descEn: 'Send urgent alert if student does not arrive 15 minutes after session start.',
+                  value: notifyAbsenceLate,
+                  setter: setNotifyAbsenceLate
+                },
+                {
+                  key: 'exams',
+                  titleAr: 'إشعار لحظي فور اعتماد ورصد نتائج الامتحانات والكويزات',
+                  titleEn: 'Instant scorecard alert as soon as test grades are published',
+                  descAr: 'عرض الدرجة التي حققها الطالب والترتيب على الدفعة فور انتهاء تصحيح المعلم.',
+                  descEn: 'Direct scorecard notification with grade and cohort ranking after correction.',
+                  value: notifyExamResults,
+                  setter: setNotifyExamResults
+                },
+                {
+                  key: 'homework',
+                  titleAr: 'تذكير ذكي بمواعيد تسليم الواجبات والتكليفات المدرسية',
+                  titleEn: 'Smart reminders before homework submission deadlines',
+                  descAr: 'تنبيه قبل انتهاء مهلة تسليم الواجب بـ 12 ساعة لمتابعة إنجاز الطالب.',
+                  descEn: 'Gentle notification 12 hours prior to deadline to ensure homework completion.',
+                  value: notifyHomeworkDue,
+                  setter: setNotifyHomeworkDue
+                },
+                {
+                  key: 'tuition',
+                  titleAr: 'إشعارات تجديد الاشتراكات الشهرية وتأكيد سداد الإيصالات',
+                  titleEn: 'Monthly tuition renewal reminders and payment receipt confirmations',
+                  descAr: 'تذكير قبل بداية كل شهر جديد وتأكيد فوري بعد استلام الخزينة للاشتراك.',
+                  descEn: 'Monthly fee reminders and immediate digital receipt verification upon payment.',
+                  value: notifyTuitionRenewal,
+                  setter: setNotifyTuitionRenewal
+                }
+              ].map(item => (
+                <label
+                  key={item.key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    gap: '16px',
+                    padding: '14px 18px',
+                    borderRadius: 'var(--radius-lg)',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-subtle)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {lang === 'ar' ? item.titleAr : item.titleEn}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px', lineHeight: 1.4 }}>
+                      {lang === 'ar' ? item.descAr : item.descEn}
+                    </div>
+                  </div>
+
+                  <input
+                    type="checkbox"
+                    checked={item.value}
+                    onChange={(e) => item.setter(e.target.checked)}
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      cursor: 'pointer',
+                      marginTop: '3px',
+                      accentColor: 'var(--primary)'
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 3: Linked Students Management */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={18} color="var(--primary)" />
+                  <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                    {lang === 'ar' ? 'إدارة الأبناء المربوطين بالحساب' : 'Linked Student Profiles'}
+                  </h3>
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                  {lang === 'ar'
+                    ? 'يمكنك إضافة أكثر من ابن لمتابعة مسارهم الدراسي من حساب موحد.'
+                    : 'Manage multiple children profiles from a single unified parent dashboard.'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowLinkModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>{lang === 'ar' ? 'ربط طالب جديد +' : 'Link Student +'}</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              {childrenList.map(ch => (
+                <div
+                  key={ch.id}
+                  style={{
+                    padding: '16px',
+                    borderRadius: 'var(--radius-lg)',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <img
+                      src={ch.avatar}
+                      alt=""
+                      style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        {lang === 'ar' ? ch.nameAr : ch.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {lang === 'ar' ? ch.gradeAr : ch.grade}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    padding: '3px 8px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                    color: 'var(--color-success, #16A34A)'
+                  }}>
+                    {lang === 'ar' ? 'نشط ومربوط' : 'Linked'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 4: Password & Security */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px solid var(--border-subtle)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <ShieldCheck size={18} color="var(--primary)" />
+              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                {lang === 'ar' ? 'أمان الحساب وتغيير كلمة المرور' : 'Account Security & Password'}
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
+              {lang === 'ar'
+                ? 'يُنصح باستخدام كلمة مرور قوية تحتوي على أرقام وحروف لتأمين حساب المتابعة.'
+                : 'Ensure a secure password to protect your family monitoring portal.'}
+            </p>
+
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '500px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'كلمة المرور الحالية' : 'Current Password'}
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px'
+                  }}
+                />
+              </div>
+
+              {passwordSuccessToast && (
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                  border: '1px solid rgba(22, 163, 74, 0.25)',
+                  color: 'var(--success, #16A34A)',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <CheckCircle2 size={16} />
+                  <span>{passwordSuccessToast}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                style={{
+                  alignSelf: 'flex-start',
+                  padding: '10px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'تحديث كلمة المرور' : 'Update Password'}
+              </button>
+            </form>
           </div>
         </div>
       )}

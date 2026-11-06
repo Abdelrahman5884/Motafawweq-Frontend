@@ -694,25 +694,25 @@ export const FeaturesPage = () => {
     },
     {
       role: 'parent',
-      categoryAr: 'التدخل المبكر',
-      categoryEn: 'Early Intervention',
-      titleAr: 'كشف نقاط الضعف والتوصيات الإرشادية',
-      titleEn: 'Early Weak Area Diagnostics & Study Guidance',
-      descAr: 'تقرير استباقي يوضح لولي الأمر الدروس والمفاهيم التي يواجه فيها الطالب صعوبة حقيقية، مع نصائح عملية لمساعدته على تخطيها قبل الامتحانات النهائية.',
-      descEn: 'Proactive diagnostic briefs pinpointing specific syllabus topics where the student struggles, with actionable guidance before finals.',
-      icon: Target,
-      color: '#F59E0B',
-      route: '/parent/dashboard',
+      categoryAr: 'الإعدادات والتحكم',
+      categoryEn: 'Parent Settings',
+      titleAr: 'إعدادات المنظومة وتخصيص الإشعارات',
+      titleEn: 'Notification Settings & Profile Preferences',
+      descAr: 'تحكم كامل في إعدادات تنبيهات واتساب، قنوات التواصل، وإدارة ربط حسابات الأبناء وأرقام هواتف الطوارئ لضمان متابعة مريحة ودقيقة.',
+      descEn: 'Customize notification channels, WhatsApp gate alerts, emergency contact numbers, and linked student profiles effortlessly.',
+      icon: Settings,
+      color: '#1588C7',
+      route: '/parent/dashboard?tab=settings',
       targetRole: 'parent',
       highlightsAr: [
-        'تحديد مبكر لأي قصور قبل تراكم أجزاء المنهج',
-        'توصيات مشتركة بين المعلم والذكاء الاصطناعي للمساعدة',
-        'متابعة تحسن الطالب عند إعادة التدريب على الأخطاء'
+        'تخصيص تنبيهات البوابات ومسح الباركود على هاتفك',
+        'إدارة سهلة لربط الأبناء في مختلف المراحل الدراسية',
+        'تحديث بيانات الاتصال وأرقام الطوارئ بضغطة زر'
       ],
       highlightsEn: [
-        'Early identification of knowledge gaps before they compound',
-        'Joint AI and teacher recommendations for targeted support',
-        'Progress tracking as the student re-tests on weak modules'
+        'Customizable gate check-in and absence alert preferences',
+        'Seamless linking and management of multi-student accounts',
+        'Easy updates for parent emergency contacts and channels'
       ]
     },
     {
