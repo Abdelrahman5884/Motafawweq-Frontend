@@ -67,30 +67,15 @@ export const ParentDashboard = () => {
   const [parentEmergencyPhone, setParentEmergencyPhone] = useState('01122334455');
   const [parentEmail, setParentEmail] = useState('tarek.elkady@motafawweq.me');
 
-  const [notifyGateCheckIn, setNotifyGateCheckIn] = useState(true);
-  const [notifyAbsenceLate, setNotifyAbsenceLate] = useState(true);
-  const [notifyExamResults, setNotifyExamResults] = useState(true);
-  const [notifyHomeworkDue, setNotifyHomeworkDue] = useState(true);
   const [notifyTuitionRenewal, setNotifyTuitionRenewal] = useState(true);
+  const [notifyAchievementsCertificates, setNotifyAchievementsCertificates] = useState(true);
 
   const [settingsSavedToast, setSettingsSavedToast] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [passwordSuccessToast, setPasswordSuccessToast] = useState('');
 
   const handleSaveSettings = (e) => {
     e.preventDefault();
     setSettingsSavedToast(lang === 'ar' ? 'تم حفظ وتحديث إعدادات ولي الأمر بنجاح.' : 'Settings saved successfully.');
     setTimeout(() => setSettingsSavedToast(''), 4000);
-  };
-
-  const handleChangePassword = (e) => {
-    e.preventDefault();
-    if (!currentPassword || !newPassword) return;
-    setPasswordSuccessToast(lang === 'ar' ? 'تم تحديث كلمة المرور وتأمين الحساب بنجاح.' : 'Password updated successfully.');
-    setCurrentPassword('');
-    setNewPassword('');
-    setTimeout(() => setPasswordSuccessToast(''), 4000);
   };
 
   // ══════════════════ STUDENTS DATA (LINKED DIRECTLY TO PLATFORM DATA) ══════════════════
@@ -1576,42 +1561,6 @@ export const ParentDashboard = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {[
                 {
-                  key: 'gate',
-                  titleAr: 'إشعار فوري عند مسح كود الطالب بالبوابة (دخول وخروج السنتر)',
-                  titleEn: 'Instant gate barcode check-in and check-out notification',
-                  descAr: 'يصلك إشعار بالوقت المحدد واسم القاعة فور تمرير كارت الطالب بالبوابة.',
-                  descEn: 'Receive a timestamped alert the second student card is scanned at center gate.',
-                  value: notifyGateCheckIn,
-                  setter: setNotifyGateCheckIn
-                },
-                {
-                  key: 'absence',
-                  titleAr: 'تنبيه فوري في حال تأخر الطالب أو غيابه عن موعد الحصة',
-                  titleEn: 'Immediate warning if student is absent or late to class',
-                  descAr: 'إرسال تنبيه عاجل لولي الأمر إذا لم يمر الطالب من البوابة بعد بدء الحصة بربع ساعة.',
-                  descEn: 'Send urgent alert if student does not arrive 15 minutes after session start.',
-                  value: notifyAbsenceLate,
-                  setter: setNotifyAbsenceLate
-                },
-                {
-                  key: 'exams',
-                  titleAr: 'إشعار لحظي فور اعتماد ورصد نتائج الامتحانات والكويزات',
-                  titleEn: 'Instant scorecard alert as soon as test grades are published',
-                  descAr: 'عرض الدرجة التي حققها الطالب والترتيب على الدفعة فور انتهاء تصحيح المعلم.',
-                  descEn: 'Direct scorecard notification with grade and cohort ranking after correction.',
-                  value: notifyExamResults,
-                  setter: setNotifyExamResults
-                },
-                {
-                  key: 'homework',
-                  titleAr: 'تذكير ذكي بمواعيد تسليم الواجبات والتكليفات المدرسية',
-                  titleEn: 'Smart reminders before homework submission deadlines',
-                  descAr: 'تنبيه قبل انتهاء مهلة تسليم الواجب بـ 12 ساعة لمتابعة إنجاز الطالب.',
-                  descEn: 'Gentle notification 12 hours prior to deadline to ensure homework completion.',
-                  value: notifyHomeworkDue,
-                  setter: setNotifyHomeworkDue
-                },
-                {
                   key: 'tuition',
                   titleAr: 'إشعارات تجديد الاشتراكات الشهرية وتأكيد سداد الإيصالات',
                   titleEn: 'Monthly tuition renewal reminders and payment receipt confirmations',
@@ -1619,6 +1568,15 @@ export const ParentDashboard = () => {
                   descEn: 'Monthly fee reminders and immediate digital receipt verification upon payment.',
                   value: notifyTuitionRenewal,
                   setter: setNotifyTuitionRenewal
+                },
+                {
+                  key: 'trophy',
+                  titleAr: 'إشعار فوري عند فوز الطالب بكأس المتفوق أو تحقيق إنجاز أو صدور شهادة',
+                  titleEn: 'Instant alert when student wins the trophy, hits an achievement, or earns a certificate',
+                  descAr: 'تنبيه احتفالي فوري لولي الأمر فور حصول الطالب على كأس المتفوق، تحقيق إنجاز جديد، أو صدور شهادة تقدير معتمدة.',
+                  descEn: 'Immediate celebratory notification when your student wins the Top Scholar cup, achieves a milestone, or earns an honors certificate.',
+                  value: notifyAchievementsCertificates,
+                  setter: setNotifyAchievementsCertificates
                 }
               ].map(item => (
                 <label
@@ -1749,110 +1707,6 @@ export const ParentDashboard = () => {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Section 4: Password & Security */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-              <ShieldCheck size={18} color="var(--primary)" />
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'أمان الحساب وتغيير كلمة المرور' : 'Account Security & Password'}
-              </h3>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
-              {lang === 'ar'
-                ? 'يُنصح باستخدام كلمة مرور قوية تحتوي على أرقام وحروف لتأمين حساب المتابعة.'
-                : 'Ensure a secure password to protect your family monitoring portal.'}
-            </p>
-
-            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '500px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'كلمة المرور الحالية' : 'Current Password'}
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-
-              {passwordSuccessToast && (
-                <div style={{
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                  border: '1px solid rgba(22, 163, 74, 0.25)',
-                  color: 'var(--success, #16A34A)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <CheckCircle2 size={16} />
-                  <span>{passwordSuccessToast}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                style={{
-                  alignSelf: 'flex-start',
-                  padding: '10px 20px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                {lang === 'ar' ? 'تحديث كلمة المرور' : 'Update Password'}
-              </button>
-            </form>
           </div>
         </div>
       )}
