@@ -26,21 +26,16 @@ import {
   Crown,
   Check,
   Zap,
-  Users
+  Users,
+  Edit3,
+  X
 } from 'lucide-react';
-import { CENTER_SUBSCRIPTION_PLANS, MOCK_CENTER_INVOICES } from '../../data/centerData';
 
 export const CenterSettingsView = () => {
   const { lang, isRtl } = useLanguage();
   const { branches, exportToCsv } = useCenter();
 
-  const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'subscription' | 'tasks' | 'announcements' | 'import' | 'backup' | 'kpis'
-
-  // Center Subscription State (مجاني / بلس 200 ج.م / برو 400 ج.م)
-  const [selectedSubPeriod, setSelectedSubPeriod] = useState('monthly'); // 'monthly' | 'term' | 'annual'
-  const [currentPlanId, setCurrentPlanId] = useState('plan-center-plus');
-  const [centerInvoicesList, setCenterInvoicesList] = useState(MOCK_CENTER_INVOICES);
-  const [subSuccessMsg, setSubSuccessMsg] = useState('');
+  const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'tasks' | 'announcements' | 'import' | 'backup' | 'kpis'
 
   // Center Settings State (Feature 13)
   const [centerNameAr, setCenterNameAr] = useState('أكاديمية الرواد التعليمية');
@@ -66,6 +61,14 @@ export const CenterSettingsView = () => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssignee, setNewTaskAssignee] = useState('أ. ياسمين نبيل');
   const [newTaskDeadline, setNewTaskDeadline] = useState('اليوم 06:00 م');
+
+  // Task Edit & Swipe/Delete State
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [editTaskAssignee, setEditTaskAssignee] = useState('');
+  const [editTaskDeadline, setEditTaskDeadline] = useState('');
+  const [swipedTaskId, setSwipedTaskId] = useState(null);
+  const [touchStartX, setTouchStartX] = useState(null);
 
   // Internal Announcements State (Feature 75)
   const [announcements, setAnnouncements] = useState([
@@ -116,6 +119,34 @@ export const CenterSettingsView = () => {
   // Toggle Task Completion
   const toggleTask = (taskId) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+  };
+
+  const handleDeleteTask = (taskId) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    if (editingTaskId === taskId) setEditingTaskId(null);
+  };
+
+  const handleStartEdit = (t) => {
+    setEditingTaskId(t.id);
+    setEditTaskTitle(t.titleAr);
+    setEditTaskAssignee(t.assignee);
+    setEditTaskDeadline(t.deadline);
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editTaskTitle.trim()) return;
+    setTasks(prev => prev.map(t => t.id === editingTaskId ? {
+      ...t,
+      titleAr: editTaskTitle.trim(),
+      assignee: editTaskAssignee,
+      deadline: editTaskDeadline
+    } : t));
+    setEditingTaskId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
   };
 
   // Add Task
@@ -260,7 +291,6 @@ export const CenterSettingsView = () => {
       }}>
         {[
           { id: 'settings', labelAr: 'بيانات وسياسات السنتر', labelEn: 'Center Policies', icon: Settings },
-          { id: 'subscription', labelAr: 'الاشتراك وباقات السنتر (200 / 400 ج.م)', labelEn: 'Plans & Billing', icon: CreditCard },
           { id: 'tasks', labelAr: 'إدارة المهام اليومية (Tasks)', labelEn: 'Daily Tasks', icon: CheckSquare },
           { id: 'announcements', labelAr: 'التعليمات والإعلانات الداخلية', labelEn: 'Announcements', icon: Bell },
           { id: 'import', labelAr: 'استيراد البيانات من Excel', labelEn: 'Excel Import', icon: Upload },
@@ -464,350 +494,6 @@ export const CenterSettingsView = () => {
         </div>
       )}
 
-      {/* TAB: Center Subscriptions & Plans (مجاني / بلس 200 ج.م / برو 400 ج.م) */}
-      {activeTab === 'subscription' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Active Plan Overview */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '20px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '54px',
-                height: '54px',
-                borderRadius: '16px',
-                backgroundColor: 'rgba(21, 136, 199, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)'
-              }}>
-                <Crown size={28} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                    {currentPlanId === 'plan-center-pro' 
-                      ? (lang === 'ar' ? 'باقة السنتر برو (Center Pro)' : 'Center Pro Active')
-                      : currentPlanId === 'plan-center-plus'
-                      ? (lang === 'ar' ? 'باقة السنتر بلس (Center Plus)' : 'Center Plus Active')
-                      : (lang === 'ar' ? 'الباقة المجانية (Center Free)' : 'Center Free')}
-                  </h3>
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    padding: '3px 10px',
-                    borderRadius: '9999px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    color: '#10B981'
-                  }}>
-                    {lang === 'ar' ? 'الاشتراك ساري ونشط' : 'Active Subscription'}
-                  </span>
-                </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                  {currentPlanId === 'plan-center-pro'
-                    ? (lang === 'ar' ? 'مستخدمين وطلاب غير محدودين (Unlimited) • السعر: 400 ج.م / شهرياً' : 'Unlimited users • 400 EGP / month')
-                    : currentPlanId === 'plan-center-plus'
-                    ? (lang === 'ar' ? 'السعة: حتى 500 مستخدم نشط (مستخدم حالياً: 340 طالب ومعلم) • السعر: 200 ج.م / شهرياً' : 'Capacity: 500 users (340 active) • 200 EGP / month')
-                    : (lang === 'ar' ? 'السعة: حتى 100 مستخدم • السعر: مجاناً' : 'Capacity: 100 users • Free')}
-                </p>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{lang === 'ar' ? 'تاريخ التجديد القادم' : 'Next Renewal'}</div>
-                <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>2026-12-30 (باقي 54 يوماً)</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Feedback Success Toast */}
-          {subSuccessMsg && (
-            <div style={{
-              padding: '14px 20px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              color: '#10B981',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <CheckCircle2 size={18} />
-              <span>{subSuccessMsg}</span>
-            </div>
-          )}
-
-          {/* Period Selection Controls */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
-            padding: '16px 20px',
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: '14px',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <div>
-              <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 2px' }}>
-                {lang === 'ar' ? 'اختر خطة التجديد المناسبة لسنترك' : 'Select Renewal Billing Cycle'}
-              </h4>
-              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>
-                {lang === 'ar' ? 'وفّر حتى 25% عند الاشتراك لفصل دراسي أو سنة كاملة' : 'Save up to 25% with semester or annual billing'}
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {[
-                { id: 'monthly', labelAr: 'شهرياً', labelEn: 'Monthly' },
-                { id: 'term', labelAr: 'للترم (5 شهور)', labelEn: 'Semester (5 mo)', badgeAr: 'وفر 20%', badgeEn: 'Save 20%' },
-                { id: 'annual', labelAr: 'سنة دراسية (10 شهور)', labelEn: 'Full Year (10 mo)', badgeAr: 'وفر 25%', badgeEn: 'Save 25%' }
-              ].map(period => (
-                <button
-                  key={period.id}
-                  onClick={() => setSelectedSubPeriod(period.id)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '10px',
-                    border: selectedSubPeriod === period.id ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
-                    backgroundColor: selectedSubPeriod === period.id ? 'var(--primary-surface, rgba(21, 136, 199, 0.1))' : 'transparent',
-                    color: selectedSubPeriod === period.id ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: '700',
-                    fontSize: '12.5px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <span>{lang === 'ar' ? period.labelAr : period.labelEn}</span>
-                  {period.badgeAr && (
-                    <span style={{
-                      fontSize: '10px',
-                      padding: '2px 6px',
-                      borderRadius: '9999px',
-                      backgroundColor: '#10B981',
-                      color: '#FFFFFF'
-                    }}>
-                      {lang === 'ar' ? period.badgeAr : period.badgeEn}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Three Packages Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
-            gap: '20px',
-            alignItems: 'stretch'
-          }}>
-            {CENTER_SUBSCRIPTION_PLANS.map(plan => {
-              const isCurrent = currentPlanId === plan.id;
-              const pricing = plan.pricing[selectedSubPeriod];
-              const price = pricing.priceEgp;
-
-              return (
-                <div
-                  key={plan.id}
-                  style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    border: isCurrent ? '2px solid var(--primary)' : (plan.popular ? '2px solid var(--primary-light, #5CB6DB)' : '1px solid var(--border-subtle)'),
-                    borderRadius: '18px',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    boxShadow: isCurrent ? '0 8px 24px rgba(21, 136, 199, 0.15)' : 'var(--shadow-sm)',
-                    position: 'relative'
-                  }}
-                >
-                  {isCurrent && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '-11px',
-                      [isRtl ? 'right' : 'left']: '20px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
-                      fontSize: '10.5px',
-                      fontWeight: '800',
-                      padding: '3px 12px',
-                      borderRadius: '9999px'
-                    }}>
-                      {lang === 'ar' ? 'باقتك الحالية النشطة' : 'Current Active Plan'}
-                    </div>
-                  )}
-
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <h4 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                        {lang === 'ar' ? plan.nameAr : plan.nameEn}
-                      </h4>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        backgroundColor: `${plan.color}15`,
-                        color: plan.color
-                      }}>
-                        {plan.tier.toUpperCase()}
-                      </span>
-                    </div>
-
-                    <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '14px', minHeight: '34px', lineHeight: 1.45 }}>
-                      {lang === 'ar' ? plan.taglineAr : plan.taglineEn}
-                    </p>
-
-                    {/* Capacity badge */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 10px',
-                      borderRadius: '8px',
-                      backgroundColor: 'var(--bg-subtle)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      marginBottom: '18px'
-                    }}>
-                      <Users size={14} color={plan.color} />
-                      <span>{lang === 'ar' ? plan.usersLimitAr : plan.usersLimitEn}</span>
-                    </div>
-
-                    {/* Price Tag */}
-                    <div style={{
-                      marginBottom: '18px',
-                      paddingBottom: '14px',
-                      borderBottom: '1px solid var(--border-subtle)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                        <span style={{ fontSize: '34px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                          {price}
-                        </span>
-                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                          {plan.tier === 'free' 
-                            ? (lang === 'ar' ? 'دائم مجاناً' : 'Forever Free')
-                            : (lang === 'ar' ? (selectedSubPeriod === 'monthly' ? 'ج.م / شهرياً' : selectedSubPeriod === 'term' ? 'ج.م / للترم' : 'ج.م / للسنة') : 'EGP')}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Features list */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-                      {(lang === 'ar' ? plan.featuresAr : plan.featuresEn).map((f, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                          <Check size={14} color="#10B981" style={{ marginTop: '2px', flexShrink: 0 }} />
-                          <span style={{ fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.4 }}>{f}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setCurrentPlanId(plan.id);
-                      setSubSuccessMsg(lang === 'ar' 
-                        ? `تم تحديث اشتراك السنتر بنجاح إلى "${plan.nameAr}".` 
-                        : `Center plan successfully switched to "${plan.nameEn}".`);
-                      setTimeout(() => setSubSuccessMsg(''), 4000);
-                    }}
-                    disabled={isCurrent}
-                    style={{
-                      width: '100%',
-                      padding: '11px',
-                      borderRadius: '10px',
-                      backgroundColor: isCurrent ? 'var(--bg-subtle)' : 'var(--primary)',
-                      color: isCurrent ? 'var(--text-muted)' : '#FFFFFF',
-                      border: 'none',
-                      fontSize: '13px',
-                      fontWeight: '800',
-                      cursor: isCurrent ? 'default' : 'pointer',
-                      boxShadow: isCurrent ? 'none' : '0 4px 12px rgba(21, 136, 199, 0.25)'
-                    }}
-                  >
-                    {isCurrent 
-                      ? (lang === 'ar' ? 'باقتك الحالية' : 'Current Plan')
-                      : (lang === 'ar' ? `اختيار ${plan.nameAr}` : `Select ${plan.nameEn}`)}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Invoices History */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '16px',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '16px' }}>
-              {lang === 'ar' ? 'سجل فواتير واشتراكات السنتر' : 'Center Subscription Invoices'}
-            </h4>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                    <th style={{ padding: '10px 12px' }}>{lang === 'ar' ? 'رقم الفاتورة' : 'Invoice ID'}</th>
-                    <th style={{ padding: '10px 12px' }}>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
-                    <th style={{ padding: '10px 12px' }}>{lang === 'ar' ? 'البيان' : 'Description'}</th>
-                    <th style={{ padding: '10px 12px' }}>{lang === 'ar' ? 'القيمة' : 'Amount'}</th>
-                    <th style={{ padding: '10px 12px' }}>{lang === 'ar' ? 'طريقة الدفع' : 'Method'}</th>
-                    <th style={{ padding: '10px 12px' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {centerInvoicesList.map(inv => (
-                    <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>{inv.id}</td>
-                      <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{inv.date}</td>
-                      <td style={{ padding: '12px', color: 'var(--text-primary)' }}>{lang === 'ar' ? inv.descriptionAr : inv.descriptionEn}</td>
-                      <td style={{ padding: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>{lang === 'ar' ? inv.amount : inv.amountEn}</td>
-                      <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{lang === 'ar' ? inv.methodAr : inv.methodEn}</td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                          color: '#10B981',
-                          fontWeight: '700',
-                          fontSize: '11px'
-                        }}>
-                          {inv.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* TAB 2: Task Management (Feature 74) */}
       {activeTab === 'tasks' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -823,78 +509,104 @@ export const CenterSettingsView = () => {
               {lang === 'ar' ? 'إسناد مهمة إدارية جديدة' : 'Assign New Administrative Task'}
             </h3>
 
-            <form onSubmit={handleAddTask} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                required
-                placeholder={lang === 'ar' ? 'عنوان المهمة (مثال: التأكد من جاهزية شاشات قاعة 2)...' : 'Task description...'}
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                style={{
-                  flex: 2,
-                  minWidth: '240px',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px'
-                }}
-              />
+            <form onSubmit={handleAddTask} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Multi-line Task Title / Description */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'تفاصيل المهمة (يقبل أسطر متعددة)' : 'Task Description (Multi-line supported)'}
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder={lang === 'ar' ? 'اكتب تفاصيل المهمة والتعليمات هنا (اضغط Enter لكتابة أسطر جديدة)...' : 'Write task details and bullet points (press Enter for new lines)...'}
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    lineHeight: '1.55',
+                    resize: 'vertical',
+                    minHeight: '75px',
+                    outline: 'none',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
 
-              <input
-                type="text"
-                value={newTaskAssignee}
-                onChange={(e) => setNewTaskAssignee(e.target.value)}
-                placeholder="المسؤول"
-                style={{
-                  flex: 1,
-                  minWidth: '140px',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px'
-                }}
-              />
+              {/* Assignee & Deadline Inputs */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: '160px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    {lang === 'ar' ? 'المسؤول عن التنفيذ' : 'Assignee'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newTaskAssignee}
+                    onChange={(e) => setNewTaskAssignee(e.target.value)}
+                    placeholder="المسؤول"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px'
+                    }}
+                  />
+                </div>
 
-              <input
-                type="text"
-                value={newTaskDeadline}
-                onChange={(e) => setNewTaskDeadline(e.target.value)}
-                placeholder="الموعد النهائي"
-                style={{
-                  flex: 1,
-                  minWidth: '140px',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px'
-                }}
-              />
+                <div style={{ flex: 1, minWidth: '160px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    {lang === 'ar' ? 'الموعد النهائي' : 'Deadline'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newTaskDeadline}
+                    onChange={(e) => setNewTaskDeadline(e.target.value)}
+                    placeholder="الموعد النهائي"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px'
+                    }}
+                  />
+                </div>
 
-              <button
-                type="submit"
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <Plus size={15} />
-                <span>{lang === 'ar' ? 'إضافة المهمة' : 'Add Task'}</span>
-              </button>
+                <div style={{ alignSelf: 'flex-end' }}>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '11px 22px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Plus size={15} />
+                    <span>{lang === 'ar' ? 'إضافة المهمة' : 'Add Task'}</span>
+                  </button>
+                </div>
+              </div>
             </form>
           </div>
 
@@ -906,60 +618,259 @@ export const CenterSettingsView = () => {
             overflow: 'hidden',
             boxShadow: 'var(--shadow-sm)'
           }}>
-            <div style={{ padding: '16px 20px', backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div style={{
+              padding: '16px 20px',
+              backgroundColor: 'var(--bg-app)',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px'
+            }}>
               <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
                 {lang === 'ar' ? `قائمة المهام الداخلية للموظفين (${tasks.filter(t => t.completed).length} من ${tasks.length} مكتملة)` : 'Staff Daily Task Ledger'}
               </h3>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                {lang === 'ar' ? '💡 يمكنك التعديل والحذف أو السحب للحذف بالتمرير' : '💡 Swipe or use icons to edit/delete'}
+              </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {tasks.map(t => (
-                <div
-                  key={t.id}
-                  style={{
-                    padding: '14px 20px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: t.completed ? 'var(--bg-app)' : 'var(--bg-surface)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flex: 1 }}>
-                    <input
-                      type="checkbox"
-                      checked={t.completed}
-                      onChange={() => toggleTask(t.id)}
-                      style={{ width: '16px', height: '16px' }}
-                    />
-                    <div>
-                      <div style={{
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        color: t.completed ? 'var(--text-secondary)' : 'var(--text-primary)',
-                        textDecoration: t.completed ? 'line-through' : 'none'
-                      }}>
-                        {t.titleAr}
+              {tasks.length === 0 ? (
+                <div style={{ padding: '36px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px' }}>
+                  {lang === 'ar' ? 'لا توجد مهام حالية. أضف مهمة جديدة من النموذج أعلاه.' : 'No active tasks.'}
+                </div>
+              ) : (
+                tasks.map(t => {
+                  const isEditing = editingTaskId === t.id;
+                  const isSwiped = swipedTaskId === t.id;
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={t.id}
+                        style={{
+                          padding: '18px 20px',
+                          borderBottom: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.06))'
+                        }}
+                      >
+                        <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <textarea
+                            required
+                            rows={3}
+                            value={editTaskTitle}
+                            onChange={(e) => setEditTaskTitle(e.target.value)}
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '10px 12px',
+                              borderRadius: 'var(--radius-md)',
+                              border: '1.5px solid var(--primary)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              lineHeight: '1.5',
+                              fontFamily: 'inherit',
+                              outline: 'none',
+                              resize: 'vertical'
+                            }}
+                          />
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <input
+                              type="text"
+                              value={editTaskAssignee}
+                              onChange={(e) => setEditTaskAssignee(e.target.value)}
+                              placeholder="المسؤول"
+                              style={{
+                                flex: 1,
+                                minWidth: '130px',
+                                padding: '8px 12px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-subtle)',
+                                backgroundColor: 'var(--bg-surface)',
+                                color: 'var(--text-primary)',
+                                fontSize: '12.5px'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={editTaskDeadline}
+                              onChange={(e) => setEditTaskDeadline(e.target.value)}
+                              placeholder="الموعد النهائي"
+                              style={{
+                                flex: 1,
+                                minWidth: '130px',
+                                padding: '8px 12px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-subtle)',
+                                backgroundColor: 'var(--bg-surface)',
+                                color: 'var(--text-primary)',
+                                fontSize: '12.5px'
+                              }}
+                            />
+                            <button
+                              type="submit"
+                              style={{
+                                padding: '8px 16px',
+                                borderRadius: 'var(--radius-md)',
+                                backgroundColor: 'var(--primary)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                fontSize: '12.5px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px'
+                              }}
+                            >
+                              <Check size={14} />
+                              <span>{lang === 'ar' ? 'حفظ التعديل' : 'Save'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelEdit}
+                              style={{
+                                padding: '8px 14px',
+                                borderRadius: 'var(--radius-md)',
+                                backgroundColor: 'transparent',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid var(--border-subtle)',
+                                fontSize: '12.5px',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            </button>
+                          </div>
+                        </form>
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        المسؤول: <span style={{ color: 'var(--primary)', fontWeight: '600' }}>{t.assignee}</span> • الموعد: {t.deadline}
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={t.id}
+                      onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
+                      onTouchMove={(e) => {
+                        if (touchStartX === null) return;
+                        const diffX = e.touches[0].clientX - touchStartX;
+                        if (Math.abs(diffX) > 70) {
+                          setSwipedTaskId(t.id);
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (swipedTaskId === t.id) {
+                          handleDeleteTask(t.id);
+                          setSwipedTaskId(null);
+                        }
+                        setTouchStartX(null);
+                      }}
+                      style={{
+                        padding: '16px 20px',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                        backgroundColor: t.completed ? 'var(--bg-app)' : 'var(--bg-surface)',
+                        transform: isSwiped ? 'translateX(-30px)' : 'translateX(0)',
+                        opacity: isSwiped ? 0.3 : 1,
+                        transition: 'transform 0.2s ease, opacity 0.2s ease'
+                      }}
+                    >
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', cursor: 'pointer', flex: 1 }}>
+                        <input
+                          type="checkbox"
+                          checked={t.completed}
+                          onChange={() => toggleTask(t.id)}
+                          style={{ width: '17px', height: '17px', marginTop: '3px', cursor: 'pointer', flexShrink: 0 }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          {/* Multi-line Title with preserved line breaks */}
+                          <div style={{
+                            fontSize: '13.5px',
+                            fontWeight: '700',
+                            color: t.completed ? 'var(--text-secondary)' : 'var(--text-primary)',
+                            textDecoration: t.completed ? 'line-through' : 'none',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            lineHeight: 1.55
+                          }}>
+                            {t.titleAr}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                            {lang === 'ar' ? 'المسؤول:' : 'Assignee:'}{' '}
+                            <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{t.assignee}</span> •{' '}
+                            {lang === 'ar' ? 'الموعد:' : 'Deadline:'} {t.deadline}
+                          </div>
+                        </div>
+                      </label>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        {/* Status Badge */}
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          padding: '3px 8px',
+                          borderRadius: 'var(--radius-full)',
+                          backgroundColor: t.completed ? 'rgba(22, 163, 74, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                          color: t.completed ? 'var(--color-success, #16A34A)' : 'var(--color-warning, #F59E0B)'
+                        }}>
+                          {t.completed ? (lang === 'ar' ? 'مكتمل' : 'Completed') : (lang === 'ar' ? 'قيد التنفيذ' : 'Pending')}
+                        </span>
+
+                        {/* Edit Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(t)}
+                          title={lang === 'ar' ? 'تعديل المهمة' : 'Edit Task'}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-subtle)',
+                            backgroundColor: 'transparent',
+                            color: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Edit3 size={15} />
+                        </button>
+
+                        {/* Delete Button (with smooth red styling) */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTask(t.id)}
+                          title={lang === 'ar' ? 'حذف المهمة' : 'Delete Task'}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(220, 38, 38, 0.2)',
+                            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                            color: 'var(--color-danger, #DC2626)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </div>
                     </div>
-                  </label>
-
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: t.completed ? 'rgba(22, 163, 74, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                    color: t.completed ? 'var(--success)' : 'var(--warning)'
-                  }}>
-                    {t.completed ? 'مكتمل' : 'قيد التنفيذ'}
-                  </span>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
