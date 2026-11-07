@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle2, RotateCw, Clock } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -11,6 +11,55 @@ export const EmailVerificationBanner = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', text: string }
+
+  useEffect(() => {
+    const applySyncedOtp = (payload) => {
+      const syncedCode = String(payload?.code || '').replace(/\D/g, '').slice(0, 6);
+      if (syncedCode.length !== 6) return;
+      setCode(syncedCode);
+      setFeedback({
+        type: 'success',
+        text: lang === 'ar'
+          ? `تم نسخ وملء الرمز (${syncedCode}) تلقائياً!`
+          : `Code (${syncedCode}) copied and filled automatically!`
+      });
+    };
+
+    // Check if an OTP was just synced in the last 2 minutes
+    try {
+      const saved = localStorage.getItem('motafawweq_otp_sync');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.ts && Date.now() - parsed.ts < 120000) {
+          applySyncedOtp(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const onStorage = (e) => {
+      if (e.key === 'motafawweq_otp_sync' && e.newValue) {
+        try {
+          applySyncedOtp(JSON.parse(e.newValue));
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    let ch = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      ch = new BroadcastChannel('motafawweq_otp');
+      ch.onmessage = (ev) => applySyncedOtp(ev.data);
+    }
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      if (ch) ch.close();
+    };
+  }, [lang]);
 
   if (!isAuthenticated || !currentUser) return null;
 

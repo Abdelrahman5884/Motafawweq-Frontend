@@ -83,15 +83,83 @@ function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { setRouterNavigator } = useAuth();
-  const { isRtl } = useLanguage();
+  const { isRtl, lang } = useLanguage();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [copiedOtpModal, setCopiedOtpModal] = useState(null);
 
   useEffect(() => {
     if (setRouterNavigator) {
       setRouterNavigator(() => navigate);
     }
   }, [navigate, setRouterNavigator]);
+
+  // Handle clicking the Copy Icon in any email (?otp=XXXXXX)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const rawOtp = params.get('otp');
+    const urlOtp = String(rawOtp || '').replace(/\D/g, '').slice(0, 6);
+    if (urlOtp.length !== 6) return;
+
+    const urlEmail = params.get('email') || '';
+
+    const copyToClipboard = async (text) => {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch {
+        // fallback below
+      }
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch {
+        return false;
+      }
+    };
+
+    // Broadcast to any already-open Motafawweq tab (EmailVerificationBanner & ForgotPasswordPage)
+    try {
+      localStorage.setItem(
+        'motafawweq_otp_sync',
+        JSON.stringify({ email: urlEmail, code: urlOtp, ts: Date.now() })
+      );
+      if (typeof BroadcastChannel !== 'undefined') {
+        const ch = new BroadcastChannel('motafawweq_otp');
+        ch.postMessage({ email: urlEmail, code: urlOtp });
+        ch.close();
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    setCopiedOtpModal(urlOtp);
+
+    copyToClipboard(urlOtp).then((copied) => {
+      if (copied) {
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch {
+            // ignore
+          }
+        }, 450);
+      }
+    });
+
+    // Clean URL query param
+    navigate(location.pathname, { replace: true });
+  }, [location.search, location.pathname, navigate]);
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -162,7 +230,69 @@ function AppShell({ children }) {
         )}
 
         {/* Email OTP Verification / Pending Approval Banner */}
-        {hasSidebar && <EmailVerificationBanner />}
+        {!isAuthRoute && <EmailVerificationBanner />}
+
+        {copiedOtpModal && (
+          <div
+            onClick={() => {
+              navigator.clipboard?.writeText(copiedOtpModal).catch(() => {});
+              setCopiedOtpModal(null);
+              try { window.close(); } catch { /* ignore */ }
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              backgroundColor: 'rgba(11, 44, 88, 0.72)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px'
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '32px 36px',
+                maxWidth: '400px',
+                width: '100%',
+                textAlign: 'center',
+                boxShadow: '0 20px 50px rgba(11, 44, 88, 0.35)',
+                border: '1px solid #dbe4f0'
+              }}
+            >
+              <div style={{ fontSize: '15px', fontWeight: '800', color: '#0b2c58', marginBottom: '12px' }}>
+                {lang === 'ar' ? 'تم نسخ رمز التحقق وملؤه تلقائياً!' : 'Verification code copied & filled!'}
+              </div>
+              <div
+                dir="ltr"
+                style={{
+                  backgroundColor: '#0b2c58',
+                  color: '#ffffff',
+                  fontFamily: 'monospace',
+                  fontSize: '28px',
+                  fontWeight: '800',
+                  letterSpacing: '6px',
+                  padding: '14px 24px',
+                  borderRadius: '8px',
+                  marginBottom: '16px',
+                  userSelect: 'all'
+                }}
+              >
+                {copiedOtpModal}
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '11px', fontWeight: '700', fontSize: '14px' }}
+              >
+                {lang === 'ar' ? 'تأكيد النسخ والمتابعة' : 'Confirm Copy & Continue'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Page content */}
         {isFullPage ? (

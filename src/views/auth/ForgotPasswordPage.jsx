@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
@@ -15,6 +15,7 @@ import {
 export const ForgotPasswordPage = () => {
   const { currentUser, requestPasswordReset, verifyOtp, completePasswordReset } = useAuth();
   const { lang, isRtl } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [step, setStep] = useState(1); // 1: request, 2: verify OTP, 3: set new password, 4: success
   const [emailOrPhone, setEmailOrPhone] = useState(() => {
@@ -27,6 +28,83 @@ export const ForgotPasswordPage = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Handle clicking the Copy Icon in the email (?email=...&code=...) and sync across open tabs
+  useEffect(() => {
+    const urlEmail = searchParams.get('email');
+    const urlCode = String(searchParams.get('code') || '').replace(/\D/g, '').slice(0, 6);
+
+    if (urlCode.length === 6) {
+      if (urlEmail) setEmailOrPhone(urlEmail);
+      setOtpCode(urlCode);
+      setStep(2);
+      setInfoMsg(
+        lang === 'ar'
+          ? 'تم نسخ وملء رمز التحقق تلقائياً من البريد الإلكتروني.'
+          : 'Verification code copied and filled automatically from your email.'
+      );
+
+      // Copy to clipboard if permitted by browser
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(urlCode).catch(() => {});
+      }
+
+      // Broadcast to any already-open /forgot-password tab so it fills there immediately too
+      try {
+        localStorage.setItem(
+          'motafawweq_otp_sync',
+          JSON.stringify({ email: urlEmail || '', code: urlCode, ts: Date.now() })
+        );
+        if (typeof BroadcastChannel !== 'undefined') {
+          const ch = new BroadcastChannel('motafawweq_otp');
+          ch.postMessage({ email: urlEmail || '', code: urlCode });
+          ch.close();
+        }
+      } catch {
+        // ignore storage errors
+      }
+
+      // Remove code from address bar for security
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, lang]);
+
+  // Listen for OTP copied from email in another tab
+  useEffect(() => {
+    const applySyncedOtp = (payload) => {
+      if (!payload?.code || String(payload.code).length !== 6) return;
+      if (payload.email) setEmailOrPhone(payload.email);
+      setOtpCode(String(payload.code));
+      setStep(2);
+      setInfoMsg(
+        lang === 'ar'
+          ? 'تم نسخ وملء رمز التحقق تلقائياً من البريد الإلكتروني.'
+          : 'Verification code copied and filled automatically from your email.'
+      );
+    };
+
+    const onStorage = (e) => {
+      if (e.key === 'motafawweq_otp_sync' && e.newValue) {
+        try {
+          applySyncedOtp(JSON.parse(e.newValue));
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    let ch = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      ch = new BroadcastChannel('motafawweq_otp');
+      ch.onmessage = (ev) => applySyncedOtp(ev.data);
+    }
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      if (ch) ch.close();
+    };
+  }, [lang]);
 
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
