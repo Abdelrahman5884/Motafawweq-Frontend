@@ -13,11 +13,14 @@ import {
 } from '../../features/auth/forgot-password';
 
 export const ForgotPasswordPage = () => {
-  const { requestPasswordReset, verifyOtp, completePasswordReset } = useAuth();
+  const { currentUser, requestPasswordReset, verifyOtp, completePasswordReset } = useAuth();
   const { lang, isRtl } = useLanguage();
 
   const [step, setStep] = useState(1); // 1: request, 2: verify OTP, 3: set new password, 4: success
-  const [emailOrPhone, setEmailOrPhone] = useState('omar.tarek@motafawweq.me');
+  const [emailOrPhone, setEmailOrPhone] = useState(() => {
+    const saved = currentUser?.email;
+    return saved && !saved.endsWith('@motafawweq.me') ? saved : '';
+  });
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
