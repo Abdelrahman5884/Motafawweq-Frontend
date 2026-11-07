@@ -34,7 +34,8 @@ import {
   FolderCheck,
   Flame,
   Settings,
-  Target
+  Target,
+  Megaphone
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -153,9 +154,14 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         ];
       case 'admin':
         return [
-          { id: 'admin-portal', path: '/admin/dashboard', label: lang === 'ar' ? 'اقتصاديات المنصة' : 'SaaS Economics', icon: ShieldCheck },
-          { id: 'admin-gpu', path: '/admin/dashboard', label: lang === 'ar' ? 'كفاءة المعالجة' : 'GPU Clusters', icon: Server },
-          { id: 'admin-users', path: '/admin/dashboard', label: lang === 'ar' ? 'إدارة المستخدمين' : 'User Management', icon: Users },
+          { id: 'admin-overview', path: '/admin/dashboard?tab=overview', label: lang === 'ar' ? 'الرئيسية والإحصائيات' : 'Overview & KPIs', icon: LayoutDashboard },
+          { id: 'admin-champions', path: '/admin/dashboard?tab=champions', label: lang === 'ar' ? 'لوحة الشرف وأبطال الكؤوس' : 'Cup Champions', icon: Trophy, badge: lang === 'ar' ? 'مميز' : 'Cups' },
+          { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'إدارة المستخدمين والتوثيق' : 'User Management', icon: Users },
+          { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات والمحتوى التعليمي' : 'Courses & Content', icon: BookOpen },
+          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'المالية وسحب الأرباح' : 'Financials & Payouts', icon: DollarSign },
+          { id: 'admin-attendance', path: '/admin/dashboard?tab=attendance', label: lang === 'ar' ? 'بوابات الحضور والباركود' : 'QR Gate Attendance', icon: QrCode },
+          { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'شريط الأخبار والإعلانات' : 'Broadcast & News', icon: Megaphone },
+          { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الذكاء الاصطناعي والإعدادات' : 'AI & Settings', icon: Settings },
         ];
       default:
         return [];

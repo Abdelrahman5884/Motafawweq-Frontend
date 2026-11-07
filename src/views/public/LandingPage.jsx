@@ -1430,6 +1430,7 @@ export const LandingPage = () => {
               <Link to="/student/lesson" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{lang === 'ar' ? 'مشاهدة حصة تفاعلية' : 'Interactive Lesson'}</Link>
               <Link to="/parent/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{lang === 'ar' ? 'بوابة متابعة ولي الأمر' : 'Parent Portal'}</Link>
               <Link to="/center/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{lang === 'ar' ? 'لوحة تحكم السنتر' : 'Center Hub'}</Link>
+              <Link to="/admin/dashboard" style={{ color: 'var(--primary)', fontWeight: '700', textDecoration: 'none' }}>{lang === 'ar' ? 'لوحة تحكم المشرف العام' : 'Admin HQ Dashboard'}</Link>
             </div>
           </div>
 

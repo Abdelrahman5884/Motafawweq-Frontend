@@ -19,12 +19,20 @@ import {
 } from 'lucide-react';
 import { CENTER_SUBSCRIPTION_PLANS } from '../../data/centerData';
 import { TEACHER_SUBSCRIPTION_PLANS } from '../../data/teacherData';
+import { getSubscriptionPlans } from '../../services/pricingStorage';
 
 export const PricingPage = () => {
   const { navigate, switchRole } = useAuth();
   const { lang, isRtl } = useLanguage();
   const [selectedRole, setSelectedRole] = useState('center'); // 'center' | 'teacher' | 'student'
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
+  const [storedPlans, setStoredPlans] = useState(() => getSubscriptionPlans());
+
+  React.useEffect(() => {
+    const handleSync = () => setStoredPlans(getSubscriptionPlans());
+    window.addEventListener('pricing-updated', handleSync);
+    return () => window.removeEventListener('pricing-updated', handleSync);
+  }, []);
 
   const discount = billingCycle === 'yearly' ? 0.8 : 1;
   const ActionArrow = isRtl ? ArrowLeft : ArrowRight;
@@ -71,7 +79,7 @@ export const PricingPage = () => {
       price: Math.round(49 * discount),
       periodAr: 'جنيه مصري / شهرياً',
       periodEn: 'EGP / month',
-      color: '#06B6D4',
+      color: 'var(--primary, #1588C7)',
       popular: true,
       usersLimitAr: 'حساب طالب VIP مميز',
       usersLimitEn: 'VIP Student account',
@@ -187,17 +195,23 @@ export const PricingPage = () => {
         </p>
 
         {/* ══════════════════ ROLE SELECTOR TABS ══════════════════ */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px',
-          borderRadius: '16px',
-          backgroundColor: 'var(--bg-subtle, #f1f5f9)',
-          border: '1px solid var(--border-medium)',
-          marginTop: '28px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
+        <div 
+          className="responsive-tabs-bar"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px',
+            borderRadius: '16px',
+            backgroundColor: 'var(--bg-subtle, #f1f5f9)',
+            border: '1px solid var(--border-medium)',
+            marginTop: '28px',
+            boxShadow: 'var(--shadow-sm)',
+            maxWidth: '100%',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
           <button
             onClick={() => setSelectedRole('center')}
             style={{
@@ -311,11 +325,12 @@ export const PricingPage = () => {
 
           <span style={{
             fontSize: '11px',
-            fontWeight: '700',
-            padding: '2px 8px',
+            fontWeight: '800',
+            padding: '3px 9px',
             borderRadius: '9999px',
-            backgroundColor: '#10B981',
-            color: '#FFFFFF'
+            backgroundColor: 'rgba(21, 136, 199, 0.15)',
+            color: 'var(--primary)',
+            border: '1px solid rgba(21, 136, 199, 0.3)'
           }}>
             {lang === 'ar' ? 'وفر 20% - 25%' : 'Save up to 25%'}
           </span>
@@ -353,7 +368,7 @@ export const PricingPage = () => {
       {/* ══════════════════ PRICING CARDS GRID ══════════════════ */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
         gap: '26px',
         alignItems: 'stretch',
         marginBottom: '60px'

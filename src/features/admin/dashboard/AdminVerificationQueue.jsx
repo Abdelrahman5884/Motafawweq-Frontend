@@ -15,7 +15,7 @@ export const AdminVerificationQueue = ({ queue, onApprove, onReject }) => {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-          {lang === 'ar' ? 'طلبات اعتماد وتوثيق المعلمين (Verification Queue)' : 'Tutor Accreditation & KYC Queue'}
+          {lang === 'ar' ? 'طلبات اعتماد وتوثيق المعلمين' : 'Tutor Accreditation & KYC Queue'}
         </h3>
         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
           {queue.filter(q => q.status === 'Pending Review').length} {lang === 'ar' ? 'قيد المراجعة' : 'pending'}
@@ -48,10 +48,12 @@ export const AdminVerificationQueue = ({ queue, onApprove, onReject }) => {
                   fontWeight: '700',
                   padding: '2px 8px',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: req.status === 'Approved' ? 'var(--badge-success-bg, #ECFDF5)' : (req.status === 'Rejected' ? 'var(--badge-danger-bg, #FEF2F2)' : 'var(--badge-warning-bg, #FFFBEB)'),
-                  color: req.status === 'Approved' ? 'var(--success, #16A34A)' : (req.status === 'Rejected' ? 'var(--danger, #DC2626)' : 'var(--warning, #F59E0B)')
+                  backgroundColor: req.status === 'Approved' ? 'rgba(21, 136, 199, 0.12)' : (req.status === 'Rejected' ? 'rgba(6, 37, 78, 0.08)' : 'rgba(92, 182, 219, 0.15)'),
+                  color: req.status === 'Approved' ? 'var(--primary)' : (req.status === 'Rejected' ? 'var(--text-secondary)' : 'var(--primary-light, #5CB6DB)')
                 }}>
-                  {req.status}
+                  {lang === 'ar'
+                    ? (req.status === 'Approved' ? 'معتمد' : req.status === 'Rejected' ? 'مرفوض' : 'قيد المراجعة')
+                    : req.status}
                 </span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600', marginTop: '2px' }}>
@@ -72,7 +74,7 @@ export const AdminVerificationQueue = ({ queue, onApprove, onReject }) => {
                     gap: '4px',
                     padding: '7px 14px',
                     borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--success, #16A34A)',
+                    backgroundColor: 'var(--primary)',
                     color: '#FFFFFF',
                     border: 'none',
                     fontSize: '12px',
@@ -93,7 +95,7 @@ export const AdminVerificationQueue = ({ queue, onApprove, onReject }) => {
                     padding: '7px 14px',
                     borderRadius: 'var(--radius-sm)',
                     backgroundColor: 'transparent',
-                    color: 'var(--danger, #DC2626)',
+                    color: 'var(--text-secondary)',
                     border: '1px solid var(--border-medium)',
                     fontSize: '12px',
                     fontWeight: '600',

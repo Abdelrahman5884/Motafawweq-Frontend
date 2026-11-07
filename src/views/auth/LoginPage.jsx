@@ -7,6 +7,7 @@ import {
   GraduationCap, 
   Users, 
   Building2, 
+  ShieldCheck,
   ArrowRight, 
   ArrowLeft 
 } from 'lucide-react';
@@ -58,20 +59,21 @@ export const LoginPage = () => {
     { id: 'student', label: lang === 'ar' ? 'طالب' : 'Student', icon: BookOpen },
     { id: 'teacher', label: lang === 'ar' ? 'معلم' : 'Teacher', icon: GraduationCap },
     { id: 'parent', label: lang === 'ar' ? 'ولي أمر' : 'Parent', icon: Users },
-    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 }
+    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 },
+    { id: 'admin', label: lang === 'ar' ? 'مشرف المنصة' : 'Admin', icon: ShieldCheck }
   ];
 
   const roleCharacters = {
     student: {
       img: '/characters/student.png',
-      title: lang === 'ar' ? 'طالب متفوّق' : 'Top Student',
+      title: lang === 'ar' ? 'طالب متفوق' : 'Top Student',
       quote: lang === 'ar' ? 'جاهز تبدأ مذاكرة وتختبر نفسك بالذكاء الاصطناعي؟ انطلق الآن!' : 'Ready to study smart and test yourself with AI? Let\'s go!',
       badge: lang === 'ar' ? 'حساب الطالب' : 'Student'
     },
     teacher: {
       img: '/characters/teacher.png',
-      title: lang === 'ar' ? 'معلّم مبدع' : 'Master Educator',
-      quote: lang === 'ar' ? 'حوّل شرحك لمذكرات واختبارات تفاعلية في ثوانٍ معدودة.' : 'Turn your lectures into interactive notes & smart exams in seconds.',
+      title: lang === 'ar' ? 'معلم مبدع' : 'Master Educator',
+      quote: lang === 'ar' ? 'حوّل شرحك لمذكرات واختبارات تفاعلية في ثوانٍ معدودة.' : 'Turn your lectures into interactive notes and smart exams in seconds.',
       badge: lang === 'ar' ? 'حساب المعلم' : 'Teacher'
     },
     parent: {
@@ -83,14 +85,14 @@ export const LoginPage = () => {
     center: {
       img: '/characters/teacher.png',
       title: lang === 'ar' ? 'إدارة السنتر' : 'Center Manager',
-      quote: lang === 'ar' ? 'تحكم كامل في القاعات، الطلاب، الاشتراكات ونظام الحضور الذكي.' : 'Complete control over halls, students, subscriptions & smart attendance.',
+      quote: lang === 'ar' ? 'تحكم كامل في القاعات، الطلاب، الاشتراكات ونظام الحضور الذكي.' : 'Complete control over halls, students, subscriptions, and smart attendance.',
       badge: lang === 'ar' ? 'حساب السنتر' : 'Center'
     },
     admin: {
       img: '/characters/teacher.png',
-      title: lang === 'ar' ? 'الإدارة العامة' : 'HQ Admin',
-      quote: lang === 'ar' ? 'لوحة التحكم الرئيسية لإدارة المنصة والعمليات التعليمية.' : 'HQ master dashboard for platform and academic operations.',
-      badge: lang === 'ar' ? 'إدارة المنظومة' : 'Admin'
+      title: lang === 'ar' ? 'مشرف عام المنصة' : 'Platform Administrator',
+      quote: lang === 'ar' ? 'التحكم الشامل في أبطال الكؤوس، وتوثيق المعلمين، والعمليات التعليمية والمالية.' : 'Comprehensive oversight of top champions, tutor verification, academics, and platform finances.',
+      badge: lang === 'ar' ? 'حساب المشرف' : 'Administrator'
     }
   };
 

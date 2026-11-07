@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { Trophy, ChevronRight, ChevronLeft } from 'lucide-react';
+import { getChampions } from '../../services/championsStorage';
 
 const CHAMPIONS_DATA = [
   {
@@ -70,18 +71,63 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
   const lang = propLang || languageContext.lang || 'ar';
   const isRtl = propIsRtl !== undefined ? propIsRtl : (lang === 'ar');
 
+  const [champions, setChampions] = useState(() => {
+    const list = getChampions();
+    const pinned = list.filter(c => c.isPinned !== false);
+    return pinned.length > 0 ? pinned : list;
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      const list = getChampions();
+      const pinned = list.filter(c => c.isPinned !== false);
+      setChampions(pinned.length > 0 ? pinned : list);
+    };
+    window.addEventListener('champions-updated', handleUpdate);
+    return () => window.removeEventListener('champions-updated', handleUpdate);
+  }, []);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const timerRef = useRef(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
-  const currentChamp = CHAMPIONS_DATA[currentIndex];
+  const activeChampions = champions.length > 0 ? champions : CHAMPIONS_DATA;
+  const safeIndex = currentIndex >= activeChampions.length ? 0 : currentIndex;
+  const currentChamp = activeChampions[safeIndex] || CHAMPIONS_DATA[0];
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % CHAMPIONS_DATA.length);
+    setCurrentIndex((prev) => (prev + 1) % activeChampions.length);
   };
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + CHAMPIONS_DATA.length) % CHAMPIONS_DATA.length);
+    setCurrentIndex((prev) => (prev - 1 + activeChampions.length) % activeChampions.length);
+  };
+
+  // Touch Swipe Handlers for Mobile & Tablet
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX;
+    setIsPaused(true);
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    setIsPaused(false);
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 40) {
+      if (isRtl) {
+        if (diff > 0) handlePrev();
+        else handleNext();
+      } else {
+        if (diff > 0) handleNext();
+        else handlePrev();
+      }
+    }
   };
 
   // Auto-play timer
@@ -101,6 +147,9 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
       className="monthly-champions-slider-container"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       style={{
         position: 'relative',
         width: '100%',
@@ -111,6 +160,7 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
     >
       {/* Decorative Outer Platform Accent Frame */}
       <div 
+        className="monthly-champions-slider-frame"
         style={{
           position: 'absolute',
           top: '0px',
@@ -181,13 +231,13 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
               width: '28px',
               height: '28px',
               borderRadius: '8px',
-              backgroundColor: 'rgba(245, 158, 11, 0.12)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
+              backgroundColor: 'rgba(21, 136, 199, 0.12)',
+              border: '1px solid rgba(21, 136, 199, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Trophy size={15} color="#D97706" />
+              <Trophy size={15} color="var(--primary)" />
             </div>
             <span>{lang === 'ar' ? 'لوحة أبطال الدوري' : 'League Champions'}</span>
           </div>
@@ -225,7 +275,7 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
             src={currentChamp.image}
             alt={lang === 'ar' ? currentChamp.nameAr : currentChamp.nameEn}
             style={{
-              maxHeight: '300px',
+              maxHeight: 'min(300px, 36vh)',
               maxWidth: '92%',
               objectFit: 'contain',
               filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15))',
@@ -265,11 +315,11 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
               <div style={{
                 fontSize: '12px',
                 fontWeight: '800',
-                color: '#10B981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                color: 'var(--primary)',
+                backgroundColor: 'rgba(21, 136, 199, 0.1)',
                 padding: '3px 8px',
                 borderRadius: '6px',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
+                border: '1px solid rgba(21, 136, 199, 0.25)',
                 flexShrink: 0
               }}>
                 {lang === 'ar' ? currentChamp.scoreAr : currentChamp.scoreEn}
@@ -288,13 +338,13 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
                 {lang === 'ar' ? currentChamp.schoolAr : currentChamp.schoolEn}
               </span>
               <span style={{ 
-                color: '#D97706', 
+                color: 'var(--primary-light, #5CB6DB)', 
                 fontWeight: '800', 
                 flexShrink: 0,
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                backgroundColor: 'rgba(92, 182, 219, 0.12)',
                 padding: '2px 7px',
                 borderRadius: '5px',
-                border: '1px solid rgba(245, 158, 11, 0.2)'
+                border: '1px solid rgba(92, 182, 219, 0.25)'
               }}>
                 {lang === 'ar' ? currentChamp.rankAr : currentChamp.rankEn}
               </span>
@@ -342,8 +392,8 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
 
             {/* Indicator Dots */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {CHAMPIONS_DATA.map((champ, idx) => {
-                const isActive = idx === currentIndex;
+              {activeChampions.map((champ, idx) => {
+                const isActive = idx === safeIndex;
                 return (
                   <button
                     key={champ.id}
@@ -409,6 +459,12 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
           100% {
             opacity: 1;
             transform: scale(1) translateY(0);
+          }
+        }
+        @media (max-width: 480px) {
+          .monthly-champions-slider-frame {
+            transform: none !important;
+            opacity: 0.4 !important;
           }
         }
       `}</style>
