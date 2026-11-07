@@ -409,16 +409,24 @@ export const AuthProvider = ({ children }) => {
     return authService.resendEmailOtp();
   };
 
-  // Password Reset Flow -> POST /api/v1/auth/password/forgot & /reset
+  // Password Reset Flow -> POST /api/v1/auth/password/forgot, /verify-otp & /reset
   const requestPasswordReset = async (email) => {
     const cleanEmail = String(email).trim().toLowerCase();
-    await authService.forgotPassword(cleanEmail);
+    const response = await authService.forgotPassword(cleanEmail);
     setOtpTargetEmail(cleanEmail);
-    return true;
+    return response?.data || { mail_delivered: true };
   };
 
-  const verifyOtp = (code) => {
-    return /^\d{6}$/.test(String(code).trim());
+  const verifyOtp = async (code, email) => {
+    const cleanCode = String(code).trim();
+    if (!/^\d{6}$/.test(cleanCode)) {
+      return false;
+    }
+    await authService.verifyPasswordResetOtp({
+      email: String(email || otpTargetEmail).trim().toLowerCase(),
+      code: cleanCode,
+    });
+    return true;
   };
 
   const completePasswordReset = async ({ email, code, newPassword, confirmPassword }) => {

@@ -173,7 +173,7 @@ async function refreshTokenPair() {
 
 // ─── Core Request Executor ─────────────────────────────────────────────────────
 
-const NON_REFRESHABLE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/password/forgot', '/auth/password/reset'];
+const NON_REFRESHABLE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/password/forgot', '/auth/password/verify-otp', '/auth/password/reset'];
 
 async function apiRequest(path, { method = 'GET', body, tokenOverride, skipAuthRefresh = false } = {}) {
   const token = tokenOverride ?? tokenStorage.getAccessToken();
@@ -320,6 +320,16 @@ export const authService = {
 
   forgotPassword: (email) =>
     apiPost('/auth/password/forgot', { email: String(email).trim() }, { skipAuthRefresh: true }),
+
+  verifyPasswordResetOtp: ({ email, code }) =>
+    apiPost(
+      '/auth/password/verify-otp',
+      {
+        email: String(email).trim(),
+        code: String(code).trim(),
+      },
+      { skipAuthRefresh: true }
+    ),
 
   resetPassword: ({ email, code, password, password_confirmation }) =>
     apiPost(

@@ -38,32 +38,48 @@ export const ForgotPasswordPage = () => {
       await requestPasswordReset(emailOrPhone);
       setInfoMsg(
         lang === 'ar'
-          ? 'تم إرسال رمز مكون من 6 أرقام إلى بريدك الإلكتروني (صالح لمدة 10 دقائق).'
+          ? 'تم إرسال رمز التحقق المكون من 6 أرقام إلى بريدك الإلكتروني (صالح لمدة 10 دقائق).'
           : 'A 6-digit verification code has been sent to your email (valid for 10 minutes).'
       );
       setStep(2);
     } catch (err) {
+      const fieldErrors = err?.getFieldErrors ? err.getFieldErrors() : {};
       setErrorMsg(
-        err?.message ||
-          (lang === 'ar' ? 'تعذر إرسال رمز التحقق، يرجى المحاولة لاحقاً.' : 'Could not send verification code.')
+        fieldErrors.email ||
+          err?.message ||
+          (lang === 'ar' ? 'تعذر إرسال رمز التحقق، يرجى التأكد من البريد الإلكتروني.' : 'Could not send verification code.')
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifyOtp = (e) => {
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (verifyOtp(otpCode)) {
-      setStep(3);
-    } else {
+    if (!/^\d{6}$/.test(String(otpCode).trim())) {
       setErrorMsg(
         lang === 'ar'
           ? 'رمز التحقق يجب أن يتكون من 6 أرقام.'
           : 'OTP code must be 6 digits.'
       );
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await verifyOtp(otpCode, emailOrPhone);
+      setStep(3);
+    } catch (err) {
+      const fieldErrors = err?.getFieldErrors ? err.getFieldErrors() : {};
+      setErrorMsg(
+        fieldErrors.code ||
+          err?.message ||
+          (lang === 'ar' ? 'رمز التحقق غير صحيح أو منتهي الصلاحية.' : 'Invalid or expired verification code.')
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -159,6 +175,12 @@ export const ForgotPasswordPage = () => {
               infoMsg={infoMsg}
               isLoading={isLoading}
               onResend={() => handleRequestOtp()}
+              onChangeEmail={() => {
+                setErrorMsg('');
+                setInfoMsg('');
+                setOtpCode('');
+                setStep(1);
+              }}
               onSubmit={handleVerifyOtp}
             />
           )}

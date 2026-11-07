@@ -10,6 +10,7 @@ export const ForgotPasswordStep2Otp = ({
   infoMsg,
   isLoading,
   onResend,
+  onChangeEmail,
   onSubmit
 }) => {
   const { lang } = useLanguage();
@@ -109,28 +110,48 @@ export const ForgotPasswordStep2Otp = ({
           {isLoading ? (lang === 'ar' ? 'جاري التحقق...' : 'Verifying...') : (lang === 'ar' ? 'تأكيد الرمز والمتابعة' : 'Verify & Continue')}
         </button>
 
-        {onResend && (
-          <button
-            type="button"
-            onClick={onResend}
-            disabled={isLoading}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--primary)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <RotateCw size={13} />
-            <span>{lang === 'ar' ? 'إعادة إرسال الرمز' : 'Resend Code'}</span>
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginTop: '4px' }}>
+          {onResend && (
+            <button
+              type="button"
+              onClick={onResend}
+              disabled={isLoading}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary)',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <RotateCw size={13} />
+              <span>{lang === 'ar' ? 'إعادة إرسال الرمز' : 'Resend Code'}</span>
+            </button>
+          )}
+
+          {onChangeEmail && (
+            <button
+              type="button"
+              onClick={onChangeEmail}
+              disabled={isLoading}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              {lang === 'ar' ? 'تغيير البريد الإلكتروني' : 'Change Email Address'}
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
