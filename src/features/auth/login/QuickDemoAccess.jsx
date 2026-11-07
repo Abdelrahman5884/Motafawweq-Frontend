@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
-import { Sparkles, BookOpen, GraduationCap, Building2, Users } from 'lucide-react';
+import { Sparkles, BookOpen, GraduationCap, Building2, Users, ShieldCheck } from 'lucide-react';
 
 export const QuickDemoAccess = ({ onQuickDemo }) => {
   const { lang, t, isRtl } = useLanguage();
@@ -46,7 +46,7 @@ export const QuickDemoAccess = ({ onQuickDemo }) => {
           }}
         >
           <BookOpen size={14} color="#06B6D4" />
-          <span>{lang === 'ar' ? 'طالب (عمر طارق)' : 'Student Demo'}</span>
+          <span>{lang === 'ar' ? 'طالب (عمر طارق)' : 'Student (Omar Tarek)'}</span>
         </button>
         <button
           type="button"
@@ -68,7 +68,7 @@ export const QuickDemoAccess = ({ onQuickDemo }) => {
           }}
         >
           <GraduationCap size={14} color="var(--primary)" />
-          <span>{lang === 'ar' ? 'معلم (د. سلمى)' : 'Teacher Demo'}</span>
+          <span>{lang === 'ar' ? 'معلم (د. سلمى)' : 'Teacher (Dr. Salma)'}</span>
         </button>
         <button
           type="button"
@@ -90,7 +90,7 @@ export const QuickDemoAccess = ({ onQuickDemo }) => {
           }}
         >
           <Building2 size={14} color="var(--warning, #F59E0B)" />
-          <span>{lang === 'ar' ? 'سنتر (أكاديمية الرواد)' : 'Center Demo'}</span>
+          <span>{lang === 'ar' ? 'سنتر (أكاديمية الرواد)' : 'Center (Al-Rowad Academy)'}</span>
         </button>
         <button
           type="button"
@@ -112,7 +112,30 @@ export const QuickDemoAccess = ({ onQuickDemo }) => {
           }}
         >
           <Users size={14} color="var(--success, #16A34A)" />
-          <span>{lang === 'ar' ? 'ولي أمر (م. طارق)' : 'Parent Demo'}</span>
+          <span>{lang === 'ar' ? 'ولي أمر (م. طارق)' : 'Parent (Eng. Tarek)'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onQuickDemo('admin')}
+          style={{
+            padding: '9px 12px',
+            borderRadius: 'var(--radius-md)',
+            border: '1.5px solid rgba(21, 136, 199, 0.3)',
+            backgroundColor: 'rgba(21, 136, 199, 0.08)',
+            color: 'var(--primary)',
+            fontSize: '12px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            textAlign: isRtl ? 'right' : 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+            gridColumn: '1 / -1'
+          }}
+        >
+          <ShieldCheck size={14} color="var(--primary)" />
+          <span>{lang === 'ar' ? 'مشرف المنصة (الإدارة العامة)' : 'Platform Administrator (HQ Operations)'}</span>
         </button>
       </div>
     </div>

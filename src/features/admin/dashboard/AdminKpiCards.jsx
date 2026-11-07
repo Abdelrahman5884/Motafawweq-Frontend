@@ -24,7 +24,7 @@ export const AdminKpiCards = ({ econ }) => {
         <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>
           {econ.mrrEgp.toLocaleString()} <span style={{ fontSize: '13px' }}>{lang === 'ar' ? 'ج.م' : 'EGP'}</span>
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--success, #16A34A)', fontWeight: '700', marginTop: '4px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--primary-light, #5CB6DB)', fontWeight: '700', marginTop: '4px' }}>
           +24.2% MoM
         </div>
       </div>
@@ -57,10 +57,10 @@ export const AdminKpiCards = ({ econ }) => {
         <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
           {lang === 'ar' ? 'هامش ربح الذكاء الاصطناعي' : 'AI Gross Profit Margin'}
         </div>
-        <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--success, #16A34A)', fontFamily: 'var(--font-heading)' }}>
+        <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>
           {econ.aiEconomics.grossMarginPercent}%
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--success, #16A34A)', fontWeight: '700', marginTop: '4px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--primary-light, #5CB6DB)', fontWeight: '700', marginTop: '4px' }}>
           {lang === 'ar' ? 'هامش ربحي استثنائي' : 'High SaaS Efficiency'}
         </div>
       </div>
