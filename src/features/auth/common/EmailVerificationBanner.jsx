@@ -89,9 +89,13 @@ export const EmailVerificationBanner = () => {
             <input
               type="text"
               inputMode="numeric"
-              maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pasted = (e.clipboardData || window.clipboardData).getData('text');
+                setCode(String(pasted || '').replace(/\D/g, '').slice(0, 6));
+              }}
               placeholder="000000"
               dir="ltr"
               style={{

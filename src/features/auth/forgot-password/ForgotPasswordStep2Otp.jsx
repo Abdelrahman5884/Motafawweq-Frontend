@@ -71,9 +71,13 @@ export const ForgotPasswordStep2Otp = ({
             inputMode="numeric"
             pattern="[0-9]{6}"
             required
-            maxLength={6}
             value={otpCode}
             onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onPaste={(e) => {
+              e.preventDefault();
+              const pasted = (e.clipboardData || window.clipboardData).getData('text');
+              setOtpCode(String(pasted || '').replace(/\D/g, '').slice(0, 6));
+            }}
             placeholder="000000"
             dir="ltr"
             style={{
