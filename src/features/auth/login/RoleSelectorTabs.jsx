@@ -4,7 +4,7 @@ export const RoleSelectorTabs = ({ roleOptions, selectedRole, onRoleChange }) =>
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateColumns: `repeat(${roleOptions.length}, 1fr)`,
       gap: '6px',
       backgroundColor: 'var(--bg-subtle)',
       padding: '4px',

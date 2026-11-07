@@ -257,10 +257,10 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
 
         {/* ── RIGHT / END AREA: Global Controls & Actions ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Quick Portal Switcher (Center / Teacher / Student) */}
+          {/* Quick Portal Switcher (Center / Teacher / Student / Admin) */}
           <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
             <select
-              value={currentPath.startsWith('/center') ? 'center' : (currentPath.startsWith('/teacher') ? 'teacher' : (currentPath.startsWith('/student') ? 'student' : currentRole))}
+              value={currentPath.startsWith('/admin') ? 'admin' : (currentPath.startsWith('/center') ? 'center' : (currentPath.startsWith('/teacher') ? 'teacher' : (currentPath.startsWith('/student') ? 'student' : (currentPath.startsWith('/parent') ? 'parent' : currentRole))))}
               onChange={(e) => {
                 switchRole(e.target.value);
               }}
@@ -277,10 +277,11 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                 fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
               }}
             >
-              <option value="center">{lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Portal'}</option>
-              <option value="teacher">{lang === 'ar' ? 'بوابة المعلم' : 'Teacher Portal'}</option>
               <option value="student">{lang === 'ar' ? 'بوابة الطالب' : 'Student Portal'}</option>
+              <option value="teacher">{lang === 'ar' ? 'بوابة المعلم' : 'Teacher Portal'}</option>
               <option value="parent">{lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal'}</option>
+              <option value="center">{lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Portal'}</option>
+              <option value="admin">{lang === 'ar' ? 'لوحة المشرف العام' : 'Platform Administrator'}</option>
             </select>
           </div>
 
@@ -574,6 +575,25 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
             >
               <Layers size={16} />
               <span>{t('navDashboard')}</span>
+            </Link>
+            <Link
+              to="/admin/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: currentPath.startsWith('/admin') ? 'var(--primary)' : 'var(--text-primary)',
+                backgroundColor: currentPath.startsWith('/admin') ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                borderRadius: 'var(--radius-md)',
+                textDecoration: 'none'
+              }}
+            >
+              <ShieldCheck size={16} color="var(--primary)" />
+              <span>{lang === 'ar' ? 'لوحة المشرف العام' : 'Platform Administrator'}</span>
             </Link>
           </div>
 

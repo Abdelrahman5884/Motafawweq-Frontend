@@ -33,7 +33,9 @@ import {
   PlayCircle,
   FolderCheck,
   Flame,
-  Settings
+  Settings,
+  Target,
+  Megaphone
 } from 'lucide-react';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
@@ -59,7 +61,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
   const roleAccent = {
     teacher: '#1588C7',
     student: '#1588C7',
-    parent: '#16A34A',
+    parent: '#1588C7',
     center: '#1588C7',
     admin: '#1588C7',
   };
@@ -123,9 +125,13 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         ];
       case 'parent':
         return [
-          { id: 'parent-portal', path: '/parent/dashboard', label: lang === 'ar' ? 'متابعة الأبناء' : 'Children Overview', icon: Users },
-          { id: 'parent-reports', path: '/parent/dashboard', label: lang === 'ar' ? 'التقارير الأسبوعية' : 'Weekly Reports', icon: Activity },
-          { id: 'parent-feedback', path: '/parent/dashboard', label: lang === 'ar' ? 'ملاحظات المعلمين' : 'Teacher Feedback', icon: BookMarked },
+          { id: 'parent-portal', path: '/parent/dashboard?tab=overview', label: lang === 'ar' ? 'متابعة الأبناء' : 'Children Overview', icon: Users },
+          { id: 'parent-courses', path: '/parent/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات والدروس' : 'Enrolled Courses', icon: BookOpen },
+          { id: 'parent-attendance', path: '/parent/dashboard?tab=attendance', label: lang === 'ar' ? 'سجل حضور السنتر' : 'Center Attendance', icon: Calendar },
+          { id: 'parent-exams', path: '/parent/dashboard?tab=exams', label: lang === 'ar' ? 'الدرجات والامتحانات' : 'Exam Scorecards', icon: Award },
+          { id: 'parent-homework', path: '/parent/dashboard?tab=homework', label: lang === 'ar' ? 'الواجبات والتسليمات' : 'Homework Tracker', icon: FileText },
+          { id: 'parent-financials', path: '/parent/dashboard?tab=financials', label: lang === 'ar' ? 'المصروفات والاشتراكات' : 'Tuition & Fees', icon: CreditCard },
+          { id: 'parent-settings', path: '/parent/dashboard?tab=settings', label: lang === 'ar' ? 'الإعدادات والملف الشخصي' : 'Settings', icon: Settings },
         ];
       case 'center':
         return [
@@ -141,15 +147,21 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             group: lang === 'ar' ? 'الفروع وشبكة المعلمين' : 'Branches & Teachers',
             items: [
               { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'إدارة الفروع وشبكة المعلمين' : 'Branches & Teachers', icon: Layers },
+              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الاشتراك وباقات السنتر' : 'Plans & Pricing', icon: CreditCard, badge: lang === 'ar' ? 'الأسعار' : 'Pricing' },
               { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'إعدادات المنظومة والمهام' : 'Settings & Tasks', icon: Settings },
             ]
           }
         ];
       case 'admin':
         return [
-          { id: 'admin-portal', path: '/admin/dashboard', label: lang === 'ar' ? 'اقتصاديات المنصة' : 'SaaS Economics', icon: ShieldCheck },
-          { id: 'admin-gpu', path: '/admin/dashboard', label: lang === 'ar' ? 'كفاءة المعالجة' : 'GPU Clusters', icon: Server },
-          { id: 'admin-users', path: '/admin/dashboard', label: lang === 'ar' ? 'إدارة المستخدمين' : 'User Management', icon: Users },
+          { id: 'admin-overview', path: '/admin/dashboard?tab=overview', label: lang === 'ar' ? 'الرئيسية والإحصائيات' : 'Overview & KPIs', icon: LayoutDashboard },
+          { id: 'admin-champions', path: '/admin/dashboard?tab=champions', label: lang === 'ar' ? 'لوحة الشرف وأبطال الكؤوس' : 'Cup Champions', icon: Trophy, badge: lang === 'ar' ? 'مميز' : 'Cups' },
+          { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'إدارة المستخدمين والتوثيق' : 'User Management', icon: Users },
+          { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات والمحتوى التعليمي' : 'Courses & Content', icon: BookOpen },
+          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'المالية وسحب الأرباح' : 'Financials & Payouts', icon: DollarSign },
+          { id: 'admin-attendance', path: '/admin/dashboard?tab=attendance', label: lang === 'ar' ? 'بوابات الحضور والباركود' : 'QR Gate Attendance', icon: QrCode },
+          { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'شريط الأخبار والإعلانات' : 'Broadcast & News', icon: Megaphone },
+          { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الذكاء الاصطناعي والإعدادات' : 'AI & Settings', icon: Settings },
         ];
       default:
         return [];
@@ -167,7 +179,10 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
 
   const renderNavItem = (item) => {
     const ItemIcon = item.icon;
-    const isActive = location.pathname === item.path;
+    const currentFullPath = location.pathname + (location.search || '');
+    const isActive = item.path.includes('?')
+      ? (currentFullPath === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.endsWith('?tab=overview')))
+      : location.pathname === item.path;
 
     return (
       <div key={item.id} className="sidebar-item-wrapper">

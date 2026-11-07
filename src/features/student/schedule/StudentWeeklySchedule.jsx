@@ -351,8 +351,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
             width: '44px',
             height: '44px',
             borderRadius: '12px',
-            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
-            color: '#8B5CF6',
+            backgroundColor: 'rgba(92, 182, 219, 0.15)',
+            color: 'var(--primary-light, #5CB6DB)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -370,8 +370,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 fontWeight: '900',
                 padding: '2px 6px',
                 borderRadius: '999px',
-                backgroundColor: 'rgba(139, 92, 246, 0.12)',
-                color: '#8B5CF6'
+                backgroundColor: 'rgba(92, 182, 219, 0.15)',
+                color: 'var(--primary-light, #5CB6DB)'
               }}>
                 {isAr ? 'مخططة' : 'Planned'}
               </span>
@@ -407,8 +407,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
             width: '44px',
             height: '44px',
             borderRadius: '12px',
-            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
-            color: '#10B981',
+            backgroundColor: 'rgba(21, 136, 199, 0.12)',
+            color: 'var(--primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -426,8 +426,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 fontWeight: '900',
                 padding: '2px 6px',
                 borderRadius: '999px',
-                backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                color: '#10B981'
+                backgroundColor: 'rgba(21, 136, 199, 0.12)',
+                color: 'var(--primary)'
               }}>
                 {isAr ? 'أسبوعياً' : 'Weekly'}
               </span>
@@ -611,7 +611,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 borderRadius: '6px',
                 border: 'none',
                 backgroundColor: filterType === 'study' ? 'var(--bg-surface)' : 'transparent',
-                color: filterType === 'study' ? '#8B5CF6' : 'var(--text-secondary)',
+                color: filterType === 'study' ? 'var(--primary)' : 'var(--text-secondary)',
                 fontWeight: filterType === 'study' ? '800' : '600',
                 fontSize: '11.5px',
                 cursor: 'pointer',
@@ -761,7 +761,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                   {centerCount > 0 && studyCount > 0 && <span>•</span>}
                   {studyCount > 0 && (
                     <span style={{
-                      color: '#8B5CF6',
+                      color: 'var(--primary-light, #5CB6DB)',
                       fontWeight: '800'
                     }}>
                       {studyCount} {isAr ? 'مذاكرة' : 'Study'}
@@ -932,7 +932,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                             fontWeight: '900',
                             padding: '1px 5px',
                             borderRadius: '4px',
-                            backgroundColor: item.type === 'center' ? 'var(--primary)' : '#8B5CF6',
+                            backgroundColor: item.type === 'center' ? 'var(--primary)' : 'var(--primary-light, #5CB6DB)',
                             color: '#FFFFFF'
                           }}>
                             {item.type === 'center'
@@ -1004,7 +1004,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                                 gap: '4px',
                                 fontSize: '10px',
                                 fontWeight: '800',
-                                color: item.isCompleted ? '#10B981' : 'var(--text-muted)'
+                                color: item.isCompleted ? 'var(--primary)' : 'var(--text-muted)'
                               }}
                             >
                               {item.isCompleted ? <CheckCircle2 size={13} /> : <Circle size={13} />}
@@ -1257,10 +1257,10 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                       borderRadius: '12px',
                       backgroundColor: item.type === 'center'
                         ? 'var(--primary-surface)'
-                        : (item.isCompleted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(139, 92, 246, 0.15)'),
+                        : (item.isCompleted ? 'rgba(21, 136, 199, 0.15)' : 'rgba(92, 182, 219, 0.15)'),
                       color: item.type === 'center'
                         ? 'var(--primary)'
-                        : (item.isCompleted ? '#10B981' : '#8B5CF6'),
+                        : (item.isCompleted ? 'var(--primary)' : 'var(--primary-light, #5CB6DB)'),
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1276,7 +1276,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                           fontWeight: '900',
                           padding: '2px 8px',
                           borderRadius: '999px',
-                          backgroundColor: item.type === 'center' ? 'var(--primary)' : '#8B5CF6',
+                          backgroundColor: item.type === 'center' ? 'var(--primary)' : 'var(--primary-light, #5CB6DB)',
                           color: '#FFFFFF'
                         }}>
                           {item.type === 'center' ? (isAr ? 'حصة سنتر معتمدة' : 'Center Class') : (isAr ? 'جلسة استذكار خاصة' : 'Self-Study')}
@@ -1313,11 +1313,11 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                         {item.type === 'center' ? (
                           <>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <Building2 size={13} color="#F59E0B" />
+                              <Building2 size={13} color="var(--primary-light, #5CB6DB)" />
                               {item.centerName}
                             </span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <MapPin size={13} color="#10B981" />
+                              <MapPin size={13} color="var(--primary)" />
                               {item.hall}
                             </span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -1349,7 +1349,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                             padding: '8px 14px',
                             borderRadius: '8px',
                             border: 'none',
-                            backgroundColor: item.isCompleted ? '#10B981' : 'var(--bg-subtle)',
+                            backgroundColor: item.isCompleted ? 'var(--primary)' : 'var(--bg-subtle)',
                             color: item.isCompleted ? '#FFFFFF' : 'var(--text-primary)',
                             fontSize: '12px',
                             fontWeight: '800',
@@ -1367,7 +1367,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                             borderRadius: '8px',
                             border: '1px solid var(--border-subtle)',
                             backgroundColor: 'transparent',
-                            color: '#EF4444',
+                            color: 'var(--text-secondary)',
                             cursor: 'pointer'
                           }}
                           title={isAr ? 'حذف الجلسة' : 'Delete'}
@@ -1456,7 +1456,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
-                          color: note.isDone ? '#10B981' : 'var(--text-muted)',
+                          color: note.isDone ? 'var(--primary)' : 'var(--text-muted)',
                           padding: 0
                         }}
                       >

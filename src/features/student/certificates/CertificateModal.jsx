@@ -6,6 +6,8 @@ import { OfficialCertificateDocument } from './OfficialCertificateDocument';
 export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareNotice, setShareNotice] = useState(null);
   const exportCertRef = useRef(null);
   const isAr = lang === 'ar';
 
@@ -25,9 +27,6 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
-
-  const [isSharing, setIsSharing] = useState(false);
-  const [shareNotice, setShareNotice] = useState(null);
 
   const handleShareWhatsApp = async () => {
     if (isSharing || !exportCertRef.current) return;
