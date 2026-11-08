@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
 import {
-  DollarSign,
+  TrendingUp,
   Users,
   Activity,
   Zap,
@@ -19,7 +19,7 @@ const useCountUp = (target, duration = 1200) => {
     const step = (timestamp) => {
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      // easeOutExpo for a snappy, premium feel
+      // easeOutExpo for snappy, premium feel
       const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
       setCount(Math.floor(easeProgress * target));
 
@@ -38,7 +38,7 @@ const useCountUp = (target, duration = 1200) => {
 };
 
 export const AdminKpiCards = ({ econ }) => {
-  const { lang } = useLanguage();
+  const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
 
   // Dynamic Animated Values
@@ -47,108 +47,103 @@ export const AdminKpiCards = ({ econ }) => {
   const animatedActive = useCountUp(2840, 1000);
   const animatedLatency = useCountUp(econ?.aiEconomics?.avgLessonProcessingSeconds || 38, 900);
 
+  // Single-line ultra-concise KPI data (Focus strictly on Number + Short Label, No separate headers)
   const cardsData = [
     {
       id: 'mrr',
-      title: isAr ? 'الإيراد الشهري المتكرر' : 'Monthly Recurring (MRR)',
-      icon: DollarSign,
+      value: `${animatedMrr.toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`,
+      shortLabel: isAr ? 'شهرياً (MRR)' : 'MRR / mo',
+      icon: TrendingUp,
       iconColor: '#1588C7',
       iconBg: 'rgba(21, 136, 199, 0.12)',
-      displayValue: `${animatedMrr.toLocaleString()}`,
-      unit: isAr ? 'ج.م / شهرياً' : 'EGP / mo',
       badge: (
-        <div style={{
-          fontSize: '12px',
+        <span style={{
+          fontSize: '11px',
           color: '#10B981',
           fontWeight: '800',
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: '4px'
+          gap: '3px'
         }}>
-          <ArrowUpRight size={14} className="admin-arrow-bounce" />
-          <span>{isAr ? '+24.2% نمو شهري متصاعد' : '+24.2% MoM growth'}</span>
-        </div>
+          <ArrowUpRight size={13} className="admin-arrow-bounce" />
+          <span>{isAr ? '+24.2% نمو' : '+24.2% growth'}</span>
+        </span>
       ),
       delay: '0.04s'
     },
     {
       id: 'total-users',
-      title: isAr ? 'المستخدمون المسجلون' : 'Total Active Users',
+      value: `${animatedUsers.toLocaleString()}`,
+      shortLabel: isAr ? 'مستخدم مسجل' : 'Registered Users',
       icon: Users,
       iconColor: '#1588C7',
       iconBg: 'rgba(21, 136, 199, 0.12)',
-      displayValue: `${animatedUsers.toLocaleString()}`,
-      unit: isAr ? 'مستخدم مسجل' : 'registered accounts',
       badge: (
-        <div style={{
-          fontSize: '12px',
+        <span style={{
+          fontSize: '11px',
           color: 'var(--text-secondary)',
-          fontWeight: '700',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px'
+          fontWeight: '700'
         }}>
-          <span style={{ color: 'var(--text-primary)', fontWeight: '800' }}>
-            {isAr ? '33.3k طالب • 1,420 معلماً • 48 سنتر' : '33.3k students • 1.4k tutors • 48 centers'}
-          </span>
-        </div>
+          {isAr ? '33.3k طالب • 1.4k معلم • 48 سنتر' : '33.3k std • 1.4k tutor • 48 center'}
+        </span>
       ),
       delay: '0.1s'
     },
     {
       id: 'active-now',
-      title: isAr ? 'المستخدمون النشطون الآن' : 'Live Active Users',
+      value: `${animatedActive.toLocaleString()}`,
+      shortLabel: isAr ? 'نشط الآن' : 'Active Now',
       icon: Activity,
       iconColor: '#10B981',
       iconBg: 'rgba(16, 185, 129, 0.14)',
-      displayValue: `${animatedActive.toLocaleString()}`,
-      unit: isAr ? 'متصل بالمنصة' : 'online now',
       badge: (
-        <div style={{
-          fontSize: '12px',
+        <span style={{
+          fontSize: '11px',
           color: '#10B981',
           fontWeight: '800',
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: '6px'
+          gap: '5px'
         }}>
           <span className="admin-radar-beacon">
             <span className="admin-radar-core" />
             <span className="admin-radar-wave" />
           </span>
-          <span>{isAr ? 'متصلون لحظياً • 81.6% تفاعل' : 'Live session engagement 81.6%'}</span>
-        </div>
+          <span>{isAr ? 'متصل لحظياً (81.6%)' : 'Live Connected (81.6%)'}</span>
+        </span>
       ),
       delay: '0.16s'
     },
     {
       id: 'ai-latency',
-      title: isAr ? 'سرعة المعالجة الذكية' : 'Avg Pipeline Latency',
+      value: `${animatedLatency} ${isAr ? 'ثانية' : 'sec'}`,
+      shortLabel: isAr ? 'معالجة AI' : 'AI Processing',
       icon: Zap,
       iconColor: '#1588C7',
       iconBg: 'rgba(21, 136, 199, 0.12)',
-      displayValue: `${animatedLatency}s`,
-      unit: isAr ? 'ثانية / محاضرة' : 'seconds average',
       badge: (
-        <div style={{
-          fontSize: '12px',
+        <span style={{
+          fontSize: '11px',
           color: 'var(--text-secondary)',
           fontWeight: '700'
         }}>
-          <span>{isAr ? 'لكل 45 دقيقة صوتية معالجة بنماذج AI' : 'Per 45m lesson processed by AI'}</span>
-        </div>
+          {isAr ? 'لكل محاضرة 45 دقيقة' : 'Per 45m lecture'}
+        </span>
       ),
       delay: '0.22s'
     }
   ];
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-      gap: '16px',
-      marginBottom: '24px'
-    }}>
+    <div
+      className="admin-kpi-one-line-grid"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+        gap: '14px',
+        marginBottom: '20px'
+      }}
+    >
       {cardsData.map((c) => {
         const Icon = c.icon;
         return (
@@ -157,84 +152,102 @@ export const AdminKpiCards = ({ econ }) => {
             className="center-interactive-card admin-animated-kpi-card"
             style={{
               backgroundColor: 'var(--bg-surface)',
-              padding: '18px 20px',
+              padding: '14px 16px',
               borderRadius: 'var(--radius-lg, 14px)',
               border: '1px solid var(--border-subtle)',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
               display: 'flex',
-              flexDirection: 'column',
+              alignItems: 'center',
               justifyContent: 'space-between',
-              minHeight: '126px',
+              gap: '12px',
               position: 'relative',
               overflow: 'hidden',
+              minHeight: '84px',
               animation: `adminKpiSlideUpEntrance 0.5s ${c.delay} cubic-bezier(0.16, 1, 0.3, 1) both`
             }}
           >
             {/* Ambient Shimmer Sweep on Hover */}
             <div className="admin-kpi-shimmer-sweep" />
 
-            {/* Top Row: Title + Icon Box */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '8px',
-              position: 'relative',
-              zIndex: 2
-            }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '700' }}>
-                {c.title}
-              </span>
-              <div
-                className="admin-kpi-icon-box"
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  backgroundColor: c.iconBg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: c.iconColor,
-                  flexShrink: 0,
-                  transition: 'all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                }}
-              >
-                <Icon size={18} />
+            {/* Left/Right Text Content: Big Number + Short Label in ONE focal zone, no separate title */}
+            <div style={{ position: 'relative', zIndex: 2, minWidth: 0, flex: 1 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '6px',
+                flexWrap: 'wrap',
+                marginBottom: '4px'
+              }}>
+                <span
+                  className="admin-kpi-number-pop"
+                  style={{
+                    fontSize: '22px',
+                    fontWeight: '900',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-heading)',
+                    lineHeight: 1
+                  }}
+                >
+                  {c.value}
+                </span>
+                <span
+                  style={{
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    color: c.id === 'active-now' ? '#10B981' : '#1588C7',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {c.shortLabel}
+                </span>
+              </div>
+
+              {/* Concise Bottom Micro-badge */}
+              <div style={{
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {c.badge}
               </div>
             </div>
 
-            {/* Middle Row: Animated Number Value with Unit */}
-            <div style={{
-              fontSize: '25px',
-              fontWeight: '900',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-heading)',
-              marginBottom: '4px',
-              lineHeight: 1.15,
-              position: 'relative',
-              zIndex: 2
-            }}>
-              <span className="admin-kpi-number-pop">{c.displayValue}</span>{' '}
-              <span style={{
-                fontSize: '13px',
-                color: 'var(--text-secondary)',
-                fontWeight: '600',
-                fontFamily: 'inherit'
-              }}>
-                {c.unit}
-              </span>
-            </div>
-
-            {/* Bottom Row: Harmonious Aligned Metric Line */}
-            <div style={{ position: 'relative', zIndex: 2 }}>
-              {c.badge}
+            {/* Icon Box */}
+            <div
+              className="admin-kpi-icon-box"
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '11px',
+                backgroundColor: c.iconBg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: c.iconColor,
+                flexShrink: 0,
+                position: 'relative',
+                zIndex: 2,
+                transition: 'all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              <Icon size={20} />
             </div>
           </div>
         );
       })}
 
       <style>{`
+        @media (max-width: 1080px) {
+          .admin-kpi-one-line-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 580px) {
+          .admin-kpi-one-line-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
         @keyframes adminKpiSlideUpEntrance {
           0% {
             opacity: 0;
@@ -253,8 +266,8 @@ export const AdminKpiCards = ({ econ }) => {
         }
 
         .admin-animated-kpi-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 14px 28px -4px rgba(21, 136, 199, 0.16), 0 4px 10px -2px rgba(6, 37, 78, 0.05);
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px -4px rgba(21, 136, 199, 0.16), 0 4px 10px -2px rgba(6, 37, 78, 0.05);
           border-color: rgba(21, 136, 199, 0.4) !important;
         }
 
