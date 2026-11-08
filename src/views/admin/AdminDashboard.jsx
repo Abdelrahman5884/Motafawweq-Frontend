@@ -5,8 +5,8 @@ import { MOCK_ADMIN_ECONOMICS } from '../../data/mockData';
 import { getChampions } from '../../services/championsStorage';
 import {
   AdminKpiCards,
-  AdminAiEconomicsPanel,
-  AdminActiveUsersChart
+  AdminAnalyticsCharts,
+  AdminAiEconomicsPanel
 } from '../../features/admin/dashboard';
 import { AdminChampionsManager } from '../../features/admin/champions/AdminChampionsManager';
 import { AdminUsersManager } from '../../features/admin/users/AdminUsersManager';
@@ -57,7 +57,7 @@ export const AdminDashboard = () => {
 
   return (
     <div 
-      className="responsive-container"
+      className="responsive-container admin-dashboard-page"
       style={{
         maxWidth: '1280px',
         margin: '0 auto',
@@ -166,12 +166,12 @@ export const AdminDashboard = () => {
 
       {/* ── Tab Views ── */}
       {activeTab === 'overview' && (
-        <div className="admin-animated-view" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {/* Global SaaS Platform KPIs */}
           <AdminKpiCards econ={econ} />
 
-          {/* Real-Time Active Users Chart (Like Teacher Page) */}
-          <AdminActiveUsersChart />
+          {/* Interactive User Activity Spline Graph & Demographic Donut Chart */}
+          <AdminAnalyticsCharts />
 
           {/* Highlights Split: Champions Spotlight + Operations Telemetry */}
           <div style={{
@@ -311,10 +311,10 @@ export const AdminDashboard = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)' }}>
                     <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      {lang === 'ar' ? 'معدل استقرار الخوادم اللحظي:' : 'Real-time Server Uptime:'}
+                      {lang === 'ar' ? 'هامش الربح التشغيلي للذكاء الاصطناعي:' : 'AI Operating Margin:'}
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)' }}>
-                      {lang === 'ar' ? '99.98% استقرار تام' : '99.98% Uptime'}
+                      {lang === 'ar' ? '73.7% هامش ربح' : '73.7% Gross Margin'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)' }}>
@@ -363,18 +363,19 @@ export const AdminDashboard = () => {
       )}
 
       <style>{`
-        @keyframes adminFadeSlideUp {
+        .admin-dashboard-page {
+          animation: adminFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes adminFadeIn {
           from {
             opacity: 0;
-            transform: translateY(14px);
+            transform: translateY(8px);
           }
           to {
             opacity: 1;
             transform: translateY(0);
           }
-        }
-        .admin-animated-view {
-          animation: adminFadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
       `}</style>
     </div>

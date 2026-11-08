@@ -158,7 +158,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
           { id: 'admin-champions', path: '/admin/dashboard?tab=champions', label: lang === 'ar' ? 'لوحة الشرف وأبطال الكؤوس' : 'Cup Champions', icon: Trophy, badge: lang === 'ar' ? 'مميز' : 'Cups' },
           { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'إدارة المستخدمين والتوثيق' : 'User Management', icon: Users },
           { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات والمحتوى التعليمي' : 'Courses & Content', icon: BookOpen },
-          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'المالية وسحب الأرباح' : 'Financials & Payouts', icon: DollarSign },
+          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'المالية وتحديد أسعار الباقات' : 'Financials & Pricing', icon: DollarSign },
           { id: 'admin-attendance', path: '/admin/dashboard?tab=attendance', label: lang === 'ar' ? 'بوابات الحضور والباركود' : 'QR Gate Attendance', icon: QrCode },
           { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'شريط الأخبار والإعلانات' : 'Broadcast & News', icon: Megaphone },
           { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الذكاء الاصطناعي والإعدادات' : 'AI & Settings', icon: Settings },

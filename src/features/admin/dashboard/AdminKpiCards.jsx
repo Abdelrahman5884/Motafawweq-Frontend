@@ -1,411 +1,341 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
 import {
-  TrendingUp,
+  DollarSign,
   Users,
-  GraduationCap,
-  Award,
-  Building2,
-  Clock,
-  Zap,
   Activity,
+  Zap,
   ArrowUpRight
 } from 'lucide-react';
 
+// Easing count-up animation hook
+const useCountUp = (target, duration = 1200) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTimestamp = null;
+    let frameId;
+
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      // easeOutExpo for a snappy, premium feel
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setCount(Math.floor(easeProgress * target));
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(step);
+      } else {
+        setCount(target);
+      }
+    };
+
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
+  }, [target, duration]);
+
+  return count;
+};
+
 export const AdminKpiCards = ({ econ }) => {
-  const { lang, isRtl } = useLanguage();
+  const { lang } = useLanguage();
   const isAr = lang === 'ar';
 
-  const totalUsers = econ?.totalUsers || 34800;
-  const studentsCount = 33332;
-  const teachersCount = 1420;
-  const centersCount = 48;
+  // Dynamic Animated Values
+  const animatedMrr = useCountUp(econ?.mrrEgp || 540000, 1100);
+  const animatedUsers = useCountUp(econ?.totalUsers || 34800, 1200);
+  const animatedActive = useCountUp(2840, 1000);
+  const animatedLatency = useCountUp(econ?.aiEconomics?.avgLessonProcessingSeconds || 38, 900);
 
-  const studentsPct = ((studentsCount / totalUsers) * 100).toFixed(1);
-  const teachersPct = ((teachersCount / totalUsers) * 100).toFixed(1);
-  const centersPct = ((centersCount / totalUsers) * 100).toFixed(1);
+  const cardsData = [
+    {
+      id: 'mrr',
+      title: isAr ? 'الإيراد الشهري المتكرر' : 'Monthly Recurring (MRR)',
+      icon: DollarSign,
+      iconColor: '#1588C7',
+      iconBg: 'rgba(21, 136, 199, 0.12)',
+      displayValue: `${animatedMrr.toLocaleString()}`,
+      unit: isAr ? 'ج.م / شهرياً' : 'EGP / mo',
+      badge: (
+        <div style={{
+          fontSize: '12px',
+          color: '#10B981',
+          fontWeight: '800',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
+        }}>
+          <ArrowUpRight size={14} className="admin-arrow-bounce" />
+          <span>{isAr ? '+24.2% نمو شهري متصاعد' : '+24.2% MoM growth'}</span>
+        </div>
+      ),
+      delay: '0.04s'
+    },
+    {
+      id: 'total-users',
+      title: isAr ? 'المستخدمون المسجلون' : 'Total Active Users',
+      icon: Users,
+      iconColor: '#1588C7',
+      iconBg: 'rgba(21, 136, 199, 0.12)',
+      displayValue: `${animatedUsers.toLocaleString()}`,
+      unit: isAr ? 'مستخدم مسجل' : 'registered accounts',
+      badge: (
+        <div style={{
+          fontSize: '12px',
+          color: 'var(--text-secondary)',
+          fontWeight: '700',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
+        }}>
+          <span style={{ color: 'var(--text-primary)', fontWeight: '800' }}>
+            {isAr ? '33.3k طالب • 1,420 معلماً • 48 سنتر' : '33.3k students • 1.4k tutors • 48 centers'}
+          </span>
+        </div>
+      ),
+      delay: '0.1s'
+    },
+    {
+      id: 'active-now',
+      title: isAr ? 'المستخدمون النشطون الآن' : 'Live Active Users',
+      icon: Activity,
+      iconColor: '#10B981',
+      iconBg: 'rgba(16, 185, 129, 0.14)',
+      displayValue: `${animatedActive.toLocaleString()}`,
+      unit: isAr ? 'متصل بالمنصة' : 'online now',
+      badge: (
+        <div style={{
+          fontSize: '12px',
+          color: '#10B981',
+          fontWeight: '800',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span className="admin-radar-beacon">
+            <span className="admin-radar-core" />
+            <span className="admin-radar-wave" />
+          </span>
+          <span>{isAr ? 'متصلون لحظياً • 81.6% تفاعل' : 'Live session engagement 81.6%'}</span>
+        </div>
+      ),
+      delay: '0.16s'
+    },
+    {
+      id: 'ai-latency',
+      title: isAr ? 'سرعة المعالجة الذكية' : 'Avg Pipeline Latency',
+      icon: Zap,
+      iconColor: '#1588C7',
+      iconBg: 'rgba(21, 136, 199, 0.12)',
+      displayValue: `${animatedLatency}s`,
+      unit: isAr ? 'ثانية / محاضرة' : 'seconds average',
+      badge: (
+        <div style={{
+          fontSize: '12px',
+          color: 'var(--text-secondary)',
+          fontWeight: '700'
+        }}>
+          <span>{isAr ? 'لكل 45 دقيقة صوتية معالجة بنماذج AI' : 'Per 45m lesson processed by AI'}</span>
+        </div>
+      ),
+      delay: '0.22s'
+    }
+  ];
 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-      gap: '20px',
-      marginBottom: '28px'
+      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+      gap: '16px',
+      marginBottom: '24px'
     }}>
-      {/* ── CARD 1: Monthly Recurring Revenue (MRR) ── */}
-      <div
-        className="admin-kpi-card"
-        style={{
-          backgroundColor: 'var(--bg-surface-elevated, #FFFFFF)',
-          padding: '24px',
-          borderRadius: '22px',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-xs)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          transition: 'all 0.25s ease'
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-              {isAr ? 'الإيراد الشهري المتكرر (MRR)' : 'Monthly Recurring (MRR)'}
-            </span>
+      {cardsData.map((c) => {
+        const Icon = c.icon;
+        return (
+          <div
+            key={c.id}
+            className="center-interactive-card admin-animated-kpi-card"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              padding: '18px 20px',
+              borderRadius: 'var(--radius-lg, 14px)',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '126px',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: `adminKpiSlideUpEntrance 0.5s ${c.delay} cubic-bezier(0.16, 1, 0.3, 1) both`
+            }}
+          >
+            {/* Ambient Shimmer Sweep on Hover */}
+            <div className="admin-kpi-shimmer-sweep" />
+
+            {/* Top Row: Title + Icon Box */}
             <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '9px',
-              backgroundColor: 'rgba(21, 136, 199, 0.12)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary)'
+              justifyContent: 'space-between',
+              marginBottom: '8px',
+              position: 'relative',
+              zIndex: 2
             }}>
-              <TrendingUp size={16} />
-            </div>
-          </div>
-
-          <div style={{
-            fontSize: '30px',
-            fontWeight: '900',
-            color: 'var(--primary)',
-            fontFamily: 'var(--font-heading)',
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: '6px'
-          }}>
-            <span>{econ.mrrEgp.toLocaleString()}</span>
-            <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-              {isAr ? 'ج.م' : 'EGP'}
-            </span>
-          </div>
-        </div>
-
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: '16px',
-          paddingTop: '12px',
-          borderTop: '1px solid var(--border-subtle)'
-        }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '12px',
-            fontWeight: '800',
-            color: 'var(--primary)',
-            backgroundColor: 'rgba(21, 136, 199, 0.1)',
-            padding: '3px 8px',
-            borderRadius: '6px'
-          }}>
-            <ArrowUpRight size={13} />
-            +24.2% MoM
-          </span>
-          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-            {isAr ? 'نمو اشتراكات السناتر والمعلمين' : 'Strong Tier Retention'}
-          </span>
-        </div>
-      </div>
-
-      {/* ── CARD 2: Total Active Users with Rich Breakdown (Student / Teacher / Center) ── */}
-      <div
-        className="admin-kpi-card admin-kpi-users-card"
-        style={{
-          backgroundColor: 'var(--bg-surface-elevated, #FFFFFF)',
-          padding: '24px',
-          borderRadius: '22px',
-          border: '1.5px solid rgba(21, 136, 199, 0.28)',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          gridColumn: 'span 2',
-          transition: 'all 0.25s ease'
-        }}
-      >
-        <div>
-          {/* Top Row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '9px',
-                backgroundColor: 'rgba(21, 136, 199, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)'
-              }}>
-                <Users size={16} />
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '700' }}>
+                {c.title}
+              </span>
+              <div
+                className="admin-kpi-icon-box"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: c.iconBg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: c.iconColor,
+                  flexShrink: 0,
+                  transition: 'all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                }}
+              >
+                <Icon size={18} />
               </div>
-              <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {isAr ? 'إجمالي المستخدمين النشطين بالمنصة' : 'Total Active Platform Users'}
+            </div>
+
+            {/* Middle Row: Animated Number Value with Unit */}
+            <div style={{
+              fontSize: '25px',
+              fontWeight: '900',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-heading)',
+              marginBottom: '4px',
+              lineHeight: 1.15,
+              position: 'relative',
+              zIndex: 2
+            }}>
+              <span className="admin-kpi-number-pop">{c.displayValue}</span>{' '}
+              <span style={{
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                fontWeight: '600',
+                fontFamily: 'inherit'
+              }}>
+                {c.unit}
               </span>
             </div>
 
-            <span style={{
-              fontSize: '11.5px',
-              fontWeight: '800',
-              padding: '3px 10px',
-              borderRadius: '20px',
-              backgroundColor: 'rgba(21, 136, 199, 0.12)',
-              color: 'var(--primary)',
-              border: '1px solid rgba(21, 136, 199, 0.25)'
-            }}>
-              {isAr ? '99.4% نسبة تفاعل الحسابات' : '99.4% Active Ratio'}
-            </span>
-          </div>
-
-          {/* Big Number */}
-          <div style={{
-            fontSize: '32px',
-            fontWeight: '900',
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-heading)',
-            marginBottom: '12px'
-          }}>
-            {totalUsers.toLocaleString()}
-          </div>
-
-          {/* Multi-segment Visual Progress Bar */}
-          <div style={{
-            width: '100%',
-            height: '8px',
-            borderRadius: '6px',
-            backgroundColor: 'var(--bg-subtle, #f1f5f9)',
-            overflow: 'hidden',
-            display: 'flex',
-            marginBottom: '14px'
-          }}>
-            <div
-              title={`${isAr ? 'الطلاب' : 'Students'}: ${studentsPct}%`}
-              style={{
-                width: `${studentsPct}%`,
-                backgroundColor: 'var(--primary, #1588C7)',
-                transition: 'width 0.6s ease'
-              }}
-            />
-            <div
-              title={`${isAr ? 'المعلمون' : 'Teachers'}: ${teachersPct}%`}
-              style={{
-                width: `${teachersPct}%`,
-                backgroundColor: 'var(--primary-light, #5CB6DB)',
-                transition: 'width 0.6s ease'
-              }}
-            />
-            <div
-              title={`${isAr ? 'السناتر' : 'Centers'}: ${centersPct}%`}
-              style={{
-                width: `${Math.max(1, parseFloat(centersPct))}%`,
-                backgroundColor: 'var(--color-brand-dark, #06254E)',
-                transition: 'width 0.6s ease'
-              }}
-            />
-          </div>
-        </div>
-
-        {/* ── 3 Beautiful Structured Breakdown Chips: Student, Teacher, Center ── */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '10px',
-          marginTop: '6px'
-        }}>
-          {/* Students Chip */}
-          <div style={{
-            backgroundColor: 'var(--bg-subtle, #f8fafc)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '14px',
-            padding: '10px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(21, 136, 199, 0.12)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary)',
-              flexShrink: 0
-            }}>
-              <GraduationCap size={16} />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                {isAr ? 'الطلاب' : 'Students'}
-              </div>
-              <div style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {studentsCount.toLocaleString()}
-                <span style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: '700', marginInlineStart: '4px' }}>
-                  ({studentsPct}%)
-                </span>
-              </div>
+            {/* Bottom Row: Harmonious Aligned Metric Line */}
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              {c.badge}
             </div>
           </div>
-
-          {/* Teachers Chip */}
-          <div style={{
-            backgroundColor: 'var(--bg-subtle, #f8fafc)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '14px',
-            padding: '10px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(92, 182, 219, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary-light, #5CB6DB)',
-              flexShrink: 0
-            }}>
-              <Award size={16} />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                {isAr ? 'المعلمون' : 'Teachers'}
-              </div>
-              <div style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {teachersCount.toLocaleString()}
-                <span style={{ fontSize: '10.5px', color: 'var(--primary-light, #5CB6DB)', fontWeight: '700', marginInlineStart: '4px' }}>
-                  ({teachersPct}%)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Centers Chip */}
-          <div style={{
-            backgroundColor: 'var(--bg-subtle, #f8fafc)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '14px',
-            padding: '10px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              backgroundColor: 'rgba(6, 37, 78, 0.12)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--color-brand-dark, #06254E)',
-              flexShrink: 0
-            }}>
-              <Building2 size={16} />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                {isAr ? 'السناتر' : 'Centers'}
-              </div>
-              <div style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {centersCount.toLocaleString()}
-                <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)', fontWeight: '700', marginInlineStart: '4px' }}>
-                  ({centersPct}%)
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── CARD 3: Processing Latency (Avg Lesson Pipeline Speed) ── */}
-      <div
-        className="admin-kpi-card"
-        style={{
-          backgroundColor: 'var(--bg-surface-elevated, #FFFFFF)',
-          padding: '24px',
-          borderRadius: '22px',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-xs)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          transition: 'all 0.25s ease'
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-              {isAr ? 'متوسط سرعة المعالجة' : 'Avg Pipeline Latency'}
-            </span>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '9px',
-              backgroundColor: 'rgba(92, 182, 219, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary-light, #5CB6DB)'
-            }}>
-              <Clock size={16} />
-            </div>
-          </div>
-
-          <div style={{
-            fontSize: '30px',
-            fontWeight: '900',
-            color: 'var(--primary-light, #5CB6DB)',
-            fontFamily: 'var(--font-heading)',
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: '4px'
-          }}>
-            <span>{econ.aiEconomics.avgLessonProcessingSeconds}</span>
-            <span style={{ fontSize: '16px', fontWeight: '800' }}>{isAr ? 'ثانية' : 's'}</span>
-          </div>
-        </div>
-
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: '16px',
-          paddingTop: '12px',
-          borderTop: '1px solid var(--border-subtle)'
-        }}>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: '800',
-            color: 'var(--primary)',
-            backgroundColor: 'rgba(21, 136, 199, 0.1)',
-            padding: '3px 8px',
-            borderRadius: '6px'
-          }}>
-            {isAr ? 'فائق السرعة' : 'Ultra Fast'}
-          </span>
-          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-            {isAr ? 'لكل 45 دقيقة صوتية كاملة' : 'Per 45m lesson audio'}
-          </span>
-        </div>
-      </div>
+        );
+      })}
 
       <style>{`
-        .admin-kpi-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 10px 24px rgba(21, 136, 199, 0.08) !important;
-          border-color: rgba(21, 136, 199, 0.35) !important;
+        @keyframes adminKpiSlideUpEntrance {
+          0% {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
-        @media (max-width: 900px) {
-          .admin-kpi-users-card {
-            grid-column: span 1 !important;
+
+        .admin-animated-kpi-card {
+          transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+                      box-shadow 0.24s ease,
+                      border-color 0.24s ease;
+        }
+
+        .admin-animated-kpi-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 14px 28px -4px rgba(21, 136, 199, 0.16), 0 4px 10px -2px rgba(6, 37, 78, 0.05);
+          border-color: rgba(21, 136, 199, 0.4) !important;
+        }
+
+        .admin-animated-kpi-card:hover .admin-kpi-icon-box {
+          transform: scale(1.15) rotate(5deg);
+          box-shadow: 0 4px 12px rgba(21, 136, 199, 0.25);
+        }
+
+        .admin-kpi-shimmer-sweep {
+          position: absolute;
+          top: 0;
+          left: -120%;
+          width: 80%;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(21, 136, 199, 0.06),
+            transparent
+          );
+          transform: skewX(-20deg);
+          pointer-events: none;
+          transition: left 0.75s ease-in-out;
+          z-index: 1;
+        }
+
+        .admin-animated-kpi-card:hover .admin-kpi-shimmer-sweep {
+          left: 140%;
+        }
+
+        .admin-arrow-bounce {
+          animation: adminArrowFloat 1.8s ease-in-out infinite;
+        }
+
+        @keyframes adminArrowFloat {
+          0%, 100% {
+            transform: translate(0, 0);
+          }
+          50% {
+            transform: translate(1.5px, -2px);
+          }
+        }
+
+        .admin-radar-beacon {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 9px;
+          height: 9px;
+        }
+
+        .admin-radar-core {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background-color: #10B981;
+          z-index: 2;
+        }
+
+        .admin-radar-wave {
+          position: absolute;
+          inset: -2px;
+          border-radius: 50%;
+          background-color: rgba(16, 185, 129, 0.5);
+          animation: adminRadarPulse 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+          z-index: 1;
+        }
+
+        @keyframes adminRadarPulse {
+          0% {
+            transform: scale(0.9);
+            opacity: 0.9;
+          }
+          70% {
+            transform: scale(2.4);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(2.6);
+            opacity: 0;
           }
         }
       `}</style>
