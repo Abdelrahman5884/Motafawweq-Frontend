@@ -16,7 +16,14 @@ import {
   X,
   Edit3,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Eye,
+  Mail,
+  Phone,
+  Calendar,
+  QrCode,
+  MapPin,
+  BookOpen
 } from 'lucide-react';
 
 export const AdminUsersManager = () => {
@@ -26,6 +33,7 @@ export const AdminUsersManager = () => {
   const [selectedRole, setSelectedRole] = useState('all');
   const [selectedStatus] = useState('all');
   const [selectedUserForVerification, setSelectedUserForVerification] = useState(null);
+  const [selectedUserForDetails, setSelectedUserForDetails] = useState(null);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState(null);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
@@ -130,9 +138,11 @@ export const AdminUsersManager = () => {
     e.preventDefault();
     if (!newUser.name.trim() || !newUser.email.trim()) return;
 
+    const generatedStudentCode = `STU-${Math.floor(10000 + Math.random() * 90000)}`;
     const created = {
       ...newUser,
       id: `usr-${Date.now()}`,
+      studentCode: newUser.role === 'student' ? generatedStudentCode : undefined,
       status: newUser.role === 'teacher' ? 'pending_verification' : 'active',
       avatar: newUser.role === 'student' ? '/characters/student.png' : newUser.role === 'teacher' ? '/characters/teacher.png' : '/characters/parent.png',
       joinDate: new Date().toISOString().split('T')[0],
@@ -155,6 +165,7 @@ export const AdminUsersManager = () => {
       (u.nameEn && u.nameEn.toLowerCase().includes(q)) ||
       (u.email && u.email.toLowerCase().includes(q)) ||
       (u.phone && u.phone.includes(searchQuery)) ||
+      (u.studentCode && u.studentCode.toLowerCase().includes(q)) ||
       (u.nationalId && u.nationalId.includes(searchQuery));
 
     const matchesRole = selectedRole === 'all' || u.role === selectedRole;
@@ -386,15 +397,17 @@ export const AdminUsersManager = () => {
                   return (
                     <tr
                       key={u.id}
+                      onClick={() => setSelectedUserForDetails(u)}
                       style={{
                         borderBottom: '1px solid var(--border-subtle)',
                         fontSize: '13px',
+                        cursor: 'pointer',
                         transition: 'background-color 0.15s ease'
                       }}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-subtle)'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      {/* User Info */}
+                      {/* User Info (Concise & Clean without private data) */}
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <img
@@ -410,14 +423,20 @@ export const AdminUsersManager = () => {
                             onError={(e) => { e.currentTarget.src = '/characters/student.png'; }}
                           />
                           <div>
-                            <div style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                            <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontSize: '13.5px' }}>
                               {lang === 'ar' ? (u.nameAr || u.name) : (u.nameEn || u.name)}
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                              {u.email}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>
-                              {u.phone}
+                            <div style={{
+                              fontSize: '11px',
+                              color: 'var(--primary)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              marginTop: '2px',
+                              fontWeight: '600'
+                            }}>
+                              <Eye size={11} />
+                              <span>{lang === 'ar' ? 'عرض التفاصيل الكاملة' : 'View Full Profile'}</span>
                             </div>
                           </div>
                         </div>
@@ -443,16 +462,11 @@ export const AdminUsersManager = () => {
                         </span>
                       </td>
 
-                      {/* Details */}
-                      <td style={{ padding: '14px 18px', color: 'var(--text-secondary)', maxWidth: '240px' }}>
-                        <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
+                      {/* Details (Clean without National ID) */}
+                      <td style={{ padding: '14px 18px', color: 'var(--text-secondary)', maxWidth: '280px' }}>
+                        <div style={{ fontSize: '12.5px', lineHeight: '1.4', color: 'var(--text-primary)', fontWeight: '600' }}>
                           {lang === 'ar' ? (u.detailsAr || u.details) : (u.detailsEn || u.details)}
                         </div>
-                        {u.nationalId && (
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {lang === 'ar' ? 'الرقم القومي: ' : 'National ID: '}{u.nationalId}
-                          </div>
-                        )}
                       </td>
 
                       {/* Status */}
@@ -547,6 +561,36 @@ export const AdminUsersManager = () => {
                                 textAlign: isRtl ? 'right' : 'left'
                               }}
                             >
+                              {/* View Details Action */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownUserId(null);
+                                  setSelectedUserForDetails(u);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  backgroundColor: 'transparent',
+                                  color: 'var(--primary)',
+                                  fontSize: '12.5px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  textAlign: 'inherit',
+                                  transition: 'background-color 0.15s ease'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.08)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                              >
+                                <Eye size={14} color="var(--primary)" />
+                                <span>{lang === 'ar' ? 'عرض كامل التفاصيل' : 'View Full Details'}</span>
+                              </button>
+
                               {/* Edit Action */}
                               <button
                                 type="button"
@@ -1392,6 +1436,511 @@ export const AdminUsersManager = () => {
                 }}
               >
                 {lang === 'ar' ? 'تأكيد الحذف' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comprehensive User Profile Details Modal (Triggered on Row Click) */}
+      {selectedUserForDetails && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(6, 37, 78, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}>
+          <div 
+            className="responsive-modal-box"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1.5px solid var(--border-subtle)',
+              borderRadius: '24px',
+              width: '100%',
+              maxWidth: '580px',
+              padding: '26px',
+              boxShadow: 'var(--shadow-xl)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              direction: isRtl ? 'rtl' : 'ltr'
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '20px',
+              borderBottom: '1px solid var(--border-subtle)',
+              paddingBottom: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--primary)'
+                }}>
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    {lang === 'ar' ? 'الملف التعريفي الشامل للمستخدم' : 'Comprehensive User Profile'}
+                  </h3>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                    ID: {selectedUserForDetails.id}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedUserForDetails(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* User Main Card */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              padding: '16px',
+              backgroundColor: 'var(--bg-subtle)',
+              borderRadius: '16px',
+              border: '1px solid var(--border-subtle)',
+              marginBottom: '18px'
+            }}>
+              <img
+                src={selectedUserForDetails.avatar}
+                alt={selectedUserForDetails.name}
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '16px',
+                  objectFit: 'cover',
+                  border: '2px solid var(--primary)'
+                }}
+                onError={(e) => { e.currentTarget.src = '/characters/student.png'; }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    {lang === 'ar' ? (selectedUserForDetails.nameAr || selectedUserForDetails.name) : (selectedUserForDetails.nameEn || selectedUserForDetails.name)}
+                  </h4>
+                  {/* Status badge */}
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    backgroundColor:
+                      selectedUserForDetails.status === 'verified' ? 'rgba(16, 185, 129, 0.15)' :
+                      selectedUserForDetails.status === 'pending_verification' ? 'rgba(239, 68, 68, 0.15)' :
+                      selectedUserForDetails.status === 'suspended' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                    color:
+                      selectedUserForDetails.status === 'verified' ? '#047857' :
+                      selectedUserForDetails.status === 'pending_verification' ? '#B91C1C' :
+                      selectedUserForDetails.status === 'suspended' ? '#B91C1C' : '#047857'
+                  }}>
+                    {selectedUserForDetails.status === 'verified' ? (lang === 'ar' ? 'موثق ومعتمد' : 'Verified') :
+                     selectedUserForDetails.status === 'pending_verification' ? (lang === 'ar' ? 'بانتظار الاعتماد' : 'Pending') :
+                     selectedUserForDetails.status === 'suspended' ? (lang === 'ar' ? 'مجمد' : 'Suspended') : (lang === 'ar' ? 'نشط' : 'Active')}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  {roleLabels[selectedUserForDetails.role] || selectedUserForDetails.role}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Data List */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              fontSize: '13px',
+              marginBottom: '20px'
+            }}>
+              {/* If Student: Prominent Student ID / Linking Code */}
+              {selectedUserForDetails.role === 'student' && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.08)',
+                  border: '1.5px solid rgba(21, 136, 199, 0.28)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      backgroundColor: 'var(--primary)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <QrCode size={19} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontSize: '13.5px' }}>
+                        {lang === 'ar' ? 'كود ربط الطالب (Student ID)' : 'Unified Student ID'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {lang === 'ar' ? 'الكود المعتمد لربط ولي الأمر بالمنصة وسجلات السناتر' : 'Official code to link parent app & center rosters'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span style={{
+                    fontSize: '16px',
+                    fontWeight: '900',
+                    color: 'var(--primary)',
+                    letterSpacing: '1px',
+                    backgroundColor: 'var(--bg-surface)',
+                    padding: '6px 12px',
+                    borderRadius: '10px',
+                    border: '1.5px solid rgba(21, 136, 199, 0.35)',
+                    fontFamily: 'monospace',
+                    boxShadow: 'var(--shadow-xs)'
+                  }}>
+                    {selectedUserForDetails.studentCode || `STU-${selectedUserForDetails.id.replace('usr-', '')}`}
+                  </span>
+                </div>
+              )}
+
+              {/* National ID: Only for Teachers / Staff where national ID is required for accreditation */}
+              {selectedUserForDetails.role !== 'student' && selectedUserForDetails.nationalId && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                    <ShieldCheck size={16} color="var(--primary)" />
+                    <span style={{ fontWeight: '600' }}>
+                      {selectedUserForDetails.role === 'teacher' ? (lang === 'ar' ? 'الرقم القومي (لتوثيق واعتماد المؤهل):' : 'National ID (Accreditation):') : (lang === 'ar' ? 'رقم السجل / الهوية:' : 'National / Reg ID:')}
+                    </span>
+                  </div>
+                  <span style={{ fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '1px', fontFamily: 'monospace', fontSize: '14px' }}>
+                    {selectedUserForDetails.nationalId}
+                  </span>
+                </div>
+              )}
+
+              {/* Email */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                  <Mail size={16} color="var(--primary)" />
+                  <span style={{ fontWeight: '600' }}>{lang === 'ar' ? 'البريد الإلكتروني:' : 'Email Address:'}</span>
+                </div>
+                <span style={{ fontWeight: '700', color: 'var(--primary)' }}>
+                  {selectedUserForDetails.email}
+                </span>
+              </div>
+
+              {/* Phone */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                  <Phone size={16} color="var(--primary)" />
+                  <span style={{ fontWeight: '600' }}>
+                    {selectedUserForDetails.role === 'student' ? (lang === 'ar' ? 'رقم هاتف الطالب:' : 'Student Phone:') : (lang === 'ar' ? 'رقم الهاتف:' : 'Phone Number:')}
+                  </span>
+                </div>
+                <span style={{ fontWeight: '800', color: 'var(--text-primary)', dir: 'ltr' }}>
+                  {selectedUserForDetails.phone || '—'}
+                </span>
+              </div>
+
+              {/* If Student: Parent Phone */}
+              {selectedUserForDetails.role === 'student' && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                    <Users size={16} color="var(--color-success)" />
+                    <span style={{ fontWeight: '600' }}>{lang === 'ar' ? 'رقم ولي الأمر (المسجل للمتابعة):' : 'Parent Phone (Follow-up):'}</span>
+                  </div>
+                  <span style={{ fontWeight: '800', color: 'var(--text-primary)', dir: 'ltr' }}>
+                    {selectedUserForDetails.parentPhone || '010 9988 7766'}
+                  </span>
+                </div>
+              )}
+
+              {/* If Student: Stage, Grade, Track, Governorate & Center */}
+              {selectedUserForDetails.role === 'student' ? (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    padding: '11px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)'
+                  }}>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      {lang === 'ar' ? 'المرحلة والصف الدراسي:' : 'Stage & Grade:'}
+                    </div>
+                    <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontSize: '13px' }}>
+                      {selectedUserForDetails.grade || 'الصف الثالث الثانوي (الثانوية العامة)'}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '11px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)'
+                  }}>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      {lang === 'ar' ? 'الشعبة والتخصص:' : 'Stream / Track:'}
+                    </div>
+                    <div style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '13px' }}>
+                      {selectedUserForDetails.track || 'علمي علوم'}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '11px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)'
+                  }}>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      {lang === 'ar' ? 'المحافظة / المدينة:' : 'Governorate:'}
+                    </div>
+                    <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontSize: '13px' }}>
+                      {selectedUserForDetails.governorate || 'الجيزة'}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '11px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)'
+                  }}>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                      {lang === 'ar' ? 'كود السنتر أو المدرس:' : 'Center / Teacher Code:'}
+                    </div>
+                    <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontSize: '13px' }}>
+                      {selectedUserForDetails.centerCode || 'ROWAD-301'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Non-student: details box */
+                <div style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  <div style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    {selectedUserForDetails.role === 'teacher' ? (lang === 'ar' ? 'المادة والتخصص الأكاديمي:' : 'Subject & Specialization:') : (lang === 'ar' ? 'بيانات الحساب:' : 'Account Details:')}
+                  </div>
+                  <div style={{ fontWeight: '700', color: 'var(--text-primary)', lineHeight: '1.5' }}>
+                    {lang === 'ar' ? (selectedUserForDetails.detailsAr || selectedUserForDetails.details) : (selectedUserForDetails.detailsEn || selectedUserForDetails.details)}
+                  </div>
+                </div>
+              )}
+
+              {/* Joined Date */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                  <Calendar size={16} color="var(--primary)" />
+                  <span style={{ fontWeight: '600' }}>{lang === 'ar' ? 'تاريخ إنشاء الحساب:' : 'Registration Date:'}</span>
+                </div>
+                <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {selectedUserForDetails.joinDate}
+                </span>
+              </div>
+
+              {/* Extra Stats if available */}
+              {(selectedUserForDetails.enrolledCourses !== undefined || selectedUserForDetails.walletBalance !== undefined) && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '10px'
+                }}>
+                  {selectedUserForDetails.enrolledCourses !== undefined && (
+                    <div style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(21, 136, 199, 0.08)',
+                      border: '1px solid rgba(21, 136, 199, 0.2)'
+                    }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {selectedUserForDetails.role === 'teacher' ? (lang === 'ar' ? 'المقررات التي يدرسها' : 'Teaching Courses') : (lang === 'ar' ? 'المقررات المشترك بها' : 'Enrolled Courses')}
+                      </div>
+                      <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--primary)', marginTop: '2px' }}>
+                        {selectedUserForDetails.enrolledCourses} {lang === 'ar' ? 'مقررات' : 'Courses'}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedUserForDetails.activeStudents !== undefined && (
+                    <div style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.2)'
+                    }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {lang === 'ar' ? 'الطلاب المشتركون' : 'Active Students'}
+                      </div>
+                      <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--color-success)', marginTop: '2px' }}>
+                        {selectedUserForDetails.activeStudents.toLocaleString()} {lang === 'ar' ? 'طالب' : 'Students'}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedUserForDetails.walletBalance !== undefined && (
+                    <div style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-subtle)'
+                    }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {lang === 'ar' ? 'رصيد المحفظة' : 'Wallet Balance'}
+                      </div>
+                      <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '2px' }}>
+                        {selectedUserForDetails.walletBalance.toLocaleString()} ج.م
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              borderTop: '1px solid var(--border-subtle)',
+              paddingTop: '16px',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const u = selectedUserForDetails;
+                    setSelectedUserForDetails(null);
+                    handleOpenEditUser(u);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '9px 14px',
+                    borderRadius: '10px',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Edit3 size={14} />
+                  <span>{lang === 'ar' ? 'تعديل البيانات' : 'Edit'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const u = selectedUserForDetails;
+                    handleToggleStatus(u.id);
+                    setSelectedUserForDetails(prev => prev ? { ...prev, status: prev.status === 'active' ? 'suspended' : 'active' } : null);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-subtle)',
+                    padding: '9px 14px',
+                    borderRadius: '10px',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {selectedUserForDetails.status === 'suspended' ? <UserCheck size={14} color="var(--color-success)" /> : <UserX size={14} color="#D97706" />}
+                  <span>{selectedUserForDetails.status === 'suspended' ? (lang === 'ar' ? 'تنشيط الحساب' : 'Activate') : (lang === 'ar' ? 'تجميد الحساب' : 'Suspend')}</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedUserForDetails(null)}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                {lang === 'ar' ? 'إغلاق' : 'Close'}
               </button>
             </div>
           </div>

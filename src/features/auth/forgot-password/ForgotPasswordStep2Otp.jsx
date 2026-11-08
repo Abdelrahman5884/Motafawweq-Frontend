@@ -6,6 +6,7 @@ export const ForgotPasswordStep2Otp = ({
   emailOrPhone,
   otpCode,
   setOtpCode,
+  generatedCode,
   errorMsg,
   infoMsg,
   isLoading,
@@ -52,6 +53,42 @@ export const ForgotPasswordStep2Otp = ({
         </div>
       )}
 
+      {/* Demo Helper Banner */}
+      {generatedCode && (
+        <div style={{
+          padding: '10px 14px',
+          borderRadius: 'var(--radius-md)',
+          backgroundColor: 'var(--primary-surface)',
+          border: '1px solid var(--border-medium)',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '12px'
+        }}>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            {lang === 'ar' ? `رمز التحقق التجريبي هو: ` : `Demo OTP is: `}
+            <strong style={{ color: 'var(--primary)', letterSpacing: '2px', fontSize: '14px' }}>{generatedCode || '482915'}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setOtpCode(generatedCode || '482915')}
+            style={{
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-xs)',
+              backgroundColor: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              fontSize: '11px',
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            {lang === 'ar' ? 'تعبئة تلقائية' : 'Auto Fill'}
+          </button>
+        </div>
+      )}
+
       {errorMsg && (
         <div style={{
           padding: '8px 12px',
@@ -71,6 +108,7 @@ export const ForgotPasswordStep2Otp = ({
             type="text"
             inputMode="numeric"
             pattern="[0-9]{6}"
+            maxLength={6}
             required
             value={otpCode}
             onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -79,7 +117,7 @@ export const ForgotPasswordStep2Otp = ({
               const pasted = (e.clipboardData || window.clipboardData).getData('text');
               setOtpCode(String(pasted || '').replace(/\D/g, '').slice(0, 6));
             }}
-            placeholder="000000"
+            placeholder="482915"
             dir="ltr"
             style={{
               width: '100%',
@@ -90,7 +128,7 @@ export const ForgotPasswordStep2Otp = ({
               color: 'var(--text-primary)',
               fontSize: '24px',
               fontWeight: '800',
-              letterSpacing: '10px',
+              letterSpacing: '8px',
               textAlign: 'center'
             }}
           />

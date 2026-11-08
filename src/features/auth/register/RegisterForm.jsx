@@ -69,7 +69,7 @@ export const RegisterForm = ({
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder={lang === 'ar' ? 'مثال: أحمد محمد مصطفى' : 'e.g. Ahmed Mostafa'}
+              placeholder={lang === 'ar' ? 'أحمد محمد مصطفى' : 'Ahmed Mostafa'}
               style={{
                 width: '100%',
                 padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
@@ -97,7 +97,7 @@ export const RegisterForm = ({
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
+              placeholder="name@gmail.com"
               style={{
                 width: '100%',
                 padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
@@ -125,7 +125,7 @@ export const RegisterForm = ({
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="01012345678"
+              placeholder="010 1234 5678"
               style={{
                 width: '100%',
                 padding: isRtl ? '10px 38px 10px 12px' : '10px 12px 10px 38px',
