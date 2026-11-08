@@ -5,6 +5,7 @@ import { MOCK_ADMIN_ECONOMICS } from '../../data/mockData';
 import { getChampions } from '../../services/championsStorage';
 import {
   AdminKpiCards,
+  AdminAnalyticsCharts,
   AdminAiEconomicsPanel
 } from '../../features/admin/dashboard';
 import { AdminChampionsManager } from '../../features/admin/champions/AdminChampionsManager';
@@ -43,17 +44,6 @@ export const AdminDashboard = () => {
   const [champions, setChampions] = useState([]);
   const econ = MOCK_ADMIN_ECONOMICS;
 
-  const ADMIN_TABS = [
-    { id: 'overview', labelAr: 'نظرة عامة', labelEn: 'Overview', icon: LayoutDashboard },
-    { id: 'champions', labelAr: 'لوحة الشرف والأبطال', labelEn: 'Champions', icon: Trophy },
-    { id: 'financials', labelAr: 'المالية وتحديد الباقات', labelEn: 'Financials & Pricing', icon: DollarSign },
-    { id: 'users', labelAr: 'المستخدمون والتوثيق', labelEn: 'Users', icon: Users },
-    { id: 'courses', labelAr: 'المقررات التعليمية', labelEn: 'Courses', icon: BookOpen },
-    { id: 'attendance', labelAr: 'الحضور والباركود', labelEn: 'Attendance', icon: QrCode },
-    { id: 'announcements', labelAr: 'الإعلانات العاجلة', labelEn: 'Announcements', icon: Megaphone },
-    { id: 'system', labelAr: 'الذكاء الاصطناعي والنظام', labelEn: 'AI & System', icon: Settings },
-  ];
-
   useEffect(() => {
     setChampions(getChampions());
     const handleSync = () => setChampions(getChampions());
@@ -67,7 +57,7 @@ export const AdminDashboard = () => {
 
   return (
     <div 
-      className="responsive-container"
+      className="responsive-container admin-dashboard-page"
       style={{
         maxWidth: '1280px',
         margin: '0 auto',
@@ -174,56 +164,14 @@ export const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* ── Responsive Admin Navigation Bar ── */}
-      <div 
-        className="responsive-tabs-bar"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '24px',
-          overflowX: 'auto',
-          paddingBottom: '8px',
-          borderBottom: '1px solid var(--border-subtle)',
-          WebkitOverflowScrolling: 'touch'
-        }}
-      >
-        {ADMIN_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setTab(tab.id)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '9px 16px',
-                borderRadius: '12px',
-                border: isActive ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
-                backgroundColor: isActive ? 'rgba(21, 136, 199, 0.12)' : 'var(--bg-surface)',
-                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                fontSize: '13px',
-                fontWeight: isActive ? '800' : '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Icon size={16} color={isActive ? 'var(--primary)' : 'var(--text-secondary)'} />
-              <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* ── Tab Views ── */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
           {/* Global SaaS Platform KPIs */}
           <AdminKpiCards econ={econ} />
+
+          {/* Interactive User Activity Spline Graph & Demographic Donut Chart */}
+          <AdminAnalyticsCharts />
 
           {/* Highlights Split: Champions Spotlight + Operations Telemetry */}
           <div style={{
@@ -413,6 +361,23 @@ export const AdminDashboard = () => {
           <AdminSystemSettings />
         </div>
       )}
+
+      <style>{`
+        .admin-dashboard-page {
+          animation: adminFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes adminFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };
