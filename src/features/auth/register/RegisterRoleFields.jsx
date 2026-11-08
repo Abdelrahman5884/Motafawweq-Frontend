@@ -185,7 +185,7 @@ export const RegisterRoleFields = ({
             type="tel"
             value={parentPhone || ''}
             onChange={(e) => setParentPhone && setParentPhone(e.target.value)}
-            placeholder="01223344556"
+            placeholder="012 3456 7890"
             dir="ltr"
             style={{
               width: '100%',
@@ -208,7 +208,7 @@ export const RegisterRoleFields = ({
             type="text"
             value={studentCode}
             onChange={(e) => setStudentCode(e.target.value)}
-            placeholder={lang === 'ar' ? 'مثال: ROWAD-301 أو اتركه فارغاً' : 'e.g. ROWAD-301 or leave empty'}
+            placeholder={lang === 'ar' ? 'ROWAD-301' : 'ROWAD-301'}
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -260,7 +260,7 @@ export const RegisterRoleFields = ({
             type="text"
             value={centerName}
             onChange={(e) => setCenterName(e.target.value)}
-            placeholder={lang === 'ar' ? 'مثال: سنتر الرواد بالدقي' : 'e.g. Dokki Center'}
+            placeholder={lang === 'ar' ? 'سنتر الرواد بالدقي' : 'Dokki Center'}
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -287,7 +287,7 @@ export const RegisterRoleFields = ({
           required
           value={studentCode}
           onChange={(e) => setStudentCode(e.target.value)}
-          placeholder={lang === 'ar' ? 'أدخل كود ابنك المسجل بالمنصة (مثال: OMAR-2026)' : 'e.g. OMAR-2026'}
+          placeholder={lang === 'ar' ? 'OMAR-2026' : 'OMAR-2026'}
           style={{
             width: '100%',
             padding: '10px 12px',

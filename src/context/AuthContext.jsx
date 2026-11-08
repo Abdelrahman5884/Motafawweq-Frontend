@@ -252,14 +252,14 @@ export const AuthProvider = ({ children }) => {
 
   // Forgot password OTP trigger
   const requestPasswordReset = (emailOrPhone) => {
-    const demoCode = '4829';
+    const demoCode = '482915';
     setOtpSentCode(demoCode);
     setOtpTargetEmail(emailOrPhone);
     return demoCode;
   };
 
   const verifyOtp = (code) => {
-    return code === otpSentCode || code === '4829';
+    return code === otpSentCode || code === '482915';
   };
 
   const completePasswordReset = (newPassword) => {

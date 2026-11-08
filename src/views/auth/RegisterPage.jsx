@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { PlexusBackground } from '../../components/common/PlexusBackground';
 import { AuthSidePanel } from '../../features/auth/common';
-import { RegisterRoleCards, RegisterForm } from '../../features/auth/register';
+import { RoleSelectorTabs } from '../../features/auth/login';
+import { RegisterForm } from '../../features/auth/register';
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -66,35 +67,11 @@ export const RegisterPage = () => {
     }, 700);
   };
 
-  const roleCards = [
-    {
-      id: 'student',
-      title: lang === 'ar' ? 'أنا طالب' : 'I am a Student',
-      subtitle: lang === 'ar' ? 'مذاكرة ذكية لجميع المراحل: ابتدائي → إعدادي → ثانوي' : 'Smart Learning for All Grades: Primary → Prep → Secondary',
-      icon: BookOpen,
-      color: '#06B6D4'
-    },
-    {
-      id: 'teacher',
-      title: lang === 'ar' ? 'أنا معلم' : 'I am a Teacher',
-      subtitle: lang === 'ar' ? 'تسجيل الحصص، إنتاج الخرائط، وإدارة القاعات والطلاب' : 'Studio Recording, Cornell Summaries & Roster',
-      icon: GraduationCap,
-      color: 'var(--primary)'
-    },
-    {
-      id: 'parent',
-      title: lang === 'ar' ? 'أنا ولي أمر' : 'I am a Parent',
-      subtitle: lang === 'ar' ? 'متابعة حضور ودرجات ومستوى الأبناء أسبوعياً' : 'Track Children Attendance & Weekly Progress',
-      icon: Users,
-      color: 'var(--success, #16A34A)'
-    },
-    {
-      id: 'center',
-      title: lang === 'ar' ? 'إدارة سنتر تعليمي' : 'Learning Center Academy',
-      subtitle: lang === 'ar' ? 'جدولة الحصص، تقارير المعلمين، وحسابات القاعات' : 'Multi-teacher Oversight, Halls & Branding',
-      icon: Building2,
-      color: 'var(--warning, #F59E0B)'
-    }
+  const roleOptions = [
+    { id: 'student', label: lang === 'ar' ? 'طالب' : 'Student', icon: BookOpen },
+    { id: 'teacher', label: lang === 'ar' ? 'معلم' : 'Teacher', icon: GraduationCap },
+    { id: 'parent', label: lang === 'ar' ? 'ولي أمر' : 'Parent', icon: Users },
+    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 }
   ];
 
   const roleCharacters = {
@@ -145,16 +122,11 @@ export const RegisterPage = () => {
             </p>
           </div>
 
-          <div style={{ marginBottom: '18px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-              {t('selectRolePrompt')}
-            </label>
-            <RegisterRoleCards
-              roleCards={roleCards}
-              selectedRole={role}
-              onSelectRole={setRole}
-            />
-          </div>
+          <RoleSelectorTabs
+            roleOptions={roleOptions}
+            selectedRole={role}
+            onRoleChange={setRole}
+          />
 
           <RegisterForm
             role={role}

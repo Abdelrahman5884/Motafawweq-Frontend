@@ -4,6 +4,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import {
   Calendar,
   Layers,
+  TrendingUp,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -364,33 +365,59 @@ export const AdminAnalyticsCharts = () => {
             </div>
           </div>
 
-          {/* Footer note: Platform-wide Users Analysis */}
+          {/* Footer note: Platform-wide Users Analysis (Concise Single-Line Numbers) */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingTop: '14px',
-            marginTop: '10px',
+            paddingTop: '12px',
+            marginTop: '8px',
             borderTop: '1px solid var(--border-subtle)',
-            flexWrap: 'wrap',
-            gap: '8px'
+            gap: '12px',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {isAr ? 'ذروة الأسبوع:' : 'Weekly Peak:'}
-              </span>
+            {/* Peak day with upward arrow and active count */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: '800'
+              }}>
+                <TrendingUp size={13} />
+                <span>{isAr ? 'الخميس' : 'Thu'}</span>
+              </div>
               <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {isAr ? 'الخميس (34,800 مستخدم نشط • 4,120 ساعة تفاعل واستخدام)' : 'Thursday (34,800 active users • 4,120 hrs)'}
+                34,800 {isAr ? 'نشط' : 'active'}
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-              <span>{isAr ? 'متوسط الحضور: 25,000 مستخدم/يوم' : 'Avg: 25,000 users/day'}</span>
+            {/* Quick Metrics in one concise line */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '11.5px',
+              color: 'var(--text-secondary)',
+              flexShrink: 0
+            }}>
+              <span>
+                <strong style={{ color: 'var(--text-primary)' }}>25,000</strong> {isAr ? 'مستخدم' : 'users'}
+              </span>
               <span>•</span>
-              <span style={{ color: '#10B981', fontWeight: '700' }}>{isAr ? 'نسبة التفاعل النشط: 94.2%' : 'Active Rate: 94.2%'}</span>
+              <span style={{ color: '#10B981', fontWeight: '800' }}>
+                94.2% {isAr ? 'تفاعل' : 'active'}
+              </span>
               <span>•</span>
-              <span>{isAr ? 'إجمالي الساعات: 28,400 س/أسبوع' : 'Total: 28,400 hrs/wk'}</span>
+              <span>
+                <strong style={{ color: 'var(--text-primary)' }}>28,400</strong> {isAr ? 'ساعة' : 'hrs'}
+              </span>
             </div>
           </div>
         </div>

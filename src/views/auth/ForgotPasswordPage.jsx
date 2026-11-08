@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
@@ -15,9 +15,42 @@ import {
 export const ForgotPasswordPage = () => {
   const { requestPasswordReset, verifyOtp, completePasswordReset } = useAuth();
   const { lang, isRtl } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const role = searchParams.get('role') || location.state?.role || localStorage.getItem('motafawweq_role') || 'student';
+
+  const defaultEmails = {
+    student: 'omar.tarek@motafawweq.me',
+    teacher: 'salma.biology@motafawweq.me',
+    parent: 'tarek.kady@gmail.com',
+    center: 'admin@alrowad.edu.eg',
+    admin: 'hq@motafawweq.me'
+  };
+
+  const roleCharacters = {
+    student: '/characters/student.png',
+    teacher: '/characters/teacher.png',
+    parent: '/characters/parent.png',
+    center: '/characters/teacher.png',
+    admin: '/characters/teacher.png'
+  };
+
+  const roleBadgeLabels = {
+    student: lang === 'ar' ? 'حساب الطالب' : 'Student Account',
+    teacher: lang === 'ar' ? 'حساب المعلم' : 'Teacher Account',
+    parent: lang === 'ar' ? 'حساب ولي الأمر' : 'Parent Account',
+    center: lang === 'ar' ? 'حساب إدارة السنتر' : 'Center Manager',
+    admin: lang === 'ar' ? 'إدارة المنصة' : 'Platform Admin'
+  };
+
+  const characterImg = roleCharacters[role] || '/characters/student.png';
+  const roleBadge = roleBadgeLabels[role] || roleBadgeLabels.student;
 
   const [step, setStep] = useState(1); // 1: request, 2: verify OTP, 3: set new password, 4: success
-  const [emailOrPhone, setEmailOrPhone] = useState('omar.tarek@motafawweq.me');
+  const [emailOrPhone, setEmailOrPhone] = useState(
+    location.state?.email || searchParams.get('email') || defaultEmails[role] || 'omar.tarek@motafawweq.me'
+  );
   const [otpCode, setOtpCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -71,27 +104,33 @@ export const ForgotPasswordPage = () => {
 
   const stepInfo = {
     1: {
-      img: '/characters/student.png',
-      badge: lang === 'ar' ? 'استعادة الحساب' : 'Account Recovery',
+      img: characterImg,
+      badge: `${roleBadge} • ${lang === 'ar' ? 'استعادة الحساب' : 'Recovery'}`,
       title: lang === 'ar' ? 'لا تقلق.. سنساعدك!' : 'Don\'t worry, we\'ve got you!',
       quote: lang === 'ar' ? 'أدخل بريدك أو رقم هاتفك وسنرسل لك كود التحقق فوراً.' : 'Enter your registered email or phone to receive your OTP code.'
     },
     2: {
-      img: '/characters/teacher.png',
-      badge: lang === 'ar' ? 'تأكيد الهوية' : 'Verification',
+      img: characterImg,
+      badge: `${roleBadge} • ${lang === 'ar' ? 'تأكيد الهوية' : 'Verification'}`,
       title: lang === 'ar' ? 'كود التحقق في الطريق' : 'OTP on the way',
       quote: lang === 'ar' ? 'أدخل رمز الأمان المكون من 6 أرقام لتأكيد ملكية الحساب.' : 'Enter the 6-digit security code to verify your account.'
     },
     3: {
-      img: '/characters/parent.png',
-      badge: lang === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
+      img: characterImg,
+      badge: `${roleBadge} • ${lang === 'ar' ? 'كلمة مرور جديدة' : 'New Password'}`,
       title: lang === 'ar' ? 'اختر كلمة سر قوية' : 'Choose Strong Password',
       quote: lang === 'ar' ? 'احرص على استخدام حروف وأرقام لتأمين حسابك بالكامل.' : 'Ensure strong security with a mix of characters and numbers.'
     },
     4: {
-      img: '/characters/student.png',
-      badge: lang === 'ar' ? 'تم بنجاح' : 'Success',
-      title: lang === 'ar' ? 'أهلاً بعودتك يا بطل!' : 'Welcome Back!',
+      img: characterImg,
+      badge: `${roleBadge} • ${lang === 'ar' ? 'تم بنجاح' : 'Success'}`,
+      title: role === 'student'
+        ? (lang === 'ar' ? 'أهلاً بعودتك يا بطل!' : 'Welcome Back!')
+        : role === 'teacher'
+        ? (lang === 'ar' ? 'أهلاً بعودتك يا أستاذنا!' : 'Welcome Back, Educator!')
+        : role === 'parent'
+        ? (lang === 'ar' ? 'أهلاً بعودتك يا فندم!' : 'Welcome Back, Parent!')
+        : (lang === 'ar' ? 'تمت استعادة الحساب بنجاح!' : 'Account Restored!'),
       quote: lang === 'ar' ? 'تم تعيين كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول مباشرة.' : 'Password reset successfully. You can now login.'
     }
   };
@@ -103,8 +142,8 @@ export const ForgotPasswordPage = () => {
       <PlexusBackground />
 
       <div className="auth-split-card">
-        {/* Reusable Side Panel */}
-        <AuthSidePanel activeChar={activeChar} charKey={`step-${step}`} />
+        {/* Reusable Side Panel with Role-Consistent Character */}
+        <AuthSidePanel activeChar={activeChar} charKey={`${role}-step-${step}`} />
 
         {/* Form Panel */}
         <div className="auth-split-form">
@@ -145,7 +184,7 @@ export const ForgotPasswordPage = () => {
 
           {step !== 4 && (
             <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px' }}>
-              <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: '600' }}>
+              <Link to={`/login?role=${role}`} style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: '600' }}>
                 {lang === 'ar' ? 'تذكرت كلمة المرور؟ تسجيل الدخول' : 'Remembered password? Sign in'}
               </Link>
             </div>

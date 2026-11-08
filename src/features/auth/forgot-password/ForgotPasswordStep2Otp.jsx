@@ -51,11 +51,11 @@ export const ForgotPasswordStep2Otp = ({
       }}>
         <span style={{ color: 'var(--text-secondary)' }}>
           {lang === 'ar' ? `رمز التحقق التجريبي هو: ` : `Demo OTP is: `}
-          <strong style={{ color: 'var(--primary)', letterSpacing: '2px', fontSize: '14px' }}>{generatedCode || '4829'}</strong>
+          <strong style={{ color: 'var(--primary)', letterSpacing: '2px', fontSize: '14px' }}>{generatedCode || '482915'}</strong>
         </span>
         <button
           type="button"
-          onClick={() => setOtpCode(generatedCode || '4829')}
+          onClick={() => setOtpCode(generatedCode || '482915')}
           style={{
             padding: '4px 8px',
             borderRadius: 'var(--radius-xs)',
@@ -89,10 +89,10 @@ export const ForgotPasswordStep2Otp = ({
           <input
             type="text"
             required
-            maxLength={4}
+            maxLength={6}
             value={otpCode}
             onChange={(e) => setOtpCode(e.target.value)}
-            placeholder="4829"
+            placeholder="482915"
             style={{
               width: '100%',
               padding: '14px',
@@ -102,7 +102,7 @@ export const ForgotPasswordStep2Otp = ({
               color: 'var(--text-primary)',
               fontSize: '24px',
               fontWeight: '800',
-              letterSpacing: '12px',
+              letterSpacing: '8px',
               textAlign: 'center'
             }}
           />
