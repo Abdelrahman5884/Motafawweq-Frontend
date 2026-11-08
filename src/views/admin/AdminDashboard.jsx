@@ -5,7 +5,8 @@ import { MOCK_ADMIN_ECONOMICS } from '../../data/mockData';
 import { getChampions } from '../../services/championsStorage';
 import {
   AdminKpiCards,
-  AdminAiEconomicsPanel
+  AdminAiEconomicsPanel,
+  AdminActiveUsersChart
 } from '../../features/admin/dashboard';
 import { AdminChampionsManager } from '../../features/admin/champions/AdminChampionsManager';
 import { AdminUsersManager } from '../../features/admin/users/AdminUsersManager';
@@ -42,17 +43,6 @@ export const AdminDashboard = () => {
 
   const [champions, setChampions] = useState([]);
   const econ = MOCK_ADMIN_ECONOMICS;
-
-  const ADMIN_TABS = [
-    { id: 'overview', labelAr: 'نظرة عامة', labelEn: 'Overview', icon: LayoutDashboard },
-    { id: 'champions', labelAr: 'لوحة الشرف والأبطال', labelEn: 'Champions', icon: Trophy },
-    { id: 'financials', labelAr: 'المالية وتحديد الباقات', labelEn: 'Financials & Pricing', icon: DollarSign },
-    { id: 'users', labelAr: 'المستخدمون والتوثيق', labelEn: 'Users', icon: Users },
-    { id: 'courses', labelAr: 'المقررات التعليمية', labelEn: 'Courses', icon: BookOpen },
-    { id: 'attendance', labelAr: 'الحضور والباركود', labelEn: 'Attendance', icon: QrCode },
-    { id: 'announcements', labelAr: 'الإعلانات العاجلة', labelEn: 'Announcements', icon: Megaphone },
-    { id: 'system', labelAr: 'الذكاء الاصطناعي والنظام', labelEn: 'AI & System', icon: Settings },
-  ];
 
   useEffect(() => {
     setChampions(getChampions());
@@ -174,56 +164,14 @@ export const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* ── Responsive Admin Navigation Bar ── */}
-      <div 
-        className="responsive-tabs-bar"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '24px',
-          overflowX: 'auto',
-          paddingBottom: '8px',
-          borderBottom: '1px solid var(--border-subtle)',
-          WebkitOverflowScrolling: 'touch'
-        }}
-      >
-        {ADMIN_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setTab(tab.id)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '9px 16px',
-                borderRadius: '12px',
-                border: isActive ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
-                backgroundColor: isActive ? 'rgba(21, 136, 199, 0.12)' : 'var(--bg-surface)',
-                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                fontSize: '13px',
-                fontWeight: isActive ? '800' : '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Icon size={16} color={isActive ? 'var(--primary)' : 'var(--text-secondary)'} />
-              <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* ── Tab Views ── */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        <div className="admin-animated-view" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
           {/* Global SaaS Platform KPIs */}
           <AdminKpiCards econ={econ} />
+
+          {/* Real-Time Active Users Chart (Like Teacher Page) */}
+          <AdminActiveUsersChart />
 
           {/* Highlights Split: Champions Spotlight + Operations Telemetry */}
           <div style={{
@@ -363,10 +311,10 @@ export const AdminDashboard = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)' }}>
                     <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      {lang === 'ar' ? 'هامش الربح التشغيلي للذكاء الاصطناعي:' : 'AI Operating Margin:'}
+                      {lang === 'ar' ? 'معدل استقرار الخوادم اللحظي:' : 'Real-time Server Uptime:'}
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)' }}>
-                      {lang === 'ar' ? '73.7% هامش ربح' : '73.7% Gross Margin'}
+                      {lang === 'ar' ? '99.98% استقرار تام' : '99.98% Uptime'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)' }}>
@@ -413,6 +361,22 @@ export const AdminDashboard = () => {
           <AdminSystemSettings />
         </div>
       )}
+
+      <style>{`
+        @keyframes adminFadeSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .admin-animated-view {
+          animation: adminFadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+      `}</style>
     </div>
   );
 };
