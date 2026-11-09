@@ -352,3 +352,5 @@ export const authService = {
   getLoginHistory: (perPage = 20) =>
     apiGet(`/auth/login-history?per_page=${perPage}`),
 };
+
+export { teacherApi } from './teacherApi';

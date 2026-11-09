@@ -32,6 +32,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { TEACHER_PROFILE } from '../../data/teacherData';
+import { teacherApi } from '../../services/teacherApi';
 import { SPage, SPageHeader, SCard, SSection, SButton } from '../../components/student/ui';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 
@@ -111,6 +112,64 @@ export const TeacherSettingsView = () => {
   });
 
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  // Fetch live settings and payout accounts on mount
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      teacherApi.settings.get().catch(() => null),
+      teacherApi.payoutAccounts.list().catch(() => null),
+    ]).then(([settingsRes, payoutRes]) => {
+      if (!mounted) return;
+      if (settingsRes?.data) {
+        const profile = settingsRes.data.profile || {};
+        const user = settingsRes.data.user || {};
+        setFormData((prev) => ({
+          ...prev,
+          nameAr: profile.name_ar || profile.nameAr || prev.nameAr,
+          nameEn: profile.name_en || profile.nameEn || prev.nameEn,
+          titleAr: profile.title_ar || profile.titleAr || prev.titleAr,
+          subjectAr: profile.subject_ar || profile.subjectAr || prev.subjectAr,
+          email: user.email || prev.email,
+          phone: user.phone || prev.phone,
+          bioAr: profile.bio_ar || profile.bioAr || prev.bioAr,
+          avatar: user.avatar || prev.avatar,
+          stagesTaught: Array.isArray(profile.stages_taught) ? profile.stages_taught : prev.stagesTaught,
+          twoFactorEnabled: profile.two_factor_enabled ?? prev.twoFactorEnabled,
+          autoWatermarkEnabled: profile.auto_watermark_enabled ?? prev.autoWatermarkEnabled,
+          notifyWhatsappIntervention: profile.notify_whatsapp_intervention ?? prev.notifyWhatsappIntervention,
+          notifyNewEnrollment: profile.notify_new_enrollment ?? prev.notifyNewEnrollment,
+          notifyExamSubmission: profile.notify_exam_submission ?? prev.notifyExamSubmission,
+        }));
+      }
+
+      if (payoutRes?.data && Array.isArray(payoutRes.data)) {
+        const mapped = payoutRes.data.map((pm) => ({
+          id: pm.uuid || pm.id,
+          uuid: pm.uuid,
+          type: pm.type,
+          address: pm.type === 'instapay' ? pm.account_identifier : undefined,
+          phone: pm.type === 'vodafone' ? pm.account_identifier : undefined,
+          accountNumber: (pm.type === 'cib' || pm.type === 'card' || pm.type === 'bank') ? pm.account_identifier : undefined,
+          labelAr: pm.label_ar || pm.provider_name || 'حساب استلام مالي',
+          labelEn: pm.label_en || pm.provider_name || 'Receiving Account',
+          isDefault: Boolean(pm.is_default),
+          isActive: Boolean(pm.is_active),
+        }));
+        if (mapped.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            payoutMethods: mapped,
+            defaultPayout: mapped.find((m) => m.isDefault)?.id || mapped[0]?.id || '',
+          }));
+        }
+      }
+    });
+
+    return () => { mounted = false; };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -136,7 +195,15 @@ export const TeacherSettingsView = () => {
     setIsDirty(true);
   };
 
-  const handleAccountToggleActive = (id) => {
+  const handleAccountToggleActive = async (id) => {
+    const acc = formData.payoutMethods.find((pm) => pm.id === id);
+    if (acc?.uuid) {
+      try {
+        await teacherApi.payoutAccounts.toggleActive(acc.uuid);
+      } catch (err) {
+        console.error('Failed to toggle payout account:', err);
+      }
+    }
     setFormData((prev) => ({
       ...prev,
       payoutMethods: prev.payoutMethods.map((pm) =>
@@ -146,7 +213,15 @@ export const TeacherSettingsView = () => {
     setIsDirty(true);
   };
 
-  const handleRemoveAccount = (id) => {
+  const handleRemoveAccount = async (id) => {
+    const acc = formData.payoutMethods.find((pm) => pm.id === id);
+    if (acc?.uuid) {
+      try {
+        await teacherApi.payoutAccounts.delete(acc.uuid);
+      } catch (err) {
+        console.error('Failed to delete payout account:', err);
+      }
+    }
     setFormData((prev) => ({
       ...prev,
       payoutMethods: prev.payoutMethods.filter((pm) => pm.id !== id),
@@ -157,46 +232,86 @@ export const TeacherSettingsView = () => {
     setIsDirty(true);
   };
 
-  const handleAddAccount = (e) => {
+  const handleAddAccount = async (e) => {
     e.preventDefault();
     if (!formData.newAccountValue.trim()) return;
 
-    const newAcc = {
-      id: `pm-${Date.now()}`,
-      type: formData.newAccountType,
-      labelAr: formData.newAccountLabel.trim() || (formData.newAccountType === 'instapay' ? 'إنستاباي' : formData.newAccountType === 'vodafone' ? 'فودافون كاش' : 'حساب بنكي / فيزا'),
-      labelEn: formData.newAccountLabel.trim() || (formData.newAccountType === 'instapay' ? 'InstaPay' : formData.newAccountType === 'vodafone' ? 'Vodafone Cash' : 'Bank Account / Card'),
-      address: formData.newAccountType === 'instapay' ? formData.newAccountValue.trim() : undefined,
-      phone: formData.newAccountType === 'vodafone' ? formData.newAccountValue.trim() : undefined,
-      accountNumber: (formData.newAccountType === 'cib' || formData.newAccountType === 'card') ? formData.newAccountValue.trim() : undefined,
-      isDefault: formData.payoutMethods.length === 0,
-      isActive: true
-    };
+    try {
+      const res = await teacherApi.payoutAccounts.create({
+        type: formData.newAccountType,
+        account_identifier: formData.newAccountValue.trim(),
+        label_ar: formData.newAccountLabel.trim() || undefined,
+        is_default: formData.payoutMethods.length === 0,
+      });
 
-    setFormData((prev) => ({
-      ...prev,
-      payoutMethods: [...prev.payoutMethods, newAcc],
-      newAccountLabel: '',
-      newAccountValue: ''
-    }));
-    setShowAddAccountModal(false);
-    setIsDirty(true);
+      const created = res.data;
+      const newAcc = {
+        id: created.uuid || created.id || `pm-${Date.now()}`,
+        uuid: created.uuid,
+        type: created.type,
+        labelAr: created.label_ar || formData.newAccountLabel.trim() || (formData.newAccountType === 'instapay' ? 'إنستاباي' : formData.newAccountType === 'vodafone' ? 'فودافون كاش' : 'حساب بنكي / فيزا'),
+        labelEn: created.label_en || formData.newAccountLabel.trim() || (formData.newAccountType === 'instapay' ? 'InstaPay' : formData.newAccountType === 'vodafone' ? 'Vodafone Cash' : 'Bank Account / Card'),
+        address: created.type === 'instapay' ? created.account_identifier : undefined,
+        phone: created.type === 'vodafone' ? created.account_identifier : undefined,
+        accountNumber: created.account_identifier,
+        isDefault: Boolean(created.is_default),
+        isActive: Boolean(created.is_active),
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        payoutMethods: [...prev.payoutMethods, newAcc],
+        newAccountLabel: '',
+        newAccountValue: ''
+      }));
+      setShowAddAccountModal(false);
+      setIsDirty(true);
+    } catch (err) {
+      console.error('Failed to create payout account:', err);
+      alert(isAr ? (err.message || 'فشل إضافة الحساب البنكي') : (err.message || 'Failed to add payout account'));
+    }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
-    setIsDirty(false);
-    setSaveSuccess(true);
+    setIsSaving(true);
+    setSaveError(null);
+
     try {
-      confetti({
-        particleCount: 40,
-        spread: 60,
-        origin: { y: 0.8 }
+      await teacherApi.settings.updateProfile({
+        name_ar: formData.nameAr,
+        name_en: formData.nameEn,
+        title_ar: formData.titleAr,
+        subject_ar: formData.subjectAr,
+        bio_ar: formData.bioAr,
+        email: formData.email,
+        phone: formData.phone,
+        stages_taught: formData.stagesTaught,
+        two_factor_enabled: formData.twoFactorEnabled,
+        auto_watermark_enabled: formData.autoWatermarkEnabled,
+        notify_whatsapp_intervention: formData.notifyWhatsappIntervention,
+        notify_new_enrollment: formData.notifyNewEnrollment,
+        notify_exam_submission: formData.notifyExamSubmission,
       });
-    } catch {
-      // ignore
+
+      setIsDirty(false);
+      setSaveSuccess(true);
+      try {
+        confetti({
+          particleCount: 40,
+          spread: 60,
+          origin: { y: 0.8 }
+        });
+      } catch {
+        // ignore
+      }
+      setTimeout(() => setSaveSuccess(false), 3500);
+    } catch (err) {
+      console.error('Failed to save teacher profile:', err);
+      setSaveError(err.message || (isAr ? 'فشل حفظ الإعدادات' : 'Failed to save settings'));
+    } finally {
+      setIsSaving(false);
     }
-    setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   const handleReset = () => {
@@ -528,7 +643,7 @@ export const TeacherSettingsView = () => {
                           type="file"
                           accept="image/*"
                           style={{ display: 'none' }}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
                               const reader = new FileReader();
@@ -537,6 +652,15 @@ export const TeacherSettingsView = () => {
                                 setIsDirty(true);
                               };
                               reader.readAsDataURL(file);
+
+                              try {
+                                const uploadRes = await teacherApi.settings.uploadAvatar(file);
+                                if (uploadRes?.data?.avatar_url) {
+                                  setFormData((prev) => ({ ...prev, avatar: uploadRes.data.avatar_url }));
+                                }
+                              } catch (err) {
+                                console.error('Avatar upload failed:', err);
+                              }
                             }
                           }}
                         />

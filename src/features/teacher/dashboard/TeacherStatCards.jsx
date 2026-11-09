@@ -3,7 +3,7 @@ import { DollarSign, Users, Sparkles, Award, ArrowUpRight, ChevronLeft } from 'l
 import { useAuth } from '../../../context/AuthContext';
 import { MOCK_TEACHER_EARNINGS } from '../../../data/mockData';
 
-export const TeacherStatCards = ({ lang }) => {
+export const TeacherStatCards = ({ lang, stats }) => {
   const { navigate } = useAuth();
   const isAr = lang === 'ar';
 
@@ -12,7 +12,9 @@ export const TeacherStatCards = ({ lang }) => {
       id: 'revenue',
       title: isAr ? 'إجمالي الأرباح' : 'Monthly Revenue',
       subtitle: isAr ? 'شهر سبتمبر' : 'September',
-      value: `${MOCK_TEACHER_EARNINGS.totalRevenueEgp.toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`,
+      value: stats?.revenueEgp !== undefined
+        ? `${Number(stats.revenueEgp).toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`
+        : `${MOCK_TEACHER_EARNINGS.totalRevenueEgp.toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`,
       badge: '+18.4%',
       badgeType: 'positive',
       note: isAr ? 'مقارنة بالشهر الماضي' : 'vs last month',
@@ -24,7 +26,9 @@ export const TeacherStatCards = ({ lang }) => {
       id: 'students',
       title: isAr ? 'إجمالي الطلاب المسجلين' : 'Total Enrolled Students',
       subtitle: isAr ? 'السناتر والأونلاين' : 'Centers & Online',
-      value: '3,840',
+      value: stats?.totalStudents !== undefined
+        ? Number(stats.totalStudents).toLocaleString()
+        : '3,840',
       badge: isAr ? '3 مقرات نشطة' : '3 Active Centers',
       badgeType: 'neutral',
       note: isAr ? 'الدقي، م. نصر، المنصة' : 'Dokki, Nasr City, Online',
@@ -48,7 +52,9 @@ export const TeacherStatCards = ({ lang }) => {
       id: 'mastery',
       title: isAr ? 'متوسط استيعاب الدفعة' : 'Class Mastery Rate',
       subtitle: isAr ? 'كافة المراحل' : 'All Cohorts',
-      value: '84.5%',
+      value: stats?.classMastery !== undefined
+        ? `${stats.classMastery}%`
+        : '84.5%',
       badge: isAr ? '+8.5% أعلى' : '+8.5% higher',
       badgeType: 'positive',
       note: isAr ? 'أعلى من متوسط المحافظة (76%)' : 'Above state avg (76%)',
