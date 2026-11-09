@@ -2,10 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { 
-  TEACHER_COURSES_FOR_LEAGUE, 
-  INITIAL_LEAGUES_BY_COURSE_GROUP 
-} from '../../data/teacherLeagueData';
+import { teacherApi } from '../../services/teacherApi';
 import { 
   Trophy, 
   Crown, 
@@ -48,10 +45,91 @@ export const TeacherLeagueView = () => {
   const isTablet = windowWidth < 960;
 
   // Stored active leagues dictionary
-  const [leaguesData, setLeaguesData] = useState(INITIAL_LEAGUES_BY_COURSE_GROUP);
-  
-  // Currently active selected league key
-  const [activeLeagueKey, setActiveLeagueKey] = useState('course-bio-301_all');
+  const [leaguesData, setLeaguesData] = useState({});
+  const [activeLeagueKey, setActiveLeagueKey] = useState('');
+  const [coursesList, setCoursesList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch live leagues and courses on mount
+  useEffect(() => {
+    let mounted = true;
+    setIsLoading(true);
+
+    Promise.all([
+      teacherApi.leagues.list().catch(() => ({ data: [] })),
+      teacherApi.courses.list().catch(() => ({ data: [] })),
+    ])
+      .then(([leaguesRes, coursesRes]) => {
+        if (!mounted) return;
+        const list = Array.isArray(leaguesRes?.data) ? leaguesRes.data : [];
+        const dict = {};
+        list.forEach((l) => {
+          const key = l.key || l.id || l.uuid;
+          dict[key] = {
+            id: l.id || l.uuid,
+            key,
+            courseId: l.courseId || l.course_id,
+            leagueTitle: l.leagueTitle || l.title_ar,
+            courseNameAr: l.courseNameAr || l.course_name_ar || 'المقرر الدراسي',
+            groupNameAr: l.groupNameAr || l.group_name_ar || 'جميع المجموعات',
+            durationLabelAr: l.durationLabelAr || 'دوري شهري',
+            durationDays: l.durationDays || 30,
+            totalCompetitors: l.totalCompetitors || 0,
+            roundDaysRemaining: l.roundDaysRemaining || 0,
+            isActive: l.isActive !== undefined ? l.isActive : true,
+            podium: Array.isArray(l.podium) ? l.podium : [],
+            leaderboard: Array.isArray(l.leaderboard) ? l.leaderboard : [],
+          };
+        });
+
+        setLeaguesData(dict);
+        const keys = Object.keys(dict);
+        if (keys.length > 0) {
+          setActiveLeagueKey(keys[0]);
+        }
+
+        const cList = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
+        setCoursesList(cList);
+        if (cList.length > 0) {
+          setModalCourseId(cList[0].uuid || cList[0].id);
+        }
+      })
+      .catch((err) => {
+        console.warn('Teacher leagues load error:', err);
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, []);
+
+  // When activeLeagueKey changes, load full details with podium and leaderboard
+  useEffect(() => {
+    if (!activeLeagueKey) return;
+    const current = leaguesData[activeLeagueKey];
+    if (current && (!current.podium || current.podium.length === 0) && current.id) {
+      let mounted = true;
+      teacherApi.leagues.get(current.id)
+        .then((res) => {
+          if (mounted && res?.data) {
+            const d = res.data;
+            setLeaguesData(prev => ({
+              ...prev,
+              [activeLeagueKey]: {
+                ...prev[activeLeagueKey],
+                ...d,
+                podium: Array.isArray(d.podium) ? d.podium : [],
+                leaderboard: Array.isArray(d.leaderboard) ? d.leaderboard : []
+              }
+            }));
+          }
+        })
+        .catch(err => console.warn('League details fetch error:', err));
+
+      return () => { mounted = false; };
+    }
+  }, [activeLeagueKey, leaguesData]);
 
   // Search & Filter in leaderboard
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,12 +170,17 @@ export const TeacherLeagueView = () => {
 
   // Selected course object inside modal
   const modalCourse = useMemo(() => {
-    return TEACHER_COURSES_FOR_LEAGUE.find(c => c.id === modalCourseId) || TEACHER_COURSES_FOR_LEAGUE[0];
-  }, [modalCourseId]);
+    return coursesList.find(c => (c.uuid || c.id) === modalCourseId) || coursesList[0] || {
+      id: modalCourseId,
+      titleAr: 'المقرر الدراسي',
+      totalStudents: 0,
+      groups: []
+    };
+  }, [modalCourseId, coursesList]);
 
   // Derived automatic league title based on course & teacher
   const computedLeagueName = useMemo(() => {
-    return `دوري ${modalCourse.titleAr} - د. سلمى السيد`;
+    return `دوري ${modalCourse.titleAr || modalCourse.title || 'الكورس'}`;
   }, [modalCourse]);
 
   // Top 3 Podium
@@ -156,17 +239,17 @@ export const TeacherLeagueView = () => {
   };
 
   // Create / Start League submission
-  const handleStartLeague = (e) => {
+  const handleStartLeague = async (e) => {
     e.preventDefault();
     const isAll = modalGroupMode === 'all';
     
-    let totalStudents = modalCourse.totalStudents;
+    let totalStudents = modalCourse.totalStudents || 0;
     let groupLabel = 'جميع المجموعات (دوري موحد)';
 
     if (!isAll) {
-      const selectedGroups = modalCourse.groups.filter(g => modalCustomGroups.includes(g.id));
+      const selectedGroups = (modalCourse.groups || []).filter(g => modalCustomGroups.includes(g.id));
       if (selectedGroups.length > 0) {
-        totalStudents = selectedGroups.reduce((acc, g) => acc + g.studentCount, 0);
+        totalStudents = selectedGroups.reduce((acc, g) => acc + (g.studentCount || 0), 0);
         groupLabel = selectedGroups.map(g => g.nameAr).join(' + ');
       } else {
         totalStudents = 148;
@@ -177,29 +260,41 @@ export const TeacherLeagueView = () => {
     const durationDays = modalDuration === 'weekly' ? 7 : modalDuration === 'monthly' ? 30 : modalDuration === 'half_year' ? 90 : 270;
     const newKey = `${modalCourseId}_${isAll ? 'all' : modalCustomGroups.join('_')}`;
 
-    const baseLeague = leaguesData[`${modalCourseId}_all`] || leaguesData['course-bio-301_all'];
+    try {
+      const res = await teacherApi.leagues.create({
+        course_id: modalCourseId,
+        title_ar: computedLeagueName,
+        duration_type: modalDuration,
+      });
 
-    const newLeagueObj = {
-      courseId: modalCourseId,
-      groupId: isAll ? 'all' : modalCustomGroups[0],
-      leagueTitle: computedLeagueName,
-      courseNameAr: modalCourse.titleAr,
-      groupNameAr: groupLabel,
-      durationLabelAr: getDurationLabel(modalDuration),
-      durationDays: durationDays,
-      totalCompetitors: totalStudents,
-      roundDaysRemaining: durationDays,
-      isActive: true,
-      podium: baseLeague.podium || [],
-      leaderboard: baseLeague.leaderboard || []
-    };
+      const l = res.data;
+      const newLeagueObj = {
+        id: l.id || l.uuid,
+        key: l.key || l.id || newKey,
+        courseId: modalCourseId,
+        groupId: isAll ? 'all' : modalCustomGroups[0],
+        leagueTitle: l.leagueTitle || computedLeagueName,
+        courseNameAr: modalCourse.titleAr || 'المقرر الدراسي',
+        groupNameAr: groupLabel,
+        durationLabelAr: getDurationLabel(modalDuration),
+        durationDays: durationDays,
+        totalCompetitors: totalStudents,
+        roundDaysRemaining: durationDays,
+        isActive: true,
+        podium: l.podium || [],
+        leaderboard: l.leaderboard || []
+      };
 
-    setLeaguesData(prev => ({
-      ...prev,
-      [newKey]: newLeagueObj
-    }));
+      setLeaguesData(prev => ({
+        ...prev,
+        [newKey]: newLeagueObj
+      }));
 
-    setActiveLeagueKey(newKey);
+      setActiveLeagueKey(newKey);
+    } catch (err) {
+      console.warn('Backend start league error:', err);
+    }
+
     setShowStartLeagueModal(false);
 
     try {
@@ -223,8 +318,16 @@ export const TeacherLeagueView = () => {
   };
 
   // Delete an active league
-  const handleDeleteLeague = (leagueKey) => {
+  const handleDeleteLeague = async (leagueKey) => {
     if (!leagueKey) return;
+    const leagueObj = leaguesData[leagueKey];
+    if (leagueObj?.id) {
+      try {
+        await teacherApi.leagues.delete(leagueObj.id);
+      } catch (err) {
+        console.warn('Backend delete league error:', err);
+      }
+    }
     setLeaguesData(prev => {
       const updated = { ...prev };
       delete updated[leagueKey];

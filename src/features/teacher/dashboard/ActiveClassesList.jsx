@@ -13,10 +13,9 @@ import {
   Sparkles,
   Calendar
 } from 'lucide-react';
-import { MOCK_CLASSES } from '../../../data/mockData';
-
-export const ActiveClassesList = ({ lang, onOpenClasses, onOpenSchedule }) => {
+export const ActiveClassesList = ({ lang, activeClasses = [], onOpenClasses, onOpenSchedule }) => {
   const isAr = lang === 'ar';
+  const classes = activeClasses;
 
   // Modal states
   const [selectedCohortForTrack, setSelectedCohortForTrack] = useState(null);
@@ -133,10 +132,19 @@ export const ActiveClassesList = ({ lang, onOpenClasses, onOpenSchedule }) => {
             </tr>
           </thead>
           <tbody>
-            {MOCK_CLASSES.map(cls => {
-              const fillPct = Math.round((cls.enrolledStudents / cls.capacity) * 100);
-              const remainingSeats = cls.capacity - cls.enrolledStudents;
-              const isFullOrNearly = fillPct >= 95;
+            {classes.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                  {isAr ? 'لا توجد مجموعات دراسية نشطة حالياً' : 'No active study groups found'}
+                </td>
+              </tr>
+            ) : (
+              classes.map(cls => {
+                const enrolled = cls.enrolledCount ?? cls.enrolledStudents ?? 0;
+                const capacity = cls.maxCapacity ?? cls.capacity ?? 50;
+                const fillPct = capacity > 0 ? Math.round((enrolled / capacity) * 100) : 0;
+                const remainingSeats = Math.max(0, capacity - enrolled);
+                const isFullOrNearly = fillPct >= 95;
 
               return (
                 <tr
@@ -206,7 +214,7 @@ export const ActiveClassesList = ({ lang, onOpenClasses, onOpenSchedule }) => {
                     borderBottom: '1px solid var(--border-subtle)'
                   }}>
                     <div style={{ fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-                      {cls.enrolledStudents} <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)' }}>/ {cls.capacity}</span>
+                      {enrolled} <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-muted)' }}>/ {capacity}</span>
                     </div>
                     <div style={{
                       width: '80px',
@@ -326,17 +334,24 @@ export const ActiveClassesList = ({ lang, onOpenClasses, onOpenSchedule }) => {
                   </td>
                 </tr>
               );
-            })}
+            }))}
           </tbody>
         </table>
       </div>
 
       {/* ── ADAPTIVE MOBILE CARDS VIEW (Visible only on mobile screens) ── */}
       <div className="teacher-classes-mobile-cards" style={{ display: 'none', flexDirection: 'column', gap: '12px' }}>
-        {MOCK_CLASSES.map(cls => {
-          const fillPct = Math.round((cls.enrolledStudents / cls.capacity) * 100);
-          const remainingSeats = cls.capacity - cls.enrolledStudents;
-          const isFullOrNearly = fillPct >= 95;
+        {classes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+            {isAr ? 'لا توجد مجموعات دراسية نشطة حالياً' : 'No active study groups found'}
+          </div>
+        ) : (
+          classes.map(cls => {
+            const enrolled = cls.enrolledCount ?? cls.enrolledStudents ?? 0;
+            const capacity = cls.maxCapacity ?? cls.capacity ?? 50;
+            const fillPct = capacity > 0 ? Math.round((enrolled / capacity) * 100) : 0;
+            const remainingSeats = Math.max(0, capacity - enrolled);
+            const isFullOrNearly = fillPct >= 95;
 
           return (
             <div
@@ -412,7 +427,7 @@ export const ActiveClassesList = ({ lang, onOpenClasses, onOpenSchedule }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>{isAr ? 'الطلاب المسجلون:' : 'Enrolled:'}</span>
                   <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
-                    {cls.enrolledStudents} / {cls.capacity} ({fillPct}%)
+                    {enrolled} / {capacity} ({fillPct}%)
                   </span>
                 </div>
                 <div style={{
@@ -477,7 +492,7 @@ export const ActiveClassesList = ({ lang, onOpenClasses, onOpenSchedule }) => {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* ── MODAL 1: TRACK COHORT QUICK STATS ── */}

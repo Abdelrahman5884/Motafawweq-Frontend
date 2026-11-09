@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
-import { ALL_PUBLISHED_LESSONS, MOCK_LESSON } from '../../data/mockData';
+import { teacherApi } from '../../services/teacherApi';
 import { NotebookMindMapCanvas } from '../../components/knowledge-map/NotebookMindMapCanvas';
 import { 
   Video, 
@@ -36,12 +36,58 @@ export const LessonWorkspace = () => {
   const { navigate, switchRole } = useAuth();
   const { lang, isRtl } = useLanguage();
 
-  const [lessonsList, setLessonsList] = useState(ALL_PUBLISHED_LESSONS || [MOCK_LESSON]);
+  const [lessonsList, setLessonsList] = useState([]);
   const [lessonToDelete, setLessonToDelete] = useState(null);
   const lessons = lessonsList;
 
-  // Currently selected lesson (defaults to first lesson)
-  const [selectedLessonId, setSelectedLessonId] = useState(lessons[0]?.id || 'les-bio-301');
+  // Currently selected lesson (defaults to empty until fetched)
+  const [selectedLessonId, setSelectedLessonId] = useState('');
+
+  // Fetch live lessons from backend on mount
+  useEffect(() => {
+    let mounted = true;
+    teacherApi.studio.listLessons()
+      .then((res) => {
+        if (mounted && res?.data && Array.isArray(res.data)) {
+          const mapped = res.data.map((l) => ({
+            id: l.uuid || l.id,
+            uuid: l.uuid,
+            title: l.title_en || l.title_ar,
+            titleAr: l.title_ar,
+            subjectAr: l.subject_ar || 'الأحياء - الثانوية العامة',
+            gradeAr: l.grade_ar || 'الصف الثالث الثانوي',
+            mediaType: l.media_mode === 'video' ? 'video' : 'audio',
+            durationFormatted: l.duration_formatted || '45:00',
+            durationSeconds: l.duration_seconds || 2700,
+            recordedDate: l.created_at ? l.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+            stats: {
+              conceptsCount: Array.isArray(l.concept_graph?.tree_data?.nodes) ? l.concept_graph.tree_data.nodes.length : 0,
+              completionRate: 0,
+              avgQuizScore: 0
+            },
+            chapters: l.chapters || [],
+            transcript: l.transcript_segments || [],
+            conceptGraph: l.concept_graph?.tree_data || null,
+            whiteboardImages: l.whiteboard_images || [],
+            pdfNotes: l.pdf_attachments || [],
+            videoUrl: l.embed_url || l.stream_url || '',
+          }));
+
+          setLessonsList(mapped);
+          const savedUuid = sessionStorage.getItem('currentLessonUuid');
+          if (savedUuid && mapped.some((m) => m.id === savedUuid)) {
+            setSelectedLessonId(savedUuid);
+          } else if (mapped.length > 0) {
+            setSelectedLessonId(mapped[0].id);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Teacher studio lessons fetch error:', err);
+      });
+
+    return () => { mounted = false; };
+  }, []);
 
   // Active view: 'overview' | 'media' | 'text' | 'graph'
   const [activeTab, setActiveTab] = useState('overview');
@@ -79,6 +125,7 @@ export const LessonWorkspace = () => {
 
   // Active selected lesson object
   const currentLesson = useMemo(() => {
+    if (!lessons.length) return null;
     return lessons.find(l => l.id === selectedLessonId) || lessons[0];
   }, [lessons, selectedLessonId]);
 
@@ -100,9 +147,9 @@ export const LessonWorkspace = () => {
   const filteredLessons = useMemo(() => {
     return lessons.filter(l => {
       const matchQuery = !lessonSearch || 
-        l.titleAr.includes(lessonSearch) || 
-        l.title.toLowerCase().includes(lessonSearch.toLowerCase()) ||
-        l.subjectAr.includes(lessonSearch);
+        (l.titleAr && l.titleAr.includes(lessonSearch)) || 
+        (l.title && l.title.toLowerCase().includes(lessonSearch.toLowerCase())) ||
+        (l.subjectAr && l.subjectAr.includes(lessonSearch));
       const matchMedia = mediaFilter === 'all' || l.mediaType === mediaFilter;
       return matchQuery && matchMedia;
     });
@@ -110,9 +157,9 @@ export const LessonWorkspace = () => {
 
   // Copy full transcript text
   const handleCopyTranscript = () => {
-    if (!currentLesson.transcript) return;
+    if (!currentLesson?.transcript) return;
     const fullText = currentLesson.transcript
-      .map(t => `[${t.timestamp}] ${t.speaker || 'المعلم'}: ${t.textAr || t.text}`)
+      .map(t => `[${t.timestamp || ''}] ${t.speaker || 'المعلم'}: ${t.textAr || t.text || ''}`)
       .join('\n\n');
     navigator.clipboard.writeText(fullText).then(() => {
       setCopiedText(true);
@@ -125,14 +172,14 @@ export const LessonWorkspace = () => {
     { id: 'overview', label: lang === 'ar' ? 'نظرة عامة (كل الحصص)' : 'Overview (All Lessons)', icon: Layers, count: lessons.length },
     { 
       id: 'media', 
-      label: currentLesson.mediaType === 'video' 
+      label: currentLesson?.mediaType === 'video' 
         ? (lang === 'ar' ? 'فيديو الحصة' : 'Lesson Video') 
         : (lang === 'ar' ? 'تسجيل الحصة الصوتي' : 'Audio Player'), 
-      icon: currentLesson.mediaType === 'video' ? Video : Mic,
-      disabled: false 
+      icon: currentLesson?.mediaType === 'video' ? Video : Mic,
+      disabled: !currentLesson 
     },
-    { id: 'text', label: lang === 'ar' ? 'النص المفرغ (Speech-to-Text)' : 'Text Transcript', icon: FileText, disabled: false },
-    { id: 'graph', label: lang === 'ar' ? 'خريطة المفاهيم (NotebookLM)' : 'Concept Graph', icon: Share2, badge: 'NotebookLM' }
+    { id: 'text', label: lang === 'ar' ? 'النص المفرغ (Speech-to-Text)' : 'Text Transcript', icon: FileText, disabled: !currentLesson },
+    { id: 'graph', label: lang === 'ar' ? 'خريطة المفاهيم (NotebookLM)' : 'Concept Graph', icon: Share2, badge: 'NotebookLM', disabled: !currentLesson }
   ];
 
   return (
@@ -1087,9 +1134,9 @@ export const LessonWorkspace = () => {
 
           {/* NotebookLM Mind Map Canvas Component */}
           <NotebookMindMapCanvas
-            treeData={currentLesson.notebookMindMap || MOCK_LESSON.notebookMindMap}
-            lessonTitle={lang === 'ar' ? currentLesson.titleAr : currentLesson.title}
-            unitTitle={lang === 'ar' ? currentLesson.unitAr : currentLesson.unit}
+            treeData={currentLesson?.conceptGraph || currentLesson?.notebookMindMap || null}
+            lessonTitle={lang === 'ar' ? (currentLesson?.titleAr || currentLesson?.title || '') : (currentLesson?.title || '')}
+            unitTitle={lang === 'ar' ? (currentLesson?.unitAr || '') : (currentLesson?.unit || '')}
             onJumpToTimestamp={(secs) => {
               handleJumpToTimestamp(secs);
               setActiveTab('media');
@@ -1177,15 +1224,23 @@ export const LessonWorkspace = () => {
 
               <button
                 type="button"
-                onClick={() => {
-                  setLessonsList(prev => {
-                    const updated = prev.filter(item => item.id !== lessonToDelete.id);
-                    if (selectedLessonId === lessonToDelete.id && updated.length > 0) {
-                      setSelectedLessonId(updated[0].id);
+                onClick={async () => {
+                  if (lessonToDelete) {
+                    const targetUuid = lessonToDelete.uuid || lessonToDelete.id;
+                    try {
+                      await teacherApi.studio.deleteLesson(targetUuid);
+                    } catch (err) {
+                      console.warn('Backend lesson delete error:', err);
                     }
-                    return updated;
-                  });
-                  setLessonToDelete(null);
+                    setLessonsList(prev => {
+                      const updated = prev.filter(item => (item.uuid || item.id) !== targetUuid);
+                      if (selectedLessonId === targetUuid) {
+                        setSelectedLessonId(updated[0]?.id || '');
+                      }
+                      return updated;
+                    });
+                    setLessonToDelete(null);
+                  }
                 }}
                 style={{
                   flex: 1,

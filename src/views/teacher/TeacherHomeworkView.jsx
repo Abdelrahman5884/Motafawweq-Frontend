@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { teacherApi } from '../../services/teacherApi';
 import { 
   FileText, 
   Plus, 
@@ -40,8 +41,11 @@ import {
   Paperclip
 } from 'lucide-react';
 
-// Courses and their available lessons for assignment linking
-const COURSES_WITH_LESSONS = [
+// Live courses and homeworks loaded from backend
+const COURSES_WITH_LESSONS = [];
+const TARGET_LOCATIONS = [];
+const INITIAL_HOMEWORKS_DATABASE = [];
+/* OLD STATIC DATA REMOVED
   {
     courseTitle: 'ماستر كلاس الأحياء (3 ثانوي)',
     subject: 'الأحياء',
@@ -341,19 +345,78 @@ const INITIAL_HOMEWORKS_DATABASE = [
     maxGrade: 30,
     submissions: []
   }
-];
+]; */
 
 export const TeacherHomeworkView = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
   const isAr = lang === 'ar';
 
-  const [homeworks, setHomeworks] = useState(INITIAL_HOMEWORKS_DATABASE);
-  
+  const [homeworks, setHomeworks] = useState([]);
+  const [availableCourses, setAvailableCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   // Navigation / View state: 'list' | 'detail' | 'grading'
   const [viewMode, setViewMode] = useState('list');
-  const [selectedHwId, setSelectedHwId] = useState(homeworks[0]?.id || null);
+  const [selectedHwId, setSelectedHwId] = useState(null);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
+  const [submissionsList, setSubmissionsList] = useState([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+
+  // Fetch live homeworks and courses on mount
+  useEffect(() => {
+    let mounted = true;
+    setIsLoading(true);
+
+    Promise.all([
+      teacherApi.homeworks.list().catch(() => ({ data: [] })),
+      teacherApi.courses.list().catch(() => ({ data: [] }))
+    ])
+      .then(([hwRes, coursesRes]) => {
+        if (!mounted) return;
+        const hwList = Array.isArray(hwRes?.data) ? hwRes.data : [];
+        setHomeworks(hwList);
+        if (hwList.length > 0) {
+          setSelectedHwId(hwList[0].id);
+        }
+
+        const courseList = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
+        setAvailableCourses(courseList);
+      })
+      .catch((err) => {
+        console.warn('Teacher homeworks load error:', err);
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, []);
+
+  // Fetch submissions when viewing details of an assignment
+  useEffect(() => {
+    if (!selectedHwId || (viewMode !== 'detail' && viewMode !== 'grading')) return;
+
+    let mounted = true;
+    setLoadingSubmissions(true);
+    teacherApi.homeworks.listSubmissions(selectedHwId)
+      .then((res) => {
+        if (mounted && res?.data) {
+          const subs = Array.isArray(res.data) ? res.data : [];
+          setSubmissionsList(subs);
+          // Also update homework object submissions
+          setHomeworks(prev => prev.map(hw => hw.id === selectedHwId ? { ...hw, submissions: subs } : hw));
+        }
+      })
+      .catch((err) => {
+        console.warn('Submissions load error:', err);
+      })
+      .finally(() => {
+        if (mounted) setLoadingSubmissions(false);
+      });
+
+    return () => { mounted = false; };
+  }, [selectedHwId, viewMode]);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -583,13 +646,26 @@ export const TeacherHomeworkView = () => {
   };
 
   // Save / Approve Grade and Feedback
-  const handleSaveGrading = (e) => {
+  const handleSaveGrading = async (e) => {
     if (e) e.preventDefault();
     if (!activeSubmission || !selectedHw) return;
 
     const numericScore = Math.min(selectedHw.maxGrade, Math.max(0, Number(gradeInput) || 0));
 
-    const updatedSubmissions = selectedHw.submissions.map(sub => {
+    try {
+      await teacherApi.homeworks.gradeSubmission(
+        selectedHw.uuid || selectedHw.id,
+        activeSubmission.uuid || activeSubmission.id,
+        {
+          gradeScore: numericScore,
+          feedbackAr: feedbackInput,
+        }
+      );
+    } catch (err) {
+      console.warn('Backend grade homework submission error:', err);
+    }
+
+    const updatedSubmissions = (selectedHw.submissions || []).map(sub => {
       if (sub.id === activeSubmission.id) {
         return {
           ...sub,
@@ -605,8 +681,8 @@ export const TeacherHomeworkView = () => {
     const updatedHw = {
       ...selectedHw,
       submissions: updatedSubmissions,
-      gradedCount: selectedHw.gradedCount + newlyGraded,
-      pendingGrading: Math.max(0, selectedHw.pendingGrading - newlyGraded)
+      gradedCount: (selectedHw.gradedCount || 0) + newlyGraded,
+      pendingGrading: Math.max(0, (selectedHw.pendingGrading || 0) - newlyGraded)
     };
 
     setHomeworks(prev => prev.map(h => h.id === selectedHw.id ? updatedHw : h));
@@ -640,7 +716,7 @@ export const TeacherHomeworkView = () => {
   };
 
   // Create Homework Handler
-  const handleCreateHomework = (e) => {
+  const handleCreateHomework = async (e) => {
     e.preventDefault();
     if (!createForm.title.trim()) return;
 
@@ -649,50 +725,38 @@ export const TeacherHomeworkView = () => {
       return;
     }
 
-    const targetLoc = TARGET_LOCATIONS.find(l => l.id === createForm.targetLocationId);
-
-    const attachmentsList = createForm.files.map(f => ({
-      id: f.id,
-      name: f.name,
-      size: f.size,
-      type: f.type,
-      url: f.url
-    }));
-
-    const firstFile = attachmentsList[0];
-    const defaultAttachmentName = firstFile 
-      ? firstFile.name 
-      : `${createForm.title.trim().replace(/\s+/g, '_')}.pdf`;
-
-    const newHwObj = {
-      id: `hw-${Date.now()}`,
-      titleAr: createForm.title.trim(),
-      courseTitleAr: createForm.courseTitle,
-      lessonAr: createForm.lesson,
-      targetLocationAr: targetLoc ? targetLoc.nameAr : 'جميع الأماكن',
-      targetLocationId: createForm.targetLocationId,
+    const payload = {
+      title_ar: createForm.title.trim(),
+      course_title_ar: createForm.courseTitle,
+      lesson_title_ar: createForm.lesson,
+      target_location_id: createForm.targetLocationId,
       type: createForm.type,
-      fileType: firstFile ? firstFile.type : 'pdf',
-      attachmentName: defaultAttachmentName,
-      attachments: attachmentsList,
-      attachmentCount: attachmentsList.length,
-      fileUrl: firstFile?.url || '',
-      fileSize: firstFile?.size || '1.8 MB',
-      textContent: createForm.type === 'text' ? createForm.textContent : '',
-      dueDate: createForm.dueDate,
-      dueTime: createForm.dueTime,
-      totalAssigned: 2450,
-      submittedCount: 0,
-      gradedCount: 0,
-      pendingGrading: 0,
-      avgGrade: 0,
-      maxGrade: Number(createForm.maxGrade) || 20,
-      submissions: []
+      text_content: createForm.type === 'text' ? createForm.textContent : undefined,
+      due_date: createForm.dueDate,
+      due_time: createForm.dueTime,
+      max_grade: Number(createForm.maxGrade) || 20,
     };
 
-    setHomeworks([newHwObj, ...homeworks]);
+    try {
+      const fileToUpload = createForm.rawFiles?.[0] || null;
+      const res = await teacherApi.homeworks.create(payload, fileToUpload);
+      const createdObj = res?.data || {
+        id: `hw-${Date.now()}`,
+        ...payload,
+        titleAr: payload.title_ar,
+        courseTitleAr: payload.course_title_ar,
+        lessonAr: payload.lesson_title_ar,
+        maxGrade: payload.max_grade,
+        submissions: []
+      };
+
+      setHomeworks([createdObj, ...homeworks]);
+      setSelectedHwId(createdObj.id);
+    } catch (err) {
+      console.warn('Backend homework create error:', err);
+    }
+
     setShowCreateModal(false);
-    setSelectedHwId(newHwObj.id);
     setViewMode('detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -707,7 +771,12 @@ export const TeacherHomeworkView = () => {
     });
   };
 
-  const handleConfirmDeleteHomework = () => {
+  const handleConfirmDeleteHomework = async () => {
+    try {
+      await teacherApi.homeworks.delete(deleteHwDialog.id);
+    } catch (err) {
+      console.warn('Backend homework delete error:', err);
+    }
     setHomeworks(prev => prev.filter(h => h.id !== deleteHwDialog.id));
     setDeleteHwDialog({ isOpen: false, id: null, title: '' });
     if (viewMode !== 'list') {

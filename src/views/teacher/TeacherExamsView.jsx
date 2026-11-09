@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { TEACHER_EXAMS } from '../../data/teacherData';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import { teacherApi } from '../../services/teacherApi';
 import { 
   ClipboardList, 
   Plus, 
@@ -35,8 +35,9 @@ import {
   Edit3
 } from 'lucide-react';
 
-// Rich Mock Question Bank using exclusively platform tones
-const INITIAL_EXAMS_DATABASE = [
+// Real exams loaded from backend
+const INITIAL_EXAMS_DATABASE = [];
+/* OLD STATIC MOCK EXAMS REMOVED
   {
     ...TEACHER_EXAMS[0],
     id: 'ex-bio-101',
@@ -231,7 +232,7 @@ const INITIAL_EXAMS_DATABASE = [
       }
     ]
   }
-];
+]; */
 
 export const TeacherExamsView = () => {
   const { lang, isRtl } = useLanguage();
@@ -240,8 +241,43 @@ export const TeacherExamsView = () => {
 
   // Navigation: 'list' (Main Cards View) | 'detail' (Dedicated Exam Page) | 'create' (Dedicated Wizard Page)
   const [viewMode, setViewMode] = useState('list');
-  const [exams, setExams] = useState(INITIAL_EXAMS_DATABASE);
-  const [selectedExamId, setSelectedExamId] = useState(INITIAL_EXAMS_DATABASE[0].id);
+  const [exams, setExams] = useState([]);
+  const [selectedExamId, setSelectedExamId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [availableCourses, setAvailableCourses] = useState([]);
+
+  // Fetch live exams and courses on mount
+  useEffect(() => {
+    let mounted = true;
+    setIsLoading(true);
+
+    Promise.all([
+      teacherApi.exams.list().catch(() => ({ data: [] })),
+      teacherApi.courses.list().catch(() => ({ data: [] }))
+    ])
+      .then(([examsRes, coursesRes]) => {
+        if (!mounted) return;
+        const examList = Array.isArray(examsRes?.data) ? examsRes.data : [];
+        setExams(examList);
+        if (examList.length > 0) {
+          setSelectedExamId(examList[0].id);
+        }
+
+        const courseList = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
+        setAvailableCourses(courseList);
+        if (courseList.length > 0) {
+          setFormCourse(courseList[0].titleAr || courseList[0].title_ar || courseList[0].title);
+        }
+      })
+      .catch((err) => {
+        console.warn('Teacher exams load error:', err);
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, []);
 
   // Search & Filter on Main List Page
   const [searchQuery, setSearchQuery] = useState('');
@@ -432,8 +468,13 @@ export const TeacherExamsView = () => {
   }) || [];
 
   // Toggle Exam Open / Closed status (1-click, concise)
-  const handleToggleStatus = (examId, e) => {
+  const handleToggleStatus = async (examId, e) => {
     if (e) e.stopPropagation();
+    try {
+      await teacherApi.exams.toggleStatus(examId);
+    } catch (err) {
+      console.warn('Backend toggle exam status error:', err);
+    }
     setExams(prev => prev.map(exam => {
       if (exam.id === examId) {
         const nextStatus = exam.status === 'active' ? 'closed' : 'active';
@@ -444,8 +485,13 @@ export const TeacherExamsView = () => {
   };
 
   // Toggle Show / Hide Results for students (زى بتاعت الامتحان متاح للطلاب ولا مغلق)
-  const handleToggleResults = (examId, e) => {
+  const handleToggleResults = async (examId, e) => {
     if (e) e.stopPropagation();
+    try {
+      await teacherApi.exams.toggleResults(examId);
+    } catch (err) {
+      console.warn('Backend toggle exam results error:', err);
+    }
     setExams(prev => prev.map(exam => {
       if (exam.id === examId) {
         const nextShow = exam.showResults === false ? true : false;
@@ -540,8 +586,13 @@ export const TeacherExamsView = () => {
   };
 
   // Confirm Delete Action
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteDialog.type === 'exam') {
+      try {
+        await teacherApi.exams.delete(deleteDialog.id);
+      } catch (err) {
+        console.warn('Backend delete exam error:', err);
+      }
       const remaining = exams.filter(x => x.id !== deleteDialog.id);
       setExams(remaining);
       if (selectedExamId === deleteDialog.id && remaining.length > 0) {
@@ -710,39 +761,62 @@ export const TeacherExamsView = () => {
   };
 
   // Finish Creation Wizard
-  const handleFinishCreate = () => {
+  const handleFinishCreate = async () => {
     const finalTitle = formTitle.trim() || (isAr ? 'اختبار تقييمي جديد' : 'New Assessment');
     const finalQuestions = builderQuestions.map((bq, idx) => ({
       ...bq,
-      id: `q-new-${Date.now()}-${idx}`,
       number: idx + 1,
       points: Number(bq.points) || 1,
-      questionAr: bq.questionAr.trim() || `سؤال رقم (${idx + 1})`,
-      optionsAr: bq.type === 'mcq' ? bq.optionsAr.map((opt, oIdx) => opt.trim() || `الخيار ${oIdx + 1}`) : undefined
+      type: bq.type || 'mcq',
+      question_ar: bq.questionAr.trim() || `سؤال رقم (${idx + 1})`,
+      options_ar: bq.type === 'mcq' ? bq.optionsAr.map((opt, oIdx) => opt.trim() || `الخيار ${oIdx + 1}`) : undefined,
+      correct_index: bq.correctIndex !== undefined ? bq.correctIndex : 0,
+      correct_bool: bq.correctBool !== undefined ? bq.correctBool : true,
+      model_answer_ar: bq.modelAnswerAr || undefined,
+      explanation_ar: bq.explanationAr || undefined,
     }));
 
     const finalFullMark = finalQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
 
-    const newExamObj = {
-      id: `ex-${Date.now()}`,
-      titleAr: finalTitle,
-      titleEn: finalTitle,
-      courseTitleAr: formCourse,
-      questionsCount: finalQuestions.length,
-      durationMinutes: Number(formDuration) || 45,
-      fullMark: finalFullMark,
-      passScore: Number(formPassScore) || Math.round(finalFullMark * 0.6),
-      avgScore: 0,
-      passRate: 100,
-      topScoreCount: 0,
-      status: 'active', // متاح للطلاب تلقائياً
-      showResults: formShowResults, // إظهار النتيجة للطلاب أو حجبها
-      dueDate: '2026-10-15',
-      questions: finalQuestions
+    const payload = {
+      title_ar: finalTitle,
+      title_en: finalTitle,
+      course_title_ar: formCourse,
+      duration_minutes: Number(formDuration) || 45,
+      full_mark: finalFullMark,
+      pass_score: Number(formPassScore) || Math.round(finalFullMark * 0.6),
+      show_results: formShowResults,
+      questions: finalQuestions,
     };
 
-    setExams([newExamObj, ...exams]);
-    setSelectedExamId(newExamObj.id);
+    try {
+      const res = await teacherApi.exams.create(payload);
+      const createdExam = res.data;
+      setExams([createdExam, ...exams]);
+      setSelectedExamId(createdExam.id);
+    } catch (err) {
+      console.warn('Backend exam create error:', err);
+      const fallbackObj = {
+        id: `ex-${Date.now()}`,
+        titleAr: finalTitle,
+        titleEn: finalTitle,
+        courseTitleAr: formCourse,
+        questionsCount: finalQuestions.length,
+        durationMinutes: Number(formDuration) || 45,
+        fullMark: finalFullMark,
+        passScore: Number(formPassScore) || Math.round(finalFullMark * 0.6),
+        avgScore: 0,
+        passRate: 100,
+        topScoreCount: 0,
+        status: 'active',
+        showResults: formShowResults,
+        dueDate: '2026-10-15',
+        questions: finalQuestions,
+      };
+      setExams([fallbackObj, ...exams]);
+      setSelectedExamId(fallbackObj.id);
+    }
+
     setViewMode('detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

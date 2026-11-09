@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { MOCK_TEACHER_EARNINGS } from '../../data/mockData';
-import { MOCK_TEACHER_DIRECT_PAYMENTS } from '../../data/teacherData';
+import { teacherApi } from '../../services/teacherApi';
 import { CreditCard, ArrowRight, ArrowLeft } from 'lucide-react';
 import {
   FinancialsOverviewCards,
@@ -14,8 +13,54 @@ export const TeacherFinancials = () => {
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
 
-  const earnings = MOCK_TEACHER_EARNINGS;
-  const directPayments = MOCK_TEACHER_DIRECT_PAYMENTS;
+  const [earnings, setEarnings] = useState({
+    totalRevenueEgp: 0,
+    activePurchasesCount: 0,
+    activeCoursesCount: 0,
+  });
+  const [directPayments, setDirectPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFinancials = async () => {
+    setLoading(true);
+    try {
+      const res = await teacherApi.financials.getOverview();
+      if (res?.data) {
+        setEarnings(res.data.earnings || {
+          totalRevenueEgp: 0,
+          activePurchasesCount: 0,
+          activeCoursesCount: 0,
+        });
+        setDirectPayments(res.data.transactions || []);
+      }
+    } catch (err) {
+      console.warn('Teacher financials load error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFinancials();
+  }, []);
+
+  const handleConfirmPayment = async (uuid) => {
+    try {
+      await teacherApi.financials.confirmPayment(uuid);
+      await fetchFinancials();
+    } catch (err) {
+      console.warn('Confirm payment error:', err);
+    }
+  };
+
+  const handleRejectPayment = async (uuid, reason = '') => {
+    try {
+      await teacherApi.financials.rejectPayment(uuid, { reason });
+      await fetchFinancials();
+    } catch (err) {
+      console.warn('Reject payment error:', err);
+    }
+  };
 
   return (
     <div
@@ -99,7 +144,7 @@ export const TeacherFinancials = () => {
           </button>
 
           <button
-            onClick={() => navigate('/teacher/settings')}
+            onClick={() => navigate('/teacher/settings?tab=payout')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -126,7 +171,13 @@ export const TeacherFinancials = () => {
       <FinancialsOverviewCards earnings={earnings} lang={lang} />
 
       {/* Transactions History Table */}
-      <TransactionsHistoryList transactions={directPayments} lang={lang} isRtl={isRtl} />
+      <TransactionsHistoryList
+        transactions={directPayments}
+        lang={lang}
+        isRtl={isRtl}
+        onConfirmPayment={handleConfirmPayment}
+        onRejectPayment={handleRejectPayment}
+      />
     </div>
   );
 };

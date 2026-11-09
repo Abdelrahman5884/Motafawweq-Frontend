@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { MOCK_LESSON } from '../../data/mockData';
 import { teacherApi } from '../../services/teacherApi';
 import {
   TeacherWelcomeBanner,
   TeacherStatCards,
   TeacherAnalyticsCharts,
   RecentProcessedLessons,
-  ActiveClassesList
+  ActiveClassesList,
 } from '../../features/teacher/dashboard';
 
 export const TeacherDashboard = () => {
@@ -29,7 +28,7 @@ export const TeacherDashboard = () => {
         }
       })
       .catch((err) => {
-        console.warn('Teacher dashboard fallback to mock data:', err);
+        console.warn('Teacher dashboard load error:', err);
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -38,39 +37,7 @@ export const TeacherDashboard = () => {
     return () => { isMounted = false; };
   }, []);
 
-  // Lessons sorted from Newest to Oldest (fallback to mock if empty)
-  const fallbackLessons = [
-    {
-      ...MOCK_LESSON,
-      id: 'les-bio-301',
-      recordedDate: '2026-09-12',
-      titleAr: 'البناء الضوئي وحركية الطاقة في الخلايا النباتية',
-      durationFormatted: '42:18',
-      stats: { conceptsCount: 14, completionRate: 88, avgQuizScore: 84.5 }
-    },
-    {
-      id: 'les-bio-302',
-      title: 'Cellular Respiration & Krebs Cycle',
-      titleAr: 'التنفس الخلوي الهوائي ودورة كريبس',
-      subjectAr: 'الأحياء - الثانوية العامة',
-      durationFormatted: '54:10',
-      recordedDate: '2026-09-08',
-      stats: { conceptsCount: 16, completionRate: 91, avgQuizScore: 82.0 }
-    },
-    {
-      id: 'les-bio-303',
-      title: 'Molecular Genetics & DNA Replication',
-      titleAr: 'البيولوجيا الجزيئية وتضاعف الحمض النووي DNA',
-      subjectAr: 'الأحياء - الثانوية العامة',
-      durationFormatted: '1:12:00',
-      recordedDate: '2026-09-02',
-      stats: { conceptsCount: 22, completionRate: 78, avgQuizScore: 79.5 }
-    }
-  ];
-
-  const lessons = (dashboardData?.recentLessons && dashboardData.recentLessons.length > 0)
-    ? dashboardData.recentLessons
-    : fallbackLessons;
+  const lessons = dashboardData?.recentLessons || [];
 
   return (
     <div className="teacher-dashboard-container">
@@ -81,7 +48,7 @@ export const TeacherDashboard = () => {
         lang={lang}
       />
 
-      {/* 2. Sleek Compact Executive Indicators (Revenue, Students, AI Quota, Class Mastery) */}
+      {/* 2. Sleek Compact Executive Indicators (Revenue, Students, Class Mastery, Pending Grading) */}
       <TeacherStatCards
         lang={lang}
         stats={dashboardData?.statCards}
@@ -112,7 +79,7 @@ export const TeacherDashboard = () => {
         {/* Right Column: Active Groups & Classes Structured Responsive Table/Cards */}
         <ActiveClassesList
           lang={lang}
-          activeClasses={dashboardData?.activeClasses}
+          activeClasses={dashboardData?.activeClasses || []}
           onOpenClasses={() => navigate('/teacher/classes')}
           onOpenSchedule={() => navigate('/teacher/schedule')}
         />

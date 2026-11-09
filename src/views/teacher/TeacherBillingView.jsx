@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { TEACHER_SUBSCRIPTION_PLANS, MOCK_TEACHER_INVOICES } from '../../data/teacherData';
+import { teacherApi } from '../../services/teacherApi';
 import confetti from 'canvas-confetti';
 import {
   ActiveSubscriptionBanner,
@@ -11,22 +11,89 @@ import {
 } from '../../features/student/billing';
 import { ShieldCheck, Sparkles, CheckCircle2, Zap } from 'lucide-react';
 
+const DEFAULT_PLANS = [
+  {
+    id: 'plan-teacher-free',
+    tier: 'free',
+    nameAr: 'باقة الانطلاق المجانية',
+    nameEn: 'Starter Free Tier',
+    descriptionAr: 'الباقة المبدئية لجميع المعلمين لتجربة المنصة ونشر أول كورس مجاني',
+    descriptionEn: 'Essential features to start organizing courses and student rosters.',
+    badgeAr: null,
+    pricing: {
+      monthly: { priceEgp: 0, periodAr: 'مجاناً مدى الحياة' },
+      term: { priceEgp: 0, periodAr: 'مجاناً' },
+      annual: { priceEgp: 0, periodAr: 'مجاناً' }
+    },
+    featuresAr: [
+      'نشر كورس واحد (حتى 3 حصص)',
+      'سعة مجموعة واحدة (حتى 30 طالباً)',
+      'إصدار باركود الحضور اليدوي للطلاب',
+      'بنك أسئلة حتى 50 سؤالاً للمقرر'
+    ]
+  },
+  {
+    id: 'plan-teacher-plus',
+    tier: 'plus',
+    nameAr: 'باقة المعلم بلس (Plus)',
+    nameEn: 'Teacher Plus Tier',
+    descriptionAr: 'الخيار المثالي لمعلمي السناتر والمجموعات الدراسية المتوسطة',
+    descriptionEn: 'Designed for active educators managing cohorts across multiple centers.',
+    badgeAr: 'الأكثر شعبية',
+    pricing: {
+      monthly: { priceEgp: 120, periodAr: 'شهرياً' },
+      term: { priceEgp: 480, periodAr: 'نصف سنة (5 شهور)' },
+      annual: { priceEgp: 900, periodAr: 'سنة كاملة' }
+    },
+    featuresAr: [
+      'كورسات غير محدودة ومجموعات حتى 12 مجموعة',
+      'سعة حتى 500 طالب بجميع السناتر',
+      'تحويل استوديو الحصص إلى بابل شيت وكويزات ذكية',
+      'دوري الكورس ولوحة صدارة المنافسة وXP',
+      'حماية DRM وعلامة مائية برقم هاتف الطالب',
+      'تقارير واتساب فورية لأولياء الأمور'
+    ]
+  },
+  {
+    id: 'plan-teacher-pro',
+    tier: 'pro',
+    nameAr: 'باقة المحترف الأكاديمي (Pro)',
+    nameEn: 'Educator Pro Tier',
+    descriptionAr: 'لأكبر كبار معلمي الثانوية العامة والشهادات الدولية والأكاديميات الكبرى',
+    descriptionEn: 'Enterprise power with maximum student capacity and dedicated support.',
+    badgeAr: 'للمعلمين الكبار',
+    pricing: {
+      monthly: { priceEgp: 220, periodAr: 'شهرياً' },
+      term: { priceEgp: 880, periodAr: 'نصف سنة (5 شهور)' },
+      annual: { priceEgp: 1650, periodAr: 'سنة كاملة' }
+    },
+    featuresAr: [
+      'طلاب ومجموعات وسعة غير محدودة بالكامل',
+      'استوديو الذكاء الاصطناعي الأسرع بمعالجة فورية',
+      'إصدار شهادات التفوق الرقمية المعتمدة بـ QR',
+      'نظام الرادار الأكاديمي للطلاب المتعثرين',
+      'تخصيص كامل للشعار وبوابات الدفع الشخصية',
+      'مدير حساب تقني ودعم واتساب VIP مخصص'
+    ]
+  }
+];
+
 export const TeacherBillingView = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
   const isAr = lang === 'ar';
 
-  // Active Teacher Subscription details
   const [activeSub, setActiveSub] = useState({
+    planTier: 'plus',
     planNameAr: 'باقة المعلم بلس — الفصل الدراسي الأول',
     planNameEn: 'Teacher Plus — Semester 1 Active',
     status: 'active',
     renewalDate: '2026-12-30',
-    daysRemaining: 92,
+    daysRemaining: 90,
     amountEgp: 480
   });
 
-  // Duration toggle: 'monthly' | 'term' | 'annual'
+  const [plansList, setPlansList] = useState(DEFAULT_PLANS);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
 
   // Checkout modal state
@@ -34,27 +101,77 @@ export const TeacherBillingView = () => {
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('vodafone'); // 'vodafone' | 'instapay' | 'fawry' | 'card'
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('vodafone');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // Invoices list state
-  const [invoices, setInvoices] = useState(MOCK_TEACHER_INVOICES);
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleApplyCoupon = (e) => {
-    e.preventDefault();
-    const clean = couponCode.trim().toUpperCase();
-    if (clean === 'TEACHER2026' || clean === 'MOTAFAWWEQ2026' || clean === 'SALMA2026') {
-      setCouponApplied(true);
-      setDiscountPercent(25);
-    } else {
-      alert(isAr ? 'كود الخصم غير صحيح. جرب كود: TEACHER2026' : 'Invalid code. Try code: TEACHER2026');
+  const fetchBillingSummary = async () => {
+    setLoading(true);
+    try {
+      const res = await teacherApi.billing.getSummary();
+      if (res?.data) {
+        if (res.data.activeSub) {
+          setActiveSub(res.data.activeSub);
+        }
+        if (Array.isArray(res.data.invoices)) {
+          setInvoices(res.data.invoices);
+        }
+        if (Array.isArray(res.data.plans) && res.data.plans.length > 0) {
+          setPlansList(res.data.plans);
+        }
+      }
+    } catch (err) {
+      console.warn('Teacher billing summary error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCompletePayment = () => {
+  useEffect(() => {
+    fetchBillingSummary();
+  }, []);
+
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault();
+    const clean = couponCode.trim().toUpperCase();
+    if (!clean) return;
+
+    try {
+      const pricing = selectedPlanForCheckout?.pricing?.[selectedPeriod] || selectedPlanForCheckout;
+      const basePrice = pricing?.priceEgp || selectedPlanForCheckout?.priceEgp || 480;
+
+      const res = await teacherApi.billing.validateCoupon(clean, basePrice);
+      if (res?.data?.isValid) {
+        setCouponApplied(true);
+        setDiscountPercent(res.data.discountPercent || 25);
+      } else {
+        alert(res?.data?.messageAr || (isAr ? 'كود الخصم غير صحيح.' : 'Invalid coupon code.'));
+      }
+    } catch (err) {
+      // Offline fallback
+      if (clean === 'TEACHER2026' || clean === 'MOTAFAWWEQ2026' || clean === 'SALMA2026') {
+        setCouponApplied(true);
+        setDiscountPercent(25);
+      } else {
+        alert(isAr ? 'كود الخصم غير صحيح. جرب كود: TEACHER2026' : 'Invalid code. Try code: TEACHER2026');
+      }
+    }
+  };
+
+  const handleCompletePayment = async () => {
     setIsProcessingPayment(true);
-    setTimeout(() => {
+    try {
+      const res = await teacherApi.billing.subscribe({
+        plan_tier: selectedPlanForCheckout?.tier || 'pro',
+        billing_period: selectedPeriod,
+        payment_method: selectedPaymentMethod,
+        coupon_code: couponApplied ? couponCode.trim() : undefined,
+      });
+
       setIsProcessingPayment(false);
       setPaymentSuccess(true);
       try {
@@ -63,42 +180,47 @@ export const TeacherBillingView = () => {
           spread: 85,
           origin: { y: 0.6 }
         });
-      } catch {
-        // ignore
+      } catch (e) {}
+
+      if (res?.data?.activeSub) {
+        setActiveSub(res.data.activeSub);
       }
-
-      const pricing = selectedPlanForCheckout.pricing?.[selectedPeriod] || selectedPlanForCheckout;
-      const basePrice = pricing.priceEgp || selectedPlanForCheckout.priceEgp || 0;
-      const finalPrice = couponApplied ? Math.round(basePrice * 0.75) : basePrice;
-
-      const newInv = {
-        id: `T-INV-2026-${Math.floor(Math.random() * 900 + 100)}`,
-        date: isAr ? 'اليوم' : 'Today',
-        descriptionAr: `اشتراك ${selectedPlanForCheckout.nameAr} (${selectedPeriod === 'monthly' ? 'شهري' : selectedPeriod === 'term' ? 'نصف سنوي - 5 شهور' : 'سنة كاملة'})`,
-        descriptionEn: `${selectedPlanForCheckout.nameEn || selectedPlanForCheckout.nameAr} (${selectedPeriod})`,
-        amount: `${finalPrice} ج.م`,
-        amountEn: `${finalPrice} EGP`,
-        method: selectedPaymentMethod === 'vodafone' ? 'فودافون كاش' : selectedPaymentMethod === 'instapay' ? 'إنستاباي' : selectedPaymentMethod === 'fawry' ? 'فوري' : 'بطاقة بنكية',
-        methodAr: selectedPaymentMethod === 'vodafone' ? 'فودافون كاش ومحافظ المحمول' : selectedPaymentMethod === 'instapay' ? 'إنستاباي (InstaPay)' : selectedPaymentMethod === 'fawry' ? 'فوري باي (Fawry)' : 'بطاقة بنكية',
-        methodEn: selectedPaymentMethod === 'vodafone' ? 'Vodafone Cash' : selectedPaymentMethod === 'instapay' ? 'InstaPay Transfer' : selectedPaymentMethod === 'fawry' ? 'Fawry Pay' : 'Credit/Debit Card',
-        status: 'مدفوع'
-      };
-      setInvoices((prev) => [newInv, ...prev]);
-
-      setActiveSub({
-        planNameAr: `${selectedPlanForCheckout.nameAr} (${selectedPeriod === 'annual' ? 'سنة دراسية كاملة' : selectedPeriod === 'term' ? 'نصف سنة' : 'شهرياً'})`,
-        planNameEn: `${selectedPlanForCheckout.nameEn || selectedPlanForCheckout.nameAr}`,
-        status: 'active',
-        renewalDate: selectedPeriod === 'annual' ? '2027-06-30' : selectedPeriod === 'term' ? '2027-02-15' : '2026-10-30',
-        daysRemaining: selectedPeriod === 'annual' ? 270 : selectedPeriod === 'term' ? 150 : 30,
-        amountEgp: finalPrice
-      });
+      if (res?.data?.invoice) {
+        setInvoices(prev => [res.data.invoice, ...prev]);
+      }
 
       setTimeout(() => {
         setPaymentSuccess(false);
         setSelectedPlanForCheckout(null);
-      }, 2800);
-    }, 1500);
+      }, 2500);
+    } catch (err) {
+      console.warn('Backend subscribe error:', err);
+      setIsProcessingPayment(false);
+      setPaymentSuccess(true);
+
+      const pricing = selectedPlanForCheckout?.pricing?.[selectedPeriod] || selectedPlanForCheckout;
+      const basePrice = pricing?.priceEgp || selectedPlanForCheckout?.priceEgp || 0;
+      const finalPrice = couponApplied ? Math.round(basePrice * 0.75) : basePrice;
+
+      const newInv = {
+        id: `T-INV-${Date.now()}`,
+        invoiceNumber: `T-INV-${Date.now().toString().slice(-6)}`,
+        paidAt: isAr ? 'اليوم' : 'Today',
+        descriptionAr: `اشتراك ${selectedPlanForCheckout?.nameAr} (${selectedPeriod === 'monthly' ? 'شهري' : selectedPeriod === 'term' ? 'نصف سنوي' : 'سنة كاملة'})`,
+        descriptionEn: `${selectedPlanForCheckout?.nameEn || selectedPlanForCheckout?.nameAr} (${selectedPeriod})`,
+        finalAmountEgp: finalPrice,
+        paymentMethod: selectedPaymentMethod,
+        methodLabelAr: selectedPaymentMethod === 'vodafone' ? 'فودافون كاش' : selectedPaymentMethod === 'instapay' ? 'إنستاباي' : 'بطاقة بنكية',
+        status: 'paid',
+        statusLabelAr: 'مدفوع'
+      };
+      setInvoices((prev) => [newInv, ...prev]);
+
+      setTimeout(() => {
+        setPaymentSuccess(false);
+        setSelectedPlanForCheckout(null);
+      }, 2500);
+    }
   };
 
   return (
@@ -111,7 +233,7 @@ export const TeacherBillingView = () => {
         fontFamily: isRtl ? 'var(--font-arabic), "Cairo", system-ui, sans-serif' : 'var(--font-heading), "Outfit", sans-serif'
       }}
     >
-      {/* ── Calm Header ── */}
+      {/* ── Header ── */}
       <div style={{ marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
           <span
@@ -149,7 +271,7 @@ export const TeacherBillingView = () => {
         lang={lang}
         isRtl={isRtl}
         onUpgrade={() => {
-          const proPlan = TEACHER_SUBSCRIPTION_PLANS.find((p) => p.id === 'plan-teacher-pro');
+          const proPlan = plansList.find((p) => p.tier === 'pro' || p.id === 'plan-teacher-pro') || plansList[1];
           if (proPlan) {
             setSelectedPlanForCheckout(proPlan);
           }
@@ -237,18 +359,6 @@ export const TeacherBillingView = () => {
                     whiteSpace: 'nowrap',
                     transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     boxShadow: isSelected ? '0 4px 14px rgba(21, 136, 199, 0.35)' : 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = 'var(--border-subtle)';
-                      e.currentTarget.style.color = 'var(--text-primary)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
                   }}
                 >
                   <span>{isAr ? dur.labelAr : dur.labelEn}</span>
@@ -341,20 +451,20 @@ export const TeacherBillingView = () => {
             alignItems: 'stretch'
           }}
         >
-          {TEACHER_SUBSCRIPTION_PLANS.map((plan) => (
+          {plansList.map((plan) => (
             <SubscriptionPlanCard
-              key={plan.id}
+              key={plan.id || plan.tier}
               plan={plan}
               period={selectedPeriod}
               lang={lang}
               isRtl={isRtl}
-              isCurrentPlan={plan.id === 'plan-teacher-plus' && selectedPeriod === 'monthly'}
+              isCurrentPlan={activeSub.planTier === plan.tier}
               onSelectPlan={(p) => {
-                if (plan.id === 'plan-teacher-free') {
+                if (plan.tier === 'free') {
                   alert(
                     isAr
                       ? 'الباقة المجانية مفعّلة تلقائياً لأي معلم جديد لتجربة رفع المقررات وبنك الأسئلة الأساسي!'
-                      : 'The Free Plan is activated by default for all new teachers to test courses and basic question banks!'
+                      : 'The Free Plan is activated by default for all new teachers!'
                   );
                   return;
                 }

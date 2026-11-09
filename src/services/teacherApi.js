@@ -1,6 +1,7 @@
 /**
  * Motafawweq — Teacher Domain API Client
  * Enterprise-grade typed API module covering all 15 stages of the Teacher Portal.
+ * Strictly aligned with routes/api.php and backend controllers.
  */
 
 import { apiGet, apiPost, apiPut, apiDelete, tokenStorage } from './api';
@@ -10,7 +11,11 @@ export const teacherApi = {
   // ─── Stage 1 & 2: Settings, Profile & Preferences ────────────────────────────
   settings: {
     get: () => apiGet('/teacher/settings'),
+    update: (data) => apiPut('/teacher/settings', data),
     updateProfile: (data) => apiPut('/teacher/settings/profile', data),
+    updateStages: (stagesTaught) =>
+      apiPut('/teacher/settings/stages', { stages_taught: stagesTaught }),
+    updatePreferences: (data) => apiPut('/teacher/settings/preferences', data),
     uploadAvatar: async (file) => {
       const formData = new FormData();
       formData.append('avatar', file);
@@ -51,25 +56,27 @@ export const teacherApi = {
     get: (uuid) => apiGet(`/teacher/courses/${uuid}`),
     create: (data) => apiPost('/teacher/courses', data),
     update: (uuid, data) => apiPut(`/teacher/courses/${uuid}`, data),
-    toggleStatus: (uuid) => apiPatch(`/teacher/courses/${uuid}/toggle-status`),
     delete: (uuid) => apiDelete(`/teacher/courses/${uuid}`),
   },
 
-  // ─── Stage 5 & 6: Studio Lessons & Workspace ─────────────────────────────────
+  // ─── Stage 5: Studio Lessons & Attachments ──────────────────────────────────
   studio: {
     listLessons: (params = {}) => {
       const qs = new URLSearchParams(params).toString();
-      return apiGet(`/teacher/studio/lessons${qs ? `?${qs}` : ''}`);
+      return apiGet(`/teacher/lessons${qs ? `?${qs}` : ''}`);
     },
-    getLesson: (uuid) => apiGet(`/teacher/studio/lessons/${uuid}`),
-    createLesson: (data) => apiPost('/teacher/studio/lessons', data),
+    getLesson: (uuid) => apiGet(`/teacher/lessons/${uuid}`),
+    createLesson: (data) => apiPost('/teacher/lessons', data),
+    updateLesson: (uuid, data) => apiPut(`/teacher/lessons/${uuid}`, data),
+    deleteLesson: (uuid) => apiDelete(`/teacher/lessons/${uuid}`),
+
     uploadMedia: async (uuid, file, options = {}) => {
       const formData = new FormData();
       formData.append('media_file', file);
       if (options.duration_seconds) formData.append('duration_seconds', options.duration_seconds);
 
       const token = tokenStorage.getAccessToken();
-      const res = await fetch(`${API_BASE_URL}/teacher/studio/lessons/${uuid}/media`, {
+      const res = await fetch(`${API_BASE_URL}/teacher/lessons/${uuid}/media`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -84,14 +91,14 @@ export const teacherApi = {
       }
       return payload;
     },
-    uploadAttachment: async (uuid, file, type = 'pdf', titleAr = '') => {
+
+    uploadPdf: async (uuid, file, titleAr = '') => {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
+      formData.append('pdf_file', file);
       if (titleAr) formData.append('title_ar', titleAr);
 
       const token = tokenStorage.getAccessToken();
-      const res = await fetch(`${API_BASE_URL}/teacher/studio/lessons/${uuid}/attachments`, {
+      const res = await fetch(`${API_BASE_URL}/teacher/lessons/${uuid}/attachments/pdfs`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -102,36 +109,104 @@ export const teacherApi = {
 
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'فشل رفع المرفق.');
+        throw new Error(payload?.message || 'فشل رفع ملف الـ PDF.');
       }
       return payload;
     },
+
+    uploadImage: async (uuid, file, { titleAr = '', captionAr = '', order = 1 } = {}) => {
+      const formData = new FormData();
+      formData.append('image_file', file);
+      if (titleAr) formData.append('title_ar', titleAr);
+      if (captionAr) formData.append('caption_ar', captionAr);
+      if (order !== undefined) formData.append('order', order);
+
+      const token = tokenStorage.getAccessToken();
+      const res = await fetch(`${API_BASE_URL}/teacher/lessons/${uuid}/attachments/images`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || payload?.success === false) {
+        throw new Error(payload?.message || 'فشل رفع الصورة.');
+      }
+      return payload;
+    },
+
+    reorderAttachments: (uuid, attachmentUuids) =>
+      apiPut(`/teacher/lessons/${uuid}/attachments/reorder`, {
+        attachment_uuids: attachmentUuids,
+      }),
+
     deleteAttachment: (uuid, attachmentUuid) =>
-      apiDelete(`/teacher/studio/lessons/${uuid}/attachments/${attachmentUuid}`),
+      apiDelete(`/teacher/lessons/${uuid}/attachments/${attachmentUuid}`),
+
+    getMediaStreamUrl: (uuid) => `${API_BASE_URL}/teacher/lessons/${uuid}/media/stream`,
+    getAttachmentStreamUrl: (uuid, attachmentUuid) =>
+      `${API_BASE_URL}/teacher/lessons/${uuid}/attachments/${attachmentUuid}/stream`,
   },
 
+  // ─── Stage 6: Lesson Workspace (Chapters, Transcript, Concept Graph) ─────────
   workspace: {
+    index: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/workspace${qs ? `?${qs}` : ''}`);
+    },
     getLesson: (uuid) => apiGet(`/teacher/workspace/lessons/${uuid}`),
-    updateWorkspace: (uuid, data) => apiPut(`/teacher/workspace/lessons/${uuid}`, data),
-    saveChapters: (uuid, chapters) =>
-      apiPost(`/teacher/workspace/lessons/${uuid}/chapters`, { chapters }),
-    saveTranscripts: (uuid, segments) =>
-      apiPost(`/teacher/workspace/lessons/${uuid}/transcripts`, { segments }),
+    syncChapters: (uuid, chapters) =>
+      apiPut(`/teacher/workspace/lessons/${uuid}/chapters`, { chapters }),
+    syncTranscript: (uuid, transcript) =>
+      apiPut(`/teacher/workspace/lessons/${uuid}/transcript`, { transcript }),
     saveConceptGraph: (uuid, treeData) =>
-      apiPost(`/teacher/workspace/lessons/${uuid}/concept-graph`, { tree_data: treeData }),
+      apiPut(`/teacher/workspace/lessons/${uuid}/concept-graph`, { tree_data: treeData }),
   },
 
-  // ─── Stage 7 & 9: Study Groups, Schedule & QR Attendance ────────────────────
+  // ─── Stage 7: Study Groups ───────────────────────────────────────────────────
   groups: {
     list: (params = {}) => {
       const qs = new URLSearchParams(params).toString();
-      return apiGet(`/teacher/study-groups${qs ? `?${qs}` : ''}`);
+      return apiGet(`/teacher/groups${qs ? `?${qs}` : ''}`);
     },
-    get: (uuid) => apiGet(`/teacher/study-groups/${uuid}`),
-    create: (data) => apiPost('/teacher/study-groups', data),
-    update: (uuid, data) => apiPut(`/teacher/study-groups/${uuid}`, data),
-    delete: (uuid) => apiDelete(`/teacher/study-groups/${uuid}`),
-    regenerateJoinCode: (uuid) => apiPost(`/teacher/study-groups/${uuid}/regenerate-join-code`),
+    get: (uuid) => apiGet(`/teacher/groups/${uuid}`),
+    create: (data) => apiPost('/teacher/groups', data),
+    update: (uuid, data) => apiPut(`/teacher/groups/${uuid}`, data),
+    delete: (uuid) => apiDelete(`/teacher/groups/${uuid}`),
+    regenerateCode: (uuid) => apiPost(`/teacher/groups/${uuid}/regenerate-code`),
+  },
+
+  // ─── Stage 8: Student Roster & Invites ───────────────────────────────────────
+  roster: {
+    list: (groupUuid, params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/groups/${groupUuid}/roster${qs ? `?${qs}` : ''}`);
+    },
+    searchStudents: (query) =>
+      apiGet(`/teacher/students/search?search=${encodeURIComponent(query)}`),
+    invite: (groupUuid, studentId) =>
+      apiPost(`/teacher/groups/${groupUuid}/invite`, { student_id: studentId }),
+    accept: (groupUuid, enrollmentUuid) =>
+      apiPost(`/teacher/groups/${groupUuid}/enrollments/${enrollmentUuid}/accept`),
+    reject: (groupUuid, enrollmentUuid, reason = '') =>
+      apiPost(`/teacher/groups/${groupUuid}/enrollments/${enrollmentUuid}/reject`, { reason }),
+    remove: (groupUuid, enrollmentUuid) =>
+      apiDelete(`/teacher/groups/${groupUuid}/enrollments/${enrollmentUuid}`),
+  },
+
+  // ─── Stage 9: Attendance & Schedule ──────────────────────────────────────────
+  attendance: {
+    scan: (groupUuid, barcode, method = 'qr_scan') =>
+      apiPost(`/teacher/groups/${groupUuid}/attendance/scan`, { barcode, method }),
+    toggleManual: (groupUuid, data) =>
+      apiPost(`/teacher/groups/${groupUuid}/attendance/toggle`, data),
+    listSessions: (groupUuid) =>
+      apiGet(`/teacher/groups/${groupUuid}/attendance/sessions`),
+    getSessionDetails: (groupUuid, sessionUuid) =>
+      apiGet(`/teacher/groups/${groupUuid}/attendance/sessions/${sessionUuid}`),
   },
 
   schedule: {
@@ -142,39 +217,6 @@ export const teacherApi = {
     createNote: (data) => apiPost('/teacher/schedule/notes', data),
     toggleNote: (uuid) => apiPatch(`/teacher/schedule/notes/${uuid}/toggle`),
     deleteNote: (uuid) => apiDelete(`/teacher/schedule/notes/${uuid}`),
-  },
-
-  attendance: {
-    scan: (groupUuid, barcode, method = 'qr_scan') =>
-      apiPost(`/teacher/study-groups/${groupUuid}/attendance/scan`, { barcode, method }),
-    toggleManual: (groupUuid, studentId, status, sessionId = null) =>
-      apiPost(`/teacher/study-groups/${groupUuid}/attendance/toggle`, {
-        student_id: studentId,
-        status,
-        session_id: sessionId,
-      }),
-    listSessions: (groupUuid) =>
-      apiGet(`/teacher/study-groups/${groupUuid}/attendance/sessions`),
-    getSessionDetails: (groupUuid, sessionUuid) =>
-      apiGet(`/teacher/study-groups/${groupUuid}/attendance/sessions/${sessionUuid}`),
-  },
-
-  // ─── Stage 8: Student Roster & Invites ──────────────────────────────────────
-  roster: {
-    list: (groupUuid, params = {}) => {
-      const qs = new URLSearchParams(params).toString();
-      return apiGet(`/teacher/study-groups/${groupUuid}/roster${qs ? `?${qs}` : ''}`);
-    },
-    searchStudents: (query) =>
-      apiGet(`/teacher/students/search?search=${encodeURIComponent(query)}`),
-    invite: (groupUuid, studentId) =>
-      apiPost(`/teacher/study-groups/${groupUuid}/invite`, { student_id: studentId }),
-    accept: (groupUuid, enrollmentUuid) =>
-      apiPost(`/teacher/study-groups/${groupUuid}/enrollments/${enrollmentUuid}/accept`),
-    reject: (groupUuid, enrollmentUuid, reason = '') =>
-      apiPost(`/teacher/study-groups/${groupUuid}/enrollments/${enrollmentUuid}/reject`, { reason }),
-    remove: (groupUuid, enrollmentUuid) =>
-      apiDelete(`/teacher/study-groups/${groupUuid}/enrollments/${enrollmentUuid}`),
   },
 
   // ─── Stage 10 & 11: Exams & Grading ─────────────────────────────────────────
@@ -197,7 +239,7 @@ export const teacherApi = {
     },
     getSubmission: (uuid, submissionUuid) =>
       apiGet(`/teacher/exams/${uuid}/submissions/${submissionUuid}`),
-    gradeEssayAnswer: (uuid, submissionUuid, answerId, pointsAwarded, teacherFeedback = '') =>
+    gradeEssayAnswer: (uuid, submissionUuid, { answerId, pointsAwarded, teacherFeedback = '' }) =>
       apiPatch(`/teacher/exams/${uuid}/submissions/${submissionUuid}/grade-essay`, {
         answer_id: answerId,
         points_awarded: pointsAwarded,
@@ -212,23 +254,52 @@ export const teacherApi = {
       return apiGet(`/teacher/homeworks${qs ? `?${qs}` : ''}`);
     },
     get: (uuid) => apiGet(`/teacher/homeworks/${uuid}`),
-    create: (data) => apiPost('/teacher/homeworks', data),
+    create: async (data, file = null) => {
+      if (file instanceof File) {
+        const formData = new FormData();
+        Object.entries(data).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) formData.append(key, val);
+        });
+        formData.append('file', file);
+
+        const token = tokenStorage.getAccessToken();
+        const res = await fetch(`${API_BASE_URL}/teacher/homeworks`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        });
+
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok || payload?.success === false) {
+          throw new Error(payload?.message || 'فشل إنشاء الواجب.');
+        }
+        return payload;
+      }
+      return apiPost('/teacher/homeworks', data);
+    },
     update: (uuid, data) => apiPut(`/teacher/homeworks/${uuid}`, data),
     delete: (uuid) => apiDelete(`/teacher/homeworks/${uuid}`),
+
     listSubmissions: (uuid, params = {}) => {
       const qs = new URLSearchParams(params).toString();
       return apiGet(`/teacher/homeworks/${uuid}/submissions${qs ? `?${qs}` : ''}`);
     },
     getSubmission: (uuid, submissionUuid) =>
       apiGet(`/teacher/homeworks/${uuid}/submissions/${submissionUuid}`),
-    gradeSubmission: (uuid, submissionUuid, gradeScore, feedbackAr = '') =>
+    gradeSubmission: (uuid, submissionUuid, { gradeScore, feedbackAr = '' }) =>
       apiPatch(`/teacher/homeworks/${uuid}/submissions/${submissionUuid}/grade`, {
         grade_score: gradeScore,
         teacher_feedback_ar: feedbackAr,
       }),
+    downloadAttachmentUrl: (uuid) => `${API_BASE_URL}/teacher/homeworks/${uuid}/attachment`,
+    downloadSubmissionAttachmentUrl: (submissionUuid) =>
+      `${API_BASE_URL}/teacher/homeworks/submissions/${submissionUuid}/attachment`,
   },
 
-  // ─── Stage 13: Leagues & Leaderboards ───────────────────────────────────────
+  // ─── Stage 13: Course Leagues & XP ──────────────────────────────────────────
   leagues: {
     list: (params = {}) => {
       const qs = new URLSearchParams(params).toString();
@@ -236,7 +307,7 @@ export const teacherApi = {
     },
     get: (uuid) => apiGet(`/teacher/leagues/${uuid}`),
     create: (data) => apiPost('/teacher/leagues', data),
-    awardXp: (uuid, studentId, xpPoints, reason = '') =>
+    awardXp: (uuid, { studentId, xpPoints, reason = '' }) =>
       apiPost(`/teacher/leagues/${uuid}/award-xp`, {
         student_id: studentId,
         xp_points: xpPoints,
@@ -264,7 +335,7 @@ export const teacherApi = {
       const qs = new URLSearchParams(params).toString();
       return apiGet(`/teacher/analytics/at-risk-radar${qs ? `?${qs}` : ''}`);
     },
-    resolveRiskSignal: (uuid, action = 'resolve', notes = '') =>
+    resolveRiskSignal: (uuid, { action = 'resolve', notes = '' } = {}) =>
       apiPost(`/teacher/analytics/at-risk/${uuid}/resolve`, { action, notes }),
   },
 
@@ -278,8 +349,8 @@ export const teacherApi = {
     bulkIssue: (data) => apiPost('/teacher/certificates/bulk-issue', data),
     revoke: (uuid, reason = '') =>
       apiPatch(`/teacher/certificates/${uuid}/revoke`, { reason }),
-    verifyPublic: (certNumber) =>
-      apiGet(`/verify-certificate/${encodeURIComponent(certNumber)}`),
+    verifyPublic: (serialNumber) =>
+      apiGet(`/verify-certificate/${encodeURIComponent(serialNumber)}`),
   },
 
   financials: {
@@ -289,7 +360,7 @@ export const teacherApi = {
     },
     confirmPayment: (uuid) =>
       apiPost(`/teacher/financials/payments/${uuid}/confirm`),
-    rejectPayment: (uuid, reason = '', notes = '') =>
+    rejectPayment: (uuid, { reason = '', notes = '' } = {}) =>
       apiPost(`/teacher/financials/payments/${uuid}/reject`, { reason, notes }),
   },
 
@@ -325,4 +396,3 @@ function apiPatch(path, body = {}, opts = {}) {
 }
 
 export default teacherApi;
-

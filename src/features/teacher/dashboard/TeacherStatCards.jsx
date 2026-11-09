@@ -1,7 +1,6 @@
 import React from 'react';
 import { DollarSign, Users, Sparkles, Award, ArrowUpRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { MOCK_TEACHER_EARNINGS } from '../../../data/mockData';
 
 export const TeacherStatCards = ({ lang, stats }) => {
   const { navigate } = useAuth();
@@ -11,10 +10,10 @@ export const TeacherStatCards = ({ lang, stats }) => {
     {
       id: 'revenue',
       title: isAr ? 'إجمالي الأرباح' : 'Monthly Revenue',
-      subtitle: isAr ? 'شهر سبتمبر' : 'September',
+      subtitle: isAr ? 'إجمالي الإيرادات' : 'Total Revenue',
       value: stats?.revenueEgp !== undefined
         ? `${Number(stats.revenueEgp).toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`
-        : `${MOCK_TEACHER_EARNINGS.totalRevenueEgp.toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`,
+        : `0 ${isAr ? 'ج.م' : 'EGP'}`,
       badge: '+18.4%',
       badgeType: 'positive',
       note: isAr ? 'مقارنة بالشهر الماضي' : 'vs last month',
@@ -28,10 +27,10 @@ export const TeacherStatCards = ({ lang, stats }) => {
       subtitle: isAr ? 'السناتر والأونلاين' : 'Centers & Online',
       value: stats?.totalStudents !== undefined
         ? Number(stats.totalStudents).toLocaleString()
-        : '3,840',
-      badge: isAr ? '3 مقرات نشطة' : '3 Active Centers',
+        : '0',
+      badge: isAr ? 'نشط' : 'Active',
       badgeType: 'neutral',
-      note: isAr ? 'الدقي، م. نصر، المنصة' : 'Dokki, Nasr City, Online',
+      note: isAr ? 'إجمالي المقيدين في المجموعات' : 'Total students across groups',
       icon: Users,
       actionLabel: isAr ? 'قائمة الطلاب' : 'Student Roster',
       route: '/teacher/students'
@@ -39,11 +38,11 @@ export const TeacherStatCards = ({ lang, stats }) => {
     {
       id: 'ai-quota',
       title: isAr ? 'رصيد الذكاء الاصطناعي' : 'AI Processing Quota',
-      subtitle: isAr ? 'باقة المعلم المحترف' : 'Teacher Pro Plan',
-      value: `184 / 300 ${isAr ? 'دقيقة' : 'mins'}`,
-      badge: isAr ? '61% متبقي' : '61% left',
+      subtitle: isAr ? 'باقة المعلم' : 'Teacher Plan',
+      value: stats?.aiQuotaFormatted || (stats?.aiQuotaMinutes !== undefined ? `${stats.aiQuotaMinutes} / 300 ${isAr ? 'دقيقة' : 'mins'}` : `300 / 300 ${isAr ? 'دقيقة' : 'mins'}`),
+      badge: isAr ? 'متاح' : 'Available',
       badgeType: 'neutral',
-      note: isAr ? 'تجديد الباقة في 1 أكتوبر' : 'Renews Oct 1st',
+      note: isAr ? 'تفريغ وفهرسة المحاضرات' : 'Lecture AI indexing',
       icon: Sparkles,
       actionLabel: isAr ? 'استهلاك الذكاء' : 'AI Processing',
       route: '/teacher/processing'
@@ -54,10 +53,10 @@ export const TeacherStatCards = ({ lang, stats }) => {
       subtitle: isAr ? 'كافة المراحل' : 'All Cohorts',
       value: stats?.classMastery !== undefined
         ? `${stats.classMastery}%`
-        : '84.5%',
-      badge: isAr ? '+8.5% أعلى' : '+8.5% higher',
+        : '0%',
+      badge: isAr ? 'تقييم شامل' : 'Overall',
       badgeType: 'positive',
-      note: isAr ? 'أعلى من متوسط المحافظة (76%)' : 'Above state avg (76%)',
+      note: isAr ? 'متوسط درجات الاختبارات والواجبات' : 'Exam and homework average',
       icon: Award,
       actionLabel: isAr ? 'لوحة التحليلات' : 'Analytics',
       route: '/teacher/analytics'

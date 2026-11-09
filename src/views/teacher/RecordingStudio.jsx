@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { teacherApi } from '../../services/teacherApi';
 import { Radio, Mic, UploadCloud, Video, Sparkles, CheckCircle2, FileText, Share2, Clock, Check } from 'lucide-react';
 import {
   StudioLessonConfigCard,
@@ -50,70 +51,33 @@ export const RecordingStudio = () => {
   };
 
   // Lesson Metadata state
-  const [title, setTitle] = useState(
-    lang === 'ar' ? 'البناء الضوئي وحركية الطاقة في النبات' : 'Photosynthesis & Energy Dynamics'
-  );
-  const [description, setDescription] = useState(
-    lang === 'ar' 
-      ? 'شرح مفصل ومكثف لدرس البناء الضوئي للصف الثالث الثانوي: تركيب البلاستيدة، التفاعلات الضوئية واللاضوئية، دورة كالفن، وأهم أسئلة ومصائد امتحانات الثانوية العامة مع ملازم الشرح وصور السبورة.'
-      : 'Comprehensive masterclass on plant cell photosynthesis, chloroplast anatomy, light vs dark reactions, and Thanawya Amma trap questions.'
-  );
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [subject, setSubject] = useState('Biology');
   const [grade, setGrade] = useState('3rd Secondary');
-  const [classGroup, setClassGroup] = useState('cls-dokki-301');
+  const [classGroup, setClassGroup] = useState('');
+  const [availableGroups, setAvailableGroups] = useState([]);
 
   // Multi-PDF attachments state
-  const [lessonPdfs, setLessonPdfs] = useState([
-    {
-      id: 'pdf-seed-1',
-      title: 'مذكرة شرح البناء الضوئي والتفاعلات الضوئية - د. سلمى',
-      fileName: 'Photosynthesis_Full_Notes_2026.pdf',
-      fileSize: '4.8 MB',
-      pagesCount: 24,
-      uploadedAt: '10:30 ص',
-      url: '#'
-    },
-    {
-      id: 'pdf-seed-2',
-      title: 'شيت تدريبات بنك الأسئلة والوزارة 2026',
-      fileName: 'Biology_Ministry_Bank_Questions.pdf',
-      fileSize: '2.3 MB',
-      pagesCount: 16,
-      uploadedAt: '10:35 ص',
-      url: '#'
-    }
-  ]);
+  const [lessonPdfs, setLessonPdfs] = useState([]);
 
   // Multi-Images attachments state (with sequential ordering)
-  const [lessonImages, setLessonImages] = useState([
-    {
-      id: 'img-seed-1',
-      order: 1,
-      title: 'سبورة 1: تشريح البلاستيدة الخضراء وأغشية الثيلاكويد',
-      fileName: 'whiteboard_part1_chloroplast.jpg',
-      fileSize: '1.8 MB',
-      url: 'https://images.unsplash.com/photo-1530210124550-912dc1381cb8?w=800&auto=format&fit=crop&q=80',
-      caption: 'رسم توضيحي تفصيلي لغشاء الثيلاكويد وحبيبات الجرانا والستروما'
-    },
-    {
-      id: 'img-seed-2',
-      order: 2,
-      title: 'سبورة 2: مسار الإلكترونات والفسفرة الضوئية والتفاعلات',
-      fileName: 'whiteboard_part2_photophosphorylation.jpg',
-      fileSize: '2.1 MB',
-      url: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=800&auto=format&fit=crop&q=80',
-      caption: 'شرح حركة الإلكترونات بين نظام الصبغيات الأول والثاني'
-    },
-    {
-      id: 'img-seed-3',
-      order: 3,
-      title: 'سبورة 3: دورة كالفن وتثبيت مركب PGAL',
-      fileName: 'whiteboard_part3_calvin_cycle.jpg',
-      fileSize: '1.9 MB',
-      url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
-      caption: 'خطوات تثبيت ثاني أكسيد الكربون وإنتاج السكر'
-    }
-  ]);
+  const [lessonImages, setLessonImages] = useState([]);
+
+  // Fetch groups on mount
+  useEffect(() => {
+    let mounted = true;
+    teacherApi.groups.list().then((res) => {
+      if (!mounted) return;
+      if (res?.data && Array.isArray(res.data)) {
+        setAvailableGroups(res.data);
+        if (res.data.length > 0 && !classGroup) {
+          setClassGroup(res.data[0].uuid || res.data[0].code || res.data[0].id);
+        }
+      }
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   // Timer simulation
   useEffect(() => {
@@ -142,19 +106,105 @@ export const RecordingStudio = () => {
     setIsPaused(!isPaused);
   };
 
+  const uploadLessonAttachments = (lessonUuid) => {
+    if (!lessonUuid) return;
+    lessonPdfs.forEach((p) => {
+      if (p.fileObj) {
+        teacherApi.studio.uploadAttachment(lessonUuid, p.fileObj, 'pdf').catch(() => {});
+      }
+    });
+    lessonImages.forEach((img) => {
+      if (img.fileObj) {
+        teacherApi.studio.uploadAttachment(lessonUuid, img.fileObj, 'whiteboard_image').catch(() => {});
+      }
+    });
+  };
+
   const handleStopAndProcess = () => {
     setIsRecording(false);
+    const requestedFlags = Object.keys(aiFeatures).filter((k) => aiFeatures[k]);
     try {
       sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
     } catch (e) {}
+
+    teacherApi.studio.createLesson({
+      title_ar: title || (lang === 'ar' ? 'حصة بدون عنوان' : 'Untitled Lesson'),
+      description_ar: description || '',
+      subject_ar: subject || 'الأحياء',
+      grade_ar: grade || 'الصف الثالث الثانوي',
+      target_group_code: classGroup,
+      media_mode: 'audio',
+      duration_seconds: elapsedSeconds || 1800,
+      ai_features_requested: requestedFlags,
+    }).then((res) => {
+      if (res?.data?.uuid) {
+        sessionStorage.setItem('currentLessonUuid', res.data.uuid);
+        uploadLessonAttachments(res.data.uuid);
+      }
+    }).catch((err) => {
+      console.warn('Backend studio lesson save fallback:', err);
+    });
+
+    navigate('/teacher/processing');
+  };
+
+  const handleAudioStartProcessing = () => {
+    const requestedFlags = Object.keys(aiFeatures).filter((k) => aiFeatures[k]);
+    try {
+      sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
+    } catch (e) {}
+
+    teacherApi.studio.createLesson({
+      title_ar: title || (lang === 'ar' ? 'حصة صوتية جديدة' : 'New Audio Lesson'),
+      description_ar: description || '',
+      subject_ar: subject || 'الأحياء',
+      grade_ar: grade || 'الصف الثالث الثانوي',
+      target_group_code: classGroup,
+      media_mode: 'audio',
+      duration_seconds: 1800,
+      ai_features_requested: requestedFlags,
+    }).then((res) => {
+      if (res?.data?.uuid) {
+        sessionStorage.setItem('currentLessonUuid', res.data.uuid);
+        if (uploadedAudioFile) {
+          teacherApi.studio.uploadAttachment(res.data.uuid, uploadedAudioFile, 'audio').catch(() => {});
+        }
+        uploadLessonAttachments(res.data.uuid);
+      }
+    }).catch((err) => {
+      console.warn('Backend studio audio lesson save fallback:', err);
+    });
+
     navigate('/teacher/processing');
   };
 
   const handleVideoStartProcessing = (vidData) => {
     if (vidData) setVideoData(vidData);
+    const requestedFlags = Object.keys(aiFeatures).filter((k) => aiFeatures[k]);
     try {
       sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
     } catch (e) {}
+
+    teacherApi.studio.createLesson({
+      title_ar: title || (lang === 'ar' ? 'حصة فيديو جديدة' : 'New Video Lesson'),
+      description_ar: description || '',
+      subject_ar: subject || 'الأحياء',
+      grade_ar: grade || 'الصف الثالث الثانوي',
+      target_group_code: classGroup,
+      media_mode: 'video',
+      embed_url: vidData?.youtubeUrl || vidData?.url,
+      is_youtube: Boolean(vidData?.youtubeUrl),
+      duration_seconds: vidData?.durationSeconds || 2400,
+      ai_features_requested: requestedFlags,
+    }).then((res) => {
+      if (res?.data?.uuid) {
+        sessionStorage.setItem('currentLessonUuid', res.data.uuid);
+        uploadLessonAttachments(res.data.uuid);
+      }
+    }).catch((err) => {
+      console.warn('Backend studio video lesson save fallback:', err);
+    });
+
     navigate('/teacher/processing');
   };
 
@@ -201,6 +251,7 @@ export const RecordingStudio = () => {
         setGrade={setGrade}
         classGroup={classGroup}
         setClassGroup={setClassGroup}
+        groups={availableGroups}
         lang={lang}
         isRtl={isRtl}
       />
@@ -485,12 +536,7 @@ export const RecordingStudio = () => {
             uploadedFile={uploadedAudioFile}
             lang={lang}
             onSelectFile={setUploadedAudioFile}
-            onStartProcessing={() => {
-              try {
-                sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
-              } catch (e) {}
-              navigate('/teacher/processing');
-            }}
+            onStartProcessing={handleAudioStartProcessing}
           />
         )}
 

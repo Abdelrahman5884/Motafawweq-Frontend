@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   User,
@@ -31,7 +31,6 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { TEACHER_PROFILE } from '../../data/teacherData';
 import { teacherApi } from '../../services/teacherApi';
 import { SPage, SPageHeader, SCard, SSection, SButton } from '../../components/student/ui';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
@@ -66,32 +65,23 @@ export const TeacherSettingsView = () => {
     }
   };
 
-  // Form State initialized from TEACHER_PROFILE
+  // Form State initialized with clean defaults
   const [formData, setFormData] = useState({
-    nameAr: TEACHER_PROFILE.nameAr,
-    nameEn: TEACHER_PROFILE.name,
-    titleAr: TEACHER_PROFILE.titleAr,
-    subjectAr: TEACHER_PROFILE.subjectAr,
-    email: TEACHER_PROFILE.email,
-    phone: TEACHER_PROFILE.phone,
-    bioAr: TEACHER_PROFILE.bioAr,
-    avatar: TEACHER_PROFILE.avatar,
+    nameAr: '',
+    nameEn: '',
+    titleAr: '',
+    subjectAr: '',
+    email: '',
+    phone: '',
+    bioAr: '',
+    avatar: '',
 
-    // 4 Stages with selected grades
-    stagesTaught: [
-      'الصف الثالث الثانوي',
-      'الصف الثاني الثانوي',
-      'الصف الأول الثانوي',
-      'الصف الثالث الإعدادي'
-    ],
+    // Stages with selected grades
+    stagesTaught: [],
 
     // Direct Receiving Payout Accounts
-    payoutMethods: [
-      { id: 'pm-1', type: 'instapay', address: 'salma-biology@instapay', labelAr: 'عنوان إنستاباي الفوري (InstaPay)', labelEn: 'InstaPay Direct IPA', isDefault: true, isActive: true },
-      { id: 'pm-2', type: 'cib', accountNumber: 'EG42 0003 0001 0000 4892 7812', labelAr: 'حساب البنك التجاري الدولي (CIB - IBAN)', labelEn: 'Commercial International Bank (CIB)', isDefault: false, isActive: true },
-      { id: 'pm-3', type: 'vodafone', phone: '01012345678', labelAr: 'محفظة فودافون كاش ومحافظ المحمول', labelEn: 'Vodafone Cash & Mobile Wallet', isDefault: false, isActive: true }
-    ],
-    defaultPayout: 'pm-1',
+    payoutMethods: [],
+    defaultPayout: '',
 
     // New account form
     newAccountType: 'instapay',
@@ -102,7 +92,7 @@ export const TeacherSettingsView = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
-    twoFactorEnabled: true,
+    twoFactorEnabled: false,
 
     // Notifications
     notifyWhatsappIntervention: true,
@@ -111,6 +101,7 @@ export const TeacherSettingsView = () => {
     autoWatermarkEnabled: true
   });
 
+  const initialLoadedDataRef = useRef(null);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -123,49 +114,56 @@ export const TeacherSettingsView = () => {
       teacherApi.payoutAccounts.list().catch(() => null),
     ]).then(([settingsRes, payoutRes]) => {
       if (!mounted) return;
-      if (settingsRes?.data) {
-        const profile = settingsRes.data.profile || {};
-        const user = settingsRes.data.user || {};
-        setFormData((prev) => ({
-          ...prev,
-          nameAr: profile.name_ar || profile.nameAr || prev.nameAr,
-          nameEn: profile.name_en || profile.nameEn || prev.nameEn,
-          titleAr: profile.title_ar || profile.titleAr || prev.titleAr,
-          subjectAr: profile.subject_ar || profile.subjectAr || prev.subjectAr,
-          email: user.email || prev.email,
-          phone: user.phone || prev.phone,
-          bioAr: profile.bio_ar || profile.bioAr || prev.bioAr,
-          avatar: user.avatar || prev.avatar,
-          stagesTaught: Array.isArray(profile.stages_taught) ? profile.stages_taught : prev.stagesTaught,
-          twoFactorEnabled: profile.two_factor_enabled ?? prev.twoFactorEnabled,
-          autoWatermarkEnabled: profile.auto_watermark_enabled ?? prev.autoWatermarkEnabled,
-          notifyWhatsappIntervention: profile.notify_whatsapp_intervention ?? prev.notifyWhatsappIntervention,
-          notifyNewEnrollment: profile.notify_new_enrollment ?? prev.notifyNewEnrollment,
-          notifyExamSubmission: profile.notify_exam_submission ?? prev.notifyExamSubmission,
-        }));
-      }
+      const s = settingsRes?.data || {};
+      const profile = s.profile || {};
+      const user = s.user || {};
 
-      if (payoutRes?.data && Array.isArray(payoutRes.data)) {
-        const mapped = payoutRes.data.map((pm) => ({
-          id: pm.uuid || pm.id,
-          uuid: pm.uuid,
-          type: pm.type,
-          address: pm.type === 'instapay' ? pm.account_identifier : undefined,
-          phone: pm.type === 'vodafone' ? pm.account_identifier : undefined,
-          accountNumber: (pm.type === 'cib' || pm.type === 'card' || pm.type === 'bank') ? pm.account_identifier : undefined,
-          labelAr: pm.label_ar || pm.provider_name || 'حساب استلام مالي',
-          labelEn: pm.label_en || pm.provider_name || 'Receiving Account',
-          isDefault: Boolean(pm.is_default),
-          isActive: Boolean(pm.is_active),
-        }));
-        if (mapped.length > 0) {
-          setFormData((prev) => ({
-            ...prev,
-            payoutMethods: mapped,
-            defaultPayout: mapped.find((m) => m.isDefault)?.id || mapped[0]?.id || '',
-          }));
-        }
-      }
+      const rawPayouts = Array.isArray(payoutRes?.data)
+        ? payoutRes.data
+        : (Array.isArray(s.payoutMethods) ? s.payoutMethods : []);
+
+      const mappedPayouts = rawPayouts.map((pm) => ({
+        id: pm.uuid || pm.id,
+        uuid: pm.uuid,
+        type: pm.type,
+        address: pm.type === 'instapay' ? (pm.account_identifier || pm.address) : undefined,
+        phone: pm.type === 'vodafone' ? (pm.account_identifier || pm.phone) : undefined,
+        accountNumber: (pm.type === 'cib' || pm.type === 'card' || pm.type === 'bank') ? (pm.account_identifier || pm.accountNumber) : undefined,
+        labelAr: pm.label_ar || pm.labelAr || pm.provider_name || 'حساب استلام مالي',
+        labelEn: pm.label_en || pm.labelEn || pm.provider_name || 'Receiving Account',
+        isDefault: Boolean(pm.is_default ?? pm.isDefault),
+        isActive: Boolean(pm.is_active ?? pm.isActive),
+      }));
+
+      const resolvedData = {
+        nameAr: s.nameAr || s.name_ar || profile.name_ar || profile.nameAr || '',
+        nameEn: s.nameEn || s.name_en || profile.name_en || profile.nameEn || '',
+        titleAr: s.titleAr || s.title_ar || profile.title_ar || profile.titleAr || '',
+        subjectAr: s.subjectAr || s.subject_ar || profile.subject_ar || profile.subjectAr || '',
+        email: s.email || user.email || '',
+        phone: s.phone || user.phone || profile.whatsapp_phone || '',
+        bioAr: s.bioAr || s.bio_ar || profile.bio_ar || profile.bioAr || '',
+        avatar: s.avatar || user.avatar || '',
+        stagesTaught: Array.isArray(s.stagesTaught)
+          ? s.stagesTaught
+          : (Array.isArray(s.stages_taught) ? s.stages_taught : (Array.isArray(profile.stages_taught) ? profile.stages_taught : [])),
+        payoutMethods: mappedPayouts,
+        defaultPayout: s.defaultPayout || mappedPayouts.find((m) => m.isDefault)?.id || mappedPayouts[0]?.id || '',
+        newAccountType: 'instapay',
+        newAccountLabel: '',
+        newAccountValue: '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        twoFactorEnabled: Boolean(s.twoFactorEnabled ?? s.two_factor_enabled ?? profile.two_factor_enabled ?? false),
+        autoWatermarkEnabled: Boolean(s.autoWatermarkEnabled ?? s.auto_watermark_enabled ?? profile.auto_watermark_enabled ?? true),
+        notifyWhatsappIntervention: Boolean(s.notifyWhatsappIntervention ?? s.notify_whatsapp_intervention ?? profile.notify_whatsapp_intervention ?? true),
+        notifyNewEnrollment: Boolean(s.notifyNewEnrollment ?? s.notify_new_enrollment ?? profile.notify_new_enrollment ?? true),
+        notifyExamSubmission: Boolean(s.notifyExamSubmission ?? s.notify_exam_submission ?? profile.notify_exam_submission ?? true),
+      };
+
+      initialLoadedDataRef.current = resolvedData;
+      setFormData(resolvedData);
     });
 
     return () => { mounted = false; };
@@ -315,39 +313,34 @@ export const TeacherSettingsView = () => {
   };
 
   const handleReset = () => {
-    setFormData({
-      nameAr: TEACHER_PROFILE.nameAr,
-      nameEn: TEACHER_PROFILE.name,
-      titleAr: TEACHER_PROFILE.titleAr,
-      subjectAr: TEACHER_PROFILE.subjectAr,
-      email: TEACHER_PROFILE.email,
-      phone: TEACHER_PROFILE.phone,
-      bioAr: TEACHER_PROFILE.bioAr,
-      avatar: TEACHER_PROFILE.avatar,
-      stagesTaught: [
-        'الصف الثالث الثانوي',
-        'الصف الثاني الثانوي',
-        'الصف الأول الثانوي',
-        'الصف الثالث الإعدادي'
-      ],
-      payoutMethods: [
-        { id: 'pm-1', type: 'instapay', address: 'salma-biology@instapay', labelAr: 'عنوان إنستاباي الفوري (InstaPay)', labelEn: 'InstaPay Direct IPA', isDefault: true, isActive: true },
-        { id: 'pm-2', type: 'cib', accountNumber: 'EG42 0003 0001 0000 4892 7812', labelAr: 'حساب البنك التجاري الدولي (CIB - IBAN)', labelEn: 'Commercial International Bank (CIB)', isDefault: false, isActive: true },
-        { id: 'pm-3', type: 'vodafone', phone: '01012345678', labelAr: 'محفظة فودافون كاش ومحافظ المحمول', labelEn: 'Vodafone Cash & Mobile Wallet', isDefault: false, isActive: true }
-      ],
-      defaultPayout: 'pm-1',
-      newAccountType: 'instapay',
-      newAccountLabel: '',
-      newAccountValue: '',
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-      twoFactorEnabled: true,
-      notifyWhatsappIntervention: true,
-      notifyNewEnrollment: true,
-      notifyExamSubmission: true,
-      autoWatermarkEnabled: true
-    });
+    if (initialLoadedDataRef.current) {
+      setFormData(initialLoadedDataRef.current);
+    } else {
+      setFormData({
+        nameAr: '',
+        nameEn: '',
+        titleAr: '',
+        subjectAr: '',
+        email: '',
+        phone: '',
+        bioAr: '',
+        avatar: '',
+        stagesTaught: [],
+        payoutMethods: [],
+        defaultPayout: '',
+        newAccountType: 'instapay',
+        newAccountLabel: '',
+        newAccountValue: '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        twoFactorEnabled: false,
+        notifyWhatsappIntervention: true,
+        notifyNewEnrollment: true,
+        notifyExamSubmission: true,
+        autoWatermarkEnabled: true
+      });
+    }
     setIsDirty(false);
   };
 

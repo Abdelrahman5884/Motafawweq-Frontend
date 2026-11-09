@@ -11,6 +11,7 @@ export const StudioLessonConfigCard = ({
   setGrade,
   classGroup,
   setClassGroup,
+  groups = [],
   lang,
   isRtl
 }) => {
@@ -145,9 +146,12 @@ export const StudioLessonConfigCard = ({
               fontSize: '13.5px'
             }}
           >
-            <option value="cls-dokki-301">{lang === 'ar' ? 'سنتر الدقي - قاعة النخبة (الأحد 4 عصراً)' : 'Dokki Elite Hall (Sun 4 PM)'}</option>
-            <option value="cls-nasr-302">{lang === 'ar' ? 'سنتر مدينة نصر - قاعة 1 (الثلاثاء 6 مساءً)' : 'Nasr City Hall 1 (Tue 6 PM)'}</option>
-            <option value="cls-online-303">{lang === 'ar' ? 'مجموعة الأونلاين التفاعلية (الجمعة)' : 'Online Interactive Cohort'}</option>
+            <option value="">{lang === 'ar' ? '-- اختر المجموعة الدراسية --' : '-- Select Study Group --'}</option>
+            {groups.map((grp) => (
+              <option key={grp.uuid || grp.id || grp.code} value={grp.uuid || grp.code || grp.id}>
+                {grp.name || grp.name_ar || grp.title || grp.code}
+              </option>
+            ))}
           </select>
         </div>
       </div>

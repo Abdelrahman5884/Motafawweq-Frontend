@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { TEACHER_COURSES } from '../../data/teacherData';
+import { teacherApi } from '../../services/teacherApi';
 import { 
   BookOpen, 
   Plus, 
@@ -26,9 +26,50 @@ export const TeacherCoursesView = () => {
   const { isDark } = useTheme();
   const isAr = lang === 'ar';
 
-  const [courses, setCourses] = useState(TEACHER_COURSES);
+  const [courses, setCourses] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch live courses on mount
+  useEffect(() => {
+    let mounted = true;
+    setIsLoading(true);
+    teacherApi.courses.list()
+      .then((res) => {
+        if (mounted && res?.data && Array.isArray(res.data)) {
+          const mapped = res.data.map((c) => ({
+            id: c.uuid || c.id,
+            uuid: c.uuid || c.id,
+            title: c.titleAr || c.title_ar || c.title,
+            titleAr: c.titleAr || c.title_ar || c.title,
+            stage: c.stageType === 'prep' || c.stage_type === 'prep' ? 'المرحلة الإعدادية' : 'المرحلة الثانوية',
+            stageId: c.stageType || c.stage_type || 'sec',
+            gradeAr: c.gradeAr || c.grade_ar || 'الصف الثالث الثانوي',
+            subjectAr: c.subjectAr || c.subject_ar || 'الأحياء',
+            cover: c.coverImageUrl || c.cover || 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&auto=format&fit=crop&q=80',
+            priceEgp: Number(c.priceEgp || c.price_egp) || 350,
+            studentsCount: c.enrolledStudentsCount || c.studentsCount || 0,
+            rating: Number(c.rating) || 4.9,
+            lessonsCount: c.lessonsCount || c.lessons_count || 0,
+            hoursTotal: c.durationFormatted || c.hoursTotal || '10 ساعات',
+            status: c.status || 'published',
+            completionRate: 85,
+            revenueEgp: (Number(c.priceEgp || c.price_egp) || 350) * (c.enrolledStudentsCount || 0),
+            descriptionAr: c.descriptionAr || c.description_ar || 'مقرر دراسي معتمد على منصة متفوق.'
+          }));
+          setCourses(mapped);
+        }
+      })
+      .catch((err) => {
+        console.warn('Teacher courses load error:', err);
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, []);
 
   // Delete Course Confirmation Dialog state
   const [deleteCourseDialog, setDeleteCourseDialog] = useState({
@@ -46,8 +87,17 @@ export const TeacherCoursesView = () => {
     });
   };
 
-  const handleConfirmDeleteCourse = () => {
-    setCourses(prev => prev.filter(c => c.id !== deleteCourseDialog.id));
+  const handleConfirmDeleteCourse = async () => {
+    const courseId = deleteCourseDialog.id;
+    const courseObj = courses.find(c => c.id === courseId);
+    if (courseObj?.uuid) {
+      try {
+        await teacherApi.courses.delete(courseObj.uuid);
+      } catch (err) {
+        console.error('Failed to delete course:', err);
+      }
+    }
+    setCourses(prev => prev.filter(c => c.id !== courseId));
     setDeleteCourseDialog({ isOpen: false, id: null, title: '' });
   };
 
@@ -90,30 +140,45 @@ export const TeacherCoursesView = () => {
     });
   };
 
-  const handleSaveEditCourse = (e) => {
+  const handleSaveEditCourse = async (e) => {
     e.preventDefault();
     if (!editingCourse || !editForm.title.trim()) return;
 
-    setCourses(prev => prev.map(c => {
-      if (c.id === editingCourse.id) {
-        return {
-          ...c,
-          title: editForm.title,
-          titleAr: editForm.title,
-          stage: editForm.stage === 'sec' ? 'المرحلة الثانوية' : 'المرحلة الإعدادية',
-          stageId: editForm.stage,
-          gradeAr: editForm.grade,
-          subjectAr: editForm.subject,
-          priceEgp: Number(editForm.price) || c.priceEgp,
-          descriptionAr: editForm.description,
-          hoursTotal: editForm.hours || c.hoursTotal,
-          lessonsCount: Number(editForm.lessonsCount) || c.lessonsCount
-        };
+    try {
+      if (editingCourse.uuid) {
+        await teacherApi.courses.update(editingCourse.uuid, {
+          title_ar: editForm.title.trim(),
+          stage_type: editForm.stage,
+          grade_ar: editForm.grade,
+          price_egp: Number(editForm.price) || 300,
+          description_ar: editForm.description.trim() || undefined,
+        });
       }
-      return c;
-    }));
 
-    setEditingCourse(null);
+      setCourses(prev => prev.map(c => {
+        if (c.id === editingCourse.id) {
+          return {
+            ...c,
+            title: editForm.title,
+            titleAr: editForm.title,
+            stage: editForm.stage === 'sec' ? 'المرحلة الثانوية' : 'المرحلة الإعدادية',
+            stageId: editForm.stage,
+            gradeAr: editForm.grade,
+            subjectAr: editForm.subject,
+            priceEgp: Number(editForm.price) || c.priceEgp,
+            descriptionAr: editForm.description,
+            hoursTotal: editForm.hours || c.hoursTotal,
+            lessonsCount: Number(editForm.lessonsCount) || c.lessonsCount
+          };
+        }
+        return c;
+      }));
+
+      setEditingCourse(null);
+    } catch (err) {
+      console.error('Failed to update course:', err);
+      alert(isAr ? (err.message || 'فشل تحديث بيانات الكورس') : (err.message || 'Failed to update course'));
+    }
   };
 
   // New Course Form state
@@ -134,32 +199,50 @@ export const TeacherCoursesView = () => {
     );
   });
 
-  const handleCreateCourse = (e) => {
+  const handleCreateCourse = async (e) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    const newCourseObj = {
-      id: `course-${Date.now()}`,
-      title: newTitle,
-      titleAr: newTitle,
-      stage: newStage === 'sec' ? 'المرحلة الثانوية' : 'المرحلة الإعدادية',
-      stageId: newStage,
-      gradeAr: newGrade,
-      subjectAr: 'الأحياء',
-      priceEgp: Number(newPrice) || 300,
-      studentsCount: 0,
-      lessonsCount: 1,
-      hoursTotal: '2 ساعة',
-      status: 'published',
-      completionRate: 100,
-      revenueEgp: 0,
-      descriptionAr: newDesc || 'مقرر تعليمي جديد تم إنشاؤه عبر منصة متفوق.'
-    };
+    try {
+      const res = await teacherApi.courses.create({
+        title_ar: newTitle.trim(),
+        stage_type: newStage,
+        grade_ar: newGrade,
+        subject_ar: 'الأحياء',
+        price_egp: Number(newPrice) || 300,
+        description_ar: newDesc.trim() || undefined,
+        status: 'published',
+      });
 
-    setCourses([newCourseObj, ...courses]);
-    setShowCreateModal(false);
-    setNewTitle('');
-    setNewDesc('');
+      const c = res.data;
+      const newCourseObj = {
+        id: c.uuid || c.id || `course-${Date.now()}`,
+        uuid: c.uuid,
+        title: c.titleAr || c.title_ar || newTitle,
+        titleAr: c.titleAr || c.title_ar || newTitle,
+        stage: newStage === 'sec' ? 'المرحلة الثانوية' : 'المرحلة الإعدادية',
+        stageId: newStage,
+        gradeAr: newGrade,
+        subjectAr: 'الأحياء',
+        cover: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&auto=format&fit=crop&q=80',
+        priceEgp: Number(newPrice) || 300,
+        studentsCount: 0,
+        lessonsCount: 0,
+        hoursTotal: '0 ساعة',
+        status: 'published',
+        completionRate: 0,
+        revenueEgp: 0,
+        descriptionAr: newDesc || 'مقرر تعليمي جديد تم إنشاؤه عبر منصة متفوق.'
+      };
+
+      setCourses(prev => [newCourseObj, ...prev]);
+      setShowCreateModal(false);
+      setNewTitle('');
+      setNewDesc('');
+    } catch (err) {
+      console.error('Failed to create course:', err);
+      alert(isAr ? (err.message || 'فشل إنشاء الكورس') : (err.message || 'Failed to create course'));
+    }
   };
 
   return (

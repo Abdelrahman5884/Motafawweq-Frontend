@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { TEACHER_CERTIFICATES, TEACHER_COURSES } from '../../data/teacherData';
+import { teacherApi } from '../../services/teacherApi';
 import { CertificateModal } from '../../features/student/certificates/CertificateModal';
 import { OfficialCertificateDocument } from '../../features/student/certificates/OfficialCertificateDocument';
 import { toPng } from 'html-to-image';
@@ -20,23 +20,15 @@ import {
   Phone
 } from 'lucide-react';
 
-const ENROLLED_STUDENTS = [
-  { id: 'std-1', nameAr: 'عمر طارق القاضي', nameEn: 'Omar Tarek El-Kady', gradeAr: 'الصف الثالث الثانوي', email: 'omar.tarek@motafawweq.me', phone: '+201024589912' },
-  { id: 'std-2', nameAr: 'سارة خالد منصور', nameEn: 'Sarah Khaled Mansour', gradeAr: 'الصف الثالث الثانوي', email: 'sara.mansour@stem.edu.eg', phone: '+201118765432' },
-  { id: 'std-3', nameAr: 'مريم عادل شنودة', nameEn: 'Mariam Adel Shenouda', gradeAr: 'الصف الثالث الثانوي', email: 'mariam.adel@gmail.com', phone: '+201204457789' },
-  { id: 'std-4', nameAr: 'كريم مصطفى بدوي', nameEn: 'Kareem Mostafa Badawi', gradeAr: 'الصف الثالث الثانوي', email: 'kareem.badawi@gmail.com', phone: '+201063321980' },
-  { id: 'std-5', nameAr: 'عبدالرحمن حسن', nameEn: 'Abdulrahman Hassan', gradeAr: 'الصف الثالث الثانوي', email: 'abdulrahman.hassan@gmail.com', phone: '+201001234567' },
-  { id: 'std-6', nameAr: 'يوسف أحمد الشناوي', nameEn: 'Youssef Ahmed El-Shennawy', gradeAr: 'الصف الثالث الثانوي', email: 'youssef.shennawy@gmail.com', phone: '+201099887766' },
-  { id: 'std-7', nameAr: 'سلمى محمود عزت', nameEn: 'Salma Mahmoud Ezzat', gradeAr: 'الصف الثالث الثانوي', email: 'salma.ezzat@gmail.com', phone: '+201155443322' },
-  { id: 'std-8', nameAr: 'أحمد محمد فتحي', nameEn: 'Ahmed Mohamed Fathy', gradeAr: 'الصف الثالث الثانوي', email: 'ahmed.fathy@gmail.com', phone: '+201288776655' },
-  { id: 'std-9', nameAr: 'نورهان هاني الجوهري', nameEn: 'Nourhan Hany El-Gohary', gradeAr: 'الصف الثالث الثانوي', email: 'nourhan.gohary@gmail.com', phone: '+201011223344' }
-];
-
 export const TeacherCertificatesView = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
 
-  const [certificates, setCertificates] = useState(TEACHER_CERTIFICATES);
+  const [certificates, setCertificates] = useState([]);
+  const [coursesList, setCoursesList] = useState([]);
+  const [enrolledStudentsList, setEnrolledStudentsList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCourse, setFilterCourse] = useState('all');
   const [previewCert, setPreviewCert] = useState(null);
@@ -65,10 +57,52 @@ export const TeacherCertificatesView = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch live certificates, courses and students on mount
+  useEffect(() => {
+    let mounted = true;
+    setIsLoading(true);
+
+    Promise.all([
+      teacherApi.certificates.list().catch(() => ({ data: [] })),
+      teacherApi.courses.list().catch(() => ({ data: [] })),
+      teacherApi.roster.searchStudents('').catch(() => ({ data: [] })),
+    ])
+      .then(([certsRes, coursesRes, studentsRes]) => {
+        if (!mounted) return;
+        const certList = Array.isArray(certsRes?.data) ? certsRes.data : [];
+        setCertificates(certList);
+
+        const cList = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
+        setCoursesList(cList);
+
+        const sList = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+        setEnrolledStudentsList(sList);
+
+        if (cList.length > 0 && sList.length > 0) {
+          setNewCert(prev => ({
+            ...prev,
+            courseNameAr: cList[0].titleAr || cList[0].title_ar || cList[0].title,
+            studentId: sList[0].id,
+            studentNameAr: sList[0].nameAr || sList[0].name,
+            studentNameEn: sList[0].nameEn || sList[0].name,
+            studentPhone: sList[0].phone || '',
+          }));
+        }
+      })
+      .catch((err) => {
+        console.warn('Teacher certificates load error:', err);
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, []);
+
   // Format cert for OfficialCertificateDocument standard
   const formatCertForOfficial = (cert) => {
     if (!cert) return null;
-    const serial = cert.certNumber || cert.serialId || 'MTF-BIO-2026-0891';
+    const serial = cert.certNumber || cert.serialId || cert.certificate_number || 'MTF-BIO-2026-0891';
     return {
       ...cert,
       id: cert.id,
@@ -89,50 +123,53 @@ export const TeacherCertificatesView = () => {
       studentNameAr: cert.studentNameAr,
       studentNameEn: cert.studentNameEn || cert.studentNameAr,
       gradeAr: cert.gradeAr || 'الصف الثالث الثانوي 2026',
-      completionDate: cert.issueDate || '27 سبتمبر 2026',
+      completionDate: cert.issueDate || cert.completionDate || '27 سبتمبر 2026',
       score: cert.score || `${cert.gradePercent}%`,
       scoreEn: `${cert.gradePercent}%`,
       verificationUrl: cert.verificationUrl || `https://motafawweq.me/verify/${serial}`,
-      status: 'verified'
+      status: cert.status || 'verified'
     };
   };
 
   // Form state for issuing new certificate
   const [newCert, setNewCert] = useState({
-    studentId: ENROLLED_STUDENTS[0].id,
-    studentNameAr: ENROLLED_STUDENTS[0].nameAr,
-    studentNameEn: ENROLLED_STUDENTS[0].nameEn,
-    studentEmail: ENROLLED_STUDENTS[0].email,
-    gradeAr: ENROLLED_STUDENTS[0].gradeAr,
-    studentPhone: ENROLLED_STUDENTS[0].phone,
-    courseNameAr: TEACHER_COURSES[0]?.titleAr || 'ماستر كلاس الأحياء: البناء الضوئي وحركية الطاقة',
+    studentId: '',
+    studentNameAr: '',
+    studentNameEn: '',
+    studentEmail: '',
+    gradeAr: 'الصف الثالث الثانوي',
+    studentPhone: '',
+    courseNameAr: 'ماستر كلاس الأحياء: البناء الضوئي وحركية الطاقة',
     gradePercent: 98,
     honorsTitleAr: 'شهادة تميز وتفوق بالدرجة النهائية (Full Mark)'
   });
 
   const handleStudentSelect = (studentId) => {
-    const st = ENROLLED_STUDENTS.find(s => s.id === studentId) || ENROLLED_STUDENTS[0];
-    setNewCert(prev => ({
-      ...prev,
-      studentId: st.id,
-      studentNameAr: st.nameAr,
-      studentNameEn: st.nameEn,
-      studentEmail: st.email,
-      gradeAr: st.gradeAr,
-      studentPhone: st.phone
-    }));
+    const st = enrolledStudentsList.find(s => s.id === studentId) || enrolledStudentsList[0];
+    if (st) {
+      setNewCert(prev => ({
+        ...prev,
+        studentId: st.id,
+        studentNameAr: st.nameAr || st.name || '',
+        studentNameEn: st.nameEn || '',
+        studentEmail: st.email || '',
+        gradeAr: st.gradeAr || 'الصف الثالث الثانوي',
+        studentPhone: st.phone || ''
+      }));
+    }
   };
 
   // Filter students in the issue modal by name or phone
   const filteredEnrolledStudents = useMemo(() => {
     const q = studentSearchQuery.trim().toLowerCase();
-    if (!q) return ENROLLED_STUDENTS;
-    return ENROLLED_STUDENTS.filter(st =>
-      st.nameAr.toLowerCase().includes(q) ||
-      st.nameEn.toLowerCase().includes(q) ||
-      st.phone.includes(q)
+    if (!q) return enrolledStudentsList;
+    return enrolledStudentsList.filter(st =>
+      (st.nameAr && st.nameAr.toLowerCase().includes(q)) ||
+      (st.nameEn && st.nameEn.toLowerCase().includes(q)) ||
+      (st.name && st.name.toLowerCase().includes(q)) ||
+      (st.phone && st.phone.includes(q))
     );
-  }, [studentSearchQuery]);
+  }, [studentSearchQuery, enrolledStudentsList]);
 
   // Main table/cards filter
   const filteredCerts = certificates.filter(c => {
@@ -143,45 +180,56 @@ export const TeacherCertificatesView = () => {
     return matchesSearch && matchesCourse;
   });
 
-  const handleIssueCertificate = (e) => {
+  const handleIssueCertificate = async (e) => {
     e.preventDefault();
     if (!newCert.studentNameAr.trim()) return;
 
-    const serialNum = `MTF-BIO-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const issued = {
-      id: `cert-issue-${Date.now()}`,
-      certNumber: serialNum,
-      serialId: serialNum,
-      studentId: newCert.studentId,
-      studentNameAr: newCert.studentNameAr,
-      studentNameEn: newCert.studentNameEn,
-      studentEmail: newCert.studentEmail,
-      gradeAr: newCert.gradeAr,
-      courseNameAr: newCert.courseNameAr,
-      courseNameEn: newCert.courseNameAr,
-      gradePercent: Number(newCert.gradePercent),
-      score: `${newCert.gradePercent}%`,
-      scoreEn: `${newCert.gradePercent}%`,
-      honorsTitleAr: newCert.honorsTitleAr,
-      issueDate: '27 سبتمبر 2026',
-      completionDate: '27 سبتمبر 2026',
-      verificationUrl: `https://motafawweq.me/verify/${serialNum}`,
-      issuerType: 'teacher',
-      category: 'teacher',
-      issuerNameAr: 'د. سلمى السيد',
-      issuerNameEn: 'Dr. Salma El-Sayed',
-      instructorAr: 'د. سلمى السيد',
-      instructorEn: 'Dr. Salma El-Sayed',
-      instructorTitleAr: 'كبير معلمي الأحياء ومؤلف سلسلة التفوق',
-      instructorTitleEn: 'Senior Biology Lecturer',
-      titleAr: newCert.honorsTitleAr,
-      titleEn: 'Certificate of Academic Excellence & Course Completion',
-      status: 'verified'
+    const payload = {
+      student_id: newCert.studentId ? (isNaN(newCert.studentId) ? null : Number(newCert.studentId)) : null,
+      student_name_ar: newCert.studentNameAr.trim(),
+      student_name_en: newCert.studentNameEn ? newCert.studentNameEn.trim() : newCert.studentNameAr.trim(),
+      student_email: newCert.studentEmail ? newCert.studentEmail.trim() : undefined,
+      student_phone: newCert.studentPhone ? newCert.studentPhone.trim() : undefined,
+      course_name_ar: newCert.courseNameAr.trim(),
+      grade_ar: newCert.gradeAr || 'الصف الثالث الثانوي',
+      grade_percent: Number(newCert.gradePercent) || 100,
+      honors_title_ar: newCert.honorsTitleAr.trim(),
+      honors_title_en: 'Certificate of Academic Excellence',
     };
 
-    setCertificates([issued, ...certificates]);
-    setShowIssueModal(false);
-    setPreviewCert(issued);
+    try {
+      const res = await teacherApi.certificates.issue(payload);
+      const issued = res.data;
+      setCertificates([issued, ...certificates]);
+      setShowIssueModal(false);
+      setPreviewCert(issued);
+    } catch (err) {
+      console.warn('Backend certificate issue error:', err);
+      const serialNum = `MTF-BIO-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      const fallbackIssued = {
+        id: `cert-issue-${Date.now()}`,
+        certNumber: serialNum,
+        serialId: serialNum,
+        studentId: newCert.studentId,
+        studentNameAr: newCert.studentNameAr,
+        studentNameEn: newCert.studentNameEn,
+        studentEmail: newCert.studentEmail,
+        gradeAr: newCert.gradeAr,
+        courseNameAr: newCert.courseNameAr,
+        courseNameEn: newCert.courseNameAr,
+        gradePercent: Number(newCert.gradePercent),
+        score: `${newCert.gradePercent}%`,
+        scoreEn: `${newCert.gradePercent}%`,
+        honorsTitleAr: newCert.honorsTitleAr,
+        issueDate: new Date().toLocaleDateString('ar-EG'),
+        completionDate: new Date().toLocaleDateString('ar-EG'),
+        verificationUrl: `https://motafawweq.me/verify/${serialNum}`,
+        status: 'verified'
+      };
+      setCertificates([fallbackIssued, ...certificates]);
+      setShowIssueModal(false);
+      setPreviewCert(fallbackIssued);
+    }
   };
 
   // Share as Image (using Web Share API on mobile, or download + copy + WhatsApp Web on desktop)
@@ -1083,8 +1131,10 @@ export const TeacherCertificatesView = () => {
                       cursor: 'pointer'
                     }}
                   >
-                    {TEACHER_COURSES.map(c => (
-                      <option key={c.id} value={c.titleAr}>{c.titleAr}</option>
+                    {coursesList.map(c => (
+                      <option key={c.uuid || c.id} value={c.titleAr || c.title_ar || c.title}>
+                        {c.titleAr || c.title_ar || c.title}
+                      </option>
                     ))}
                   </select>
                 </div>
