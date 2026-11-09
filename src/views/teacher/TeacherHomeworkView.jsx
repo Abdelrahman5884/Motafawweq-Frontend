@@ -41,311 +41,17 @@ import {
   Paperclip
 } from 'lucide-react';
 
-// Live courses and homeworks loaded from backend
-const COURSES_WITH_LESSONS = [];
-const TARGET_LOCATIONS = [];
-const INITIAL_HOMEWORKS_DATABASE = [];
-/* OLD STATIC DATA REMOVED
-  {
-    courseTitle: 'ماستر كلاس الأحياء (3 ثانوي)',
-    subject: 'الأحياء',
-    lessons: [
-      'حصة 1: تركيب البلاستيدات الخضراء والكلوروفيل',
-      'حصة 2: التفاعلات الضوئية وحركة الإلكترونات بأغشية الثيلاكويد',
-      'حصة 3: التفاعلات اللاضوئية ودورة كالفن وحسابات PGAL',
-      'حصة 4: التنفس الخلوي الهوائي ودورة كريبس',
-      'حصة 5: سلسلة نقل الإلكترون وحسابات جزيئات ATP'
-    ]
-  },
-  {
-    courseTitle: 'معسكر المراجعة النهائية ومصائد الامتحانات',
-    subject: 'الأحياء',
-    lessons: [
-      'حصة 1: مراجعة الدعامة والحركة والمفاصل',
-      'حصة 2: مراجعة التنسيق الهرموني والغدد الصماء',
-      'حصة 3: مراجعة التكاثر في الكائنات الحية',
-      'حصة 4: مراجعة المناعة والبيولوجيا الجزيئية'
-    ]
-  },
-  {
-    courseTitle: 'أساسيات فسيولوجيا الإنسان (2 ثانوي)',
-    subject: 'الأحياء',
-    lessons: [
-      'حصة 1: التغذية الذاتية في النباتات الراقية',
-      'حصة 2: الهضم في الإنسان وآلية عمل الإنزيمات',
-      'حصة 3: النقل في النبات وأوعية الخشب واللحاء',
-      'حصة 4: الجهاز الدوري والدم في الإنسان'
-    ]
-  },
-  {
-    courseTitle: 'العلوم المتكاملة والوراثة (3 إعدادي)',
-    subject: 'العلوم',
-    lessons: [
-      'حصة 1: قوانين مندل الأول والثاني',
-      'حصة 2: الانقسام الميتوزي والميوزي',
-      'حصة 3: التفاعلات الكيميائية وسرعة التفاعل'
-    ]
-  }
-];
 
 // Target Locations / Centers
 const TARGET_LOCATIONS = [
-  { id: 'all', nameAr: 'جميع الأماكن (كل السناتر + الأونلاين)' },
-  { id: 'ctr-1', nameAr: 'سنتر الدقي النخبة' },
-  { id: 'ctr-2', nameAr: 'سنتر الرواد بمدينة نصر' },
-  { id: 'ctr-3', nameAr: 'أكاديمية المتفوق الإلكترونية (أونلاين)' }
+  { id: "all", nameAr: "جميع الأماكن (كل السناتر + الأونلاين)", nameEn: "All Locations (Centers + Online)" },
+  { id: "ctr-online", nameAr: "أكاديمية المتفوق الإلكترونية (أونلاين)", nameEn: "Motafawweq Online Academy" },
+  { id: "ctr-1", nameAr: "سنتر الدقي النخبة", nameEn: "El Dokki Center" },
+  { id: "ctr-2", nameAr: "سنتر الرواد بمدينة نصر", nameEn: "El Rowad Center" }
 ];
 
-// Rich Initial Homeworks Database
-const INITIAL_HOMEWORKS_DATABASE = [
-  {
-    id: 'hw-bio-01',
-    titleAr: 'واجب الأسبوع 3: مقارنة التفاعلات الضوئية واللاضوئية ورسم البلاستيدة',
-    courseTitleAr: 'ماستر كلاس الأحياء (3 ثانوي)',
-    lessonAr: 'حصة 3: التفاعلات اللاضوئية ودورة كالفن وحسابات PGAL',
-    targetLocationAr: 'جميع الأماكن (كل السناتر + الأونلاين)',
-    targetLocationId: 'all',
-    type: 'file', // 'file' | 'text' | 'image'
-    fileType: 'pdf',
-    attachmentName: 'كراسة_واجب_الأسبوع_3_الأحياء.pdf',
-    textContent: '',
-    dueDate: '2026-09-26',
-    dueTime: '23:59',
-    totalAssigned: 2450,
-    submittedCount: 2210,
-    gradedCount: 1980,
-    pendingGrading: 230,
-    avgGrade: 18.4,
-    maxGrade: 20,
-    submissions: [
-      {
-        id: 'sub-1',
-        studentId: 'std-omar-2026',
-        studentNameAr: 'عمر طارق القاضي',
-        studentAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'مدرسة السعيدية الثانوية العسكرية، الجيزة',
-        locationAr: 'سنتر الدقي النخبة',
-        submittedAt: '2026-09-22 18:45',
-        type: 'pdf',
-        attachmentName: 'حل_عمر_طارق_واجب3.pdf',
-        status: 'graded',
-        score: 20,
-        maxScore: 20,
-        feedbackAr: 'إجابة نموذجية ورائعة يا عمر! التفسير الدقيق لدور NADP+ في نقل الهيدروجين ممتاز جداً ويدل على فهم عميق للباب.',
-        sampleSolutionText: ''
-      },
-      {
-        id: 'sub-2',
-        studentId: 'std-sara-01',
-        studentNameAr: 'سارة خالد منصور',
-        studentAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'مدرسة المتفوقات STEM كفر الشيخ',
-        locationAr: 'أكاديمية المتفوق الإلكترونية (أونلاين)',
-        submittedAt: '2026-09-22 14:10',
-        type: 'pdf',
-        attachmentName: 'واجب_سارة_منصور_احياء.pdf',
-        status: 'graded',
-        score: 20,
-        maxScore: 20,
-        feedbackAr: 'تقفيل كامل كالعادة يا سارة، تنظيم الورقة واستخدام المخططات التوضيحية رائع ومبهر.',
-        sampleSolutionText: ''
-      },
-      {
-        id: 'sub-3',
-        studentId: 'std-khaled-02',
-        studentNameAr: 'خالد عبد الرحمن النجار',
-        studentAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'المنصورة العسكرية بنين',
-        locationAr: 'سنتر الرواد بمدينة نصر',
-        submittedAt: '2026-09-23 09:30',
-        type: 'image',
-        attachmentName: 'صورة_كشكول_الواجب_خالد.jpg',
-        status: 'pending',
-        score: null,
-        maxScore: 20,
-        feedbackAr: '',
-        sampleSolutionText: ''
-      },
-      {
-        id: 'sub-4',
-        studentId: 'std-mariam-03',
-        studentNameAr: 'مريم عادل شنودة',
-        studentAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'القومية لغات بالإسكندرية',
-        locationAr: 'أكاديمية المتفوق الإلكترونية (أونلاين)',
-        submittedAt: '2026-09-23 11:15',
-        type: 'text',
-        attachmentName: '',
-        status: 'pending',
-        score: null,
-        maxScore: 20,
-        feedbackAr: '',
-        sampleSolutionText: 'حل السؤال الأول:\nالتفاعلات الضوئية تحدث داخل أغشية الجرانا في الثيلاكويد وتحتاج للضوء وصبغة الكلوروفيل، وينتج عنها انشطار الماء وتصاعد O2 وتكوين جزيئات الطاقة ATP و NADPH.\n\nحل السؤال الثاني:\nالتفاعلات اللاضوئية (دورة كالفن) تحدث في الستروما بمساعدة الإنزيمات، ويتم فيها تثبيت غاز ثاني أكسيد الكربون CO2 بواسطة الهيدروجين المحمول على NADPH بمساعدة طاقة ATP لإنتاج PGAL ثم الجلوكوز.\n\nحل المسألة:\nلتكوين 1 جزيء جلوكوز نحتاج 2 جزيء فوسفوجليسرالدهيد PGAL، وبالتالي تتطلب الدورة 6 جزيئات CO2 و 18 جزيء ATP و 12 جزيء NADPH.'
-      },
-      {
-        id: 'sub-5',
-        studentId: 'std-karim-04',
-        studentNameAr: 'كريم مصطفى بدوي',
-        studentAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'الأورمان النموذجية، الدقي',
-        locationAr: 'سنتر الدقي النخبة',
-        submittedAt: '2026-09-23 15:40',
-        type: 'pdf',
-        attachmentName: 'حل_كريم_بدوي_احياء.pdf',
-        status: 'graded',
-        score: 18,
-        maxScore: 20,
-        feedbackAr: 'ممتاز يا كريم، لكن راجع رسم غشاء البلاستيدة المزدوج والمسافة بين حبيبات الجرانا.',
-        sampleSolutionText: ''
-      },
-      {
-        id: 'sub-6',
-        studentId: 'std-nour-05',
-        studentNameAr: 'نور الهدى عثمان',
-        studentAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'المنصورة الثانوية بنات',
-        locationAr: 'أكاديمية المتفوق الإلكترونية (أونلاين)',
-        submittedAt: '2026-09-24 10:05',
-        type: 'image',
-        attachmentName: 'رسمة_البلاستيدة_نور.png',
-        status: 'pending',
-        score: null,
-        maxScore: 20,
-        feedbackAr: '',
-        sampleSolutionText: ''
-      },
-      {
-        id: 'sub-7',
-        studentId: 'std-zeyad-06',
-        studentNameAr: 'زياد هشام فهمي',
-        studentAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'عباس العقاد الرسمية',
-        locationAr: 'سنتر الرواد بمدينة نصر',
-        submittedAt: '2026-09-24 12:20',
-        type: 'pdf',
-        attachmentName: 'حل_زياد_فهمي_احياء.pdf',
-        status: 'rejected',
-        score: 0,
-        maxScore: 20,
-        feedbackAr: 'تم رفض الملف لعدم وضوح التصوير ونقص الصفحة الثانية الخاصة بمسائل دورة كالفن. يرجى إعادة الرفع.',
-        sampleSolutionText: ''
-      }
-    ]
-  },
-  {
-    id: 'hw-bio-02',
-    titleAr: 'واجب تطبيقي: حل مسائل ATP وحساب جزيئات الجلوكوز في دورة كالفن',
-    courseTitleAr: 'ماستر كلاس الأحياء (3 ثانوي)',
-    lessonAr: 'حصة 4: التنفس الخلوي الهوائي ودورة كريبس',
-    targetLocationAr: 'سنتر الدقي النخبة',
-    targetLocationId: 'ctr-1',
-    type: 'text',
-    fileType: null,
-    attachmentName: '',
-    textContent: '1. احسب عدد جزيئات ATP الناتجة من أكسدة 3 جزيئات جلوكوز أكسدة هوائية تامة داخل وخارج الميتوكوندريا.\n2. قارن بين نواتج دورة كريبس لجزيء أستيل واحد ونواتج الجزيئين.\n3. علل: يعتبر السيتوكروم حاملاً للإلكترونات ومستقبلاً نهائياً للطاقة.',
-    dueDate: '2026-09-29',
-    dueTime: '20:00',
-    totalAssigned: 2450,
-    submittedCount: 1420,
-    gradedCount: 950,
-    pendingGrading: 470,
-    avgGrade: 17.1,
-    maxGrade: 20,
-    submissions: [
-      {
-        id: 'sub-201',
-        studentId: 'std-omar-2026',
-        studentNameAr: 'عمر طارق القاضي',
-        studentAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'مدرسة السعيدية الثانوية العسكرية، الجيزة',
-        locationAr: 'سنتر الدقي النخبة',
-        submittedAt: '2026-09-27 16:30',
-        type: 'text',
-        attachmentName: '',
-        status: 'graded',
-        score: 19,
-        maxScore: 20,
-        feedbackAr: 'حل رائع وحسابات دقيقة لجزيئات الـ ATP الناتجة عن أكسدة الجلوكوز.',
-        sampleSolutionText: 'ناتج أكسدة 3 جزيئات جلوكوز:\n- الجزيء الواحد يعطي 38 ATP في الأكسدة الهوائية التامة.\n- إذن 3 جزيئات = 3 × 38 = 114 جزيء ATP.\n- الناتجة في السيتوسول (انشطار الجلوكوز فقط) = 3 × 2 = 6 جزيء ATP مباشر.\n- الناتجة داخل الميتوكوندريا = 3 × 36 = 108 جزيء ATP.'
-      },
-      {
-        id: 'sub-202',
-        studentId: 'std-sara-01',
-        studentNameAr: 'سارة خالد منصور',
-        studentAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'مدرسة المتفوقات STEM كفر الشيخ',
-        locationAr: 'سنتر الدقي النخبة',
-        submittedAt: '2026-09-27 17:10',
-        type: 'pdf',
-        attachmentName: 'حل_سارة_مسائل_ATP.pdf',
-        status: 'pending',
-        score: null,
-        maxScore: 20,
-        feedbackAr: '',
-        sampleSolutionText: ''
-      }
-    ]
-  },
-  {
-    id: 'hw-bio-03',
-    titleAr: 'تطبيق عملي: رسم قطاع عرضي في ورقة نبات ذو فلقتين وتحديد مسار الغذاء',
-    courseTitleAr: 'أساسيات فسيولوجيا الإنسان (2 ثانوي)',
-    lessonAr: 'حصة 1: التغذية الذاتية في النباتات الراقية',
-    targetLocationAr: 'أكاديمية المتفوق الإلكترونية (أونلاين)',
-    targetLocationId: 'ctr-3',
-    type: 'file',
-    fileType: 'image',
-    attachmentName: 'مخطط_قطاع_الورقة_النموذجي.png',
-    textContent: '',
-    dueDate: '2026-10-02',
-    dueTime: '22:00',
-    totalAssigned: 980,
-    submittedCount: 820,
-    gradedCount: 750,
-    pendingGrading: 70,
-    avgGrade: 14.2,
-    maxGrade: 15,
-    submissions: [
-      {
-        id: 'sub-301',
-        studentId: 'std-khaled-02',
-        studentNameAr: 'خالد عبد الرحمن النجار',
-        studentAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
-        schoolAr: 'المنصورة العسكرية بنين',
-        locationAr: 'أكاديمية المتفوق الإلكترونية (أونلاين)',
-        submittedAt: '2026-09-28 14:00',
-        type: 'image',
-        attachmentName: 'رسمة_قطاع_الورقة_خالد.jpg',
-        status: 'pending',
-        score: null,
-        maxScore: 15,
-        feedbackAr: '',
-        sampleSolutionText: ''
-      }
-    ]
-  },
-  {
-    id: 'hw-bio-04',
-    titleAr: 'بنك أسئلة الدعامة والحركة: 25 مسألة مستويات تفكير عليا',
-    courseTitleAr: 'معسكر المراجعة النهائية ومصائد الامتحانات',
-    lessonAr: 'حصة 1: مراجعة الدعامة والحركة والمفاصل',
-    targetLocationAr: 'جميع الأماكن (كل السناتر + الأونلاين)',
-    targetLocationId: 'all',
-    type: 'file',
-    fileType: 'pdf',
-    attachmentName: 'شيت_مسائل_الدعامة_والحركة.pdf',
-    textContent: '',
-    dueDate: '2026-10-08',
-    dueTime: '23:59',
-    totalAssigned: 1890,
-    submittedCount: 1650,
-    gradedCount: 1500,
-    pendingGrading: 150,
-    avgGrade: 27.8,
-    maxGrade: 30,
-    submissions: []
-  }
-]; */
+const COURSES_WITH_LESSONS = [];
+const INITIAL_HOMEWORKS_DATABASE = [];
 
 export const TeacherHomeworkView = () => {
   const { lang, isRtl } = useLanguage();
@@ -436,14 +142,14 @@ export const TeacherHomeworkView = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
     title: '',
-    courseTitle: COURSES_WITH_LESSONS[0].courseTitle,
-    lesson: COURSES_WITH_LESSONS[0].lessons[0],
+    courseTitle: '',
+    lesson: '',
     targetLocationId: 'all',
     type: 'file', // 'file' | 'text'
     files: [], // Array of { id, file, url, name, size, type: 'pdf' | 'image' }
     textContent: '',
     maxGrade: '20',
-    dueDate: '2026-10-06',
+    dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
     dueTime: '23:59'
   });
 
@@ -933,14 +639,14 @@ export const TeacherHomeworkView = () => {
               onClick={() => {
                 setCreateForm({
                   title: '',
-                  courseTitle: COURSES_WITH_LESSONS[0].courseTitle,
-                  lesson: COURSES_WITH_LESSONS[0].lessons[0],
+                  courseTitle: availableCourses[0]?.titleAr || availableCourses[0]?.title || '',
+                  lesson: '',
                   targetLocationId: 'all',
                   type: 'file',
                   files: [],
                   textContent: '',
                   maxGrade: '20',
-                  dueDate: '2026-10-06',
+                  dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
                   dueTime: '23:59'
                 });
                 setFileUploadError('');
@@ -1108,8 +814,10 @@ export const TeacherHomeworkView = () => {
                 }}
               >
                 <option value="all">{isAr ? 'جميع المقررات والكورسات' : 'All Courses'}</option>
-                {COURSES_WITH_LESSONS.map(c => (
-                  <option key={c.courseTitle} value={c.courseTitle}>{c.courseTitle}</option>
+                {availableCourses.map(c => (
+                  <option key={c.id || c.titleAr || c.title} value={c.titleAr || c.title}>
+                    {c.titleAr || c.title}
+                  </option>
                 ))}
               </select>
 
@@ -1147,7 +855,56 @@ export const TeacherHomeworkView = () => {
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
             gap: '18px'
           }}>
-            {filteredHomeworks.map(hw => {
+            {filteredHomeworks.length === 0 ? (
+              <div style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '48px 16px',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                borderRadius: 'var(--radius-xl)',
+                border: '1px dashed var(--border-subtle)',
+                color: 'var(--text-muted)'
+              }}>
+                <FileText size={40} style={{ margin: '0 auto 12px', opacity: 0.35, display: 'block' }} />
+                <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {isAr ? 'لا توجد واجبات مضافة حتى الآن' : 'No homework assignments yet'}
+                </p>
+                <p style={{ margin: '6px 0 16px', fontSize: '13px' }}>
+                  {isAr ? 'اضغط على زر «إضافة واجب جديد» لإنشاء أول تكليف أو واجب لطلابك.' : 'Click "Create Homework" to create your first assignment.'}
+                </p>
+                <button
+                  onClick={() => {
+                    setCreateForm({
+                      title: '',
+                      courseTitle: availableCourses[0]?.titleAr || availableCourses[0]?.title || '',
+                      lesson: '',
+                      targetLocationId: 'all',
+                      type: 'file',
+                      files: [],
+                      textContent: '',
+                      maxGrade: '20',
+                      dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+                      dueTime: '23:59'
+                    });
+                    setFileUploadError('');
+                    setShowCreateModal(true);
+                  }}
+                  style={{
+                    padding: '9px 20px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isAr ? 'إضافة واجب جديد الآن' : 'Create Homework Now'}
+                </button>
+              </div>
+            ) : (
+              filteredHomeworks.map(hw => {
               return (
                 <div
                   key={hw.id}
@@ -1345,7 +1102,7 @@ export const TeacherHomeworkView = () => {
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
       )}
@@ -2688,11 +2445,10 @@ export const TeacherHomeworkView = () => {
                   <select
                     value={createForm.courseTitle}
                     onChange={(e) => {
-                      const selectedCourse = COURSES_WITH_LESSONS.find(c => c.courseTitle === e.target.value);
                       setCreateForm(prev => ({
                         ...prev,
                         courseTitle: e.target.value,
-                        lesson: selectedCourse?.lessons[0] || 'حصة عامة'
+                        lesson: 'حصة عامة'
                       }));
                     }}
                     style={{
@@ -2708,8 +2464,11 @@ export const TeacherHomeworkView = () => {
                       boxSizing: 'border-box'
                     }}
                   >
-                    {COURSES_WITH_LESSONS.map(c => (
-                      <option key={c.courseTitle} value={c.courseTitle}>{c.courseTitle}</option>
+                    <option value="">{isAr ? 'اختر المقرر أو المادة' : 'Select Course'}</option>
+                    {availableCourses.map(c => (
+                      <option key={c.id || c.titleAr || c.title} value={c.titleAr || c.title}>
+                        {c.titleAr || c.title}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -2718,9 +2477,11 @@ export const TeacherHomeworkView = () => {
                   <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                     الحصة المرتبطة من الحصص المسجلة:
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={createForm.lesson}
                     onChange={(e) => setCreateForm(prev => ({ ...prev, lesson: e.target.value }))}
+                    placeholder={isAr ? 'مثال: حصة 1 أو الباب الأول' : 'e.g. Lesson 1'}
                     style={{
                       width: '100%',
                       padding: '9px 12px',
@@ -2733,11 +2494,7 @@ export const TeacherHomeworkView = () => {
                       outline: 'none',
                       boxSizing: 'border-box'
                     }}
-                  >
-                    {(COURSES_WITH_LESSONS.find(c => c.courseTitle === createForm.courseTitle)?.lessons || []).map(les => (
-                      <option key={les} value={les}>{les}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
 

@@ -210,11 +210,13 @@ export const LessonWorkspace = () => {
                 color: 'var(--primary)',
                 textTransform: 'uppercase'
               }}>
-                {currentLesson.subjectAr}
+                {currentLesson?.subjectAr || (lang === 'ar' ? 'مساحة الحصة' : 'Lesson Workspace')}
               </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {currentLesson.gradeAr} • {currentLesson.durationFormatted}
-              </span>
+              {currentLesson && (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {currentLesson.gradeAr} • {currentLesson.durationFormatted}
+                </span>
+              )}
             </div>
 
             <h1 style={{
@@ -224,20 +226,17 @@ export const LessonWorkspace = () => {
               margin: '0 0 6px 0',
               lineHeight: 1.3
             }}>
-              {lang === 'ar' ? currentLesson.titleAr : currentLesson.title}
+              {currentLesson ? (lang === 'ar' ? currentLesson.titleAr : currentLesson.title) : (lang === 'ar' ? 'خريطة الحصص والمفاهيم الذكية' : 'Lesson & Concept Maps')}
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-              {currentLesson.unitAr}
+              {currentLesson?.unitAr || (lang === 'ar' ? 'استعراض وتحليل خرائط المفاهيم والتفريغ الصوتي للحصص' : 'Inspect and explore lesson concept graphs and transcripts')}
             </p>
           </div>
 
-          {/* Action: Switch to student exam */}
+          {/* Action button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
-              onClick={() => {
-                switchRole('student');
-                navigate('/student/exam');
-              }}
+              onClick={() => navigate('/teacher/studio')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -253,8 +252,8 @@ export const LessonWorkspace = () => {
                 boxShadow: '0 4px 14px rgba(21, 136, 199, 0.3)'
               }}
             >
-              <Play size={14} fill="#FFFFFF" />
-              <span>{lang === 'ar' ? 'تجربة الامتحان كطالب' : 'Take Exam as Student'}</span>
+              <Sparkles size={14} />
+              <span>{lang === 'ar' ? 'تسجيل حصة جديدة' : 'Record New Lesson'}</span>
             </button>
           </div>
         </div>
@@ -480,7 +479,40 @@ export const LessonWorkspace = () => {
 
             {/* Lessons List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {filteredLessons.map((l) => {
+              {filteredLessons.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '48px 16px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  borderRadius: '14px',
+                  border: '1px dashed var(--border-subtle)',
+                  color: 'var(--text-muted)'
+                }}>
+                  <BookOpen size={40} style={{ margin: '0 auto 12px', opacity: 0.35, display: 'block' }} />
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    {lang === 'ar' ? 'لا توجد حصص مسجلة حتى الآن' : 'No recorded lessons yet'}
+                  </p>
+                  <p style={{ margin: '6px 0 16px', fontSize: '13px' }}>
+                    {lang === 'ar' ? 'ابدأ بتسجيل أول حصة أو رفع ملف فيديو / صوتي لتحويله تلقائياً لخريطة مفاهيم' : 'Record a new lesson or upload an audio/video file to generate concept maps'}
+                  </p>
+                  <button
+                    onClick={() => navigate('/teacher/studio')}
+                    style={{
+                      padding: '10px 22px',
+                      borderRadius: 'var(--radius-full)',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontSize: '13.5px',
+                      fontWeight: '800',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {lang === 'ar' ? 'الذهاب لاستوديو التسجيل' : 'Go to Recording Studio'}
+                  </button>
+                </div>
+              ) : (
+                filteredLessons.map((l) => {
                 const isCurrent = l.id === selectedLessonId;
                 return (
                   <div
@@ -666,7 +698,7 @@ export const LessonWorkspace = () => {
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         </div>
@@ -675,7 +707,7 @@ export const LessonWorkspace = () => {
       {/* =========================================================================
           TAB 2: MEDIA PLAYER (VIDEO OR AUDIO ONLY)
           ========================================================================= */}
-      {activeTab === 'media' && (
+      {activeTab === 'media' && currentLesson && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Subbar: Back to Overview */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
@@ -910,7 +942,7 @@ export const LessonWorkspace = () => {
       {/* =========================================================================
           TAB 3: SPEECH-TO-TEXT TRANSCRIPT (TEXT ONLY)
           ========================================================================= */}
-      {activeTab === 'text' && (
+      {activeTab === 'text' && currentLesson && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Top Bar for Text */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
@@ -1094,7 +1126,7 @@ export const LessonWorkspace = () => {
       {/* =========================================================================
           TAB 4: GRAPH - NOTEBOOKLM HIERARCHICAL MIND MAP
           ========================================================================= */}
-      {activeTab === 'graph' && (
+      {activeTab === 'graph' && currentLesson && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Subbar: Back to Overview & Quick Actions */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>

@@ -157,7 +157,7 @@ export const AuthProvider = ({ children }) => {
     'teacher-exams': '/teacher/exams',
     'teacher-homework': '/teacher/homework',
     'teacher-league': '/teacher/league',
-    'teacher-analytics': '/teacher/analytics',
+    'teacher-analytics': '/teacher/dashboard',
     'teacher-certificates': '/teacher/certificates',
     'teacher-settings': '/teacher/settings',
     'recording-studio': '/teacher/studio',

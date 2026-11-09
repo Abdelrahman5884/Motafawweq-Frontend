@@ -28,7 +28,6 @@ import { TeacherCoursesView } from './views/teacher/TeacherCoursesView';
 import { TeacherExamsView } from './views/teacher/TeacherExamsView';
 import { TeacherHomeworkView } from './views/teacher/TeacherHomeworkView';
 import { TeacherLeagueView } from './views/teacher/TeacherLeagueView';
-import { TeacherAnalyticsView } from './views/teacher/TeacherAnalyticsView';
 import { TeacherCertificatesView } from './views/teacher/TeacherCertificatesView';
 import { TeacherSettingsView } from './views/teacher/TeacherSettingsView';
 import { TeacherBillingView } from './views/teacher/TeacherBillingView';
@@ -391,7 +390,7 @@ export default function App() {
                     <Route path="/teacher/exams" element={<TeacherExamsView />} />
                     <Route path="/teacher/homework" element={<TeacherHomeworkView />} />
                     <Route path="/teacher/league" element={<TeacherLeagueView />} />
-                    <Route path="/teacher/analytics" element={<TeacherAnalyticsView />} />
+                    <Route path="/teacher/analytics" element={<Navigate to="/teacher/dashboard" replace />} />
                     <Route path="/teacher/certificates" element={<TeacherCertificatesView />} />
                     <Route path="/teacher/settings" element={<TeacherSettingsView />} />
                     <Route path="/teacher/studio" element={<RecordingStudio />} />

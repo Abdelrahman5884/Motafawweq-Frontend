@@ -9,110 +9,40 @@ import {
 } from 'lucide-react';
 import { generateSplinePaths } from '../../../utils';
 
-// Weekly Attendance & Active Listeners Data (7 days: Sat to Fri)
-const WEEKLY_TEACHER_ATTENDANCE = [
-  { dayAr: 'السبت', dayEn: 'Sat', students: 620, hours: 38, isToday: false, topTopic: 'البناء الضوئي وحلقات كريبس' },
-  { dayAr: 'الأحد', dayEn: 'Sun', students: 840, hours: 52, isToday: false, topTopic: 'البيولوجيا الجزيئية وDNA' },
-  { dayAr: 'الإثنين', dayEn: 'Mon', students: 710, hours: 44, isToday: false, topTopic: 'حل كويز المناعة' },
-  { dayAr: 'الثلاثاء', dayEn: 'Tue', students: 890, hours: 56, isToday: false, topTopic: 'تضاعف DNA ومصائد الامتحان' },
-  { dayAr: 'الأربعاء', dayEn: 'Wed', students: 680, hours: 42, isToday: false, topTopic: 'التغذية والنقل في النبات' },
-  { dayAr: 'الخميس', dayEn: 'Thu', students: 960, hours: 61, isPeak: true, isToday: false, topTopic: 'مراجعة الباب الأول الشاملة' },
-  { dayAr: 'الجمعة', dayEn: 'Fri', students: 750, hours: 47, isToday: true, topTopic: 'بنك أسئلة الوزارة والنماذج' }
-];
-
-// Subject Mastery Rates
-const SUBJECT_MASTERY_DATA = [
-  { nameAr: 'أحياء 3 ثانوي (عامة)', nameEn: 'Biology - 3rd Sec', pct: 88, students: 2450 },
-  { nameAr: 'أحياء 2 ثانوي (نقل)', nameEn: 'Biology - 2nd Sec', pct: 84, students: 840 },
-  { nameAr: 'أحياء 1 ثانوي (تأسيسي)', nameEn: 'Biology - 1st Sec', pct: 81, students: 530 },
-  { nameAr: 'علوم لغات (إعدادي)', nameEn: 'Advanced Science', pct: 76, students: 300 }
-];
-
-// Clean Neutral Distribution by Subjects
-const SUBJECTS_DISTRIBUTION = [
-  {
-    id: 'sub-3sec',
-    titleAr: 'أحياء 3 ثانوي (عامة)',
-    titleEn: 'Biology - 3rd Secondary',
-    categoryAr: 'الثانوية العامة',
-    categoryEn: 'Thanawya Amma',
-    count: 2450,
-    pct: 59,
-    activeToday: 1540
-  },
-  {
-    id: 'sub-2sec',
-    titleAr: 'أحياء 2 ثانوي (نقل)',
-    titleEn: 'Biology - 2nd Secondary',
-    categoryAr: 'المرحلة الثانوية',
-    categoryEn: 'Secondary Stage',
-    count: 840,
-    pct: 20,
-    activeToday: 560
-  },
-  {
-    id: 'sub-1sec',
-    titleAr: 'أحياء 1 ثانوي (مبادئ البيولوجي)',
-    titleEn: 'Biology - 1st Secondary',
-    categoryAr: 'المرحلة الثانوية',
-    categoryEn: 'Secondary Stage',
-    count: 530,
-    pct: 13,
-    activeToday: 380
-  },
-  {
-    id: 'sub-prep',
-    titleAr: 'علوم لغات (3 إعدادي متقدم)',
-    titleEn: 'Advanced Science - 3rd Prep',
-    categoryAr: 'المرحلة الإعدادية',
-    categoryEn: 'Prep Stage',
-    count: 300,
-    pct: 8,
-    activeToday: 180
-  }
-];
-
-// Clean Neutral Distribution by Centers & Locations
-const CENTERS_DISTRIBUTION = [
-  {
-    id: 'ctr-online',
-    titleAr: 'أكاديمية المتفوق (أونلاين المنصة)',
-    titleEn: 'Motafawweq Online Academy',
-    categoryAr: 'البث المباشر والمنصة',
-    categoryEn: 'Live Streaming & Platform',
-    count: 1890,
-    pct: 46,
-    activeToday: 1280
-  },
-  {
-    id: 'ctr-dokki',
-    titleAr: 'سنتر الدقي النخبة',
-    titleEn: 'El Dokki Elite Center',
-    categoryAr: 'شارع التحرير، الدقي',
-    categoryEn: 'Tahrir St, Dokki',
-    count: 1250,
-    pct: 30,
-    activeToday: 790
-  },
-  {
-    id: 'ctr-nasr',
-    titleAr: 'سنتر الرواد بمدينة نصر',
-    titleEn: 'El Rowad Center - Nasr City',
-    categoryAr: 'شارع عباس العقاد',
-    categoryEn: 'Abbas El-Akkad St',
-    count: 980,
-    pct: 24,
-    activeToday: 590
-  }
-];
-
-export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
+export const TeacherAnalyticsCharts = ({
+  lang,
+  isDark,
+  isRtl,
+  weeklyActivity = [],
+  subjectMastery = [],
+  groupDistribution = [],
+  classMastery = 0,
+  totalStudents = 0,
+}) => {
   const isAr = lang === 'ar';
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
-  const [distributionTab, setDistributionTab] = useState('subjects'); // 'subjects' | 'centers'
 
   const themeAccent = isDark ? '#38BDF8' : '#0066CC';
-  const overallMasteryValue = 84.5;
+  const overallMasteryValue = Number(classMastery) || 0;
+
+  // Fallback: 7 empty days if API hasn't responded yet
+  const WEEKLY_TEACHER_ATTENDANCE = weeklyActivity.length
+    ? weeklyActivity
+    : Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return {
+          dayAr: d.toLocaleDateString('ar-EG', { weekday: 'long' }),
+          dayEn: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          students: 0,
+          isToday: i === 6,
+        };
+      });
+
+  const peakValue = Math.max(0, ...WEEKLY_TEACHER_ATTENDANCE.map((d) => d.students || 0));
+  const peakIndex = peakValue > 0 ? WEEKLY_TEACHER_ATTENDANCE.findIndex((d) => d.students === peakValue) : -1;
+  const weeklyTotal = WEEKLY_TEACHER_ATTENDANCE.reduce((s, d) => s + (d.students || 0), 0);
+  const weeklyAvg = Math.round((weeklyTotal / 7) * 10) / 10;
 
   // Chart coordinate mapping (viewBox: 680 x 230)
   const chartWidth = 680;
@@ -123,18 +53,23 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
   const paddingTop = 36;
   const paddingBottom = 46;
   const baseline = chartHeight - paddingBottom;
-  const maxStudents = 1000;
+  const niceMax = (v) => {
+    if (v <= 5) return 5;
+    const pow = Math.pow(10, Math.floor(Math.log10(v)));
+    return Math.ceil(v / pow) * pow;
+  };
+  const maxStudents = niceMax(peakValue);
 
   const points = WEEKLY_TEACHER_ATTENDANCE.map((item, idx) => {
     const xStep = (graphRight - graphLeft) / (WEEKLY_TEACHER_ATTENDANCE.length - 1);
     const x = graphLeft + idx * xStep;
-    const yRatio = item.students / maxStudents;
+    const yRatio = (item.students || 0) / maxStudents;
     const y = baseline - yRatio * (baseline - paddingTop);
-    return { ...item, x, y };
+    return { ...item, students: item.students || 0, isPeak: idx === peakIndex, x, y };
   });
 
   const { linePath, areaPath } = generateSplinePaths(points, baseline);
-  const yTicks = [1000, 800, 600, 400, 200, 0];
+  const yTicks = [1, 0.8, 0.6, 0.4, 0.2, 0].map((r) => Math.round(maxStudents * r));
 
   // Donut chart calculations
   const donutRadius = 62;
@@ -145,8 +80,8 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
   const themeTrackStroke = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
   const themeAxisFill = isDark ? '#94A3B8' : '#64748B';
 
-  const activeDistData = distributionTab === 'subjects' ? SUBJECTS_DISTRIBUTION : CENTERS_DISTRIBUTION;
-  const totalEnrolled = 4120;
+  const activeDistData = groupDistribution;
+  const totalEnrolled = Number(totalStudents) || 0;
 
   return (
     <div style={{ marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -424,13 +359,10 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
                 color: 'var(--text-primary)'
               }}>
                 <div style={{ color: themeAccent, fontSize: '11px', fontWeight: '800', marginBottom: '2px' }}>
-                  {isAr ? points[hoveredPointIndex].dayAr : points[hoveredPointIndex].dayEn} • {points[hoveredPointIndex].hours} {isAr ? 'ساعة استماع' : 'hours'}
+                  {isAr ? points[hoveredPointIndex].dayAr : points[hoveredPointIndex].dayEn}
                 </div>
                 <div style={{ fontWeight: '800' }}>
-                  {points[hoveredPointIndex].students.toLocaleString()} {isAr ? 'طالب نشط' : 'active students'}
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {points[hoveredPointIndex].topTopic}
+                  {points[hoveredPointIndex].students.toLocaleString()} {isAr ? 'طالب حاضر' : 'students attended'}
                 </div>
               </div>
             )}
@@ -453,12 +385,16 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
                 {isAr ? 'ذروة الأسبوع:' : 'Weekly Peak:'}
               </span>
               <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {isAr ? 'الخميس (960 طالباً • 61 ساعة استماع)' : 'Thursday (960 students • 61 hrs)'}
+                {peakIndex >= 0
+                  ? (isAr
+                      ? `${points[peakIndex].dayAr} (${peakValue} طالب)`
+                      : `${points[peakIndex].dayEn} (${peakValue} students)`)
+                  : (isAr ? 'لا يوجد حضور مسجل بعد' : 'No attendance recorded yet')}
               </span>
             </div>
 
             <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-              {isAr ? 'متوسط الاستماع الأسبوعي: 48.5 ساعة/يوم' : 'Weekly Avg: 48.5 hrs/day'}
+              {isAr ? `متوسط الحضور اليومي: ${weeklyAvg} طالب` : `Daily Avg: ${weeklyAvg} students`}
             </span>
           </div>
         </div>
@@ -559,7 +495,12 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
             paddingTop: '10px',
             borderTop: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.08)'}`
           }}>
-            {SUBJECT_MASTERY_DATA.map((sub, i) => (
+            {subjectMastery.length === 0 && (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '6px 0' }}>
+                {isAr ? 'لا توجد امتحانات مصححة بعد' : 'No graded exams yet'}
+              </div>
+            )}
+            {subjectMastery.map((sub, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>
                   {isAr ? sub.nameAr : sub.nameEn}
@@ -616,63 +557,11 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '3px 0 0' }}>
               {isAr
-                ? 'عرض منقسم في بطاقات هادئة وواضحة حسب المواد أو السناتر والفروع'
-                : 'Divided into clean, neutral cards by subject or teaching branch'}
+                ? 'عدد الطلاب المسجلين في كل مجموعة من مجموعاتك'
+                : 'Enrolled students per study group'}
             </p>
           </div>
 
-          {/* Switcher Toggle */}
-          <div style={{
-            display: 'inline-flex',
-            padding: '3px',
-            borderRadius: '10px',
-            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'var(--bg-subtle)',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <button
-              onClick={() => setDistributionTab('subjects')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: distributionTab === 'subjects' ? '800' : '600',
-                backgroundColor: distributionTab === 'subjects' ? (isDark ? 'var(--primary)' : '#FFFFFF') : 'transparent',
-                color: distributionTab === 'subjects' ? (isDark ? '#FFFFFF' : 'var(--primary)') : 'var(--text-secondary)',
-                boxShadow: distributionTab === 'subjects' ? (isDark ? 'none' : '0 2px 6px rgba(0,0,0,0.08)') : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <BookOpen size={14} />
-              <span>{isAr ? 'حسب المواد والمراحل' : 'By Subject'}</span>
-            </button>
-
-            <button
-              onClick={() => setDistributionTab('centers')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: 'none',
-                fontSize: '12px',
-                fontWeight: distributionTab === 'centers' ? '800' : '600',
-                backgroundColor: distributionTab === 'centers' ? (isDark ? 'var(--primary)' : '#FFFFFF') : 'transparent',
-                color: distributionTab === 'centers' ? (isDark ? '#FFFFFF' : 'var(--primary)') : 'var(--text-secondary)',
-                boxShadow: distributionTab === 'centers' ? (isDark ? 'none' : '0 2px 6px rgba(0,0,0,0.08)') : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Building2 size={14} />
-              <span>{isAr ? 'حسب المقرات والسناتر' : 'By Centers'}</span>
-            </button>
-          </div>
         </div>
 
         {/* Clean Neutral Cards Grid (Responsive & Adaptive) */}
@@ -681,6 +570,11 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
           gap: '14px'
         }}>
+          {activeDistData.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '24px 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+              {isAr ? 'لا يوجد طلاب مسجلين في مجموعاتك بعد' : 'No students enrolled in your groups yet'}
+            </div>
+          )}
           {activeDistData.map((item) => (
             <div
               key={item.id}
@@ -754,7 +648,7 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
                   </div>
 
                   <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                    {item.activeToday.toLocaleString()} {isAr ? 'نشط اليوم' : 'active today'}
+                    {isAr ? 'من إجمالي طلابك' : 'of your students'}
                   </span>
                 </div>
 
@@ -799,17 +693,6 @@ export const TeacherAnalyticsCharts = ({ lang, isDark, isRtl }) => {
                 : `Total Enrolled Students: ${totalEnrolled.toLocaleString()}`}
             </span>
           </div>
-
-          <span style={{
-            fontSize: '11.5px',
-            color: 'var(--success)',
-            fontWeight: '700',
-            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
-            padding: '2px 8px',
-            borderRadius: '6px'
-          }}>
-            {isAr ? 'سعة الفصول منتظمة 100%' : '100% Active Capacity'}
-          </span>
         </div>
       </div>
     </div>

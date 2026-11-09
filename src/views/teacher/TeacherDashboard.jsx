@@ -64,6 +64,11 @@ export const TeacherDashboard = () => {
         isDark={isDark}
         isRtl={isRtl}
         centerDistribution={dashboardData?.centerDistribution}
+        weeklyActivity={dashboardData?.weeklyActivity || []}
+        subjectMastery={dashboardData?.subjectMastery || []}
+        groupDistribution={dashboardData?.groupDistribution || []}
+        classMastery={dashboardData?.statCards?.classMastery || 0}
+        totalStudents={dashboardData?.statCards?.totalStudents || 0}
       />
 
       {/* 4. Adaptive Grid: Recent Processed Lessons & Active Cohorts Table */}

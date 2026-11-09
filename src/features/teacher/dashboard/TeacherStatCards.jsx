@@ -14,9 +14,9 @@ export const TeacherStatCards = ({ lang, stats }) => {
       value: stats?.revenueEgp !== undefined
         ? `${Number(stats.revenueEgp).toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`
         : `0 ${isAr ? 'ج.م' : 'EGP'}`,
-      badge: '+18.4%',
-      badgeType: 'positive',
-      note: isAr ? 'مقارنة بالشهر الماضي' : 'vs last month',
+      badge: Number(stats?.revenueEgp) > 0 ? '+100%' : '0 ج.م',
+      badgeType: Number(stats?.revenueEgp) > 0 ? 'positive' : 'neutral',
+      note: isAr ? 'الرصيد الفعلي للمجموعات' : 'Current group revenue',
       icon: DollarSign,
       actionLabel: isAr ? 'تفاصيل المالية' : 'Financials',
       route: '/teacher/financials'
@@ -48,18 +48,18 @@ export const TeacherStatCards = ({ lang, stats }) => {
       route: '/teacher/processing'
     },
     {
-      id: 'mastery',
-      title: isAr ? 'متوسط استيعاب الدفعة' : 'Class Mastery Rate',
-      subtitle: isAr ? 'كافة المراحل' : 'All Cohorts',
-      value: stats?.classMastery !== undefined
-        ? `${stats.classMastery}%`
-        : '0%',
-      badge: isAr ? 'تقييم شامل' : 'Overall',
-      badgeType: 'positive',
-      note: isAr ? 'متوسط درجات الاختبارات والواجبات' : 'Exam and homework average',
+      id: 'pending-grading',
+      title: isAr ? 'تصحيح الواجبات' : 'Pending Grading',
+      subtitle: isAr ? 'الواجبات والاختبارات' : 'Homework & Exams',
+      value: stats?.pendingGradingCount !== undefined
+        ? `${stats.pendingGradingCount}`
+        : '0',
+      badge: stats?.pendingGradingCount > 0 ? (isAr ? 'بحاجة لتصحيح' : 'Needs Review') : (isAr ? 'مكتمل' : 'Up to date'),
+      badgeType: stats?.pendingGradingCount > 0 ? 'positive' : 'neutral',
+      note: isAr ? 'إجمالي التسليمات المعلقة' : 'Pending submissions',
       icon: Award,
-      actionLabel: isAr ? 'لوحة التحليلات' : 'Analytics',
-      route: '/teacher/analytics'
+      actionLabel: isAr ? 'صفحة الواجبات' : 'Homework',
+      route: '/teacher/homework'
     }
   ];
 
