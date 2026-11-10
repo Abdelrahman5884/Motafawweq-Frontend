@@ -32,7 +32,8 @@ import {
   Sliders,
   Settings2,
   AlertTriangle,
-  Edit3
+  Edit3,
+  Printer
 } from 'lucide-react';
 
 // Real exams loaded from backend
@@ -512,6 +513,37 @@ export const TeacherExamsView = () => {
     }
   };
 
+  // Update Passing Score (درجة النجاح)
+  const handleUpdatePassScore = async (newVal) => {
+    if (!selectedExam || !selectedExam.id) return;
+    const parsed = newVal === '' ? 0 : Math.max(0, Math.min(Number(selectedExam.fullMark) || 1000, Number(newVal) || 0));
+
+    setExams(prev => prev.map(ex => {
+      if (ex.id === selectedExam.id) {
+        return { ...ex, passScore: parsed };
+      }
+      return ex;
+    }));
+
+    try {
+      await teacherApi.exams.update(selectedExam.id, {
+        pass_score: parsed,
+        passScore: parsed
+      });
+      setSaveStatus({ state: 'saved', message: isAr ? 'تم حفظ درجة النجاح بنجاح' : 'Pass mark saved' });
+      setTimeout(() => {
+        setSaveStatus(prev => prev.state === 'saved' ? { state: 'idle', message: '' } : prev);
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to update pass score:', err);
+      setSaveStatus({ state: 'error', message: isAr ? 'فشل حفظ درجة النجاح' : 'Failed to save pass mark' });
+    }
+  };
+
+  // Print Exam Paper Modal State
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printMode, setPrintMode] = useState('student'); // 'student' (ورقة امتحان الطالب) | 'teacher' (نموذج الإجابة)
+
   useSetBreadcrumbs(
     viewMode === 'detail' && selectedExam
       ? [
@@ -938,6 +970,306 @@ export const TeacherExamsView = () => {
     }
   };
 
+  // ══════════════════════════════════════════════════════════════════════
+  // RENDER PRINTABLE EXAM PAPER (ورقة الامتحان للطباعة كـ PDF للطلاب)
+  // ══════════════════════════════════════════════════════════════════════
+  const renderPrintableExamSheet = (exam, mode = 'student') => {
+    if (!exam) return null;
+    const questions = exam.questions || [];
+    const isStudent = mode === 'student';
+
+    return (
+      <div style={{
+        backgroundColor: '#ffffff',
+        color: '#111827',
+        fontFamily: "'Cairo', system-ui, -apple-system, sans-serif",
+        padding: '24px 28px',
+        lineHeight: 1.6,
+        direction: 'rtl',
+        boxSizing: 'border-box'
+      }}>
+        {/* Official Exam Paper Header */}
+        <div style={{
+          border: '2px solid #1e293b',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          marginBottom: '16px',
+          backgroundColor: '#f8fafc'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #cbd5e1', paddingBottom: '10px', marginBottom: '10px' }}>
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: '900', color: '#0f172a' }}>منصة متفوق التعليمية</div>
+              <div style={{ fontSize: '12px', color: '#475569', fontWeight: '700' }}>بنك الأسئلة والامتحانات النموذجية</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '16px', fontWeight: '900', color: '#0f172a' }}>{exam.titleAr || 'امتحان تقييمي'}</div>
+              <div style={{ fontSize: '12px', color: '#2563eb', fontWeight: '800' }}>
+                {exam.courseTitleAr || 'المقرر الدراسي'} - {exam.gradeAr || 'الصف الثالث الثانوي'}
+              </div>
+            </div>
+            <div style={{ textAlign: 'left', fontSize: '11.5px', color: '#475569', fontWeight: '700' }}>
+              <div>العام الدراسي: 2026 / 2027 م</div>
+              <div>{isStudent ? 'ورقة امتحان الطالب' : 'نموذج الإجابة المعتمد (للمعلم)'}</div>
+            </div>
+          </div>
+
+          {/* Student Fill-in Info Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr',
+            gap: '8px',
+            fontSize: '12.5px',
+            color: '#1e293b',
+            fontWeight: '700'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>اسم الطالب:</span>
+              <span style={{ flex: 1, borderBottom: '1px dashed #64748b', minHeight: '18px' }}></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>المجموعة / القاعة:</span>
+              <span style={{ flex: 1, borderBottom: '1px dashed #64748b', minHeight: '18px' }}></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>رقم الجلوس / الكود:</span>
+              <span style={{ flex: 1, borderBottom: '1px dashed #64748b', minHeight: '18px' }}></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#0f172a' }}>
+              <span>الزمن: <strong>{exam.durationMinutes || 45} دقيقة</strong></span>
+              <span>•</span>
+              <span>الدرجة الكلية: <strong>{exam.fullMark || 0} درجة</strong></span>
+              <span>•</span>
+              <span>درجة النجاح: <strong>{exam.passScore || 0} درجة</strong></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Instructions Banner */}
+        <div style={{
+          border: '1px solid #94a3b8',
+          borderRadius: '6px',
+          padding: '8px 12px',
+          marginBottom: '18px',
+          backgroundColor: '#f1f5f9',
+          fontSize: '11.5px',
+          color: '#334155',
+          fontWeight: '700'
+        }}>
+          {isStudent ? (
+            <span>
+              <strong>تعليمات الاختبار:</strong> أجب عن جميع الأسئلة التالية ({questions.length} سؤالاً) • في أسئلة الاختيار من متعدد ظلل الدائرة المقابلة للخيار الصحيح • الأسئلة المقالية تُكتب إجابتها بخط واضح في الأسطر المخصصة أسفل كل سؤال.
+            </span>
+          ) : (
+            <span style={{ color: '#059669' }}>
+              <strong>ملاحظة للمعلم:</strong> هذا النموذج يتضمن الإجابات النموذجية المعتمدة وتوزيع الدرجات وعناصر التقييم.
+            </span>
+          )}
+        </div>
+
+        {/* Questions List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {questions.map((q, idx) => (
+            <div
+              key={q.id || idx}
+              className="print-break-inside-avoid"
+              style={{
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                padding: '12px 14px',
+                backgroundColor: '#ffffff'
+              }}
+            >
+              {/* Question Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '900', color: '#0f172a' }}>
+                  السؤال ({idx + 1}): {q.typeNameAr || (q.type === 'mcq' ? 'اختيار من متعدد' : q.type === 'true_false' ? 'صح وخطأ' : 'مقالي')}
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb', backgroundColor: '#eff6ff', padding: '1px 8px', borderRadius: '4px' }}>
+                  [{q.points || 5} درجة]
+                </span>
+              </div>
+
+              {/* Question Body */}
+              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1e293b', marginBottom: '10px', lineHeight: 1.6 }}>
+                {q.questionAr || `سؤال رقم ${idx + 1}`}
+              </div>
+
+              {/* MCQ Options */}
+              {q.type === 'mcq' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
+                  {(q.optionsAr && q.optionsAr.length > 0 ? q.optionsAr : ['الخيار الأول', 'الخيار الثاني', 'الخيار الثالث', 'الخيار الرابع']).map((opt, oIdx) => {
+                    const letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و'];
+                    const isCorrect = !isStudent && (q.correctIndex === oIdx);
+                    return (
+                      <div
+                        key={oIdx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          borderRadius: '5px',
+                          border: isCorrect ? '1.5px solid #059669' : '1px solid #e2e8f0',
+                          backgroundColor: isCorrect ? '#ecfdf5' : '#ffffff',
+                          fontSize: '12.5px',
+                          fontWeight: isCorrect ? '800' : '600',
+                          color: isCorrect ? '#047857' : '#334155'
+                        }}
+                      >
+                        <span style={{
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '50%',
+                          border: isCorrect ? '4px solid #059669' : '1.5px solid #64748b',
+                          display: 'inline-block',
+                          flexShrink: 0
+                        }}></span>
+                        <span>{letters[oIdx] || (oIdx + 1)}) {opt}</span>
+                        {isCorrect && (
+                          <span style={{ marginRight: 'auto', fontSize: '11px', fontWeight: '800', color: '#059669' }}>
+                            (الإجابة الصحيحة ✓)
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* True / False Options */}
+              {q.type === 'true_false' && (
+                <div style={{ display: 'flex', gap: '24px', marginTop: '8px', fontSize: '13px' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 14px',
+                    borderRadius: '5px',
+                    border: !isStudent && q.correctBool === true ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                    backgroundColor: !isStudent && q.correctBool === true ? '#ecfdf5' : '#ffffff',
+                    fontWeight: !isStudent && q.correctBool === true ? '800' : '600',
+                    color: !isStudent && q.correctBool === true ? '#047857' : '#1e293b'
+                  }}>
+                    <span style={{
+                      width: '14px',
+                      height: '14px',
+                      borderRadius: '3px',
+                      border: '1.5px solid #64748b',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '11px'
+                    }}>
+                      {!isStudent && q.correctBool === true ? '✓' : ''}
+                    </span>
+                    <span>صواب (العبارة صحيحة)</span>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 14px',
+                    borderRadius: '5px',
+                    border: !isStudent && q.correctBool === false ? '1.5px solid #059669' : '1px solid #cbd5e1',
+                    backgroundColor: !isStudent && q.correctBool === false ? '#ecfdf5' : '#ffffff',
+                    fontWeight: !isStudent && q.correctBool === false ? '800' : '600',
+                    color: !isStudent && q.correctBool === false ? '#047857' : '#1e293b'
+                  }}>
+                    <span style={{
+                      width: '14px',
+                      height: '14px',
+                      borderRadius: '3px',
+                      border: '1.5px solid #64748b',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '11px'
+                    }}>
+                      {!isStudent && q.correctBool === false ? '✓' : ''}
+                    </span>
+                    <span>خطأ (العبارة غير صحيحة)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Essay Ruled Writing Area (Student Mode) */}
+              {q.type === 'essay' && isStudent && (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: '800', color: '#475569', marginBottom: '6px' }}>
+                    المساحة المخصصة للإجابة:
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '6px 0' }}>
+                    <div style={{ borderBottom: '1px dashed #94a3b8', height: '1px' }}></div>
+                    <div style={{ borderBottom: '1px dashed #94a3b8', height: '1px' }}></div>
+                    <div style={{ borderBottom: '1px dashed #94a3b8', height: '1px' }}></div>
+                    <div style={{ borderBottom: '1px dashed #94a3b8', height: '1px' }}></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Essay Model Answer & Rubric (Teacher Mode) */}
+              {q.type === 'essay' && !isStudent && (
+                <div style={{
+                  marginTop: '10px',
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '12px'
+                }}>
+                  <div style={{ fontWeight: '800', color: '#047857', marginBottom: '4px' }}>
+                    الإجابة النموذجية المعتمدة:
+                  </div>
+                  <div style={{ color: '#065f46', lineHeight: 1.5, marginBottom: '6px' }}>
+                    {q.modelAnswerAr || 'استيفاء الشرح والبرهان العلمي المطلوب.'}
+                  </div>
+                  {Array.isArray(q.rubricPointsAr) && q.rubricPointsAr.length > 0 && (
+                    <div style={{ fontSize: '11.5px', color: '#047857', borderTop: '1px dashed #a7f3d0', paddingTop: '4px' }}>
+                      <strong>معايير توزيع الدرجات:</strong> {q.rubricPointsAr.join(' • ')}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Explanation (Teacher Mode Only) */}
+              {!isStudent && q.explanationAr && (
+                <div style={{
+                  marginTop: '8px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '5px',
+                  padding: '6px 10px',
+                  fontSize: '11.5px',
+                  color: '#475569'
+                }}>
+                  <strong>الشرح والتعليل:</strong> {q.explanationAr}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Exam Paper Footer */}
+        <div style={{
+          marginTop: '24px',
+          paddingTop: '12px',
+          borderTop: '2px solid #1e293b',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '11.5px',
+          color: '#475569',
+          fontWeight: '700'
+        }}>
+          <span>انتهت أسئلة الاختبار بحمد الله</span>
+          <span>مع أطيب تمنياتنا لجميع أبنائنا الطلاب بالنجاح والتفوق والدرجات النهائية</span>
+          <span>منصة متفوق التعليمية</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{
       maxWidth: '1240px',
@@ -946,6 +1278,56 @@ export const TeacherExamsView = () => {
       fontFamily: 'var(--font-arabic)',
       boxSizing: 'border-box'
     }}>
+      {/* Print-specific CSS styles */}
+      <style>{`
+        @media print {
+          /* Hide all application chrome, navbar, sidebar, buttons */
+          body * {
+            visibility: hidden !important;
+          }
+          #exam-printable-student-sheet,
+          #exam-printable-student-sheet * {
+            visibility: visible !important;
+          }
+          #exam-printable-student-sheet {
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 10mm 14mm !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            box-shadow: none !important;
+            border: none !important;
+            font-family: 'Cairo', system-ui, -apple-system, sans-serif !important;
+          }
+          .screen-only-modal,
+          .no-print,
+          nav,
+          aside,
+          header,
+          footer,
+          button,
+          .breadcrumb-nav {
+            display: none !important;
+          }
+          .print-break-inside-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+        }
+        @media screen {
+          .print-only-container {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* ══════════════════════════════════════════════════════════════════════
           VIEW 1: CLEAN MAIN EXAMS LIST (نفس ديزاين المنصة والمقررات، ألوان هادية)
           ══════════════════════════════════════════════════════════════════════ */}
@@ -1012,19 +1394,57 @@ export const TeacherExamsView = () => {
             </button>
           </div>
 
-          {/* Calm Summary Strip (Platform Colors Only) */}
+          {/* Calm Summary Strip (Real dynamic metrics from actual database) */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
             gap: '12px',
             marginBottom: '20px'
           }}>
-            {[
-              { labelAr: 'إجمالي الاختبارات', val: `${exams.length}`, sub: 'اختبارات منشورة', icon: ClipboardList },
-              { labelAr: 'متاح للطلاب الآن', val: `${exams.filter(e => e.status === 'active').length}`, sub: 'يمكن للطلاب حلها', icon: Unlock },
-              { labelAr: 'إجمالي إجابات الطلاب', val: '6,240', sub: 'تم تصحيحها', icon: CheckCircle2 },
-              { labelAr: 'متوسط الدرجات العام', val: '86.4%', sub: 'مستوى استيعاب متقدم', icon: TrendingUp }
-            ].map((stat, i) => {
+            {(() => {
+              const totalExamsCount = exams.length;
+              const activeExamsCount = exams.filter(e => e.status === 'active').length;
+              const totalSubmissions = exams.reduce((sum, e) => sum + (Number(e.submissionsCount) || 0), 0);
+              const examsWithScores = exams.filter(e => (Number(e.submissionsCount) || 0) > 0 && e.avgScore !== undefined && e.avgScore !== null && Number(e.avgScore) > 0);
+              const overallAvgScore = examsWithScores.length > 0
+                ? (examsWithScores.reduce((sum, e) => {
+                    const full = Number(e.fullMark) || 1;
+                    const avg = Number(e.avgScore) || 0;
+                    return sum + ((avg / full) * 100);
+                  }, 0) / examsWithScores.length).toFixed(1) + '%'
+                : '0%';
+
+              return [
+                { 
+                  labelAr: 'إجمالي الاختبارات', 
+                  labelEn: 'Total Exams',
+                  val: `${totalExamsCount}`, 
+                  sub: isAr ? 'اختبارات تم إنشاؤها' : 'Created exams', 
+                  icon: ClipboardList 
+                },
+                { 
+                  labelAr: 'متاح للطلاب الآن', 
+                  labelEn: 'Active Exams',
+                  val: `${activeExamsCount}`, 
+                  sub: isAr ? 'يمكن للطلاب خوضها' : 'Available for students', 
+                  icon: Unlock 
+                },
+                { 
+                  labelAr: 'إجمالي إجابات الطلاب', 
+                  labelEn: 'Student Submissions',
+                  val: totalSubmissions > 0 ? totalSubmissions.toLocaleString('ar-EG') : '0', 
+                  sub: totalSubmissions > 0 ? (isAr ? 'إجابات تم تسليمها' : 'Submitted answers') : (isAr ? 'لا توجد تسليمات بعد' : 'No submissions yet'), 
+                  icon: CheckCircle2 
+                },
+                { 
+                  labelAr: 'متوسط الدرجات العام', 
+                  labelEn: 'Overall Average',
+                  val: overallAvgScore, 
+                  sub: totalSubmissions > 0 ? (isAr ? 'بناءً على نتائج الطلاب' : 'Based on student results') : (isAr ? 'بانتظار تصحيح الاختبارات' : 'Awaiting submissions'), 
+                  icon: TrendingUp 
+                }
+              ];
+            })().map((stat, i) => {
               const Icon = stat.icon;
               return (
                 <div
@@ -1445,23 +1865,34 @@ export const TeacherExamsView = () => {
 
               {/* 4. PDF Print Button */}
               <button
-                onClick={() => window.print()}
+                type="button"
+                onClick={() => setShowPrintModal(true)}
+                title={isAr ? 'طباعة ورقة امتحان الطالب كـ PDF' : 'Print Exam Paper PDF'}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 10px',
+                  gap: '5px',
+                  padding: '6px 12px',
                   borderRadius: '7px',
                   backgroundColor: 'var(--bg-surface-elevated)',
                   border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
+                  color: 'var(--text-primary)',
                   fontSize: '11.5px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.color = 'var(--primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
                 }}
               >
-                <Download size={13} />
-                <span>PDF</span>
+                <Printer size={13} color="var(--primary)" />
+                <span>{isAr ? 'طباعة الامتحان PDF' : 'Print PDF'}</span>
               </button>
             </div>
           </div>
@@ -1574,7 +2005,43 @@ export const TeacherExamsView = () => {
               }}>
                 إجمالي الدرجات: <strong style={{ color: 'var(--primary)', fontSize: '13px' }}>{selectedExam.fullMark} درجة</strong>
               </span>
-              <span>درجة النجاح: <strong style={{ color: 'var(--text-primary)' }}>{selectedExam.passScore}</strong></span>
+              {/* Editable Pass Score Pill (درجة النجاح) */}
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
+                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0'}`
+              }}>
+                <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--success)' }}>
+                  {isAr ? 'درجة النجاح:' : 'Pass Mark:'}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  max={selectedExam.fullMark || 1000}
+                  value={selectedExam.passScore !== undefined && selectedExam.passScore !== null ? selectedExam.passScore : ''}
+                  onChange={(e) => handleUpdatePassScore(e.target.value)}
+                  title={isAr ? 'اضغط لتعديل درجة النجاح (يتم حفظها فوراً وتحديث نسبة الاجتياز)' : 'Edit pass mark'}
+                  style={{
+                    width: '46px',
+                    padding: '2px 4px',
+                    fontSize: '12px',
+                    fontWeight: '900',
+                    color: 'var(--success)',
+                    textAlign: 'center',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '4px',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '700' }}>
+                  {isAr ? 'درجة' : 'pts'}
+                </span>
+              </div>
               <span>
                 إظهار النتيجة: <strong style={{ color: selectedExam.showResults !== false ? 'var(--success)' : '#D97706' }}>
                   {selectedExam.showResults !== false ? (isAr ? 'معلنة للطلاب ✓' : 'Visible') : (isAr ? 'محجوبة 🔒' : 'Hidden')}
@@ -2988,6 +3455,198 @@ export const TeacherExamsView = () => {
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PRINT EXAM PAPER MODAL (معاينة وطباعة ورقة الامتحان للطالب كـ PDF)
+          ══════════════════════════════════════════════════════════════════════ */}
+      {showPrintModal && (
+        <div 
+          className="screen-only-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            zIndex: 2500,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            backdropFilter: 'blur(3px)'
+          }}
+        >
+          <div style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            width: '100%',
+            maxWidth: '860px',
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 'var(--shadow-xl)',
+            overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Printer size={18} color="var(--primary)" />
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                  {isAr ? 'معاينة وطباعة ورقة الامتحان (PDF)' : 'Print Exam Paper (PDF)'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowPrintModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Toolbar: Student Paper vs Teacher Key */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 20px',
+              backgroundColor: 'var(--bg-surface)',
+              borderBottom: '1px solid var(--border-subtle)',
+              flexWrap: 'wrap',
+              gap: '10px'
+            }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPrintMode('student')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: `1.5px solid ${printMode === 'student' ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                    backgroundColor: printMode === 'student' ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                    color: printMode === 'student' ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isAr ? 'ورقة امتحان الطالب (للامتحان الورقي في الحصة - بدون إجابات)' : 'Student Paper (No Answers)'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPrintMode('teacher')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: `1.5px solid ${printMode === 'teacher' ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                    backgroundColor: printMode === 'teacher' ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                    color: printMode === 'teacher' ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isAr ? 'نموذج الإجابة المعتمد للمعلم' : 'Teacher Answer Key'}
+                </button>
+              </div>
+
+              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                {printMode === 'student'
+                  ? (isAr ? '✓ جاهزة للطباعة والتوزيع المباشر على الطلاب أمام المدرس' : 'Ready for direct distribution')
+                  : (isAr ? '✓ شاملة الإجابات النموذجية وتوزيع الدرجات' : 'Includes model answers')}
+              </div>
+            </div>
+
+            {/* Scrollable A4 Paper Preview */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px',
+              backgroundColor: isDark ? 'rgba(0, 0, 0, 0.4)' : '#f1f5f9'
+            }}>
+              <div style={{
+                maxWidth: '740px',
+                margin: '0 auto',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                borderRadius: '6px',
+                overflow: 'hidden'
+              }}>
+                {renderPrintableExamSheet(selectedExam, printMode)}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 20px',
+              borderTop: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-surface-elevated)'
+            }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                {isAr ? 'يمكنك اختيار الطابعة أو حفظ المستند كملف PDF عالي الجودة' : 'You can print or save as PDF'}
+              </span>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintModal(false)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.print();
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 20px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <Printer size={14} />
+                  <span>{isAr ? 'طباعة ورقة الامتحان (أو حفظ PDF)' : 'Print Exam Paper (or Save PDF)'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PRINTABLE SHEET DOM CONTAINER (يظهر فقط في الطباعة عبر @media print)
+          ══════════════════════════════════════════════════════════════════════ */}
+      <div id="exam-printable-student-sheet" className="print-only-container">
+        {renderPrintableExamSheet(selectedExam, printMode)}
+      </div>
     </div>
   );
 };
