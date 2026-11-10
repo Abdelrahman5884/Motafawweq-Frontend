@@ -349,6 +349,67 @@ export const TeacherExamsView = () => {
     title: ''
   });
 
+  // Selected Exam object with safe fallbacks
+  const selectedExam = exams.find(e => e.id === selectedExamId) || exams[0] || {
+    id: null,
+    titleAr: 'امتحان غير محدد',
+    courseTitleAr: '',
+    questions: [],
+    durationMinutes: 45,
+    fullMark: 0,
+    passScore: 0,
+    status: 'active',
+    showResults: true,
+  };
+
+  // Backend Questions Sync State
+  const [saveStatus, setSaveStatus] = useState({ state: 'idle', message: '' }); // 'idle' | 'saving' | 'saved' | 'error'
+
+  const syncExamQuestionsToBackend = async (examId, questions) => {
+    if (!examId) return;
+    setSaveStatus({ state: 'saving', message: isAr ? 'جارٍ حفظ الأسئلة...' : 'Saving questions...' });
+    try {
+      const targetExam = exams.find(e => e.id === examId);
+      const payloadQuestions = (questions || []).map((q, idx) => ({
+        number: idx + 1,
+        type: q.type || 'mcq',
+        points: Math.max(1, Math.round(Number(q.points) || 1)),
+        question_ar: q.questionAr?.trim() || `سؤال رقم (${idx + 1})`,
+        questionAr: q.questionAr?.trim() || `سؤال رقم (${idx + 1})`,
+        options_ar: q.type === 'mcq' ? (Array.isArray(q.optionsAr) && q.optionsAr.length >= 2 ? q.optionsAr : ['الخيار الأول', 'الخيار الثاني', 'الخيار الثالث', 'الخيار الرابع']) : undefined,
+        optionsAr: q.type === 'mcq' ? (Array.isArray(q.optionsAr) && q.optionsAr.length >= 2 ? q.optionsAr : ['الخيار الأول', 'الخيار الثاني', 'الخيار الثالث', 'الخيار الرابع']) : undefined,
+        correct_index: q.correctIndex !== undefined ? q.correctIndex : 0,
+        correctIndex: q.correctIndex !== undefined ? q.correctIndex : 0,
+        correct_bool: q.correctBool !== undefined ? q.correctBool : true,
+        correctBool: q.correctBool !== undefined ? q.correctBool : true,
+        model_answer_ar: q.type === 'essay' ? (q.modelAnswerAr || undefined) : undefined,
+        modelAnswerAr: q.type === 'essay' ? (q.modelAnswerAr || undefined) : undefined,
+        rubric_points_ar: q.type === 'essay' && Array.isArray(q.rubricPointsAr) ? q.rubricPointsAr : undefined,
+        rubricPointsAr: q.type === 'essay' && Array.isArray(q.rubricPointsAr) ? q.rubricPointsAr : undefined,
+        explanation_ar: q.explanationAr || undefined,
+        explanationAr: q.explanationAr || undefined,
+      }));
+
+      const payload = {
+        title_ar: targetExam?.titleAr || targetExam?.title || 'امتحان تقييمي',
+        questions: payloadQuestions,
+      };
+
+      const res = await teacherApi.exams.update(examId, payload);
+      if (res?.data) {
+        setExams(prev => prev.map(ex => ex.id === examId ? { ...ex, ...res.data } : ex));
+      }
+      setSaveStatus({ state: 'saved', message: isAr ? 'تم حفظ التعديلات بنجاح' : 'Changes saved successfully' });
+      setTimeout(() => {
+        setSaveStatus(prev => prev.state === 'saved' ? { state: 'idle', message: '' } : prev);
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to sync questions to backend:', err);
+      setSaveStatus({ state: 'error', message: isAr ? 'فشل حفظ الأسئلة' : 'Failed to save questions' });
+      alert(isAr ? (err.message || 'فشل حفظ الأسئلة على السيرفر') : (err.message || 'Failed to save questions to server'));
+    }
+  };
+
   // Question Inline Edit State (والامتحان يكون مغلق أقدر أعدل على الأسئلة والدرجات)
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [editBuffer, setEditBuffer] = useState({
@@ -379,12 +440,14 @@ export const TeacherExamsView = () => {
   };
 
   const handleSaveEditedQuestion = (qId) => {
-    const updatedQuestions = selectedExam.questions.map(q => {
+    if (!selectedExam || !selectedExam.id) return;
+    const currentQuestions = selectedExam.questions || [];
+    const updatedQuestions = currentQuestions.map(q => {
       if (q.id === qId) {
         return {
           ...q,
           questionAr: editBuffer.questionAr.trim() || q.questionAr,
-          points: editBuffer.points !== undefined ? Math.max(0.5, Number(editBuffer.points) || 1) : (q.points || 1),
+          points: editBuffer.points !== undefined ? Math.max(1, Math.round(Number(editBuffer.points) || 1)) : (q.points || 1),
           optionsAr: q.type === 'mcq' ? editBuffer.optionsAr : q.optionsAr,
           correctIndex: editBuffer.correctIndex,
           correctBool: editBuffer.correctBool,
@@ -406,13 +469,15 @@ export const TeacherExamsView = () => {
 
     setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
     setEditingQuestionId(null);
+    syncExamQuestionsToBackend(selectedExam.id, updatedQuestions);
   };
 
   // Directly update question points from the input & recalculate total marks
   const handleUpdateQuestionPoints = (questionId, newPointsVal) => {
-    if (!selectedExam) return;
-    const parsedPoints = Math.max(0.5, Number(newPointsVal) || 1);
-    const updatedQuestions = selectedExam.questions.map(q => {
+    if (!selectedExam || !selectedExam.id) return;
+    const parsedPoints = Math.max(1, Math.round(Number(newPointsVal) || 1));
+    const currentQuestions = selectedExam.questions || [];
+    const updatedQuestions = currentQuestions.map(q => {
       if (q.id === questionId) {
         return { ...q, points: parsedPoints };
       }
@@ -428,9 +493,24 @@ export const TeacherExamsView = () => {
     };
 
     setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+    syncExamQuestionsToBackend(selectedExam.id, updatedQuestions);
   };
 
-  const selectedExam = exams.find(e => e.id === selectedExamId) || exams[0];
+  // Duplicate Exam
+  const handleDuplicateExam = async (examId, e) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await teacherApi.exams.duplicate(examId);
+      if (res?.data) {
+        setExams(prev => [res.data, ...prev]);
+        setSelectedExamId(res.data.id);
+        alert(isAr ? 'تم نسخ الامتحان مع كافة الأسئلة بنجاح!' : 'Exam duplicated successfully!');
+      }
+    } catch (err) {
+      console.error('Failed to duplicate exam:', err);
+      alert(isAr ? (err.message || 'فشل نسخ الامتحان') : (err.message || 'Failed to duplicate exam'));
+    }
+  };
 
   useSetBreadcrumbs(
     viewMode === 'detail' && selectedExam
@@ -502,12 +582,21 @@ export const TeacherExamsView = () => {
   };
 
   // Open Exam Detail Page
-  const handleOpenExamDetail = (examId) => {
+  const handleOpenExamDetail = async (examId) => {
     setSelectedExamId(examId);
     setQuestionTypeFilter('all');
     setShowAnswerKey(true);
     setViewMode('detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      const res = await teacherApi.exams.get(examId);
+      if (res?.data) {
+        setExams(prev => prev.map(ex => ex.id === examId ? { ...ex, ...res.data } : ex));
+      }
+    } catch (err) {
+      console.warn('Failed to refresh exam detail:', err);
+    }
   };
 
   // Open Dedicated Create Wizard Page
@@ -601,13 +690,14 @@ export const TeacherExamsView = () => {
       if (viewMode === 'detail' && selectedExamId === deleteDialog.id) {
         setViewMode('list');
       }
-    } else if (deleteDialog.type === 'question' && selectedExam) {
-      if (selectedExam.questions.length <= 1) {
+    } else if (deleteDialog.type === 'question' && selectedExam && selectedExam.id) {
+      const currentQuestions = selectedExam.questions || [];
+      if (currentQuestions.length <= 1) {
         alert(isAr ? 'يجب أن يحتوي الاختبار على سؤال واحد على الأقل.' : 'Exam must contain at least one question.');
         setDeleteDialog({ isOpen: false, type: null, id: null, title: '' });
         return;
       }
-      const filtered = selectedExam.questions
+      const filtered = currentQuestions
         .filter(q => q.id !== deleteDialog.id)
         .map((q, idx) => ({ ...q, number: idx + 1 }));
 
@@ -620,16 +710,18 @@ export const TeacherExamsView = () => {
         questions: filtered
       };
       setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+      syncExamQuestionsToBackend(selectedExam.id, filtered);
     }
     setDeleteDialog({ isOpen: false, type: null, id: null, title: '' });
   };
 
   // Add a blank question directly into the exam (Top 3 buttons in detail page)
   const handleAddQuestionToExam = (type) => {
-    if (!selectedExam) return;
-    const currentQCount = selectedExam.questions.length;
-    const avgPts = selectedExam.questions.length > 0 
-      ? Math.round(selectedExam.fullMark / selectedExam.questions.length) 
+    if (!selectedExam || !selectedExam.id) return;
+    const currentQuestions = selectedExam.questions || [];
+    const currentQCount = currentQuestions.length;
+    const avgPts = currentQCount > 0 
+      ? Math.max(1, Math.round(selectedExam.fullMark / currentQCount)) 
       : 5;
     let newQ = null;
 
@@ -670,7 +762,7 @@ export const TeacherExamsView = () => {
       };
     }
 
-    const updatedQuestions = [...selectedExam.questions, newQ];
+    const updatedQuestions = [...currentQuestions, newQ];
     const newFullMark = updatedQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
 
     const updatedExam = {
@@ -680,19 +772,21 @@ export const TeacherExamsView = () => {
       questions: updatedQuestions
     };
     setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+    syncExamQuestionsToBackend(selectedExam.id, updatedQuestions);
   };
 
   // The Plus (+) Button on a question card: adds a blank question of the same type right below it
   const handleInsertBlankBelow = (referenceQuestion) => {
-    if (!selectedExam) return;
+    if (!selectedExam || !selectedExam.id) return;
+    const currentQuestions = selectedExam.questions || [];
     const newQ = {
       id: `q-blank-${Date.now()}`,
-      number: selectedExam.questions.length + 1,
-      points: referenceQuestion.points || 5,
-      type: referenceQuestion.type,
-      typeNameAr: referenceQuestion.typeNameAr,
-      questionAr: `سؤال جديد (${referenceQuestion.typeNameAr})`,
-      optionsAr: referenceQuestion.type === 'mcq' ? ['خيار 1', 'خيار 2', 'خيار 3', 'خيار 4'] : undefined,
+      number: currentQuestions.length + 1,
+      points: Math.max(1, Math.round(Number(referenceQuestion.points) || 5)),
+      type: referenceQuestion.type || 'mcq',
+      typeNameAr: referenceQuestion.typeNameAr || 'اختيار من متعدد',
+      questionAr: `سؤال جديد (${referenceQuestion.typeNameAr || 'اختيار من متعدد'})`,
+      optionsAr: referenceQuestion.type === 'mcq' ? ['الخيار الأول', 'الخيار الثاني', 'الخيار الثالث', 'الخيار الرابع'] : undefined,
       correctIndex: 0,
       correctBool: true,
       modelAnswerAr: referenceQuestion.type === 'essay' ? 'اكتب الإجابة النموذجية هنا...' : undefined,
@@ -700,16 +794,17 @@ export const TeacherExamsView = () => {
       explanationAr: 'تفسير الإجابة النموذجية.'
     };
 
-    const updatedQuestions = [...selectedExam.questions, newQ];
+    const updatedQuestions = [...currentQuestions, newQ];
     const newFullMark = updatedQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
 
     const updatedExam = {
       ...selectedExam,
-      questionsCount: selectedExam.questions.length + 1,
+      questionsCount: currentQuestions.length + 1,
       fullMark: newFullMark,
       questions: updatedQuestions
     };
     setExams(prev => prev.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+    syncExamQuestionsToBackend(selectedExam.id, updatedQuestions);
   };
 
   // Proceed from Step 1 to Step 2 in Wizard with equal distribution of points
@@ -766,22 +861,28 @@ export const TeacherExamsView = () => {
     const finalQuestions = builderQuestions.map((bq, idx) => ({
       ...bq,
       number: idx + 1,
-      points: Number(bq.points) || 1,
+      points: Math.max(1, Math.round(Number(bq.points) || 1)),
       type: bq.type || 'mcq',
       question_ar: bq.questionAr.trim() || `سؤال رقم (${idx + 1})`,
-      options_ar: bq.type === 'mcq' ? bq.optionsAr.map((opt, oIdx) => opt.trim() || `الخيار ${oIdx + 1}`) : undefined,
+      options_ar: bq.type === 'mcq' ? (Array.isArray(bq.optionsAr) && bq.optionsAr.length >= 2 ? bq.optionsAr.map((opt, oIdx) => opt.trim() || `الخيار ${oIdx + 1}`) : ['الخيار الأول', 'الخيار الثاني', 'الخيار الثالث', 'الخيار الرابع']) : undefined,
       correct_index: bq.correctIndex !== undefined ? bq.correctIndex : 0,
       correct_bool: bq.correctBool !== undefined ? bq.correctBool : true,
-      model_answer_ar: bq.modelAnswerAr || undefined,
+      model_answer_ar: bq.type === 'essay' ? (bq.modelAnswerAr || undefined) : undefined,
+      rubric_points_ar: bq.type === 'essay' && Array.isArray(bq.rubricPointsAr) ? bq.rubricPointsAr : undefined,
       explanation_ar: bq.explanationAr || undefined,
     }));
 
     const finalFullMark = finalQuestions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
 
+    const matchedCourse = availableCourses.find(c => 
+      (c.titleAr || c.title_ar || c.title) === formCourse
+    );
+
     const payload = {
       title_ar: finalTitle,
       title_en: finalTitle,
-      course_title_ar: formCourse,
+      course_id: matchedCourse?.uuid || matchedCourse?.id || undefined,
+      course_title_ar: formCourse || 'المقرر الدراسي',
       duration_minutes: Number(formDuration) || 45,
       full_mark: finalFullMark,
       pass_score: Number(formPassScore) || Math.round(finalFullMark * 0.6),
@@ -792,33 +893,14 @@ export const TeacherExamsView = () => {
     try {
       const res = await teacherApi.exams.create(payload);
       const createdExam = res.data;
-      setExams([createdExam, ...exams]);
+      setExams(prev => [createdExam, ...prev]);
       setSelectedExamId(createdExam.id);
+      setViewMode('detail');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      console.warn('Backend exam create error:', err);
-      const fallbackObj = {
-        id: `ex-${Date.now()}`,
-        titleAr: finalTitle,
-        titleEn: finalTitle,
-        courseTitleAr: formCourse,
-        questionsCount: finalQuestions.length,
-        durationMinutes: Number(formDuration) || 45,
-        fullMark: finalFullMark,
-        passScore: Number(formPassScore) || Math.round(finalFullMark * 0.6),
-        avgScore: 0,
-        passRate: 100,
-        topScoreCount: 0,
-        status: 'active',
-        showResults: formShowResults,
-        dueDate: '2026-10-15',
-        questions: finalQuestions,
-      };
-      setExams([fallbackObj, ...exams]);
-      setSelectedExamId(fallbackObj.id);
+      console.error('Backend exam create error:', err);
+      alert(isAr ? (err.message || 'فشل إنشاء الامتحان على السيرفر') : (err.message || 'Failed to create exam'));
     }
-
-    setViewMode('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Step builder: Next Question
@@ -1164,7 +1246,7 @@ export const TeacherExamsView = () => {
                       borderRadius: '6px',
                       marginBottom: '14px'
                     }}>
-                      <span>{exam.questions.length} أسئلة</span>
+                      <span>{exam.questions?.length ?? exam.questionsCount ?? 0} أسئلة</span>
                       <span>•</span>
                       <span>{exam.durationMinutes} دقيقة</span>
                       <span>•</span>
@@ -1196,6 +1278,34 @@ export const TeacherExamsView = () => {
                       }}
                     >
                       {isAr ? 'عرض الأسئلة ونموذج الإجابة' : 'View Exam & Answers'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDuplicateExam(exam.id, e)}
+                      title={isAr ? 'نسخ ومضاعفة الامتحان' : 'Duplicate Exam'}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: 'transparent',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = 'var(--primary)';
+                        e.currentTarget.style.borderColor = 'var(--primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--text-muted)';
+                        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                      }}
+                    >
+                      <Copy size={13} />
                     </button>
 
                     <button
@@ -1366,29 +1476,79 @@ export const TeacherExamsView = () => {
             marginBottom: '16px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
-              <h2 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {selectedExam.titleAr}
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                  {selectedExam.titleAr}
+                </h2>
+                {saveStatus.message && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: saveStatus.state === 'saving'
+                      ? (isDark ? 'rgba(0, 102, 204, 0.15)' : 'rgba(0, 102, 204, 0.08)')
+                      : saveStatus.state === 'error'
+                      ? (isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2')
+                      : (isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5'),
+                    color: saveStatus.state === 'saving'
+                      ? 'var(--primary)'
+                      : saveStatus.state === 'error'
+                      ? 'var(--danger)'
+                      : 'var(--success)',
+                    border: `1px solid ${saveStatus.state === 'saving' ? 'var(--primary)' : saveStatus.state === 'error' ? 'var(--danger)' : 'var(--success)'}`
+                  }}>
+                    {saveStatus.state === 'saving' ? '⏳ ' : saveStatus.state === 'saved' ? '✓ ' : '⚠️ '}
+                    {saveStatus.message}
+                  </span>
+                )}
+              </div>
 
-              <button
-                onClick={() => setShowAnswerKey(!showAnswerKey)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: showAnswerKey ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                  color: showAnswerKey ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                <Eye size={12} />
-                <span>{showAnswerKey ? (isAr ? 'نموذج الإجابة ظاهر' : 'Answers Visible') : (isAr ? 'إظهار نموذج الإجابة' : 'Show Answers')}</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => syncExamQuestionsToBackend(selectedExam.id, selectedExam.questions || [])}
+                  disabled={saveStatus.state === 'saving'}
+                  title={isAr ? 'حفظ الأسئلة يدوياً على السيرفر' : 'Save Questions'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    fontSize: '11.5px',
+                    fontWeight: '800',
+                    cursor: saveStatus.state === 'saving' ? 'wait' : 'pointer',
+                    boxShadow: 'var(--shadow-xs)'
+                  }}
+                >
+                  <Check size={12} />
+                  <span>{saveStatus.state === 'saving' ? (isAr ? 'جارٍ الحفظ...' : 'Saving...') : (isAr ? 'حفظ الأسئلة' : 'Save')}</span>
+                </button>
+
+                <button
+                  onClick={() => setShowAnswerKey(!showAnswerKey)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: showAnswerKey ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                    color: showAnswerKey ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Eye size={12} />
+                  <span>{showAnswerKey ? (isAr ? 'نموذج الإجابة ظاهر' : 'Answers Visible') : (isAr ? 'إظهار نموذج الإجابة' : 'Show Answers')}</span>
+                </button>
+              </div>
             </div>
 
             <div style={{
@@ -1401,7 +1561,7 @@ export const TeacherExamsView = () => {
               paddingTop: '8px',
               alignItems: 'center'
             }}>
-              <span>الأسئلة: <strong style={{ color: 'var(--text-primary)' }}>{selectedExam.questions.length}</strong></span>
+              <span>الأسئلة: <strong style={{ color: 'var(--text-primary)' }}>{(selectedExam.questions || []).length}</strong></span>
               <span>المدة: <strong style={{ color: 'var(--text-primary)' }}>{selectedExam.durationMinutes} دقيقة</strong></span>
               <span style={{
                 display: 'inline-flex',
@@ -1540,7 +1700,7 @@ export const TeacherExamsView = () => {
             flexWrap: 'wrap'
           }}>
             <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-              {isAr ? `الأسئلة (${selectedExam.questions.length})` : `Questions (${selectedExam.questions.length})`}
+              {isAr ? `الأسئلة (${(selectedExam.questions || []).length})` : `Questions (${(selectedExam.questions || []).length})`}
             </span>
 
             <div style={{ display: 'flex', gap: '6px' }}>
