@@ -117,7 +117,11 @@ export const GroupsProvider = ({ children }) => {
         scheduleEn: g.scheduleEn || g.schedule_en || 'Sundays & Wednesdays 4:00 PM',
         centerName: g.centerName || g.center_name || 'سنتر الرواد التعليمي',
         hallName: g.hallName || g.hall_name || 'القاعة الرئيسية',
-        priceEgp: Number(g.priceEgp || g.price_egp) || 450,
+        priceEgp: (g.priceEgp !== undefined && g.priceEgp !== null && !isNaN(Number(g.priceEgp)))
+          ? Number(g.priceEgp)
+          : (g.price_egp !== undefined && g.price_egp !== null && !isNaN(Number(g.price_egp)))
+          ? Number(g.price_egp)
+          : 0,
         joinCode: g.joinCode || g.join_code,
         maxStudents: Number(g.maxStudents || g.max_students) || 50,
         enrolledCount: Number(g.enrolledCount || g.enrolled_count) || 0,
@@ -210,7 +214,7 @@ export const GroupsProvider = ({ children }) => {
         subject_ar: groupData.subjectAr || 'الأحياء',
         grade_ar: groupData.gradeAr || 'الصف الثالث الثانوي',
         schedule_ar: groupData.scheduleAr || 'الأحد والأربعاء 4:00 عصراً',
-        price_egp: Number(groupData.priceEgp) || 450,
+        price_egp: groupData.priceEgp !== undefined && groupData.priceEgp !== '' && !isNaN(Number(groupData.priceEgp)) ? Number(groupData.priceEgp) : 0,
         max_students: Number(groupData.maxStudents) || 50,
         slots: slots.map((s) => ({
           day_of_week: s.day,
@@ -222,6 +226,11 @@ export const GroupsProvider = ({ children }) => {
 
       const res = await teacherApi.groups.create(payload);
       const g = res.data;
+      const rawCreatedPrice = g.priceEgp !== undefined && g.priceEgp !== null ? g.priceEgp : g.price_egp;
+      const createdPrice = rawCreatedPrice !== undefined && rawCreatedPrice !== null && !isNaN(Number(rawCreatedPrice))
+        ? Number(rawCreatedPrice)
+        : (groupData.priceEgp !== undefined && !isNaN(Number(groupData.priceEgp)) ? Number(groupData.priceEgp) : 0);
+
       const createdObj = {
         id: g.id || g.uuid,
         uuid: g.uuid || g.id,
@@ -233,7 +242,7 @@ export const GroupsProvider = ({ children }) => {
         centerName: g.centerName || g.center_name || groupData.centerName,
         hallName: g.hallName || g.hall_name || groupData.hallName,
         maxStudents: Number(g.maxStudents || g.max_students) || 50,
-        priceEgp: Number(g.priceEgp || g.price_egp) || 450,
+        priceEgp: createdPrice,
         joinCode: g.joinCode || g.join_code,
         scheduleSlots: slots,
       };
@@ -265,7 +274,9 @@ export const GroupsProvider = ({ children }) => {
         name_en: updatedData.nameEn || existing?.nameEn,
         center_name: updatedData.centerName || existing?.centerName,
         hall_name: updatedData.hallName || existing?.hallName,
-        price_egp: Number(updatedData.priceEgp) || existing?.priceEgp,
+        price_egp: updatedData.priceEgp !== undefined && updatedData.priceEgp !== '' && !isNaN(Number(updatedData.priceEgp))
+          ? Number(updatedData.priceEgp)
+          : (existing?.priceEgp ?? 0),
         max_students: Number(updatedData.maxStudents) || existing?.maxStudents,
         schedule_ar: updatedData.scheduleAr || existing?.scheduleAr,
         slots: slots.map((s) => ({

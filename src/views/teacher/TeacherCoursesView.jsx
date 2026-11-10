@@ -38,26 +38,30 @@ export const TeacherCoursesView = () => {
     teacherApi.courses.list()
       .then((res) => {
         if (mounted && res?.data && Array.isArray(res.data)) {
-          const mapped = res.data.map((c) => ({
-            id: c.uuid || c.id,
-            uuid: c.uuid || c.id,
-            title: c.titleAr || c.title_ar || c.title,
-            titleAr: c.titleAr || c.title_ar || c.title,
-            stage: c.stageType === 'prep' || c.stage_type === 'prep' ? 'المرحلة الإعدادية' : 'المرحلة الثانوية',
-            stageId: c.stageType || c.stage_type || 'sec',
-            gradeAr: c.gradeAr || c.grade_ar || 'الصف الثالث الثانوي',
-            subjectAr: c.subjectAr || c.subject_ar || 'الأحياء',
-            cover: c.coverImageUrl || c.cover || 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&auto=format&fit=crop&q=80',
-            priceEgp: Number(c.priceEgp || c.price_egp) || 350,
-            studentsCount: c.enrolledStudentsCount || c.studentsCount || 0,
-            rating: Number(c.rating) || 4.9,
-            lessonsCount: c.lessonsCount || c.lessons_count || 0,
-            hoursTotal: c.durationFormatted || c.hoursTotal || '10 ساعات',
-            status: c.status || 'published',
-            completionRate: 85,
-            revenueEgp: (Number(c.priceEgp || c.price_egp) || 350) * (c.enrolledStudentsCount || 0),
-            descriptionAr: c.descriptionAr || c.description_ar || 'مقرر دراسي معتمد على منصة متفوق.'
-          }));
+          const mapped = res.data.map((c) => {
+            const rawPrice = c.priceEgp !== undefined && c.priceEgp !== null ? c.priceEgp : c.price_egp;
+            const parsedPrice = rawPrice !== undefined && rawPrice !== null && !isNaN(Number(rawPrice)) ? Number(rawPrice) : 0;
+            return {
+              id: c.uuid || c.id,
+              uuid: c.uuid || c.id,
+              title: c.titleAr || c.title_ar || c.title,
+              titleAr: c.titleAr || c.title_ar || c.title,
+              stage: c.stageType === 'prep' || c.stage_type === 'prep' ? 'المرحلة الإعدادية' : 'المرحلة الثانوية',
+              stageId: c.stageType || c.stage_type || 'sec',
+              gradeAr: c.gradeAr || c.grade_ar || 'الصف الثالث الثانوي',
+              subjectAr: c.subjectAr || c.subject_ar || 'الأحياء',
+              cover: c.coverImageUrl || c.cover || 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&auto=format&fit=crop&q=80',
+              priceEgp: parsedPrice,
+              studentsCount: c.enrolledStudentsCount || c.studentsCount || 0,
+              rating: Number(c.rating) || 4.9,
+              lessonsCount: c.lessonsCount || c.lessons_count || 0,
+              hoursTotal: c.durationFormatted || c.hoursTotal || '10 ساعات',
+              status: c.status || 'published',
+              completionRate: 85,
+              revenueEgp: parsedPrice * (c.enrolledStudentsCount || 0),
+              descriptionAr: c.descriptionAr || c.description_ar || 'مقرر دراسي معتمد على منصة متفوق.'
+            };
+          });
           setCourses(mapped);
         }
       })
@@ -119,7 +123,7 @@ export const TeacherCoursesView = () => {
     stage: 'sec',
     grade: 'الصف الثالث الثانوي',
     subject: 'الأحياء',
-    price: '350',
+    price: '0',
     description: '',
     hours: '28 ساعة',
     lessonsCount: '14'
@@ -133,7 +137,7 @@ export const TeacherCoursesView = () => {
       stage: course.stageId || (course.stage === 'المرحلة الإعدادية' ? 'prep' : 'sec'),
       grade: course.gradeAr || 'الصف الثالث الثانوي',
       subject: course.subjectAr || 'الأحياء',
-      price: String(course.priceEgp || 300),
+      price: String(course.priceEgp !== undefined && course.priceEgp !== null ? course.priceEgp : 0),
       description: course.descriptionAr || '',
       hours: course.hoursTotal || '20 ساعة',
       lessonsCount: String(course.lessonsCount || 1)
@@ -144,13 +148,15 @@ export const TeacherCoursesView = () => {
     e.preventDefault();
     if (!editingCourse || !editForm.title.trim()) return;
 
+    const parsedPrice = editForm.price === '' ? 0 : Math.max(0, Number(editForm.price) || 0);
+
     try {
       if (editingCourse.uuid) {
         await teacherApi.courses.update(editingCourse.uuid, {
           title_ar: editForm.title.trim(),
           stage_type: editForm.stage,
           grade_ar: editForm.grade,
-          price_egp: Number(editForm.price) || 300,
+          price_egp: parsedPrice,
           description_ar: editForm.description.trim() || undefined,
         });
       }
@@ -165,7 +171,8 @@ export const TeacherCoursesView = () => {
             stageId: editForm.stage,
             gradeAr: editForm.grade,
             subjectAr: editForm.subject,
-            priceEgp: Number(editForm.price) || c.priceEgp,
+            priceEgp: parsedPrice,
+            revenueEgp: parsedPrice * (c.studentsCount || 0),
             descriptionAr: editForm.description,
             hoursTotal: editForm.hours || c.hoursTotal,
             lessonsCount: Number(editForm.lessonsCount) || c.lessonsCount
@@ -185,7 +192,7 @@ export const TeacherCoursesView = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newStage, setNewStage] = useState('sec');
   const [newGrade, setNewGrade] = useState('الصف الثالث الثانوي');
-  const [newPrice, setNewPrice] = useState('350');
+  const [newPrice, setNewPrice] = useState('0');
   const [newDesc, setNewDesc] = useState('');
 
   const filteredCourses = courses.filter(course => {
@@ -203,18 +210,23 @@ export const TeacherCoursesView = () => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
+    const parsedNewPrice = newPrice === '' ? 0 : Math.max(0, Number(newPrice) || 0);
+
     try {
       const res = await teacherApi.courses.create({
         title_ar: newTitle.trim(),
         stage_type: newStage,
         grade_ar: newGrade,
         subject_ar: 'الأحياء',
-        price_egp: Number(newPrice) || 300,
+        price_egp: parsedNewPrice,
         description_ar: newDesc.trim() || undefined,
         status: 'published',
       });
 
       const c = res.data;
+      const rawPrice = c.priceEgp !== undefined && c.priceEgp !== null ? c.priceEgp : c.price_egp;
+      const finalPrice = rawPrice !== undefined && rawPrice !== null && !isNaN(Number(rawPrice)) ? Number(rawPrice) : parsedNewPrice;
+
       const newCourseObj = {
         id: c.uuid || c.id || `course-${Date.now()}`,
         uuid: c.uuid,
@@ -225,7 +237,7 @@ export const TeacherCoursesView = () => {
         gradeAr: newGrade,
         subjectAr: 'الأحياء',
         cover: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&auto=format&fit=crop&q=80',
-        priceEgp: Number(newPrice) || 300,
+        priceEgp: finalPrice,
         studentsCount: 0,
         lessonsCount: 0,
         hoursTotal: '0 ساعة',
@@ -238,6 +250,7 @@ export const TeacherCoursesView = () => {
       setCourses(prev => [newCourseObj, ...prev]);
       setShowCreateModal(false);
       setNewTitle('');
+      setNewPrice('0');
       setNewDesc('');
     } catch (err) {
       console.error('Failed to create course:', err);
@@ -473,11 +486,13 @@ export const TeacherCoursesView = () => {
                     fontWeight: '800',
                     padding: '3px 9px',
                     borderRadius: '6px',
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
-                    color: 'var(--success)',
-                    border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : '#A7F3D0'}`
+                    backgroundColor: Number(course.priceEgp) === 0
+                      ? (isDark ? 'rgba(16, 185, 129, 0.22)' : '#D1FAE5')
+                      : (isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5'),
+                    color: Number(course.priceEgp) === 0 ? (isDark ? '#34D399' : '#047857') : 'var(--success)',
+                    border: `1px solid ${Number(course.priceEgp) === 0 ? (isDark ? 'rgba(16, 185, 129, 0.5)' : '#6EE7B7') : (isDark ? 'rgba(16, 185, 129, 0.25)' : '#A7F3D0')}`
                   }}>
-                    {course.priceEgp} {isAr ? 'ج.م / شهر' : 'EGP/mo'}
+                    {Number(course.priceEgp) === 0 ? (isAr ? 'مجاني' : 'Free') : `${course.priceEgp} ${isAr ? 'ج.م / شهر' : 'EGP/mo'}`}
                   </span>
 
                   {/* Edit Course Button */}
@@ -857,18 +872,40 @@ export const TeacherCoursesView = () => {
               </div>
 
               <div>
-                <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  {isAr ? 'سعر الاشتراك الشهري (ج.م):' : 'Monthly Price (EGP):'}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                    {isAr ? 'سعر الاشتراك الشهري (ج.م):' : 'Monthly Price (EGP):'}
+                  </label>
+                  <label style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: Number(newPrice) === 0 ? 'var(--success)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={Number(newPrice) === 0}
+                      onChange={(e) => setNewPrice(e.target.checked ? '0' : '350')}
+                      style={{ accentColor: 'var(--success)', cursor: 'pointer', width: '15px', height: '15px' }}
+                    />
+                    {isAr ? 'كورس مجاني (0 ج.م)' : 'Free Course (0 EGP)'}
+                  </label>
+                </div>
                 <input
                   type="number"
+                  min="0"
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
+                  placeholder={isAr ? 'أدخل 0 لكورس مجاني' : '0 for free'}
                   style={{
                     width: '100%',
                     padding: '9px 12px',
                     borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
+                    border: `1px solid ${Number(newPrice) === 0 ? 'var(--success)' : 'var(--border-subtle)'}`,
                     backgroundColor: 'var(--bg-subtle)',
                     color: 'var(--text-primary)',
                     fontSize: '13px',
@@ -877,6 +914,11 @@ export const TeacherCoursesView = () => {
                     boxSizing: 'border-box'
                   }}
                 />
+                {Number(newPrice) === 0 && (
+                  <span style={{ fontSize: '11.5px', color: 'var(--success)', fontWeight: '700', marginTop: '5px', display: 'inline-block' }}>
+                    {isAr ? '✓ هذا الكورس سيكون مجانياً ومتاحاً لجميع الطلاب دون رسوم' : '✓ This course will be free for all students'}
+                  </span>
+                )}
               </div>
 
               <div>
@@ -1107,18 +1149,40 @@ export const TeacherCoursesView = () => {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                    {isAr ? 'سعر الاشتراك الشهري (ج.م):' : 'Monthly Price (EGP):'}
-                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                      {isAr ? 'السعر (ج.م):' : 'Price (EGP):'}
+                    </label>
+                    <label style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: Number(editForm.price) === 0 ? 'var(--success)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={Number(editForm.price) === 0}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, price: e.target.checked ? '0' : '350' }))}
+                        style={{ accentColor: 'var(--success)', cursor: 'pointer', width: '14px', height: '14px' }}
+                      />
+                      {isAr ? 'مجاني (0)' : 'Free (0)'}
+                    </label>
+                  </div>
                   <input
                     type="number"
+                    min="0"
                     value={editForm.price}
                     onChange={(e) => setEditForm(prev => ({ ...prev, price: e.target.value }))}
+                    placeholder={isAr ? 'أدخل 0 لكورس مجاني' : '0 for free'}
                     style={{
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
+                      border: `1px solid ${Number(editForm.price) === 0 ? 'var(--success)' : 'var(--border-subtle)'}`,
                       backgroundColor: 'var(--bg-subtle)',
                       color: 'var(--text-primary)',
                       fontSize: '13px',
@@ -1127,6 +1191,11 @@ export const TeacherCoursesView = () => {
                       boxSizing: 'border-box'
                     }}
                   />
+                  {Number(editForm.price) === 0 && (
+                    <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '700', marginTop: '4px', display: 'inline-block' }}>
+                      {isAr ? '✓ كورس مجاني' : '✓ Free Course'}
+                    </span>
+                  )}
                 </div>
               </div>
 
