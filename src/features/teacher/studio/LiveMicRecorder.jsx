@@ -10,7 +10,8 @@ export const LiveMicRecorder = ({
   lang,
   onStartRecording,
   onPauseRecording,
-  onStopAndProcess
+  onStopAndProcess,
+  onRecordedFileReady,
 }) => {
   const [recordedAudioUrl, setRecordedAudioUrl] = useState(null);
   const [micPermissionError, setMicPermissionError] = useState(null);
@@ -74,11 +75,19 @@ export const LiveMicRecorder = ({
           streamRef.current.getTracks().forEach((track) => track.stop());
         }
 
-        onStopAndProcess(audioFile);
+        if (onRecordedFileReady) {
+          onRecordedFileReady(audioFile);
+        } else if (onStopAndProcess) {
+          onStopAndProcess(audioFile);
+        }
       };
       mediaRecorderRef.current.stop();
     } else {
-      onStopAndProcess(null);
+      if (onRecordedFileReady) {
+        onRecordedFileReady(null);
+      } else if (onStopAndProcess) {
+        onStopAndProcess(null);
+      }
     }
   };
 
@@ -205,11 +214,45 @@ export const LiveMicRecorder = ({
               }}
             >
               <Square size={16} fill="#FFFFFF" />
-              <span>{lang === 'ar' ? 'إنهاء وبدء المعالجة بالذكاء الاصطناعي' : 'Finish & Process with AI'}</span>
+              <span>{lang === 'ar' ? 'إيقاف وحفظ التسجيل' : 'Stop & Save Recording'}</span>
             </button>
           </>
         )}
       </div>
+
+      {micPermissionError && (
+        <div style={{
+          marginTop: '14px',
+          padding: '10px 14px',
+          borderRadius: '10px',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          color: '#EF4444',
+          fontSize: '12.5px',
+          fontWeight: '600',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <AlertCircle size={15} />
+          <span>{lang === 'ar' ? 'تعذر الوصول للميكروفون. يرجى السماح بالوصول للميكروفون من إعدادات المتصفح.' : `Microphone error: ${micPermissionError}`}</span>
+        </div>
+      )}
+
+      {recordedAudioUrl && !isRecording && (
+        <div style={{
+          marginTop: '18px',
+          padding: '14px 16px',
+          borderRadius: '12px',
+          backgroundColor: 'var(--bg-subtle)',
+          border: '1px solid var(--border-subtle)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '12.5px', fontWeight: '700', color: '#10B981', marginBottom: '8px' }}>
+            {lang === 'ar' ? '✓ تم تسجيل الصوت بنجاح — يمكنك الاستماع إليه قبل النشر' : '✓ Audio recorded — preview before publishing'}
+          </div>
+          <audio controls src={recordedAudioUrl} style={{ width: '100%', maxWidth: '460px' }} />
+        </div>
+      )}
 
       <div style={{ marginTop: '16px', fontSize: '12px', color: 'var(--text-secondary)' }}>
         {lang === 'ar'

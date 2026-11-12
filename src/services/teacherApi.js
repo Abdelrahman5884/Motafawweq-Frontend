@@ -93,10 +93,11 @@ export const teacherApi = {
       return payload;
     },
 
-    uploadPdf: async (uuid, file, titleAr = '') => {
+    uploadPdf: async (uuid, file, titleAr = '', pagesCount = null) => {
       const formData = new FormData();
-      formData.append('pdf_file', file);
-      if (titleAr) formData.append('title_ar', titleAr);
+      formData.append('file', file);
+      if (titleAr) formData.append('title', titleAr);
+      if (pagesCount) formData.append('pagesCount', pagesCount);
 
       const token = tokenStorage.getAccessToken();
       const res = await fetch(`${API_BASE_URL}/teacher/lessons/${uuid}/attachments/pdfs`, {
@@ -117,9 +118,9 @@ export const teacherApi = {
 
     uploadImage: async (uuid, file, { titleAr = '', captionAr = '', order = 1 } = {}) => {
       const formData = new FormData();
-      formData.append('image_file', file);
-      if (titleAr) formData.append('title_ar', titleAr);
-      if (captionAr) formData.append('caption_ar', captionAr);
+      formData.append('file', file);
+      if (titleAr) formData.append('title', titleAr);
+      if (captionAr) formData.append('caption', captionAr);
       if (order !== undefined) formData.append('order', order);
 
       const token = tokenStorage.getAccessToken();

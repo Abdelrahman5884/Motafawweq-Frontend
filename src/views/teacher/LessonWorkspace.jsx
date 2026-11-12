@@ -25,6 +25,8 @@ import {
   Layers,
   Loader2,
   Headphones,
+  Edit3,
+  UploadCloud,
 } from 'lucide-react';
 
 export const LessonWorkspace = () => {
@@ -51,6 +53,22 @@ export const LessonWorkspace = () => {
   // Image lightbox
   const [lightboxImage, setLightboxImage] = useState(null);
 
+  // Edit Lesson modal state
+  const [coursesList, setCoursesList] = useState([]);
+  const [groupsList, setGroupsList] = useState([]);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    titleAr: '',
+    descriptionAr: '',
+    courseId: '',
+    classGroup: '',
+    embedUrl: '',
+  });
+  const [editMediaFile, setEditMediaFile] = useState(null);
+  const [editNewPdfs, setEditNewPdfs] = useState([]);
+  const [editNewImages, setEditNewImages] = useState([]);
+
   // Real media refs
   const audioRef = useRef(null);
   const videoRef = useRef(null);
@@ -62,51 +80,73 @@ export const LessonWorkspace = () => {
     },
   ]);
 
-  // Fetch real lessons from backend
+  const mapLessons = (raw) =>
+    raw.map((l) => ({
+      id: l.id || l.uuid,
+      uuid: l.id || l.uuid,
+      courseId: l.courseId || '',
+      title: l.titleEn || l.titleAr || l.title || '',
+      titleAr: l.titleAr || l.title || '',
+      descriptionAr: l.descriptionAr || l.description || '',
+      unitAr: l.unitAr || l.courseTitleAr || l.subjectAr || '',
+      courseTitleAr: l.courseTitleAr || '',
+      subjectAr: l.subjectAr || l.subject || '',
+      gradeAr: l.gradeAr || l.grade || '',
+      classGroup: l.classGroup || '',
+      mediaType: l.mediaType || (l.mode === 'video' || l.mode === 'embed' ? 'video' : 'audio'),
+      mediaStreamUrl: l.mediaStreamUrl || null,
+      mediaOriginalName: l.mediaOriginalName || '',
+      mediaSizeBytes: l.mediaSizeBytes || 0,
+      embedUrl: l.embedUrl || '',
+      videoUrl: l.videoUrl || l.embedUrl || l.mediaStreamUrl || '',
+      isYoutube: Boolean(l.isYoutube),
+      durationFormatted: l.durationFormatted || l.durationLabel || '00:00',
+      durationSeconds: l.durationSeconds || 0,
+      recordedDate: (l.publishedAt || l.createdAt || '').slice(0, 10) || '',
+      aiFeatures: l.aiFeatures || { speechToText: false, conceptGraph: false, chapterIndexing: false },
+      chapters: Array.isArray(l.chapters) ? l.chapters : [],
+      transcript: Array.isArray(l.transcript) ? l.transcript : [],
+      notebookMindMap: l.notebookMindMap || null,
+      lessonPdfs: Array.isArray(l.lessonPdfs) ? l.lessonPdfs : [],
+      lessonImages: Array.isArray(l.lessonImages) ? l.lessonImages : [],
+    }));
+
+  const refreshLessons = async () => {
+    const res = await teacherApi.studio.listLessons();
+    const raw = Array.isArray(res?.data) ? res.data : [];
+    const mapped = mapLessons(raw);
+    setLessonsList(mapped);
+    return mapped;
+  };
+
+  // Fetch real lessons, courses, and groups from backend
   useEffect(() => {
     let mounted = true;
     setIsLoading(true);
 
-    teacherApi.studio
-      .listLessons()
-      .then((res) => {
+    Promise.allSettled([
+      teacherApi.studio.listLessons(),
+      teacherApi.courses.list(),
+      teacherApi.groups.list(),
+    ])
+      .then(([lessonsRes, coursesRes, groupsRes]) => {
         if (!mounted) return;
-        const raw = Array.isArray(res?.data) ? res.data : [];
-        const mapped = raw.map((l) => ({
-          id: l.id || l.uuid,
-          uuid: l.id || l.uuid,
-          title: l.titleEn || l.titleAr || l.title || '',
-          titleAr: l.titleAr || l.title || '',
-          descriptionAr: l.descriptionAr || l.description || '',
-          unitAr: l.unitAr || l.courseTitleAr || l.subjectAr || '',
-          courseTitleAr: l.courseTitleAr || '',
-          subjectAr: l.subjectAr || l.subject || '',
-          gradeAr: l.gradeAr || l.grade || '',
-          classGroup: l.classGroup || '',
-          mediaType: l.mediaType || (l.mode === 'video' || l.mode === 'embed' ? 'video' : 'audio'),
-          mediaStreamUrl: l.mediaStreamUrl || null,
-          mediaOriginalName: l.mediaOriginalName || '',
-          mediaSizeBytes: l.mediaSizeBytes || 0,
-          embedUrl: l.embedUrl || '',
-          videoUrl: l.videoUrl || l.embedUrl || l.mediaStreamUrl || '',
-          isYoutube: Boolean(l.isYoutube),
-          durationFormatted: l.durationFormatted || l.durationLabel || '00:00',
-          durationSeconds: l.durationSeconds || 0,
-          recordedDate: (l.publishedAt || l.createdAt || '').slice(0, 10) || '',
-          aiFeatures: l.aiFeatures || { speechToText: false, conceptGraph: false, chapterIndexing: false },
-          chapters: Array.isArray(l.chapters) ? l.chapters : [],
-          transcript: Array.isArray(l.transcript) ? l.transcript : [],
-          notebookMindMap: l.notebookMindMap || null,
-          lessonPdfs: Array.isArray(l.lessonPdfs) ? l.lessonPdfs : [],
-          lessonImages: Array.isArray(l.lessonImages) ? l.lessonImages : [],
-        }));
-
-        setLessonsList(mapped);
-        const savedUuid = sessionStorage.getItem('currentLessonUuid');
-        if (savedUuid && mapped.some((m) => m.id === savedUuid)) {
-          setSelectedLessonId(savedUuid);
-        } else if (mapped.length > 0) {
-          setSelectedLessonId(mapped[0].id);
+        if (lessonsRes.status === 'fulfilled') {
+          const raw = Array.isArray(lessonsRes.value?.data) ? lessonsRes.value.data : [];
+          const mapped = mapLessons(raw);
+          setLessonsList(mapped);
+          const savedUuid = sessionStorage.getItem('currentLessonUuid');
+          if (savedUuid && mapped.some((m) => m.id === savedUuid)) {
+            setSelectedLessonId(savedUuid);
+          } else if (mapped.length > 0) {
+            setSelectedLessonId(mapped[0].id);
+          }
+        }
+        if (coursesRes.status === 'fulfilled' && Array.isArray(coursesRes.value?.data)) {
+          setCoursesList(coursesRes.value.data);
+        }
+        if (groupsRes.status === 'fulfilled' && Array.isArray(groupsRes.value?.data)) {
+          setGroupsList(groupsRes.value.data);
         }
       })
       .catch((err) => {
@@ -160,6 +200,84 @@ export const LessonWorkspace = () => {
         videoRef.current.play().catch(() => {});
       }
     }, 50);
+  };
+
+  const handleOpenEditModal = () => {
+    if (!currentLesson) return;
+    setEditForm({
+      titleAr: currentLesson.titleAr || '',
+      descriptionAr: currentLesson.descriptionAr || '',
+      courseId: currentLesson.courseId || '',
+      classGroup: currentLesson.classGroup || '',
+      embedUrl: currentLesson.embedUrl || '',
+    });
+    setEditMediaFile(null);
+    setEditNewPdfs([]);
+    setEditNewImages([]);
+    setIsEditOpen(true);
+  };
+
+  const handleSaveLessonEdit = async (e) => {
+    e.preventDefault();
+    if (!currentLesson || isSavingEdit) return;
+
+    if (editMediaFile && editMediaFile.size > 52428800) {
+      alert(lang === 'ar' ? 'حجم الملف يتجاوز 50 ميجابايت.' : 'File exceeds 50 MB limit.');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      await teacherApi.studio.updateLesson(currentLesson.id, {
+        title_ar: editForm.titleAr,
+        description_ar: editForm.descriptionAr,
+        course_uuid: editForm.courseId || null,
+        target_group_code: editForm.classGroup,
+        embed_url: editForm.embedUrl || '',
+      });
+
+      if (editMediaFile) {
+        try {
+          await teacherApi.studio.uploadMediaDirect(currentLesson.id, editMediaFile, {});
+        } catch {
+          await teacherApi.studio.uploadMedia(currentLesson.id, editMediaFile, {});
+        }
+      }
+
+      const attTasks = [];
+      editNewPdfs.forEach((file) => {
+        attTasks.push(teacherApi.studio.uploadPdf(currentLesson.id, file, file.name.replace(/\.[^/.]+$/, '')));
+      });
+      editNewImages.forEach((file, idx) => {
+        attTasks.push(
+          teacherApi.studio.uploadImage(currentLesson.id, file, {
+            titleAr: file.name.replace(/\.[^/.]+$/, ''),
+            order: (currentLesson.lessonImages?.length || 0) + idx + 1,
+          })
+        );
+      });
+      if (attTasks.length > 0) {
+        await Promise.all(attTasks);
+      }
+
+      await refreshLessons();
+      setIsEditOpen(false);
+    } catch (err) {
+      console.warn('Update lesson error:', err);
+      alert(err?.message || (lang === 'ar' ? 'حدث خطأ أثناء حفظ التعديلات.' : 'Failed to save changes.'));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteExistingAttachment = async (attachmentId) => {
+    if (!currentLesson) return;
+    try {
+      await teacherApi.studio.deleteAttachment(currentLesson.id, attachmentId);
+      await refreshLessons();
+    } catch (err) {
+      console.warn('Delete attachment error:', err);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -579,7 +697,7 @@ export const LessonWorkspace = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                     {currentLesson.recordedDate && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                         <Calendar size={14} />
@@ -590,6 +708,26 @@ export const LessonWorkspace = () => {
                       <Clock size={14} />
                       {currentLesson.durationFormatted}
                     </span>
+                    <button
+                      type="button"
+                      onClick={handleOpenEditModal}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--primary)',
+                        backgroundColor: 'var(--primary-surface)',
+                        color: 'var(--primary)',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Edit3 size={14} />
+                      <span>{lang === 'ar' ? 'تعديل الحصة' : 'Edit Lesson'}</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1161,6 +1299,271 @@ export const LessonWorkspace = () => {
               style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', display: 'block', backgroundColor: '#000' }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Edit Lesson Modal */}
+      {isEditOpen && currentLesson && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+        >
+          <form
+            onSubmit={handleSaveLessonEdit}
+            style={{
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '24px',
+              maxWidth: '620px',
+              width: '100%',
+              maxHeight: '88vh',
+              overflowY: 'auto',
+              boxShadow: 'var(--shadow-xl)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                {lang === 'ar' ? 'تعديل بيانات وملفات الحصة' : 'Edit Lesson & Materials'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                {lang === 'ar' ? 'عنوان الحصة' : 'Lesson Title'}
+              </label>
+              <input
+                type="text"
+                required
+                value={editForm.titleAr}
+                onChange={(e) => setEditForm((p) => ({ ...p, titleAr: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '13.5px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'المقرر الدراسي' : 'Course'}
+                </label>
+                <select
+                  value={editForm.courseId}
+                  onChange={(e) => setEditForm((p) => ({ ...p, courseId: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                  }}
+                >
+                  <option value="">{lang === 'ar' ? '-- بدون ربط بمقرر --' : '-- None --'}</option>
+                  {coursesList.map((c) => (
+                    <option key={c.uuid || c.id} value={c.uuid || c.id}>
+                      {c.titleAr || c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'المجموعة والقاعة' : 'Group'}
+                </label>
+                <select
+                  value={editForm.classGroup}
+                  onChange={(e) => setEditForm((p) => ({ ...p, classGroup: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                  }}
+                >
+                  <option value="">{lang === 'ar' ? '-- اختر المجموعة --' : '-- Select Group --'}</option>
+                  {groupsList.map((g) => (
+                    <option key={g.uuid || g.id || g.code} value={g.code || g.uuid || g.id}>
+                      {g.nameAr || g.name || g.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                {lang === 'ar' ? 'وصف الحصة' : 'Description'}
+              </label>
+              <textarea
+                rows={3}
+                value={editForm.descriptionAr}
+                onChange={(e) => setEditForm((p) => ({ ...p, descriptionAr: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                {lang === 'ar' ? 'استبدال أو رفع ملف صوت/فيديو جديد (اختياري)' : 'Replace / Upload Audio or Video (Optional)'}
+              </label>
+              <input
+                type="file"
+                accept="audio/*,video/*"
+                onChange={(e) => setEditMediaFile(e.target.files?.[0] || null)}
+                style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                {lang === 'ar' ? 'رابط يوتيوب أو فيديو خارجي (اختياري)' : 'YouTube / External Video URL'}
+              </label>
+              <input
+                type="url"
+                value={editForm.embedUrl}
+                onChange={(e) => setEditForm((p) => ({ ...p, embedUrl: e.target.value }))}
+                placeholder="https://youtube.com/watch?v=..."
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'إضافة ملفات PDF جديدة' : 'Add New PDFs'}
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  multiple
+                  onChange={(e) => setEditNewPdfs(Array.from(e.target.files || []))}
+                  style={{ fontSize: '12px', color: 'var(--text-secondary)' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'إضافة صور سبورة جديدة' : 'Add New Whiteboard Images'}
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setEditNewImages(Array.from(e.target.files || []))}
+                  style={{ fontSize: '12px', color: 'var(--text-secondary)' }}
+                />
+              </div>
+            </div>
+
+            {/* Existing attachments quick delete */}
+            {((currentLesson.lessonPdfs?.length || 0) > 0 || (currentLesson.lessonImages?.length || 0) > 0) && (
+              <div style={{ padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-subtle)' }}>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  {lang === 'ar' ? 'المرفقات الحالية:' : 'Current Attachments:'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {[...(currentLesson.lessonPdfs || []), ...(currentLesson.lessonImages || [])].map((att) => (
+                    <div key={att.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--text-primary)' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.title || att.fileName}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExistingAttachment(att.id)}
+                        style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
+                      >
+                        {lang === 'ar' ? 'حذف' : 'Remove'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingEdit}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: isSavingEdit ? 'not-allowed' : 'pointer',
+                  opacity: isSavingEdit ? 0.65 : 1,
+                }}
+              >
+                {isSavingEdit ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

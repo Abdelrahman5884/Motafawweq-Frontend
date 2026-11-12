@@ -68,44 +68,24 @@ export const VideoLessonUploader = ({
   };
 
   const startUpload = (file) => {
-    // Reset any previous state
     if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
     setUploadingFile(file);
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadedBytes(0);
+    setIsUploading(false);
+    setUploadProgress(100);
+    setUploadedBytes(file.size || 0);
 
-    const totalBytes = file.size || 185 * 1024 * 1024;
-    let currentPct = 0;
-
-    uploadTimerRef.current = setInterval(() => {
-      currentPct += Math.floor(Math.random() * 8) + 6;
-      if (currentPct >= 100) {
-        currentPct = 100;
-        clearInterval(uploadTimerRef.current);
-        setUploadProgress(100);
-        setUploadedBytes(totalBytes);
-        setIsUploading(false);
-
-        // Create object URL and commit video data
-        const url = URL.createObjectURL(file);
-        const finalData = {
-          type: 'file',
-          file: file,
-          url: url,
-          name: file.name,
-          size: formatFileSize(file.size),
-          duration: '45:30',
-          uploadedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-          isUploaded: true
-        };
-        setVideoData(finalData);
-      } else {
-        setUploadProgress(currentPct);
-        setUploadedBytes(Math.floor((totalBytes * currentPct) / 100));
-        setUploadSpeed((13 + Math.random() * 6).toFixed(1) + ' MB/s');
-      }
-    }, 220);
+    const url = URL.createObjectURL(file);
+    const finalData = {
+      type: 'file',
+      file: file,
+      url: url,
+      name: file.name,
+      size: formatFileSize(file.size),
+      duration: '45:30',
+      uploadedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+      isUploaded: true
+    };
+    setVideoData(finalData);
   };
 
   const handleCancelUpload = () => {

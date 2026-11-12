@@ -21,6 +21,7 @@ export const RecordingStudio = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [uploadedAudioFile, setUploadedAudioFile] = useState(null);
+  const [recordedMicFile, setRecordedMicFile] = useState(null);
 
   // Video state
   const [videoData, setVideoData] = useState(null);
@@ -188,13 +189,11 @@ export const RecordingStudio = () => {
     lessonImages.forEach((img, idx) => {
       if (img.fileObj) {
         tasks.push(
-          teacherApi.studio.uploadImage(
-            lessonUuid,
-            img.fileObj,
-            img.title || img.fileName,
-            img.caption || '',
-            img.order || idx + 1
-          ).catch((err) => console.warn('Image upload failed:', err))
+          teacherApi.studio.uploadImage(lessonUuid, img.fileObj, {
+            titleAr: img.title || img.fileName,
+            captionAr: img.caption || '',
+            order: img.order || idx + 1,
+          }).catch((err) => console.warn('Image upload failed:', err))
         );
       }
     });
@@ -265,8 +264,59 @@ export const RecordingStudio = () => {
     } finally {
       setIsSubmitting(false);
       setUploadStatusText('');
-      navigate('/teacher/processing');
+      const hasAnyAi = isProPlan && Object.values(effectiveAiFeatures).some(Boolean);
+      navigate(hasAnyAi ? '/teacher/processing' : '/teacher/workspace');
     }
+  };
+
+  const handleFinalSubmitAll = async () => {
+    if (isRecording) {
+      alert(lang === 'ar' ? 'يرجى إيقاف التسجيل الصوتي أولاً قبل الحفظ والنشر.' : 'Please stop the live recording first.');
+      return;
+    }
+
+    const audioUploadRaw = uploadedAudioFile?.rawFile || uploadedAudioFile?.file || (uploadedAudioFile instanceof File || uploadedAudioFile instanceof Blob ? uploadedAudioFile : null);
+    const videoFile = videoData?.file || null;
+    const rawUrl = videoData?.youtubeUrl || videoData?.url || '';
+    const safeEmbedUrl = rawUrl.startsWith('https://') ? rawUrl : '';
+
+    let mediaMode = 'audio';
+    let mediaFile = null;
+    let durationSeconds = 1800;
+
+    if (mode === 'video' && (videoFile || safeEmbedUrl)) {
+      mediaMode = safeEmbedUrl ? 'embed' : 'video';
+      mediaFile = videoFile;
+      durationSeconds = videoData?.durationSeconds || 2400;
+    } else if (mode === 'audio' && audioUploadRaw) {
+      mediaMode = 'audio';
+      mediaFile = audioUploadRaw;
+    } else if (recordedMicFile) {
+      mediaMode = 'audio';
+      mediaFile = recordedMicFile;
+      durationSeconds = elapsedSeconds || 60;
+    } else if (audioUploadRaw) {
+      mediaMode = 'audio';
+      mediaFile = audioUploadRaw;
+    } else if (videoFile || safeEmbedUrl) {
+      mediaMode = safeEmbedUrl ? 'embed' : 'video';
+      mediaFile = videoFile;
+      durationSeconds = videoData?.durationSeconds || 2400;
+    }
+
+    if (mediaFile && mediaFile.size > 52428800) {
+      alert(lang === 'ar' ? 'حجم الملف يتجاوز 50 ميجابايت (الحد الأقصى للتخزين السحابي).' : 'File size exceeds 50 MB upload limit.');
+      return;
+    }
+
+    await submitLessonAndUpload({
+      mediaMode,
+      mediaFile,
+      embedUrl: safeEmbedUrl,
+      isYoutube: Boolean(videoData?.youtubeUrl || videoData?.isYoutube),
+      durationSeconds,
+      defaultTitle: lang === 'ar' ? 'حصة دراسية جديدة' : 'New Lesson',
+    });
   };
 
   const handleStopAndProcess = async (recordedAudioFile = null) => {
@@ -323,409 +373,437 @@ export const RecordingStudio = () => {
 
   return (
     <div style={{
-      maxWidth: '1060px',
+      maxWidth: '1260px',
       margin: '0 auto',
-      padding: '40px 24px 80px',
-      fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit'
+      padding: '28px 24px 72px',
+      fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit',
+      direction: isRtl ? 'rtl' : 'ltr',
     }}>
       {/* Studio Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <Radio size={20} color="var(--primary)" />
-          <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.5px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <Radio size={18} color="var(--primary)" />
+          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>
             {lang === 'ar' ? 'استوديو التسجيل الذكي والمواد التعليمية' : 'Smart Recording & Materials Studio'}
           </span>
         </div>
         <h1 style={{
-          fontSize: '28px',
+          fontSize: '24px',
           fontWeight: '800',
           color: 'var(--text-primary)',
-          marginBottom: '8px',
+          margin: '0 0 6px 0',
           fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
         }}>
-          {lang === 'ar' ? 'تسجيل وإعداد حصة جديدة ومعالجتها بالذكاء الاصطناعي' : 'Setup & Record New Lesson with AI Processing'}
+          {lang === 'ar' ? 'إعداد وتسجيل حصة جديدة' : 'Setup & Record New Lesson'}
         </h1>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '820px' }}>
-          {lang === 'ar' 
-            ? 'سجل صوت الحصة مباشرة، أو ارفع تسجيلاً صوتياً أو فيديو، وأرفق ملازم الشرح (PDF) وصور السبورة بالترتيب ليتمكن طلابك من مراجعتها بذكاء.'
-            : 'Record classroom lecture via live mic, upload audio/video, and attach multiple PDF notes and ordered whiteboard photos for students.'}
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0, maxWidth: '760px' }}>
+          {lang === 'ar'
+            ? 'أدخل بيانات الحصة والمقرر، ثم سجل الصوت أو ارفع الملف وأرفق ملازم الشرح (PDF) وصور السبورة.'
+            : 'Enter lesson & course details, then record or upload media and attach PDFs & whiteboard photos.'}
         </p>
       </div>
 
-      {/* Lesson Configuration Card (Includes Title, Description, Subject, Grade, Course, Class Group) */}
-      <StudioLessonConfigCard
-        title={title}
-        setTitle={setTitle}
-        description={description}
-        setDescription={setDescription}
-        subject={subject}
-        setSubject={setSubject}
-        grade={grade}
-        setGrade={setGrade}
-        classGroup={classGroup}
-        setClassGroup={setClassGroup}
-        groups={availableGroups}
-        courses={availableCourses}
-        selectedCourseId={selectedCourseId}
-        setSelectedCourseId={setSelectedCourseId}
-        subjectOptions={subjectOptions}
-        stageOptions={stageOptions}
-        lang={lang}
-        isRtl={isRtl}
-      />
-
-      {/* AI Output Modules Selection Card (Text, Concept Graph, Chapters) */}
+      {/* 2-Column Clean Studio Grid */}
       <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1px solid var(--border-medium)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '24px 28px',
-        marginBottom: '24px',
-        boxShadow: 'var(--shadow-sm)',
-        textAlign: isRtl ? 'right' : 'left',
-        position: 'relative',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+        gap: '22px',
+        alignItems: 'start',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={18} color="var(--primary)" />
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-              {lang === 'ar' ? 'تحديد مخرجات محرك الذكاء الاصطناعي للحصة' : 'Select AI Output Capabilities'}
-            </h3>
-            {!isProPlan && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'rgba(245, 158, 11, 0.14)',
-                color: '#D97706',
-                fontSize: '11px',
-                fontWeight: '800',
-              }}>
-                <Crown size={12} />
-                <span>{lang === 'ar' ? 'حصري لباقة Pro' : 'Pro Only'}</span>
-              </span>
-            )}
-          </div>
-          {!isProPlan && (
-            <button
-              type="button"
-              onClick={() => navigate('/teacher/billing')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: 'var(--radius-full)',
-                border: 'none',
-                backgroundColor: '#D97706',
-                color: '#FFFFFF',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              <Lock size={13} />
-              <span>{lang === 'ar' ? 'اشترك في Pro لتفعيل الذكاء الاصطناعي' : 'Upgrade to Pro to Unlock AI'}</span>
-            </button>
-          )}
-        </div>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px 0', lineHeight: 1.5 }}>
-          {!isProPlan
-            ? (lang === 'ar'
-                ? 'ميزات التفريغ النصي وخريطة المفاهيم وفهرسة الفصول بالذكاء الاصطناعي متاحة فقط لمشتركي باقة Pro. يمكنك رفع الحصة والمرفقات الآن بشكل طبيعي.'
-                : 'AI transcription, concept graph, and chapter indexing require a Pro subscription. You can still upload and publish lessons normally.')
-            : (lang === 'ar'
-                ? 'حدد التقنيات والتحليلات التي تريد توليدها تلقائياً بعد رفع أو تسجيل الحصة (مثل التفريغ النصي وخريطة المفاهيم الشجرية).'
-                : 'Select which intelligence outputs to generate automatically upon lesson processing (Transcript, Concept Tree, Chapters).')}
-        </p>
-
-        {/* 3 Interactive Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '12px',
-          opacity: isProPlan ? 1 : 0.52,
-          pointerEvents: isProPlan ? 'auto' : 'none',
-        }}>
-          {/* Module 1: Speech-to-Text */}
-          <div
-            onClick={() => handleToggleAIFeature('speechToText')}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px',
-              padding: '16px',
-              borderRadius: 'var(--radius-lg)',
-              border: `1.5px solid ${aiFeatures.speechToText ? 'var(--primary)' : 'var(--border-subtle)'}`,
-              backgroundColor: aiFeatures.speechToText ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              position: 'relative'
-            }}
-          >
-            <div style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '6px',
-              border: `2px solid ${aiFeatures.speechToText ? 'var(--primary)' : 'var(--border-medium)'}`,
-              backgroundColor: aiFeatures.speechToText ? 'var(--primary)' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              flexShrink: 0,
-              marginTop: '2px'
-            }}>
-              {aiFeatures.speechToText && <Check size={14} strokeWidth={3} />}
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <FileText size={15} color="var(--primary)" />
-                <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'التفريغ النصي (Speech-to-Text)' : 'Speech-to-Text Transcript'}
-                </span>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                {lang === 'ar'
-                  ? 'تحويل صوت الشرح إلى نص مقروء بدقة عالية باللهجة المصرية والمصطلحات العلمية مع إمكانية البحث.'
-                  : 'Egyptian dialect ASR transcription synchronized with seconds.'}
-              </p>
-            </div>
-          </div>
-
-          {/* Module 2: Concept Graph (NotebookLM Style) */}
-          <div
-            onClick={() => handleToggleAIFeature('conceptGraph')}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px',
-              padding: '16px',
-              borderRadius: 'var(--radius-lg)',
-              border: `1.5px solid ${aiFeatures.conceptGraph ? '#0EA5E9' : 'var(--border-subtle)'}`,
-              backgroundColor: aiFeatures.conceptGraph ? 'rgba(14, 165, 233, 0.08)' : 'var(--bg-subtle)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              position: 'relative'
-            }}
-          >
-            <div style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '6px',
-              border: `2px solid ${aiFeatures.conceptGraph ? '#0EA5E9' : 'var(--border-medium)'}`,
-              backgroundColor: aiFeatures.conceptGraph ? '#0EA5E9' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              flexShrink: 0,
-              marginTop: '2px'
-            }}>
-              {aiFeatures.conceptGraph && <Check size={14} strokeWidth={3} />}
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <Share2 size={15} color="#0EA5E9" />
-                <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'خريطة المفاهيم (NotebookLM Graph)' : 'Interactive Concept Graph'}
-                </span>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                {lang === 'ar'
-                  ? 'استخراج شجرة المفاهيم المترابطة التفاعلية مطابقة لـ Google NotebookLM مع دعم ملء الشاشة على الهاتف.'
-                  : 'Interactive hierarchical knowledge tree matching Google NotebookLM.'}
-              </p>
-            </div>
-          </div>
-
-          {/* Module 3: Chapters & Timestamps */}
-          <div
-            onClick={() => handleToggleAIFeature('chapterIndexing')}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px',
-              padding: '16px',
-              borderRadius: 'var(--radius-lg)',
-              border: `1.5px solid ${aiFeatures.chapterIndexing ? '#10B981' : 'var(--border-subtle)'}`,
-              backgroundColor: aiFeatures.chapterIndexing ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-subtle)',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              position: 'relative'
-            }}
-          >
-            <div style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '6px',
-              border: `2px solid ${aiFeatures.chapterIndexing ? '#10B981' : 'var(--border-medium)'}`,
-              backgroundColor: aiFeatures.chapterIndexing ? '#10B981' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              flexShrink: 0,
-              marginTop: '2px'
-            }}>
-              {aiFeatures.chapterIndexing && <Check size={14} strokeWidth={3} />}
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <Clock size={15} color="#10B981" />
-                <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'فهرسة الفصول والتوقيتات (Chapters)' : 'Smart Chapter Indexing'}
-                </span>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                {lang === 'ar'
-                  ? 'تقسيم المحاضرة إلى فصول زمنية مع إمكانية القفز السريع للحظة الشرح المطلوبة بالثواني.'
-                  : 'Automatic chapter division and timestamps for quick student scrubbing.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Media Input Card (Live Mic / Upload Audio / Upload or Embed Video) */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1px solid var(--border-medium)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '32px',
-        boxShadow: 'var(--shadow-sm)',
-        textAlign: 'center'
-      }}>
-        {/* Toggle Mode Pills: 3 Modes */}
-        <div style={{
-          display: 'inline-flex',
-          backgroundColor: 'var(--bg-subtle)',
-          padding: '5px',
-          borderRadius: 'var(--radius-full)',
-          marginBottom: '32px',
-          gap: '6px',
-          flexWrap: 'wrap',
-          justifyContent: 'center'
-        }}>
-          {/* Mode 1: Live Mic */}
-          <button
-            type="button"
-            onClick={() => setMode('mic')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '9px 20px',
-              borderRadius: 'var(--radius-full)',
-              border: 'none',
-              backgroundColor: mode === 'mic' ? 'var(--primary)' : 'transparent',
-              color: mode === 'mic' ? '#FFFFFF' : 'var(--text-secondary)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Mic size={16} />
-            <span>{lang === 'ar' ? 'تسجيل صوتي بالميكروفون' : 'Live Microphone'}</span>
-          </button>
-
-          {/* Mode 2: Audio File Upload */}
-          <button
-            type="button"
-            onClick={() => setMode('audio')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '9px 20px',
-              borderRadius: 'var(--radius-full)',
-              border: 'none',
-              backgroundColor: mode === 'audio' ? 'var(--primary)' : 'transparent',
-              color: mode === 'audio' ? '#FFFFFF' : 'var(--text-secondary)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <UploadCloud size={16} />
-            <span>{lang === 'ar' ? 'رفع ملف صوتي مسجل' : 'Upload Audio File'}</span>
-          </button>
-
-          {/* Mode 3: Video Lesson */}
-          <button
-            type="button"
-            onClick={() => setMode('video')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '9px 20px',
-              borderRadius: 'var(--radius-full)',
-              border: 'none',
-              backgroundColor: mode === 'video' ? 'var(--primary)' : 'transparent',
-              color: mode === 'video' ? '#FFFFFF' : 'var(--text-secondary)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Video size={16} />
-            <span>{lang === 'ar' ? 'فيديو الحصة (رفع / يوتيوب)' : 'Lesson Video (File / Embed)'}</span>
-          </button>
-        </div>
-
-        {/* Selected Media Component */}
-        {mode === 'mic' && (
-          <LiveMicRecorder
-            isRecording={isRecording}
-            isPaused={isPaused}
-            elapsedSeconds={elapsedSeconds}
-            formatTime={formatTime}
-            lang={lang}
-            onStartRecording={handleStartRecording}
-            onPauseRecording={handlePauseRecording}
-            onStopAndProcess={handleStopAndProcess}
-          />
-        )}
-
-        {mode === 'audio' && (
-          <AudioFileUploader
-            uploadedFile={uploadedAudioFile}
-            lang={lang}
-            onSelectFile={setUploadedAudioFile}
-            onStartProcessing={handleAudioStartProcessing}
-          />
-        )}
-
-        {mode === 'video' && (
-          <VideoLessonUploader
-            videoData={videoData}
-            setVideoData={setVideoData}
-            onStartProcessing={(data) => handleVideoStartProcessing(data)}
+        {/* Column 1: Lesson Details + AI Pro Settings */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <StudioLessonConfigCard
+            title={title}
+            setTitle={setTitle}
+            description={description}
+            setDescription={setDescription}
+            classGroup={classGroup}
+            setClassGroup={setClassGroup}
+            groups={availableGroups}
+            courses={availableCourses}
+            selectedCourseId={selectedCourseId}
+            setSelectedCourseId={setSelectedCourseId}
             lang={lang}
             isRtl={isRtl}
-            aiFeatures={aiFeatures}
           />
-        )}
+
+          {/* Compact AI Output Modules Selection Card */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '22px',
+            boxShadow: 'var(--shadow-sm)',
+            textAlign: isRtl ? 'right' : 'left',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={17} color="var(--primary)" />
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                  {lang === 'ar' ? 'مخرجات الذكاء الاصطناعي' : 'AI Output Capabilities'}
+                </h3>
+                {!isProPlan && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '2px 9px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                    color: '#D97706',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                  }}>
+                    <Crown size={11} />
+                    <span>{lang === 'ar' ? 'Pro فقط' : 'Pro Only'}</span>
+                  </span>
+                )}
+              </div>
+
+              {!isProPlan && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/teacher/billing')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-full)',
+                    border: 'none',
+                    backgroundColor: '#D97706',
+                    color: '#FFFFFF',
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Lock size={12} />
+                  <span>{lang === 'ar' ? 'ترقية إلى Pro' : 'Upgrade to Pro'}</span>
+                </button>
+              )}
+            </div>
+
+            <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: 1.5 }}>
+              {!isProPlan
+                ? (lang === 'ar'
+                    ? 'التفريغ النصي وخريطة المفاهيم وفهرسة الفصول متاحة لمشتركي باقة Pro فقط.'
+                    : 'AI transcription, concept graph, and chapters require a Pro subscription.')
+                : (lang === 'ar'
+                    ? 'اختر التحليلات التي تريد توليدها تلقائياً بعد رفع الحصة.'
+                    : 'Select AI outputs to generate automatically after upload.')}
+            </p>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              opacity: isProPlan ? 1 : 0.52,
+              pointerEvents: isProPlan ? 'auto' : 'none',
+            }}>
+              {[
+                {
+                  key: 'speechToText',
+                  icon: FileText,
+                  color: 'var(--primary)',
+                  bg: 'var(--primary-surface)',
+                  titleAr: 'التفريغ النصي (Speech-to-Text)',
+                  titleEn: 'Speech-to-Text Transcript',
+                  descAr: 'تحويل صوت الشرح إلى نص مقروء باللهجة المصرية.',
+                  descEn: 'Egyptian dialect ASR transcription.',
+                },
+                {
+                  key: 'conceptGraph',
+                  icon: Share2,
+                  color: '#0EA5E9',
+                  bg: 'rgba(14, 165, 233, 0.08)',
+                  titleAr: 'خريطة المفاهيم (NotebookLM)',
+                  titleEn: 'Interactive Concept Graph',
+                  descAr: 'استخراج شجرة المفاهيم المترابطة التفاعلية.',
+                  descEn: 'Interactive hierarchical knowledge tree.',
+                },
+                {
+                  key: 'chapterIndexing',
+                  icon: Clock,
+                  color: '#10B981',
+                  bg: 'rgba(16, 185, 129, 0.08)',
+                  titleAr: 'فهرسة الفصول والتوقيتات',
+                  titleEn: 'Smart Chapter Indexing',
+                  descAr: 'تقسيم الحصة إلى فصول زمنية للقفز السريع.',
+                  descEn: 'Automatic chapter timestamps.',
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = Boolean(aiFeatures[item.key]);
+                return (
+                  <div
+                    key={item.key}
+                    onClick={() => handleToggleAIFeature(item.key)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      borderRadius: 'var(--radius-lg)',
+                      border: `1.5px solid ${active ? item.color : 'var(--border-subtle)'}`,
+                      backgroundColor: active ? item.bg : 'var(--bg-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '6px',
+                      border: `2px solid ${active ? item.color : 'var(--border-medium)'}`,
+                      backgroundColor: active ? item.color : 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#FFFFFF',
+                      flexShrink: 0,
+                    }}>
+                      {active && <Check size={13} strokeWidth={3} />}
+                    </div>
+                    <Icon size={16} color={item.color} style={{ flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        {lang === 'ar' ? item.titleAr : item.titleEn}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {lang === 'ar' ? item.descAr : item.descEn}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Column 2: Media Recording/Upload + Attachments */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* Media Input Card */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '24px',
+            boxShadow: 'var(--shadow-sm)',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '18px',
+              textAlign: isRtl ? 'right' : 'left',
+            }}>
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--primary-surface)',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '13px',
+                fontWeight: '800',
+              }}>
+                2
+              </div>
+              <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                {lang === 'ar' ? 'تسجيل أو رفع ملف الحصة' : 'Record or Upload Lesson Media'}
+              </h3>
+            </div>
+
+            {/* Toggle Mode Pills: 3 Modes */}
+            <div style={{
+              display: 'inline-flex',
+              backgroundColor: 'var(--bg-subtle)',
+              padding: '5px',
+              borderRadius: 'var(--radius-full)',
+              marginBottom: '24px',
+              gap: '6px',
+              flexWrap: 'wrap',
+              justifyContent: 'center'
+            }}>
+              <button
+                type="button"
+                onClick={() => setMode('mic')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  border: 'none',
+                  backgroundColor: mode === 'mic' ? 'var(--primary)' : 'transparent',
+                  color: mode === 'mic' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                <Mic size={15} />
+                <span>{lang === 'ar' ? 'تسجيل بالميكروفون' : 'Live Mic'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('audio')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  border: 'none',
+                  backgroundColor: mode === 'audio' ? 'var(--primary)' : 'transparent',
+                  color: mode === 'audio' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                <UploadCloud size={15} />
+                <span>{lang === 'ar' ? 'رفع ملف صوتي' : 'Upload Audio'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('video')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  border: 'none',
+                  backgroundColor: mode === 'video' ? 'var(--primary)' : 'transparent',
+                  color: mode === 'video' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                <Video size={15} />
+                <span>{lang === 'ar' ? 'فيديو / يوتيوب' : 'Video / YouTube'}</span>
+              </button>
+            </div>
+
+            {mode === 'mic' && (
+              <LiveMicRecorder
+                isRecording={isRecording}
+                isPaused={isPaused}
+                elapsedSeconds={elapsedSeconds}
+                formatTime={formatTime}
+                lang={lang}
+                onStartRecording={handleStartRecording}
+                onPauseRecording={handlePauseRecording}
+                onStopAndProcess={handleStopAndProcess}
+                onRecordedFileReady={(file) => {
+                  setIsRecording(false);
+                  if (file) setRecordedMicFile(file);
+                }}
+              />
+            )}
+
+            {mode === 'audio' && (
+              <AudioFileUploader
+                uploadedFile={uploadedAudioFile}
+                lang={lang}
+                onSelectFile={setUploadedAudioFile}
+                onStartProcessing={handleAudioStartProcessing}
+              />
+            )}
+
+            {mode === 'video' && (
+              <VideoLessonUploader
+                videoData={videoData}
+                setVideoData={setVideoData}
+                onStartProcessing={(data) => handleVideoStartProcessing(data)}
+                lang={lang}
+                isRtl={isRtl}
+                aiFeatures={aiFeatures}
+              />
+            )}
+          </div>
+
+          {/* Lesson Attachments Manager: Multiple PDFs + Ordered Whiteboard Images */}
+          <LessonAttachmentsManager
+            pdfs={lessonPdfs}
+            setPdfs={setLessonPdfs}
+            images={lessonImages}
+            setImages={setLessonImages}
+            lang={lang}
+            isRtl={isRtl}
+          />
+        </div>
       </div>
 
-      {/* Lesson Attachments Manager: Multiple PDFs + Ordered Whiteboard Images */}
-      <LessonAttachmentsManager
-        pdfs={lessonPdfs}
-        setPdfs={setLessonPdfs}
-        images={lessonImages}
-        setImages={setLessonImages}
-        lang={lang}
-        isRtl={isRtl}
-      />
+      {/* Final Unified Submit Bar (Works with Audio, Video, or Attachments Only) */}
+      <div style={{
+        marginTop: '24px',
+        backgroundColor: 'var(--bg-surface-elevated)',
+        border: '1px solid var(--border-medium)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '18px 24px',
+        boxShadow: 'var(--shadow-md)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+          <CheckCircle2 size={18} color="var(--primary)" />
+          <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
+            {title ? title : (lang === 'ar' ? 'حصة جديدة جاهزة للحفظ' : 'Ready to publish lesson')}
+          </span>
+          <span>•</span>
+          <span>
+            {recordedMicFile || uploadedAudioFile
+              ? (lang === 'ar' ? 'ملف صوتي مرفق' : 'Audio ready')
+              : videoData
+                ? (lang === 'ar' ? 'فيديو مرفق' : 'Video ready')
+                : (lang === 'ar' ? 'بدون صوت/فيديو (مرفقات فقط)' : 'Attachments / notes only')}
+          </span>
+          {(lessonPdfs.length > 0 || lessonImages.length > 0) && (
+            <>
+              <span>•</span>
+              <span style={{ color: 'var(--primary)', fontWeight: '700' }}>
+                {lessonPdfs.length} PDF / {lessonImages.length} {lang === 'ar' ? 'صور' : 'images'}
+              </span>
+            </>
+          )}
+        </div>
+
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={handleFinalSubmitAll}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 26px',
+            borderRadius: 'var(--radius-lg)',
+            border: 'none',
+            backgroundColor: 'var(--primary)',
+            color: '#FFFFFF',
+            fontSize: '14.5px',
+            fontWeight: '800',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            boxShadow: '0 6px 18px rgba(21, 136, 199, 0.35)',
+            opacity: isSubmitting ? 0.7 : 1,
+          }}
+        >
+          <CheckCircle2 size={18} />
+          <span>{lang === 'ar' ? 'حفظ ونشر الحصة ومرفقاتها' : 'Save & Publish Lesson'}</span>
+        </button>
+      </div>
 
       {/* Uploading Overlay */}
       {isSubmitting && (
