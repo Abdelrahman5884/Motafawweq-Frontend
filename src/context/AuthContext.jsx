@@ -478,7 +478,7 @@ export const AuthProvider = ({ children }) => {
       if (nextSnapshot.phone) {
         apiPayload.phone = nextSnapshot.phone;
       }
-      if (nextSnapshot.avatar && String(nextSnapshot.avatar).length <= 255) {
+      if (nextSnapshot.avatar && String(nextSnapshot.avatar).length <= 2048) {
         apiPayload.avatar = nextSnapshot.avatar;
       }
 

@@ -31,13 +31,16 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { teacherApi } from '../../services/teacherApi';
 import { SPage, SPageHeader, SCard, SSection, SButton } from '../../components/student/ui';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import { AvatarCropperModal, AvatarLightboxModal } from '../../components/common/AvatarCropperModal';
 
 export const TeacherSettingsView = () => {
   const { lang, isRtl, setLang } = useLanguage();
   const { theme, setTheme, isDark } = useTheme();
+  const { updateUserProfile } = useAuth();
   const isAr = lang === 'ar';
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -45,6 +48,10 @@ export const TeacherSettingsView = () => {
   const [activeTab, setActiveTabState] = useState(() => tabParam || 'profile');
   const [isDirty, setIsDirty] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isAvatarLightboxOpen, setIsAvatarLightboxOpen] = useState(false);
 
   useEffect(() => {
     if (tabParam && tabParam !== activeTab) {
@@ -602,16 +609,23 @@ export const TeacherSettingsView = () => {
                       <img
                         src={formData.avatar}
                         alt={formData.nameAr}
+                        onClick={() => setIsAvatarLightboxOpen(true)}
+                        title={isAr ? 'اضغط لتكبير الصورة' : 'Click to enlarge'}
                         style={{
                           width: '88px',
                           height: '88px',
                           borderRadius: '50%',
                           objectFit: 'cover',
                           border: '3px solid var(--primary)',
-                          boxShadow: '0 4px 14px rgba(21, 136, 199, 0.25)'
+                          boxShadow: '0 4px 14px rgba(21, 136, 199, 0.25)',
+                          cursor: 'zoom-in',
+                          transition: 'transform 0.15s ease'
                         }}
+                        onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.04)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
                       />
                       <label
+                        title={isAr ? 'تغيير الصورة الشخصية' : 'Change profile picture'}
                         style={{
                           position: 'absolute',
                           bottom: '0',
@@ -636,29 +650,70 @@ export const TeacherSettingsView = () => {
                           type="file"
                           accept="image/*"
                           style={{ display: 'none' }}
-                          onChange={async (e) => {
+                          onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (re) => {
-                                setFormData((prev) => ({ ...prev, avatar: re.target.result }));
-                                setIsDirty(true);
-                              };
-                              reader.readAsDataURL(file);
+                            e.target.value = '';
+                            if (!file) return;
 
-                              try {
-                                const uploadRes = await teacherApi.settings.uploadAvatar(file);
-                                if (uploadRes?.data?.avatar_url) {
-                                  setFormData((prev) => ({ ...prev, avatar: uploadRes.data.avatar_url }));
-                                }
-                              } catch (err) {
-                                console.error('Avatar upload failed:', err);
-                              }
+                            if (file.size > 10 * 1024 * 1024) {
+                              alert(isAr ? 'حجم الصورة المختارة كبير جداً (الحد الأقصى 10 ميجابايت قبل القص).' : 'Selected image is too large (max 10 MB before cropping).');
+                              return;
                             }
+
+                            const reader = new FileReader();
+                            reader.onload = (re) => {
+                              setCropImageSrc(re.target.result);
+                              setIsCropperOpen(true);
+                            };
+                            reader.readAsDataURL(file);
                           }}
                         />
                       </label>
                     </div>
+
+                    <AvatarCropperModal
+                      isOpen={isCropperOpen}
+                      imageSrc={cropImageSrc}
+                      isAr={isAr}
+                      isUploading={isUploadingAvatar}
+                      onClose={() => {
+                        if (!isUploadingAvatar) {
+                          setIsCropperOpen(false);
+                          setCropImageSrc(null);
+                        }
+                      }}
+                      onConfirm={async (croppedFile, previewUrl) => {
+                        setIsUploadingAvatar(true);
+                        setFormData((prev) => ({ ...prev, avatar: previewUrl }));
+                        setIsDirty(true);
+
+                        try {
+                          const uploadRes = await teacherApi.settings.uploadAvatar(croppedFile);
+                          const newAvatar = uploadRes?.data?.avatar || uploadRes?.data?.avatarUrl || uploadRes?.data?.avatar_url;
+                          if (newAvatar) {
+                            setFormData((prev) => ({ ...prev, avatar: newAvatar }));
+                            if (updateUserProfile) {
+                              updateUserProfile({ avatar: newAvatar }).catch(() => {});
+                            }
+                          }
+                          setIsCropperOpen(false);
+                          setCropImageSrc(null);
+                        } catch (err) {
+                          console.error('Avatar upload failed:', err);
+                          alert(err.message || (isAr ? 'فشل رفع الصورة الشخصية إلى السيرفر.' : 'Failed to upload profile picture.'));
+                        } finally {
+                          setIsUploadingAvatar(false);
+                        }
+                      }}
+                    />
+
+                    <AvatarLightboxModal
+                      isOpen={isAvatarLightboxOpen}
+                      imageSrc={formData.avatar}
+                      altText={formData.nameAr}
+                      isAr={isAr}
+                      onClose={() => setIsAvatarLightboxOpen(false)}
+                    />
 
                     <div style={{ flex: 1, minWidth: '220px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
