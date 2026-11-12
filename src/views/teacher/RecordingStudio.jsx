@@ -286,14 +286,15 @@ export const RecordingStudio = () => {
   };
 
   const handleAudioStartProcessing = async () => {
-    if (uploadedAudioFile && uploadedAudioFile.size > 52428800) {
+    const audioFile = uploadedAudioFile?.rawFile || uploadedAudioFile?.file || (uploadedAudioFile instanceof File || uploadedAudioFile instanceof Blob ? uploadedAudioFile : null);
+    if (audioFile && audioFile.size > 52428800) {
       alert(lang === 'ar' ? 'حجم الملف الصوتي يتجاوز 50 ميجابايت (الحد الأقصى للتخزين السحابي).' : 'Audio file exceeds 50 MB upload limit.');
       return;
     }
 
     await submitLessonAndUpload({
       mediaMode: 'audio',
-      mediaFile: uploadedAudioFile,
+      mediaFile: audioFile,
       durationSeconds: 1800,
       defaultTitle: lang === 'ar' ? 'حصة صوتية جديدة' : 'New Audio Lesson',
     });
