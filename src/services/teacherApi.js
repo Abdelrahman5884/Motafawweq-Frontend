@@ -6,6 +6,7 @@
 
 import { apiGet, apiPost, apiPut, apiDelete, tokenStorage } from './api';
 import { API_BASE_URL } from '../constants';
+import storageService from './storageService';
 
 export const teacherApi = {
   // ─── Stage 1 & 2: Settings, Profile & Preferences ────────────────────────────
@@ -136,6 +137,37 @@ export const teacherApi = {
         throw new Error(payload?.message || 'فشل رفع الصورة.');
       }
       return payload;
+    },
+
+    uploadAttachment: async (uuid, file, type = 'pdf', options = {}) => {
+      if (type === 'audio' || type === 'media') {
+        return teacherApi.studio.uploadMedia(uuid, file, options);
+      }
+      if (type === 'pdf') {
+        return teacherApi.studio.uploadPdf(uuid, file, options.titleAr || file.name);
+      }
+      return teacherApi.studio.uploadImage(uuid, file, options);
+    },
+
+    uploadMediaDirect: async (uuid, file, { onProgress = null, durationSeconds = null } = {}) => {
+      return storageService.uploadFile({
+        entityType: 'lesson_media',
+        entityId: uuid,
+        file,
+        duration: durationSeconds,
+        onProgress,
+      });
+    },
+
+    uploadAttachmentDirect: async (uuid, file, { type = 'pdf', titleAr = '', captionAr = '', onProgress = null } = {}) => {
+      return storageService.uploadFile({
+        entityType: 'lesson_attachment',
+        entityId: uuid,
+        file,
+        title: titleAr || file.name,
+        caption: captionAr,
+        onProgress,
+      });
     },
 
     reorderAttachments: (uuid, attachmentUuids) =>
@@ -370,6 +402,9 @@ export const teacherApi = {
       apiPost('/teacher/billing/validate-coupon', { code, order_amount: orderAmount }),
     subscribe: (data) => apiPost('/teacher/billing/subscribe', data),
   },
+
+  // Centralized Supabase Storage
+  storage: storageService,
 };
 
 /**

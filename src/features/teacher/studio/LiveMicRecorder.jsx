@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Mic, Play, Pause, Square, Sparkles, RotateCcw, Volume2, AlertCircle } from 'lucide-react';
+import { getOptimalAudioConfig } from '../../../services/storageService';
 
 export const LiveMicRecorder = ({
   isRecording,
@@ -17,7 +18,7 @@ export const LiveMicRecorder = ({
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
 
-  // Real mic recording integration
+  // Real mic recording integration with Supabase-optimized audio compression
   const startRealRecording = async () => {
     setMicPermissionError(null);
     setRecordedAudioUrl(null);
@@ -27,28 +28,22 @@ export const LiveMicRecorder = ({
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
-        const mediaRecorder = new MediaRecorder(stream);
+        
+        const audioConfig = getOptimalAudioConfig();
+        const mediaRecorder = new MediaRecorder(stream, audioConfig);
         mediaRecorderRef.current = mediaRecorder;
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
+          if (event.data && event.data.size > 0) {
             audioChunksRef.current.push(event.data);
           }
-        };
-
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const url = URL.createObjectURL(audioBlob);
-          setRecordedAudioUrl(url);
-          // Stop mic tracks
-          stream.getTracks().forEach(track => track.stop());
         };
 
         mediaRecorder.start(250);
       }
     } catch (err) {
       console.warn('Microphone permission not granted or device unavailable, falling back to simulated studio recording:', err);
-      // We still allow simulated recording smoothly
+      setMicPermissionError(err.message || 'Microphone unavailable');
     }
 
     onStartRecording();
@@ -65,9 +60,26 @@ export const LiveMicRecorder = ({
 
   const stopRealRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = () => {
+        const audioConfig = getOptimalAudioConfig();
+        const mime = audioConfig.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mime });
+        const ext = mime.includes('mp4') ? 'm4a' : 'webm';
+        const audioFile = new File([audioBlob], `lecture_${Date.now()}.${ext}`, { type: mime });
+
+        const url = URL.createObjectURL(audioBlob);
+        setRecordedAudioUrl(url);
+
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        }
+
+        onStopAndProcess(audioFile);
+      };
       mediaRecorderRef.current.stop();
+    } else {
+      onStopAndProcess(null);
     }
-    onStopAndProcess();
   };
 
   // Cleanup stream on unmount

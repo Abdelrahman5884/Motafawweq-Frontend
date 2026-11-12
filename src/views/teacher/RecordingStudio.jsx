@@ -120,8 +120,14 @@ export const RecordingStudio = () => {
     });
   };
 
-  const handleStopAndProcess = () => {
+  const handleStopAndProcess = (recordedAudioFile = null) => {
     setIsRecording(false);
+
+    if (recordedAudioFile && recordedAudioFile.size > 52428800) {
+      alert(lang === 'ar' ? 'حجم التسجيل الصوتي يتجاوز الحد الأقصى المسموح به (50 ميجابايت) في باقة التخزين السحابي. يرجى تقليل مدة التسجيل.' : 'Audio recording exceeds the 50 MB platform limit.');
+      return;
+    }
+
     const requestedFlags = Object.keys(aiFeatures).filter((k) => aiFeatures[k]);
     try {
       sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
@@ -139,6 +145,16 @@ export const RecordingStudio = () => {
     }).then((res) => {
       if (res?.data?.uuid) {
         sessionStorage.setItem('currentLessonUuid', res.data.uuid);
+        if (recordedAudioFile) {
+          teacherApi.studio.uploadMediaDirect(res.data.uuid, recordedAudioFile, {
+            durationSeconds: elapsedSeconds || 1800,
+          }).catch((err) => {
+            console.warn('Direct Supabase media upload fallback:', err);
+            teacherApi.studio.uploadMedia(res.data.uuid, recordedAudioFile, {
+              duration_seconds: elapsedSeconds || 1800,
+            }).catch(() => {});
+          });
+        }
         uploadLessonAttachments(res.data.uuid);
       }
     }).catch((err) => {
@@ -149,6 +165,11 @@ export const RecordingStudio = () => {
   };
 
   const handleAudioStartProcessing = () => {
+    if (uploadedAudioFile && uploadedAudioFile.size > 52428800) {
+      alert(lang === 'ar' ? 'حجم الملف الصوتي يتجاوز 50 ميجابايت (الحد الأقصى للتخزين السحابي).' : 'Audio file exceeds 50 MB upload limit.');
+      return;
+    }
+
     const requestedFlags = Object.keys(aiFeatures).filter((k) => aiFeatures[k]);
     try {
       sessionStorage.setItem('selectedAIFeatures', JSON.stringify(aiFeatures));
@@ -167,7 +188,14 @@ export const RecordingStudio = () => {
       if (res?.data?.uuid) {
         sessionStorage.setItem('currentLessonUuid', res.data.uuid);
         if (uploadedAudioFile) {
-          teacherApi.studio.uploadAttachment(res.data.uuid, uploadedAudioFile, 'audio').catch(() => {});
+          teacherApi.studio.uploadMediaDirect(res.data.uuid, uploadedAudioFile, {
+            durationSeconds: 1800,
+          }).catch((err) => {
+            console.warn('Direct Supabase media upload fallback:', err);
+            teacherApi.studio.uploadMedia(res.data.uuid, uploadedAudioFile, {
+              duration_seconds: 1800,
+            }).catch(() => {});
+          });
         }
         uploadLessonAttachments(res.data.uuid);
       }
