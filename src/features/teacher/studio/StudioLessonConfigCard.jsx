@@ -12,9 +12,29 @@ export const StudioLessonConfigCard = ({
   classGroup,
   setClassGroup,
   groups = [],
+  courses = [],
+  selectedCourseId = '',
+  setSelectedCourseId,
+  subjectOptions = [],
+  stageOptions = [],
   lang,
   isRtl
 }) => {
+  const defaultSubjects = [
+    { value: 'Biology', labelAr: 'الأحياء', labelEn: 'Biology' },
+    { value: 'Physics', labelAr: 'الفيزياء', labelEn: 'Physics' },
+    { value: 'Chemistry', labelAr: 'الكيمياء', labelEn: 'Chemistry' },
+    { value: 'Mathematics', labelAr: 'الرياضيات', labelEn: 'Mathematics' },
+  ];
+  const resolvedSubjects = subjectOptions.length > 0 ? subjectOptions : defaultSubjects;
+
+  const defaultStages = [
+    { value: '3rd Secondary', labelAr: 'الصف الثالث الثانوي (ثانوية عامة)', labelEn: '3rd Secondary (Thanawya)' },
+    { value: '2nd Secondary', labelAr: 'الصف الثاني الثانوي', labelEn: '2nd Secondary' },
+    { value: '1st Secondary', labelAr: 'الصف الأول الثانوي', labelEn: '1st Secondary' },
+    { value: '3rd Prep', labelAr: 'الصف الثالث الإعدادي (شهادة إعدادية)', labelEn: '3rd Prep' },
+  ];
+  const resolvedStages = stageOptions.length > 0 ? stageOptions : defaultStages;
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface-elevated)',
@@ -96,10 +116,11 @@ export const StudioLessonConfigCard = ({
               fontSize: '13.5px'
             }}
           >
-            <option value="Biology">{lang === 'ar' ? 'الأحياء' : 'Biology'}</option>
-            <option value="Physics">{lang === 'ar' ? 'الفيزياء' : 'Physics'}</option>
-            <option value="Chemistry">{lang === 'ar' ? 'الكيمياء' : 'Chemistry'}</option>
-            <option value="Mathematics">{lang === 'ar' ? 'الرياضيات' : 'Mathematics'}</option>
+            {resolvedSubjects.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {lang === 'ar' ? opt.labelAr : opt.labelEn}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -121,10 +142,41 @@ export const StudioLessonConfigCard = ({
               fontSize: '13.5px'
             }}
           >
-            <option value="3rd Secondary">{lang === 'ar' ? 'الصف الثالث الثانوي (ثانوية عامة)' : '3rd Secondary (Thanawya)'}</option>
-            <option value="2nd Secondary">{lang === 'ar' ? 'الصف الثاني الثانوي' : '2nd Secondary'}</option>
-            <option value="1st Secondary">{lang === 'ar' ? 'الصف الأول الثانوي' : '1st Secondary'}</option>
-            <option value="3rd Prep">{lang === 'ar' ? 'الصف الثالث الإعدادي (شهادة إعدادية)' : '3rd Prep'}</option>
+            {resolvedStages.map((st) => (
+              <option key={st.value} value={st.value}>
+                {lang === 'ar' ? st.labelAr : st.labelEn}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Course */}
+        <div>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            {lang === 'ar' ? 'المقرر الدراسي (الكورس)' : 'Target Course'}
+          </label>
+          <select
+            value={selectedCourseId || ''}
+            onChange={(e) => setSelectedCourseId && setSelectedCourseId(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '13.5px'
+            }}
+          >
+            <option value="">{lang === 'ar' ? '-- بدون ربط بمقرر --' : '-- No Course Linked --'}</option>
+            {courses.map((c) => {
+              const cid = c.uuid || c.id;
+              return (
+                <option key={cid} value={cid}>
+                  {lang === 'ar' ? (c.titleAr || c.title_ar || c.title) : (c.titleEn || c.title || c.titleAr)}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -147,11 +199,18 @@ export const StudioLessonConfigCard = ({
             }}
           >
             <option value="">{lang === 'ar' ? '-- اختر المجموعة الدراسية --' : '-- Select Study Group --'}</option>
-            {groups.map((grp) => (
-              <option key={grp.uuid || grp.id || grp.code} value={grp.uuid || grp.code || grp.id}>
-                {grp.name || grp.name_ar || grp.title || grp.code}
-              </option>
-            ))}
+            {groups.map((grp) => {
+              const val = grp.code || grp.uuid || grp.id;
+              const name = lang === 'ar'
+                ? (grp.nameAr || grp.name_ar || grp.name || grp.title || grp.code)
+                : (grp.nameEn || grp.name || grp.name_en || grp.title || grp.code);
+              const hall = grp.hallName || grp.hall || grp.centerName || grp.center || '';
+              return (
+                <option key={grp.uuid || grp.id || grp.code} value={val}>
+                  {hall ? `${name} — ${hall}` : name}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>

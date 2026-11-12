@@ -118,7 +118,9 @@ export const LessonWorkspace = () => {
   const [transcriptSearch, setTranscriptSearch] = useState('');
   const [copiedText, setCopiedText] = useState(false);
 
-  // Audio / Video player playback simulation
+  // Audio / Video player playback
+  const audioRef = React.useRef(null);
+  const videoRef = React.useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -129,9 +131,17 @@ export const LessonWorkspace = () => {
     return lessons.find(l => l.id === selectedLessonId) || lessons[0];
   }, [lessons, selectedLessonId]);
 
-  // Jump to specific audio seconds
+  // Jump to specific audio/video seconds
   const handleJumpToTimestamp = (seconds) => {
     setCurrentTime(seconds);
+    if (audioRef.current) {
+      audioRef.current.currentTime = seconds;
+      audioRef.current.play().catch(() => {});
+    }
+    if (videoRef.current) {
+      videoRef.current.currentTime = seconds;
+      videoRef.current.play().catch(() => {});
+    }
     setIsPlaying(true);
   };
 
@@ -783,7 +793,7 @@ export const LessonWorkspace = () => {
           }}>
             {currentLesson.mediaType === 'video' ? (
               <div>
-                {/* 16:9 Video Embed Player */}
+                {/* 16:9 Video Player (Uploaded Video File or YouTube/Embed) */}
                 <div style={{
                   position: 'relative',
                   paddingBottom: '56.25%',
@@ -794,26 +804,47 @@ export const LessonWorkspace = () => {
                   boxShadow: 'var(--shadow-md)',
                   marginBottom: '20px'
                 }}>
-                  <iframe
-                    src={
-                      currentLesson.videoUrl?.includes('youtube.com/watch?v=')
-                        ? currentLesson.videoUrl.replace('watch?v=', 'embed/')
-                        : currentLesson.videoUrl?.includes('youtu.be/')
-                          ? currentLesson.videoUrl.replace('youtu.be/', 'www.youtube.com/embed/')
-                          : 'https://www.youtube.com/embed/sQK3Yr4Sc_k'
-                    }
-                    title={currentLesson.titleAr}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      border: 'none'
-                    }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+                  {currentLesson.mediaStreamUrl && !currentLesson.isYoutube && !currentLesson.videoUrl?.includes('youtu') ? (
+                    <video
+                      ref={videoRef}
+                      controls
+                      src={currentLesson.mediaStreamUrl}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onEnded={() => setIsPlaying(false)}
+                      onTimeUpdate={(e) => setCurrentTime(Math.floor(e.currentTarget.currentTime))}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        backgroundColor: '#000000',
+                      }}
+                    />
+                  ) : (
+                    <iframe
+                      src={
+                        currentLesson.videoUrl?.includes('youtube.com/watch?v=')
+                          ? currentLesson.videoUrl.replace('watch?v=', 'embed/')
+                          : currentLesson.videoUrl?.includes('youtu.be/')
+                            ? currentLesson.videoUrl.replace('youtu.be/', 'www.youtube.com/embed/')
+                            : (currentLesson.videoUrl || 'https://www.youtube.com/embed/sQK3Yr4Sc_k')
+                      }
+                      title={currentLesson.titleAr}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 'none'
+                      }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  )}
                 </div>
 
                 {/* Video Chapters bar */}
@@ -912,10 +943,43 @@ export const LessonWorkspace = () => {
                   })}
                 </div>
 
+                {/* Real HTML5 Audio Element */}
+                {currentLesson.mediaStreamUrl ? (
+                  <audio
+                    ref={audioRef}
+                    src={currentLesson.mediaStreamUrl}
+                    controls
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
+                    onTimeUpdate={(e) => setCurrentTime(Math.floor(e.currentTarget.currentTime))}
+                    style={{
+                      width: '100%',
+                      maxWidth: '540px',
+                      margin: '0 auto 18px',
+                      display: 'block',
+                    }}
+                  />
+                ) : (
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-tertiary)', marginBottom: '16px' }}>
+                    {lang === 'ar' ? 'لم يتم إرفاق ملف صوتي لهذه الحصة بعد.' : 'No audio file uploaded for this lesson yet.'}
+                  </p>
+                )}
+
                 {/* Controls */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
                   <button
-                    onClick={() => setIsPlaying(!isPlaying)}
+                    onClick={() => {
+                      if (audioRef.current) {
+                        if (isPlaying) {
+                          audioRef.current.pause();
+                        } else {
+                          audioRef.current.play().catch(() => {});
+                        }
+                      } else {
+                        setIsPlaying(!isPlaying);
+                      }
+                    }}
                     style={{
                       width: '54px',
                       height: '54px',
@@ -933,6 +997,84 @@ export const LessonWorkspace = () => {
                     {isPlaying ? <Pause size={22} /> : <Play size={22} style={{ transform: 'translateX(1px)' }} />}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Uploaded Lesson Attachments (PDFs & Whiteboard Images) */}
+            {((currentLesson.lessonPdfs && currentLesson.lessonPdfs.length > 0) ||
+              (currentLesson.lessonImages && currentLesson.lessonImages.length > 0)) && (
+              <div style={{
+                marginTop: '24px',
+                paddingTop: '20px',
+                borderTop: '1px solid var(--border-subtle)',
+              }}>
+                <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
+                  {lang === 'ar' ? 'مرفقات وملازم الحصة' : 'Lesson Attachments & Notes'}
+                </h4>
+
+                {currentLesson.lessonPdfs && currentLesson.lessonPdfs.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+                    {currentLesson.lessonPdfs.map((pdf) => (
+                      <a
+                        key={pdf.id}
+                        href={pdf.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-subtle)',
+                          color: 'var(--text-primary)',
+                          textDecoration: 'none',
+                          fontSize: '13px',
+                          fontWeight: '700',
+                        }}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          📄 {pdf.title || pdf.fileName}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--primary)', flexShrink: 0 }}>
+                          {pdf.fileSize || (lang === 'ar' ? 'فتح' : 'Open')}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {currentLesson.lessonImages && currentLesson.lessonImages.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {currentLesson.lessonImages.map((img) => (
+                      <a
+                        key={img.id}
+                        href={img.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'block',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-subtle)',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.title || 'Whiteboard'}
+                          style={{ width: '100%', height: '130px', objectFit: 'cover', display: 'block' }}
+                        />
+                        <div style={{ padding: '8px 10px', fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                          {img.title}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
