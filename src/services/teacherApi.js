@@ -73,7 +73,8 @@ export const teacherApi = {
 
     uploadMedia: async (uuid, file, options = {}) => {
       const formData = new FormData();
-      formData.append('media_file', file);
+      formData.append('media', file);
+      if (options.mode) formData.append('mode', options.mode);
       if (options.duration_seconds) formData.append('duration_seconds', options.duration_seconds);
 
       const token = tokenStorage.getAccessToken();

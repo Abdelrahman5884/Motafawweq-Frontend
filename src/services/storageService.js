@@ -93,7 +93,7 @@ export const uploadDirectToPresignedUrl = (
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', uploadUrl, true);
-    xhr.timeout = 45000;
+    xhr.timeout = 20000;
     const cleanMime = (mimeType || file.type || 'application/octet-stream').split(';')[0].trim();
     xhr.setRequestHeader('Content-Type', cleanMime);
 

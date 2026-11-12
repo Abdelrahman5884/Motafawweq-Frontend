@@ -224,6 +224,7 @@ export const RecordingStudio = () => {
       sessionStorage.setItem('selectedAIFeatures', JSON.stringify(effectiveAiFeatures));
     } catch (e) {}
 
+    let uploadSucceeded = false;
     try {
       const res = await teacherApi.studio.createLesson({
         title_ar: title || defaultTitle,
@@ -260,20 +261,25 @@ export const RecordingStudio = () => {
             console.warn('Direct Supabase media upload fallback:', directErr);
             setUploadStatusText(lang === 'ar' ? 'جاري الرفع عبر الخادم...' : 'Uploading via server...');
             await teacherApi.studio.uploadMedia(lessonUuid, mediaFile, {
+              mode: mediaMode,
               duration_seconds: durationSeconds,
-            }).catch((fallbackErr) => console.warn('Backend media upload fallback failed:', fallbackErr));
+            });
           }
         }
 
         await uploadLessonAttachments(lessonUuid);
+        uploadSucceeded = true;
       }
     } catch (err) {
-      console.warn('Backend studio lesson save fallback:', err);
+      console.warn('Backend studio lesson save error:', err);
+      alert(err?.message || (lang === 'ar' ? 'حدث خطأ أثناء رفع الحصة. يرجى المحاولة مرة أخرى.' : 'Failed to upload lesson. Please try again.'));
     } finally {
       setIsSubmitting(false);
       setUploadStatusText('');
-      const hasAnyAi = isProPlan && Object.values(effectiveAiFeatures).some(Boolean);
-      navigate(hasAnyAi ? '/teacher/processing' : '/teacher/workspace');
+      if (uploadSucceeded) {
+        const hasAnyAi = isProPlan && Object.values(effectiveAiFeatures).some(Boolean);
+        navigate(hasAnyAi ? '/teacher/processing' : '/teacher/workspace');
+      }
     }
   };
 
