@@ -48,9 +48,10 @@ export const TeacherLeagueView = () => {
   const [leaguesData, setLeaguesData] = useState({});
   const [activeLeagueKey, setActiveLeagueKey] = useState('');
   const [coursesList, setCoursesList] = useState([]);
+  const [groupsList, setGroupsList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch live leagues and courses on mount
+  // Fetch live leagues, courses, and study groups on mount
   useEffect(() => {
     let mounted = true;
     setIsLoading(true);
@@ -58,8 +59,9 @@ export const TeacherLeagueView = () => {
     Promise.all([
       teacherApi.leagues.list().catch(() => ({ data: [] })),
       teacherApi.courses.list().catch(() => ({ data: [] })),
+      teacherApi.groups.list().catch(() => ({ data: [] })),
     ])
-      .then(([leaguesRes, coursesRes]) => {
+      .then(([leaguesRes, coursesRes, groupsRes]) => {
         if (!mounted) return;
         const list = Array.isArray(leaguesRes?.data) ? leaguesRes.data : [];
         const dict = {};
@@ -92,6 +94,12 @@ export const TeacherLeagueView = () => {
         setCoursesList(cList);
         if (cList.length > 0) {
           setModalCourseId(cList[0].uuid || cList[0].id);
+        }
+
+        const gList = Array.isArray(groupsRes?.data) ? groupsRes.data : [];
+        setGroupsList(gList);
+        if (gList.length > 0) {
+          setModalCustomGroups([gList[0].uuid || gList[0].id]);
         }
       })
       .catch((err) => {
@@ -142,9 +150,9 @@ export const TeacherLeagueView = () => {
   const [leagueToDelete, setLeagueToDelete] = useState(null);
 
   // Start League Modal Form State
-  const [modalCourseId, setModalCourseId] = useState('course-bio-301');
+  const [modalCourseId, setModalCourseId] = useState('');
   const [modalGroupMode, setModalGroupMode] = useState('all'); // 'all' | 'custom'
-  const [modalCustomGroups, setModalCustomGroups] = useState(['grp-dokki']);
+  const [modalCustomGroups, setModalCustomGroups] = useState([]);
   const [modalDuration, setModalDuration] = useState('monthly'); // 'weekly' | 'monthly' | 'half_year' | 'full_year'
 
   // Current active league object
@@ -170,13 +178,25 @@ export const TeacherLeagueView = () => {
 
   // Selected course object inside modal
   const modalCourse = useMemo(() => {
-    return coursesList.find(c => (c.uuid || c.id) === modalCourseId) || coursesList[0] || {
+    const course = coursesList.find(c => (c.uuid || c.id) === modalCourseId) || coursesList[0];
+    if (course) {
+      const cId = course.uuid || course.id;
+      const matchedGroups = groupsList.filter(g => !g.courseId || g.courseId === cId);
+      return {
+        ...course,
+        id: cId,
+        titleAr: course.titleAr || course.title || 'المقرر الدراسي',
+        totalStudents: Number(course.studentsCount || course.totalStudents || 0),
+        groups: matchedGroups.length > 0 ? matchedGroups : groupsList,
+      };
+    }
+    return {
       id: modalCourseId,
       titleAr: 'المقرر الدراسي',
       totalStudents: 0,
-      groups: []
+      groups: groupsList,
     };
-  }, [modalCourseId, coursesList]);
+  }, [modalCourseId, coursesList, groupsList]);
 
   // Derived automatic league title based on course & teacher
   const computedLeagueName = useMemo(() => {
@@ -249,37 +269,45 @@ export const TeacherLeagueView = () => {
     if (!isAll) {
       const selectedGroups = (modalCourse.groups || []).filter(g => modalCustomGroups.includes(g.id));
       if (selectedGroups.length > 0) {
-        totalStudents = selectedGroups.reduce((acc, g) => acc + (g.studentCount || 0), 0);
-        groupLabel = selectedGroups.map(g => g.nameAr).join(' + ');
+        totalStudents = selectedGroups.reduce((acc, g) => acc + (g.studentCount || g.enrolledCount || 0), 0);
+        groupLabel = selectedGroups.map(g => g.nameAr || g.name).join(' + ');
       } else {
-        totalStudents = 148;
+        totalStudents = modalCourse.totalStudents || 0;
         groupLabel = 'مجموعة محددة';
       }
     }
 
-    const durationDays = modalDuration === 'weekly' ? 7 : modalDuration === 'monthly' ? 30 : modalDuration === 'half_year' ? 90 : 270;
+    const durationDays = modalDuration === 'weekly' ? 7 : modalDuration === 'monthly' ? 30 : modalDuration === 'half_year' ? 90 : 180;
     const newKey = `${modalCourseId}_${isAll ? 'all' : modalCustomGroups.join('_')}`;
 
     try {
+      const selectedCourseId = modalCourseId || modalCourse?.id || coursesList[0]?.uuid || coursesList[0]?.id;
+      if (!selectedCourseId && coursesList.length === 0) {
+        alert(lang === 'ar' ? 'يرجى إنشاء كورس دراسي أولاً قبل بدء الدوري.' : 'Please create a course first.');
+        return;
+      }
+
       const res = await teacherApi.leagues.create({
-        course_id: modalCourseId,
+        course_id: selectedCourseId,
+        study_group_id: !isAll && modalCustomGroups.length > 0 ? modalCustomGroups[0] : null,
         title_ar: computedLeagueName,
         duration_type: modalDuration,
       });
 
       const l = res.data;
+      const createdKey = l.key || l.id || l.uuid || newKey;
       const newLeagueObj = {
         id: l.id || l.uuid,
-        key: l.key || l.id || newKey,
-        courseId: modalCourseId,
+        key: createdKey,
+        courseId: selectedCourseId,
         groupId: isAll ? 'all' : modalCustomGroups[0],
-        leagueTitle: l.leagueTitle || computedLeagueName,
-        courseNameAr: modalCourse.titleAr || 'المقرر الدراسي',
-        groupNameAr: groupLabel,
-        durationLabelAr: getDurationLabel(modalDuration),
-        durationDays: durationDays,
-        totalCompetitors: totalStudents,
-        roundDaysRemaining: durationDays,
+        leagueTitle: l.leagueTitle || l.title_ar || computedLeagueName,
+        courseNameAr: l.courseNameAr || modalCourse.titleAr || 'المقرر الدراسي',
+        groupNameAr: l.groupNameAr || groupLabel,
+        durationLabelAr: l.durationLabelAr || getDurationLabel(modalDuration),
+        durationDays: l.durationDays || durationDays,
+        totalCompetitors: l.totalCompetitors || totalStudents,
+        roundDaysRemaining: l.roundDaysRemaining || durationDays,
         isActive: true,
         podium: l.podium || [],
         leaderboard: l.leaderboard || []
@@ -287,34 +315,34 @@ export const TeacherLeagueView = () => {
 
       setLeaguesData(prev => ({
         ...prev,
-        [newKey]: newLeagueObj
+        [createdKey]: newLeagueObj
       }));
 
-      setActiveLeagueKey(newKey);
-    } catch (err) {
-      console.warn('Backend start league error:', err);
-    }
+      setActiveLeagueKey(createdKey);
+      setShowStartLeagueModal(false);
 
-    setShowStartLeagueModal(false);
+      try {
+        confetti({
+          particleCount: 130,
+          spread: 80,
+          origin: { y: 0.55 }
+        });
+      } catch (err) {}
 
-    try {
-      confetti({
-        particleCount: 130,
-        spread: 80,
-        origin: { y: 0.55 }
+      setPublishedNotice({
+        title: lang === 'ar' ? 'تم بدء الدوري بنجاح' : 'League Started Successfully',
+        desc: lang === 'ar'
+          ? `تم تفعيل (${computedLeagueName}) لـ ${groupLabel} بعدد ${totalStudents.toLocaleString()} طالب.`
+          : 'League has been launched and students notified.'
       });
-    } catch (err) {}
 
-    setPublishedNotice({
-      title: lang === 'ar' ? 'تم بدء الدوري بنجاح' : 'League Started Successfully',
-      desc: lang === 'ar'
-        ? `تم تفعيل (${computedLeagueName}) لـ ${groupLabel} بعدد ${totalStudents.toLocaleString()} طالب.`
-        : 'League has been launched and students notified.'
-    });
-
-    setTimeout(() => {
-      setPublishedNotice(null);
-    }, 4500);
+      setTimeout(() => {
+        setPublishedNotice(null);
+      }, 4500);
+    } catch (err) {
+      console.error('Backend start league error:', err);
+      alert(err.message || (lang === 'ar' ? 'فشل إنشاء الدوري، يرجى المحاولة مرة أخرى.' : 'Failed to create league, please try again.'));
+    }
   };
 
   // Delete an active league
@@ -1561,29 +1589,54 @@ export const TeacherLeagueView = () => {
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
                   {lang === 'ar' ? '١. الكورس والمادة المستهدفة:' : '1. Target Course:'}
                 </label>
-                <select
-                  value={modalCourseId}
-                  onChange={(e) => setModalCourseId(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
+                {coursesList.length === 0 ? (
+                  <div style={{
+                    padding: '12px',
                     borderRadius: '12px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-medium)',
-                    color: 'var(--text-primary)',
-                    fontSize: '12.5px',
-                    fontWeight: '700',
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {TEACHER_COURSES_FOR_LEAGUE.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.titleAr} ({c.totalStudents.toLocaleString()} طالب مسجل)
-                    </option>
-                  ))}
-                </select>
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: 'var(--accent-red)',
+                    fontSize: '12px',
+                    fontWeight: '700'
+                  }}>
+                    {lang === 'ar' 
+                      ? '⚠️ لم تقم بإنشاء أي مقرر دراسي بعد. يجب إنشاء كورس أولاً للبدء في تنظيم الدوري والمنافسات.' 
+                      : '⚠️ No courses found. Please create a course first to launch leagues.'}
+                    <div style={{ marginTop: '8px' }}>
+                      <a href="/teacher/courses" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
+                        {lang === 'ar' ? 'الانتقال لصفحة المقررات لإنشاء كورس الآن ←' : 'Go to courses page to create one →'}
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <select
+                    value={modalCourseId}
+                    onChange={(e) => setModalCourseId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-medium)',
+                      color: 'var(--text-primary)',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {coursesList.map(c => {
+                      const cId = c.uuid || c.id;
+                      const count = Number(c.studentsCount || c.totalStudents || 0);
+                      return (
+                        <option key={cId} value={cId}>
+                          {c.titleAr || c.title} ({count.toLocaleString()} طالب مسجل)
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
               </div>
 
               {/* Step 2: Choose Cohorts Participation */}
@@ -1640,28 +1693,35 @@ export const TeacherLeagueView = () => {
                     flexDirection: 'column',
                     gap: '6px'
                   }}>
-                    {modalCourse.groups
-                      .filter(g => g.id !== 'all')
-                      .map(g => {
-                        const isChecked = modalCustomGroups.includes(g.id);
-                        return (
-                          <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px' }}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                setModalCustomGroups(prev => 
-                                  isChecked ? prev.filter(x => x !== g.id) : [...prev, g.id]
-                                );
-                              }}
-                            />
-                            <span style={{ fontWeight: isChecked ? '800' : '600', color: 'var(--text-primary)' }}>
-                              {g.nameAr} ({g.studentCount} طالب)
-                            </span>
-                          </label>
-                        );
-                      })
-                    }
+                    {(modalCourse.groups || []).filter(g => g.id !== 'all').length === 0 ? (
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {lang === 'ar' ? 'لا توجد مجموعات مسجلة لهذا الكورس' : 'No cohorts available for this course'}
+                      </span>
+                    ) : (
+                      modalCourse.groups
+                        .filter(g => g.id !== 'all')
+                        .map(g => {
+                          const gId = g.uuid || g.id;
+                          const isChecked = modalCustomGroups.includes(gId);
+                          const studentCount = Number(g.studentCount || g.enrolledCount || 0);
+                          return (
+                            <label key={gId} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setModalCustomGroups(prev => 
+                                    isChecked ? prev.filter(x => x !== gId) : [...prev, gId]
+                                  );
+                                }}
+                              />
+                              <span style={{ fontWeight: isChecked ? '800' : '600', color: 'var(--text-primary)' }}>
+                                {g.nameAr || g.name} ({studentCount} طالب)
+                              </span>
+                            </label>
+                          );
+                        })
+                    )}
                   </div>
                 )}
               </div>
