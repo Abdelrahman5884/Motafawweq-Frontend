@@ -60,11 +60,13 @@ export const requestPresignedUpload = async ({
     );
   }
 
+  const normalizedMime = (file.type || 'application/octet-stream').split(';')[0].trim().toLowerCase();
+
   const payload = {
     entity_type: entityType,
     entity_id: entityId,
     filename: file.name || 'unnamed_file',
-    mime_type: file.type || 'application/octet-stream',
+    mime_type: normalizedMime,
     file_size: file.size,
     metadata: {
       title: title || file.name,
@@ -91,7 +93,9 @@ export const uploadDirectToPresignedUrl = (
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', uploadUrl, true);
-    xhr.setRequestHeader('Content-Type', mimeType || file.type || 'application/octet-stream');
+    xhr.timeout = 45000;
+    const cleanMime = (mimeType || file.type || 'application/octet-stream').split(';')[0].trim();
+    xhr.setRequestHeader('Content-Type', cleanMime);
 
     if (onProgress && xhr.upload) {
       xhr.upload.onprogress = (evt) => {

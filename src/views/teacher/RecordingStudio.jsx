@@ -244,13 +244,21 @@ export const RecordingStudio = () => {
         sessionStorage.setItem('currentLessonUuid', lessonUuid);
 
         if (mediaFile) {
-          setUploadStatusText(lang === 'ar' ? 'جاري رفع ملف الحصة إلى السحابة...' : 'Uploading lesson media...');
+          setUploadStatusText(lang === 'ar' ? 'جاري رفع ملف الحصة إلى السحابة (0%)...' : 'Uploading lesson media (0%)...');
           try {
             await teacherApi.studio.uploadMediaDirect(lessonUuid, mediaFile, {
               durationSeconds,
+              onProgress: (pct) => {
+                setUploadStatusText(
+                  lang === 'ar'
+                    ? `جاري رفع ملف الحصة إلى السحابة (${pct}%)...`
+                    : `Uploading lesson media (${pct}%)...`
+                );
+              },
             });
           } catch (directErr) {
             console.warn('Direct Supabase media upload fallback:', directErr);
+            setUploadStatusText(lang === 'ar' ? 'جاري الرفع عبر الخادم...' : 'Uploading via server...');
             await teacherApi.studio.uploadMedia(lessonUuid, mediaFile, {
               duration_seconds: durationSeconds,
             }).catch((fallbackErr) => console.warn('Backend media upload fallback failed:', fallbackErr));
@@ -705,7 +713,7 @@ export const RecordingStudio = () => {
                 onStopAndProcess={handleStopAndProcess}
                 onRecordedFileReady={(file) => {
                   setIsRecording(false);
-                  if (file) setRecordedMicFile(file);
+                  setRecordedMicFile(file || null);
                 }}
               />
             )}

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Mic, Play, Pause, Square, Sparkles, RotateCcw, Volume2, AlertCircle } from 'lucide-react';
+import { Mic, Play, Pause, Square, Sparkles, RotateCcw, Volume2, AlertCircle, Trash2 } from 'lucide-react';
 import { getOptimalAudioConfig } from '../../../services/storageService';
 
 export const LiveMicRecorder = ({
@@ -63,10 +63,11 @@ export const LiveMicRecorder = ({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.onstop = () => {
         const audioConfig = getOptimalAudioConfig();
-        const mime = audioConfig.mimeType || 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: mime });
-        const ext = mime.includes('mp4') ? 'm4a' : 'webm';
-        const audioFile = new File([audioBlob], `lecture_${Date.now()}.${ext}`, { type: mime });
+        const rawMime = mediaRecorderRef.current?.mimeType || audioConfig.mimeType || 'audio/webm';
+        const baseMime = rawMime.split(';')[0].trim().toLowerCase() || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: baseMime });
+        const ext = baseMime.includes('mp4') ? 'm4a' : baseMime.includes('ogg') ? 'ogg' : 'webm';
+        const audioFile = new File([audioBlob], `lecture_${Date.now()}.${ext}`, { type: baseMime });
 
         const url = URL.createObjectURL(audioBlob);
         setRecordedAudioUrl(url);
@@ -247,8 +248,35 @@ export const LiveMicRecorder = ({
           border: '1px solid var(--border-subtle)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '12.5px', fontWeight: '700', color: '#10B981', marginBottom: '8px' }}>
-            {lang === 'ar' ? '✓ تم تسجيل الصوت بنجاح — يمكنك الاستماع إليه قبل النشر' : '✓ Audio recorded — preview before publishing'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#10B981' }}>
+              {lang === 'ar' ? '✓ تم تسجيل الصوت بنجاح — يمكنك الاستماع إليه أو حذفه' : '✓ Audio recorded — preview or delete'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
+                setRecordedAudioUrl(null);
+                audioChunksRef.current = [];
+                if (onRecordedFileReady) onRecordedFileReady(null);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                color: '#EF4444',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              <Trash2 size={13} />
+              <span>{lang === 'ar' ? 'حذف التسجيل' : 'Delete Recording'}</span>
+            </button>
           </div>
           <audio controls src={recordedAudioUrl} style={{ width: '100%', maxWidth: '460px' }} />
         </div>
