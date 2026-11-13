@@ -204,12 +204,46 @@ export const RecordingStudio = () => {
     }
   };
 
+  const extractMediaDurationSeconds = (file) => {
+    return new Promise((resolve) => {
+      if (!(file instanceof File || file instanceof Blob)) {
+        resolve(0);
+        return;
+      }
+      const isVideo = file.type?.startsWith('video/') || /\.(mp4|webm|mov|ogv|mkv|avi)$/i.test(file.name || '');
+      const el = document.createElement(isVideo ? 'video' : 'audio');
+      const objectUrl = URL.createObjectURL(file);
+      let settled = false;
+
+      const cleanup = (val) => {
+        if (settled) return;
+        settled = true;
+        URL.revokeObjectURL(objectUrl);
+        el.removeAttribute('src');
+        resolve(val);
+      };
+
+      const timer = setTimeout(() => cleanup(0), 6000);
+      el.preload = 'metadata';
+      el.onloadedmetadata = () => {
+        clearTimeout(timer);
+        const dur = Number.isFinite(el.duration) && el.duration > 0 ? Math.round(el.duration) : 0;
+        cleanup(dur);
+      };
+      el.onerror = () => {
+        clearTimeout(timer);
+        cleanup(0);
+      };
+      el.src = objectUrl;
+    });
+  };
+
   const submitLessonAndUpload = async ({
     mediaMode,
     mediaFile = null,
     embedUrl = '',
     isYoutube = false,
-    durationSeconds = 1800,
+    durationSeconds = 0,
     defaultTitle,
   }) => {
     if (isSubmitting) return;
@@ -226,6 +260,14 @@ export const RecordingStudio = () => {
 
     let uploadSucceeded = false;
     try {
+      let resolvedDurationSeconds = Number(durationSeconds) > 0 ? Math.round(Number(durationSeconds)) : 0;
+      if (mediaFile) {
+        const extracted = await extractMediaDurationSeconds(mediaFile);
+        if (extracted > 0) {
+          resolvedDurationSeconds = extracted;
+        }
+      }
+
       const res = await teacherApi.studio.createLesson({
         title_ar: title || defaultTitle,
         description_ar: description || '',
@@ -236,7 +278,7 @@ export const RecordingStudio = () => {
         media_mode: mediaMode,
         embed_url: embedUrl || undefined,
         is_youtube: isYoutube,
-        duration_seconds: durationSeconds,
+        duration_seconds: resolvedDurationSeconds,
         ai_features_requested: effectiveAiFeatures,
       });
 
@@ -248,7 +290,7 @@ export const RecordingStudio = () => {
           setUploadStatusText(lang === 'ar' ? 'جاري رفع ملف الحصة إلى السحابة (0%)...' : 'Uploading lesson media (0%)...');
           try {
             await teacherApi.studio.uploadMediaDirect(lessonUuid, mediaFile, {
-              durationSeconds,
+              durationSeconds: resolvedDurationSeconds,
               onProgress: (pct) => {
                 setUploadStatusText(
                   lang === 'ar'
@@ -262,7 +304,7 @@ export const RecordingStudio = () => {
             setUploadStatusText(lang === 'ar' ? 'جاري الرفع عبر الخادم...' : 'Uploading via server...');
             await teacherApi.studio.uploadMedia(lessonUuid, mediaFile, {
               mode: mediaMode,
-              duration_seconds: durationSeconds,
+              duration_seconds: resolvedDurationSeconds,
             });
           }
         }
@@ -296,26 +338,26 @@ export const RecordingStudio = () => {
 
     let mediaMode = 'audio';
     let mediaFile = null;
-    let durationSeconds = 1800;
+    let durationSeconds = 0;
 
     if (mode === 'video' && (videoFile || safeEmbedUrl)) {
       mediaMode = safeEmbedUrl ? 'embed' : 'video';
       mediaFile = videoFile;
-      durationSeconds = videoData?.durationSeconds || 2400;
+      durationSeconds = videoData?.durationSeconds || 0;
     } else if (mode === 'audio' && audioUploadRaw) {
       mediaMode = 'audio';
       mediaFile = audioUploadRaw;
     } else if (recordedMicFile) {
       mediaMode = 'audio';
       mediaFile = recordedMicFile;
-      durationSeconds = elapsedSeconds || 60;
+      durationSeconds = elapsedSeconds || 0;
     } else if (audioUploadRaw) {
       mediaMode = 'audio';
       mediaFile = audioUploadRaw;
     } else if (videoFile || safeEmbedUrl) {
       mediaMode = safeEmbedUrl ? 'embed' : 'video';
       mediaFile = videoFile;
-      durationSeconds = videoData?.durationSeconds || 2400;
+      durationSeconds = videoData?.durationSeconds || 0;
     }
 
     if (mediaFile && mediaFile.size > 52428800) {
@@ -344,7 +386,7 @@ export const RecordingStudio = () => {
     await submitLessonAndUpload({
       mediaMode: 'audio',
       mediaFile: recordedAudioFile,
-      durationSeconds: elapsedSeconds || 1800,
+      durationSeconds: elapsedSeconds || 0,
       defaultTitle: lang === 'ar' ? 'حصة بدون عنوان' : 'Untitled Lesson',
     });
   };
@@ -359,7 +401,7 @@ export const RecordingStudio = () => {
     await submitLessonAndUpload({
       mediaMode: 'audio',
       mediaFile: audioFile,
-      durationSeconds: 1800,
+      durationSeconds: 0,
       defaultTitle: lang === 'ar' ? 'حصة صوتية جديدة' : 'New Audio Lesson',
     });
   };
@@ -380,7 +422,7 @@ export const RecordingStudio = () => {
       mediaFile: videoFile,
       embedUrl: safeEmbedUrl,
       isYoutube: Boolean(vidData?.youtubeUrl),
-      durationSeconds: vidData?.durationSeconds || 2400,
+      durationSeconds: vidData?.durationSeconds || 0,
       defaultTitle: lang === 'ar' ? 'حصة فيديو جديدة' : 'New Video Lesson',
     });
   };
