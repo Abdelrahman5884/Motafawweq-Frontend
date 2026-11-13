@@ -341,6 +341,8 @@ export const teacherApi = {
     },
     get: (uuid) => apiGet(`/teacher/leagues/${uuid}`),
     create: (data) => apiPost('/teacher/leagues', data),
+    update: (uuid, data) => apiPut(`/teacher/leagues/${uuid}`, data),
+    addParticipant: (uuid, data) => apiPost(`/teacher/leagues/${uuid}/participants`, data),
     awardXp: (uuid, { studentId, xpPoints, reason = '' }) =>
       apiPost(`/teacher/leagues/${uuid}/award-xp`, {
         student_id: studentId,

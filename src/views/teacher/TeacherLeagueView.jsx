@@ -23,7 +23,9 @@ import {
   ChevronRight,
   Trash2,
   AlertTriangle,
-  FileText
+  FileText,
+  Edit3,
+  UserPlus
 } from 'lucide-react';
 
 export const TeacherLeagueView = () => {
@@ -71,11 +73,14 @@ export const TeacherLeagueView = () => {
             id: l.id || l.uuid,
             key,
             courseId: l.courseId || l.course_id,
+            groupId: l.groupId || 'all',
             leagueTitle: l.leagueTitle || l.title_ar,
             courseNameAr: l.courseNameAr || l.course_name_ar || 'المقرر الدراسي',
             groupNameAr: l.groupNameAr || l.group_name_ar || 'جميع المجموعات',
             durationLabelAr: l.durationLabelAr || 'دوري شهري',
+            durationType: l.durationType || 'monthly',
             durationDays: l.durationDays || 30,
+            endsAt: l.endsAt || null,
             totalCompetitors: l.totalCompetitors || 0,
             roundDaysRemaining: l.roundDaysRemaining || 0,
             isActive: l.isActive !== undefined ? l.isActive : true,
@@ -145,9 +150,27 @@ export const TeacherLeagueView = () => {
 
   // Modals & Feedback
   const [showStartLeagueModal, setShowStartLeagueModal] = useState(false);
+  const [showEditLeagueModal, setShowEditLeagueModal] = useState(false);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [selectedStudentForModal, setSelectedStudentForModal] = useState(null);
   const [publishedNotice, setPublishedNotice] = useState(null);
   const [leagueToDelete, setLeagueToDelete] = useState(null);
+
+  // Edit League Modal Form State
+  const [editTitleAr, setEditTitleAr] = useState('');
+  const [editDuration, setEditDuration] = useState('monthly');
+  const [editGroupId, setEditGroupId] = useState('all');
+  const [editEndsAt, setEditEndsAt] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Add Student to League Modal State
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [studentSearchResults, setStudentSearchResults] = useState([]);
+  const [isSearchingStudents, setIsSearchingStudents] = useState(false);
+  const [addStudentInitialXp, setAddStudentInitialXp] = useState(1000);
+  const [isAddingStudentId, setIsAddingStudentId] = useState(null);
+  const [addStudentError, setAddStudentError] = useState('');
 
   // Start League Modal Form State
   const [modalCourseId, setModalCourseId] = useState('');
@@ -256,6 +279,147 @@ export const TeacherLeagueView = () => {
     setTimeout(() => {
       setPublishedNotice(null);
     }, 4000);
+  };
+
+  // Open Edit League Modal prefilled with current league values
+  const openEditLeagueModal = () => {
+    if (!currentLeague?.id) return;
+    setEditTitleAr(currentLeague.leagueTitle || '');
+    setEditDuration(currentLeague.durationType || 'monthly');
+    setEditGroupId(currentLeague.groupId || 'all');
+    setEditEndsAt(currentLeague.endsAt ? String(currentLeague.endsAt).slice(0, 10) : '');
+    setEditIsActive(currentLeague.isActive !== undefined ? Boolean(currentLeague.isActive) : true);
+    setShowEditLeagueModal(true);
+  };
+
+  // Save Edit League changes
+  const handleUpdateLeague = async (e) => {
+    e.preventDefault();
+    if (!currentLeague?.id || isSavingEdit) return;
+
+    setIsSavingEdit(true);
+    try {
+      const payload = {
+        title_ar: editTitleAr.trim(),
+        duration: editDuration,
+        study_group_id: editGroupId || 'all',
+        is_active: editIsActive,
+      };
+      if (editEndsAt) {
+        payload.ends_at = editEndsAt;
+      }
+
+      const res = await teacherApi.leagues.update(currentLeague.id, payload);
+      const updated = res?.data;
+      if (updated) {
+        setLeaguesData((prev) => ({
+          ...prev,
+          [activeLeagueKey]: {
+            ...prev[activeLeagueKey],
+            ...updated,
+            podium: Array.isArray(updated.podium) ? updated.podium : [],
+            leaderboard: Array.isArray(updated.leaderboard) ? updated.leaderboard : [],
+          },
+        }));
+      }
+
+      setShowEditLeagueModal(false);
+      setPublishedNotice({
+        title: lang === 'ar' ? 'تم تعديل الدوري بنجاح' : 'League Updated Successfully',
+        desc: lang === 'ar'
+          ? `تم حفظ التعديلات على (${updated?.leagueTitle || editTitleAr}) وتحديث الترتيب.`
+          : 'League changes have been saved.',
+      });
+      setTimeout(() => setPublishedNotice(null), 4000);
+    } catch (err) {
+      console.error('Update league error:', err);
+      alert(err.message || (lang === 'ar' ? 'تعذر حفظ تعديلات الدوري.' : 'Failed to update league.'));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  // Open Add Student Modal & fetch initial students list
+  const openAddStudentModal = async () => {
+    if (!currentLeague?.id) return;
+    setStudentSearchQuery('');
+    setAddStudentInitialXp(1000);
+    setAddStudentError('');
+    setShowAddStudentModal(true);
+    setIsSearchingStudents(true);
+    try {
+      const res = await teacherApi.roster.searchStudents('');
+      setStudentSearchResults(Array.isArray(res?.data) ? res.data : []);
+    } catch (err) {
+      setStudentSearchResults([]);
+    } finally {
+      setIsSearchingStudents(false);
+    }
+  };
+
+  // Search platform students for adding to league
+  const handleSearchStudents = async (query) => {
+    setStudentSearchQuery(query);
+    setAddStudentError('');
+    setIsSearchingStudents(true);
+    try {
+      const res = await teacherApi.roster.searchStudents(query);
+      setStudentSearchResults(Array.isArray(res?.data) ? res.data : []);
+    } catch (err) {
+      setStudentSearchResults([]);
+    } finally {
+      setIsSearchingStudents(false);
+    }
+  };
+
+  // Add a student to the active league after it started
+  const handleAddStudentToLeague = async (studentOrIdentifier) => {
+    if (!currentLeague?.id || isAddingStudentId) return;
+    const studentId = typeof studentOrIdentifier === 'object'
+      ? (studentOrIdentifier.id || studentOrIdentifier.studentCode)
+      : String(studentOrIdentifier).trim();
+
+    if (!studentId) return;
+
+    setIsAddingStudentId(studentId);
+    setAddStudentError('');
+    try {
+      const res = await teacherApi.leagues.addParticipant(currentLeague.id, {
+        student_id: String(studentId),
+        initial_xp: Number(addStudentInitialXp) >= 0 ? Number(addStudentInitialXp) : 1000,
+      });
+
+      const updated = res?.data;
+      if (updated) {
+        setLeaguesData((prev) => ({
+          ...prev,
+          [activeLeagueKey]: {
+            ...prev[activeLeagueKey],
+            ...updated,
+            podium: Array.isArray(updated.podium) ? updated.podium : [],
+            leaderboard: Array.isArray(updated.leaderboard) ? updated.leaderboard : [],
+          },
+        }));
+      }
+
+      const addedName = typeof studentOrIdentifier === 'object'
+        ? (studentOrIdentifier.nameAr || studentOrIdentifier.name)
+        : studentId;
+
+      setShowAddStudentModal(false);
+      setPublishedNotice({
+        title: lang === 'ar' ? 'تمت إضافة الطالب إلى الدوري' : 'Student Added to League',
+        desc: lang === 'ar'
+          ? `تم إدراج الطالب (${addedName}) في جدول ترتيب الدوري بنجاح.`
+          : `${addedName} has been added to the league.`,
+      });
+      setTimeout(() => setPublishedNotice(null), 4000);
+    } catch (err) {
+      console.error('Add student to league error:', err);
+      setAddStudentError(err.message || (lang === 'ar' ? 'تعذر إضافة الطالب إلى الدوري.' : 'Failed to add student.'));
+    } finally {
+      setIsAddingStudentId(null);
+    }
   };
 
   // Create / Start League submission
@@ -483,10 +647,35 @@ export const TeacherLeagueView = () => {
             <span>{lang === 'ar' ? 'إعلان تكريم الأسبوع' : 'Announce Champions'}</span>
           </button>
 
-          {currentLeague && currentLeague.leagueTitle && (
-            <button
-              type="button"
-              onClick={() => setLeagueToDelete({ key: activeLeagueKey, ...currentLeague })}
+          {currentLeague && currentLeague.id && (
+            <>
+              <button
+                type="button"
+                onClick={openEditLeagueModal}
+                style={{
+                  flex: isMobile ? '1 1 auto' : 'initial',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: isMobile ? '9px 12px' : '10px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.08)',
+                  border: '1.5px solid rgba(21, 136, 199, 0.25)',
+                  color: 'var(--primary)',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Edit3 size={14} />
+                <span>{lang === 'ar' ? 'تعديل الدوري' : 'Edit League'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLeagueToDelete({ key: activeLeagueKey, ...currentLeague })}
               style={{
                 flex: isMobile ? '1 1 auto' : 'initial',
                 display: 'inline-flex',
@@ -513,6 +702,7 @@ export const TeacherLeagueView = () => {
               <Trash2 size={14} />
               <span>{lang === 'ar' ? 'حذف الدوري' : 'Delete League'}</span>
             </button>
+            </>
           )}
         </div>
       </div>
@@ -1304,18 +1494,43 @@ export const TeacherLeagueView = () => {
           marginBottom: '16px'
         }}>
           <div>
-            <h3 style={{
-              fontSize: isMobile ? '15px' : '17px',
-              fontWeight: '900',
-              color: 'var(--text-primary)',
-              margin: '0 0 2px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <Layers size={16} color="var(--primary)" />
-              <span>جدول الترتيب العام ({filteredLeaderboard.length} طالب)</span>
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h3 style={{
+                fontSize: isMobile ? '15px' : '17px',
+                fontWeight: '900',
+                color: 'var(--text-primary)',
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <Layers size={16} color="var(--primary)" />
+                <span>جدول الترتيب العام ({filteredLeaderboard.length} طالب)</span>
+              </h3>
+              {currentLeague && currentLeague.id && (
+                <button
+                  type="button"
+                  onClick={openAddStudentModal}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(21, 136, 199, 0.25)'
+                  }}
+                >
+                  <UserPlus size={14} />
+                  <span>{lang === 'ar' ? 'إضافة طالب للدوري' : 'Add Student'}</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Search & Tier Filter */}
@@ -2076,6 +2291,476 @@ export const TeacherLeagueView = () => {
               >
                 {lang === 'ar' ? 'تأكيد الحذف' : 'Delete'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit League Modal (تعديل بيانات الدوري) */}
+      {showEditLeagueModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '14px',
+          direction: isRtl ? 'rtl' : 'ltr'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-medium)',
+            borderRadius: '24px',
+            width: '100%',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: isMobile ? '20px 16px' : '26px',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.35)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.12)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
+                    {lang === 'ar' ? 'تعديل بيانات الدوري' : 'Edit League'}
+                  </h3>
+                  <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', margin: 0 }}>
+                    {lang === 'ar' ? 'عدّل الاسم، المدة، المجموعات، أو حالة الدوري دون فقدان نقاط الطلاب' : 'Update league settings'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEditLeagueModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateLeague}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'اسم الدوري' : 'League Title'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTitleAr}
+                  onChange={(e) => setEditTitleAr(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-medium)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13.5px',
+                    fontFamily: 'inherit',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'المجموعة المستهدفة' : 'Target Group'}
+                </label>
+                <select
+                  value={editGroupId}
+                  onChange={(e) => setEditGroupId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-medium)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13.5px',
+                    fontFamily: 'inherit',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="all">{lang === 'ar' ? 'جميع المجموعات (دوري موحد)' : 'All Groups (Unified)'}</option>
+                  {groupsList.map((g) => (
+                    <option key={g.uuid || g.id} value={g.uuid || g.id}>
+                      {g.nameAr || g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                    {lang === 'ar' ? 'مدة الدوري' : 'Duration'}
+                  </label>
+                  <select
+                    value={editDuration}
+                    onChange={(e) => setEditDuration(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-medium)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13.5px',
+                      fontFamily: 'inherit',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="weekly">{lang === 'ar' ? 'أسبوعي (7 أيام)' : 'Weekly'}</option>
+                    <option value="monthly">{lang === 'ar' ? 'شهري (30 يوم)' : 'Monthly'}</option>
+                    <option value="half_year">{lang === 'ar' ? 'نصف سنة (90 يوم)' : 'Half Year'}</option>
+                    <option value="full_year">{lang === 'ar' ? 'سنة كاملة (180 يوم)' : 'Full Year'}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                    {lang === 'ar' ? 'تاريخ انتهاء الجولة' : 'End Date'}
+                  </label>
+                  <input
+                    type="date"
+                    value={editEndsAt}
+                    onChange={(e) => setEditEndsAt(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-medium)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13.5px',
+                      fontFamily: 'inherit',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                marginBottom: '20px',
+                cursor: 'pointer'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={editIsActive}
+                  onChange={(e) => setEditIsActive(e.target.checked)}
+                />
+                <span>{lang === 'ar' ? 'الدوري نشط حالياً ومتاح للمنافسة' : 'League is currently active'}</span>
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditLeagueModal(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-medium)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    cursor: isSavingEdit ? 'wait' : 'pointer',
+                    opacity: isSavingEdit ? 0.7 : 1
+                  }}
+                >
+                  {isSavingEdit
+                    ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                    : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Student to League Modal (إضافة طالب جديد للدوري بعد بدئه) */}
+      {showAddStudentModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '14px',
+          direction: isRtl ? 'rtl' : 'ltr'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-medium)',
+            borderRadius: '24px',
+            width: '100%',
+            maxWidth: '520px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: isMobile ? '20px 16px' : '26px',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.35)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.12)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <UserPlus size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
+                    {lang === 'ar' ? 'إضافة طالب إلى الدوري' : 'Add Student to League'}
+                  </h3>
+                  <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', margin: 0 }}>
+                    {lang === 'ar' ? 'ابحث بالاسم أو كود الطالب لإضافته إلى المنافسة الحالية' : 'Search student by name or code'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddStudentModal(false)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {addStudentError && (
+              <div style={{
+                padding: '10px 12px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#EF4444',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                marginBottom: '12px'
+              }}>
+                {addStudentError}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 140px', gap: '10px', marginBottom: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '5px' }}>
+                  {lang === 'ar' ? 'بحث عن طالب (الاسم / الكود / البريد)' : 'Search Student'}
+                </label>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: '10px',
+                  padding: '8px 10px'
+                }}>
+                  <Search size={14} color="var(--text-secondary)" />
+                  <input
+                    type="text"
+                    value={studentSearchQuery}
+                    onChange={(e) => handleSearchStudents(e.target.value)}
+                    placeholder={lang === 'ar' ? 'اكتب اسم الطالب أو كوده...' : 'Name or student code...'}
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '5px' }}>
+                  {lang === 'ar' ? 'نقاط البداية (XP)' : 'Initial XP'}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={addStudentInitialXp}
+                  onChange={(e) => setAddStudentInitialXp(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-medium)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{
+              maxHeight: '280px',
+              overflowY: 'auto',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '14px',
+              backgroundColor: 'var(--bg-subtle)',
+              padding: '8px'
+            }}>
+              {isSearchingStudents ? (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  {lang === 'ar' ? 'جاري البحث عن الطلاب...' : 'Searching students...'}
+                </div>
+              ) : studentSearchResults.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  {lang === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No matching students found.'}
+                  {studentSearchQuery.trim() && (
+                    <div style={{ marginTop: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleAddStudentToLeague(studentSearchQuery.trim())}
+                        disabled={Boolean(isAddingStudentId)}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          backgroundColor: 'var(--primary)',
+                          color: '#FFFFFF',
+                          fontSize: '12.5px',
+                          fontWeight: '800',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {lang === 'ar' ? `إضافة بالكود "${studentSearchQuery.trim()}" مباشرة` : `Add "${studentSearchQuery.trim()}" directly`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {studentSearchResults.map((stu) => {
+                    const alreadyInLeague = (currentLeague.leaderboard || []).some(
+                      (p) => String(p.studentId || p.id) === String(stu.id)
+                    );
+                    const isBusy = isAddingStudentId === (stu.id || stu.studentCode);
+
+                    return (
+                      <div
+                        key={stu.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          padding: '10px 12px',
+                          borderRadius: '12px',
+                          backgroundColor: 'var(--bg-surface)',
+                          border: '1px solid var(--border-subtle)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                          <img
+                            src={stu.avatar}
+                            alt={stu.nameAr || stu.name}
+                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                          />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {stu.nameAr || stu.name}
+                            </div>
+                            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                              {stu.studentCode ? `كود: ${stu.studentCode}` : stu.email}
+                            </div>
+                          </div>
+                        </div>
+
+                        {alreadyInLeague ? (
+                          <span style={{
+                            padding: '5px 10px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            color: '#10B981',
+                            fontSize: '11.5px',
+                            fontWeight: '800',
+                            flexShrink: 0
+                          }}>
+                            {lang === 'ar' ? 'مشترك بالفعل' : 'Enrolled'}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={Boolean(isAddingStudentId)}
+                            onClick={() => handleAddStudentToLeague(stu)}
+                            style={{
+                              padding: '7px 12px',
+                              borderRadius: '10px',
+                              border: 'none',
+                              backgroundColor: 'var(--primary)',
+                              color: '#FFFFFF',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              cursor: isBusy ? 'wait' : 'pointer',
+                              flexShrink: 0
+                            }}
+                          >
+                            {isBusy
+                              ? (lang === 'ar' ? 'جاري الإضافة...' : 'Adding...')
+                              : (lang === 'ar' ? '+ إضافة' : '+ Add')}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
