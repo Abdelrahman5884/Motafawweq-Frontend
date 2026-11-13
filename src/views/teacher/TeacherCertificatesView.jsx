@@ -485,7 +485,7 @@ export const TeacherCertificatesView = () => {
               {lang === 'ar' ? 'إجمالي الشهادات الممنوحة' : 'Total Certificates'}
             </div>
             <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1 }}>
-              184
+              {certificates.length}
             </div>
             <div style={{
               display: 'inline-flex',

@@ -84,13 +84,13 @@ export const TeacherBillingView = () => {
   const isAr = lang === 'ar';
 
   const [activeSub, setActiveSub] = useState({
-    planTier: 'plus',
-    planNameAr: 'باقة المعلم بلس — الفصل الدراسي الأول',
-    planNameEn: 'Teacher Plus — Semester 1 Active',
+    planTier: 'free',
+    planNameAr: 'جاري تحميل بيانات الاشتراك...',
+    planNameEn: 'Loading subscription...',
     status: 'active',
-    renewalDate: '2026-12-30',
-    daysRemaining: 90,
-    amountEgp: 480
+    renewalDate: '—',
+    daysRemaining: 0,
+    amountEgp: 0
   });
 
   const [plansList, setPlansList] = useState(DEFAULT_PLANS);

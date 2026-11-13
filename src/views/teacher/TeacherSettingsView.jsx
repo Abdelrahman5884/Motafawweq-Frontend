@@ -33,6 +33,8 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { teacherApi } from '../../services/teacherApi';
+import { authService, tokenStorage } from '../../services/api';
+import { useDialog } from '../../context/DialogContext';
 import { SPage, SPageHeader, SCard, SSection, SButton } from '../../components/student/ui';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { AvatarCropperModal, AvatarLightboxModal } from '../../components/common/AvatarCropperModal';
@@ -40,8 +42,14 @@ import { AvatarCropperModal, AvatarLightboxModal } from '../../components/common
 export const TeacherSettingsView = () => {
   const { lang, isRtl, setLang } = useLanguage();
   const { theme, setTheme, isDark } = useTheme();
-  const { updateUserProfile } = useAuth();
+  const { updateUserProfile, logout, navigate } = useAuth();
+  const { showAlert } = useDialog();
   const isAr = lang === 'ar';
+
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -1909,12 +1917,159 @@ export const TeacherSettingsView = () => {
                       {isAr ? 'تسجيل الخروج من باقي الأجهزة' : 'Logout Other Devices'}
                     </SButton>
                   </div>
+
+                  {/* Danger Zone: Delete Account */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '16px 18px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                      backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      marginTop: '14px',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#EF4444' }}>
+                        {isAr ? 'حذف الحساب نهائياً' : 'Delete Account Permanently'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {isAr
+                          ? 'سيتم تعطيل وحذف حسابك وإنهاء جميع الجلسات النشطة ولا يمكن التراجع عن هذا الإجراء.'
+                          : 'Permanently delete your account and revoke all active sessions. This cannot be undone.'}
+                      </div>
+                    </div>
+
+                    <SButton
+                      variant="danger"
+                      size="sm"
+                      onClick={() => {
+                        setDeletePassword('');
+                        setDeleteError('');
+                        setShowDeleteAccountModal(true);
+                      }}
+                    >
+                      {isAr ? 'حذف الحساب' : 'Delete Account'}
+                    </SButton>
+                  </div>
                 </SSection>
               </SCard>
             </div>
           )}
         </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountModal && (
+        <div
+          onClick={() => !isDeletingAccount && setShowDeleteAccountModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!deletePassword.trim()) {
+                setDeleteError(isAr ? 'يرجى إدخال كلمة المرور للتأكيد.' : 'Please enter your password.');
+                return;
+              }
+              setIsDeletingAccount(true);
+              setDeleteError('');
+              try {
+                await authService.deleteAccount(deletePassword);
+                tokenStorage.clearTokens();
+                setShowDeleteAccountModal(false);
+                if (logout) await logout().catch(() => {});
+                showAlert(
+                  isAr ? 'تم حذف حسابك بنجاح.' : 'Your account has been deleted.',
+                  { variant: 'success', title: isAr ? 'تم حذف الحساب' : 'Account Deleted' }
+                );
+                navigate('/login');
+              } catch (err) {
+                setDeleteError(err?.message || (isAr ? 'كلمة المرور غير صحيحة أو تعذر حذف الحساب.' : 'Failed to delete account.'));
+              } finally {
+                setIsDeletingAccount(false);
+              }
+            }}
+            style={{
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: '20px',
+              padding: '26px',
+              maxWidth: '420px',
+              width: '100%',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', color: '#EF4444' }}>
+              <Trash2 size={22} />
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                {isAr ? 'تأكيد حذف الحساب نهائياً' : 'Confirm Account Deletion'}
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 16px' }}>
+              {isAr
+                ? 'أدخل كلمة المرور الحالية لتأكيد رغبتك في حذف الحساب نهائياً.'
+                : 'Enter your current password to confirm permanent account deletion.'}
+            </p>
+            <input
+              type="password"
+              required
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              placeholder={isAr ? 'كلمة المرور الحالية' : 'Current password'}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '13.5px',
+                boxSizing: 'border-box',
+                marginBottom: '10px',
+              }}
+            />
+            {deleteError && (
+              <div style={{ fontSize: '12.5px', color: '#EF4444', fontWeight: '700', marginBottom: '12px' }}>
+                {deleteError}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <SButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowDeleteAccountModal(false)}
+              >
+                {isAr ? 'إلغاء' : 'Cancel'}
+              </SButton>
+              <SButton
+                type="submit"
+                variant="danger"
+                size="sm"
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? (isAr ? 'جاري الحذف...' : 'Deleting...') : (isAr ? 'تأكيد الحذف' : 'Confirm Delete')}
+              </SButton>
+            </div>
+          </form>
+        </div>
+      )}
     </SPage>
   );
 };

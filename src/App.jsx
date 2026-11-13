@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BreadcrumbProvider } from './context/BreadcrumbContext';
+import { DialogProvider } from './context/DialogContext';
 
 // Layout Components
 import { Navbar } from './components/layout/Navbar';
@@ -369,7 +370,8 @@ export default function App() {
           <GroupsProvider>
             <CenterProvider>
               <BrowserRouter>
-                <BreadcrumbProvider>
+                <DialogProvider>
+                  <BreadcrumbProvider>
                   <AppShell>
                     <Routes>
                     {/* Public & Website Routes */}
@@ -449,6 +451,7 @@ export default function App() {
                   </Routes>
                 </AppShell>
               </BreadcrumbProvider>
+              </DialogProvider>
             </BrowserRouter>
           </CenterProvider>
         </GroupsProvider>

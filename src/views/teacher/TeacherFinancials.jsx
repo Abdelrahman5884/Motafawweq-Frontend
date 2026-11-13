@@ -15,6 +15,7 @@ export const TeacherFinancials = () => {
 
   const [earnings, setEarnings] = useState({
     totalRevenueEgp: 0,
+    confirmedStudentsCount: 0,
     activePurchasesCount: 0,
     activeCoursesCount: 0,
   });
@@ -28,6 +29,7 @@ export const TeacherFinancials = () => {
       if (res?.data) {
         setEarnings(res.data.earnings || {
           totalRevenueEgp: 0,
+          confirmedStudentsCount: 0,
           activePurchasesCount: 0,
           activeCoursesCount: 0,
         });

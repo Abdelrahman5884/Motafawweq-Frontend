@@ -264,13 +264,10 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const onExpired = () => {
       clearLocalSession();
-      if (routerNavigator) {
-        routerNavigator('/login');
-      }
     };
     window.addEventListener('motafawweq:auth-expired', onExpired);
     return () => window.removeEventListener('motafawweq:auth-expired', onExpired);
-  }, [clearLocalSession, routerNavigator]);
+  }, [clearLocalSession]);
 
   // Switch role (used by role switcher / quick demo)
   const switchRole = (newRole) => {

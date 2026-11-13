@@ -233,6 +233,13 @@ async function apiRequest(path, { method = 'GET', body, tokenOverride, skipAuthR
   const payload = await res.json().catch(() => ({}));
 
   if (!res.ok || payload?.success === false) {
+    if (res.status === 401 && !NON_REFRESHABLE_PATHS.includes(path) && tokenStorage.getAccessToken()) {
+      tokenStorage.clearTokens();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('motafawweq:auth-expired'));
+      }
+    }
+
     // Extract first validation error if available for easy display
     let firstFieldError = null;
     if (payload?.errors && typeof payload.errors === 'object') {
@@ -311,6 +318,12 @@ export const authService = {
 
   logoutAll: () =>
     apiPost('/auth/logout-all', {}),
+
+  deleteAccount: (password) =>
+    apiRequest('/auth/account', {
+      method: 'DELETE',
+      body: { password },
+    }),
 
   verifyEmail: (code) =>
     apiPost('/auth/email/verify', { code: String(code).trim() }),
