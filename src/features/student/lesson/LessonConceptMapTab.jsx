@@ -28,7 +28,13 @@ export const LessonConceptMapTab = ({
   fmt,
   lang
 }) => {
-  const activeGraphNodeObj = graphNodes.find(n => n.id === selectedGraphNode) || graphNodes[3];
+  const activeGraphNodeObj = graphNodes.find(n => n.id === selectedGraphNode) || graphNodes[0] || {
+    id: '',
+    labelAr: '',
+    descAr: '',
+    time: '00:00',
+    sec: 0
+  };
 
   return (
     <div className="lv-roadmap-tab" ref={kmRef}>

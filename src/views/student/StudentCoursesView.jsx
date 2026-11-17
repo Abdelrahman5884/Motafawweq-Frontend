@@ -318,43 +318,83 @@ export const StudentCoursesView = () => {
         {/* SECTION 1: مقررات وزارة التربية والتعليم */}
         {activeCategory === 'ministry' && (
           <div style={{ animation: 'tabFadeIn 0.22s ease-out' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
-              gap: '20px'
-            }}>
-              {filteredMinistry.map((item) => (
-                <MinistryCurriculumCard
-                  key={item.id}
-                  item={item}
-                  lang={lang}
-                  onContinue={() => navigate('/student/lesson')}
-                  onOpenModal={(item) => setSelectedCurriculumModal(item)}
-                />
-              ))}
-            </div>
+            {filteredMinistry.length === 0 ? (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                borderRadius: '20px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px dashed var(--border-subtle)',
+                color: 'var(--text-secondary)'
+              }}>
+                <GraduationCap size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+                <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'لا توجد مقررات متاحة حالياً' : 'No Curriculum Available'}
+                </div>
+                <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+                  {lang === 'ar' ? 'لا توجد مقررات مسجلة في هذا القسم حالياً.' : 'No curriculum items found.'}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+                gap: '20px'
+              }}>
+                {filteredMinistry.map((item) => (
+                  <MinistryCurriculumCard
+                    key={item.id}
+                    item={item}
+                    lang={lang}
+                    onContinue={() => navigate('/student/lesson')}
+                    onOpenModal={(item) => setSelectedCurriculumModal(item)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* SECTION 2: كورسات وحصص المعلمين */}
         {activeCategory === 'teachers' && (
           <div style={{ animation: 'tabFadeIn 0.22s ease-out' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
-              gap: '20px'
-            }}>
-              {filteredTeacherCourses.map((course) => (
-                <TeacherCourseCard
-                  key={course.id}
-                  course={course}
-                  isEnrolled={!!enrolledCourses[course.id]}
-                  lang={lang}
-                  onContinue={() => navigate('/student/lesson')}
-                  onEnroll={() => handleEnroll(course)}
-                />
-              ))}
-            </div>
+            {filteredTeacherCourses.length === 0 ? (
+              <div style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                borderRadius: '20px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px dashed var(--border-subtle)',
+                color: 'var(--text-secondary)'
+              }}>
+                <Users size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+                <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  {lang === 'ar' ? 'لا توجد كورسات معلمين مسجلة حالياً' : 'No Teacher Courses Available'}
+                </div>
+                <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+                  {lang === 'ar'
+                    ? 'انضم لمجموعة دراسية أو اشترك مع معلمك لتظهر كورساته وحصصه هنا.'
+                    : 'Join a study group or enroll with a teacher to view their courses here.'}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+                gap: '20px'
+              }}>
+                {filteredTeacherCourses.map((course) => (
+                  <TeacherCourseCard
+                    key={course.id}
+                    course={course}
+                    isEnrolled={!!enrolledCourses[course.id]}
+                    lang={lang}
+                    onContinue={() => navigate('/student/lesson')}
+                    onEnroll={() => handleEnroll(course)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

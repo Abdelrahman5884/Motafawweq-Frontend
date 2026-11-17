@@ -258,6 +258,20 @@ export const StudentBillingView = () => {
           </div>
         </div>
 
+        {SUBSCRIPTION_PLANS.length === 0 ? (
+          <div style={{
+            padding: '36px 24px',
+            textAlign: 'center',
+            borderRadius: '20px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)',
+            fontSize: '14px',
+            fontWeight: '700'
+          }}>
+            {lang === 'ar' ? 'لا توجد باقات اشتراك متاحة حالياً.' : 'No subscription plans available at the moment.'}
+          </div>
+        ) : (
         <div
           className="billing-plans-grid"
           style={{
@@ -285,6 +299,7 @@ export const StudentBillingView = () => {
             />
           ))}
         </div>
+        )}
       </div>
 
       {/* Payment History Invoices Table */}

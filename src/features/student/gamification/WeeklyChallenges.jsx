@@ -33,6 +33,20 @@ export const WeeklyChallenges = ({ challenges, lang }) => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {(!challenges || challenges.length === 0) && (
+          <div style={{
+            padding: '28px 16px',
+            textAlign: 'center',
+            borderRadius: '14px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)',
+            fontSize: '13.5px',
+            fontWeight: '700'
+          }}>
+            {lang === 'ar' ? 'لا توجد تحديات أسبوعية متاحة حالياً.' : 'No weekly challenges available at the moment.'}
+          </div>
+        )}
         {challenges.map((ch) => {
           const percent = Math.min(100, Math.round((ch.current / ch.target) * 100));
 

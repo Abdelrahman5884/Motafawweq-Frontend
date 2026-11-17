@@ -40,6 +40,25 @@ export const WeakAreasHub = () => {
 
       {/* Weak Concept Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        {weakConcepts.length === 0 && (
+          <div style={{
+            padding: '48px 24px',
+            textAlign: 'center',
+            borderRadius: '20px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)'
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'لا توجد نقاط ضعف مسجلة حالياً' : 'No Weak Areas Detected'}
+            </div>
+            <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+              {lang === 'ar'
+                ? 'سيقوم النظام بتحليل إجاباتك في الامتحانات وتحديد الجزئيات التي تحتاج للمراجعة تلقائياً.'
+                : 'Your exam answers will be analyzed automatically to highlight concepts that need review.'}
+            </div>
+          </div>
+        )}
         {weakConcepts.map(c => (
           <WeakAreaCard
             key={c.id}

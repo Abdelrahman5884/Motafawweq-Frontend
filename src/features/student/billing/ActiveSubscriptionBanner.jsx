@@ -4,6 +4,31 @@ import { ShieldCheck, Calendar, Sparkles, CheckCircle2 } from 'lucide-react';
 export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true, onUpgrade }) => {
   const isAr = lang === 'ar';
 
+  if (!activeSub) {
+    return (
+      <div
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          borderRadius: '20px',
+          padding: '28px 24px',
+          marginBottom: '28px',
+          textAlign: 'center',
+          direction: isRtl ? 'rtl' : 'ltr'
+        }}
+      >
+        <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+          {isAr ? 'لا يوجد اشتراك نشط حالياً' : 'No Active Subscription'}
+        </div>
+        <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+          {isAr
+            ? 'لم تقم بالاشتراك في أي باقة أو كورس حتى الآن.'
+            : 'You do not have an active subscription plan yet.'}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{

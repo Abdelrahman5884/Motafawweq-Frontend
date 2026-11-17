@@ -74,6 +74,20 @@ export const BillingInvoicesList = ({ invoices, lang = 'ar', isRtl = true }) => 
 
       {/* Invoices List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {(!invoices || invoices.length === 0) && (
+          <div style={{
+            padding: '32px 16px',
+            textAlign: 'center',
+            borderRadius: '16px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)',
+            fontSize: '13.5px',
+            fontWeight: '700'
+          }}>
+            {isAr ? 'لا توجد عمليات دفع أو فواتير سابقة مسجلة.' : 'No previous payment invoices found.'}
+          </div>
+        )}
         {invoices.map((inv) => (
           <div
             key={inv.id}

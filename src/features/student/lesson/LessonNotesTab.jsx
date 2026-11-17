@@ -48,7 +48,11 @@ export const LessonNotesTab = ({
         </div>
       </form>
 
-      {notes.length > 0 && (
+      {notes.length === 0 ? (
+        <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '600' }}>
+          {lang === 'ar' ? 'لا توجد ملاحظات مسجلة على هذا الدرس حتى الآن.' : 'No notes saved for this lesson yet.'}
+        </div>
+      ) : (
         <div className="lv-notes__list">
           {notes.map((n, i) => (
             <div key={n.id} className="lv-note" style={{ animationDelay: `${i * 0.05}s` }}>

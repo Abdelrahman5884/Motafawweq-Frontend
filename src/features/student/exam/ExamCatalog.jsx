@@ -89,6 +89,26 @@ export const ExamCatalog = ({
       </div>
 
       {/* Clean Exam Cards Grid */}
+      {UPCOMING_EXAMS.length === 0 ? (
+        <div style={{
+          padding: '48px 24px',
+          textAlign: 'center',
+          borderRadius: '20px',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          color: 'var(--text-secondary)'
+        }}>
+          <FileText size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+          <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+            {lang === 'ar' ? 'لا توجد امتحانات متاحة حالياً' : 'No Exams Available'}
+          </div>
+          <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+            {lang === 'ar'
+              ? 'ستظهر هنا الامتحانات والاختبارات المقررة لك من معلميك بمجرد نشرها.'
+              : 'Exams assigned by your teachers will appear here once published.'}
+          </div>
+        </div>
+      ) : (
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
@@ -287,6 +307,7 @@ export const ExamCatalog = ({
           );
         })}
       </div>
+      )}
 
       {/* Pre-Exam Instructions & Confirmation Modal */}
       {pendingExam && (

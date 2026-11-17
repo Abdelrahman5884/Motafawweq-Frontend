@@ -2,6 +2,18 @@ import React from 'react';
 import { SCard, SProgress, S } from '../../../components/student/ui';
 
 export const SubjectPerformanceGrid = ({ subjectAverages, lang }) => {
+  if (!subjectAverages || subjectAverages.length === 0) {
+    return (
+      <SCard style={{ marginBottom: '28px', textAlign: 'center', padding: '28px 20px' }}>
+        <div style={{ fontSize: '15px', fontWeight: '800', color: S.textPrimary, marginBottom: '4px' }}>
+          {lang === 'ar' ? 'لا توجد إحصائيات مواد متاحة حالياً' : 'No Subject Analytics Yet'}
+        </div>
+        <div style={{ fontSize: '13px', color: S.textSecondary }}>
+          {lang === 'ar' ? 'ستظهر هنا نسب إتقانك للمواد فور بدء حل الاختبارات ومشاهدة الدروس.' : 'Subject mastery metrics will appear here once you complete lessons and exams.'}
+        </div>
+      </SCard>
+    );
+  }
   return (
     <div style={{
       display: 'grid',

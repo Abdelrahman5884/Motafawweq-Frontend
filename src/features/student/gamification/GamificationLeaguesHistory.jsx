@@ -174,6 +174,11 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: '16px'
         }}>
+          {teacherLeagues.length === 0 && (
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+              {lang === 'ar' ? 'لا توجد دوريات معلمين مشترك بها حالياً.' : 'No enrolled teacher leagues found.'}
+            </div>
+          )}
           {teacherLeagues.map((item) => (
             <div
               key={item.id}
@@ -394,6 +399,11 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: '16px'
         }}>
+          {pastLeagues.length === 0 && (
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+              {lang === 'ar' ? 'لا توجد جولات سابقة مسجلة في الأرشيف حتى الآن.' : 'No past league rounds recorded yet.'}
+            </div>
+          )}
           {pastLeagues.map((item) => (
             <div
               key={item.id}

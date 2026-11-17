@@ -25,6 +25,11 @@ export const LectureTopicsTab = ({ chapters, lang = 'ar', isRtl = true, onJumpTo
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {(!chapters || chapters.length === 0) && (
+          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '600' }}>
+            {lang === 'ar' ? 'لا توجد فصول مستخرجة حالياً.' : 'No chapters extracted yet.'}
+          </div>
+        )}
         {chapters.map((ch, idx) => (
           <div
             key={ch.id}

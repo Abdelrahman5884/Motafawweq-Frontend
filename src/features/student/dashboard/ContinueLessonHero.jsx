@@ -5,6 +5,40 @@ import { Play, ArrowRight, ArrowLeft } from 'lucide-react';
 export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccent }) => {
   const navigate = useNavigate();
 
+  if (!lastLesson || !lastLesson.titleAr) {
+    return (
+      <div className="executive-card" style={{ padding: '24px', textAlign: 'center' }}>
+        <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+          {lang === 'ar' ? 'لا توجد محاضرات قيد المشاهدة حالياً' : 'No Lesson in Progress'}
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+          {lang === 'ar'
+            ? 'لم تبدأ مشاهدة أي درس بعد. تصفح الكورسات المتاحة وابدأ رحلة المذاكرة الآن.'
+            : 'You have not started any lessons yet. Browse your courses to begin.'}
+        </div>
+        <button
+          onClick={() => navigate('/student/courses')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: themeAccent || 'var(--primary)',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '9px 18px',
+            fontSize: '13px',
+            fontWeight: '700',
+            cursor: 'pointer'
+          }}
+        >
+          <Play size={15} fill="#FFFFFF" />
+          <span>{lang === 'ar' ? 'استعراض الكورسات' : 'Browse Courses'}</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="executive-card" style={{ padding: 0 }}>
       <div className="executive-hero-lesson">

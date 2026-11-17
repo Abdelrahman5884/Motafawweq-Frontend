@@ -11,6 +11,11 @@ export const LessonQuestionsTab = ({
 }) => {
   return (
     <div className="lv-questions">
+      {(!questions || questions.length === 0) && (
+        <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+          {lang === 'ar' ? 'لا توجد أسئلة تدريبية مسجلة لهذا الدرس حالياً.' : 'No practice questions available for this lesson.'}
+        </div>
+      )}
       {questions.map((q, i) => (
         <div key={q.id} className="lv-q" style={{ animationDelay: `${i * 0.06}s` }}>
           <div className="lv-q__head">

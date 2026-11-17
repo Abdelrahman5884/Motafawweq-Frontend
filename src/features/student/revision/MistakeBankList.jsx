@@ -31,6 +31,25 @@ export const MistakeBankList = ({ mistakes, unsolvedMistakesCount, lang, onOpenM
       </div>
 
       {/* Mistakes Cards Grid */}
+      {(!mistakes || mistakes.length === 0) ? (
+        <div style={{
+          padding: '48px 24px',
+          textAlign: 'center',
+          borderRadius: '20px',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          color: 'var(--text-secondary)'
+        }}>
+          <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+            {lang === 'ar' ? 'لا توجد أخطاء مسجلة في بنك الأخطاء حالياً' : 'No Mistakes Recorded'}
+          </div>
+          <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+            {lang === 'ar'
+              ? 'ستظهر هنا الأسئلة التي تخطئ فيها أثناء الامتحانات لتتمكن من مراجعتها وإتقانها.'
+              : 'Questions you miss in exams will automatically appear here for targeted revision.'}
+          </div>
+        </div>
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {mistakes.map((m) => (
           <div
@@ -100,6 +119,7 @@ export const MistakeBankList = ({ mistakes, unsolvedMistakesCount, lang, onOpenM
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 };

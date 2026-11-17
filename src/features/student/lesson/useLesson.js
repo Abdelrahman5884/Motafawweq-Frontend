@@ -171,10 +171,12 @@ export const useLesson = (lang) => {
   }));
 
   const completedCount = playlist.filter(l => l.completed).length;
-  const courseCompletionPct = Math.round((completedCount / playlist.length) * 100);
-  const currentCh = lesson.chapters.find(c => currentTime >= c.startSec && currentTime < c.endSec) || lesson.chapters[0];
-  const progress = Math.min(100, Math.max(0, ((currentTime / lesson.durationSec) * 100))).toFixed(1);
-  const remainingSec = Math.max(0, lesson.durationSec - currentTime);
+  const courseCompletionPct = playlist.length > 0 ? Math.round((completedCount / playlist.length) * 100) : 0;
+  const currentCh = (lesson.chapters || []).find(c => currentTime >= c.startSec && currentTime < c.endSec) || (lesson.chapters || [])[0] || null;
+  const progress = lesson.durationSec > 0
+    ? Math.min(100, Math.max(0, ((currentTime / lesson.durationSec) * 100))).toFixed(1)
+    : '0.0';
+  const remainingSec = Math.max(0, (lesson.durationSec || 0) - currentTime);
 
   // Lesson Switching with Confirmation
   const switchLesson = (lid) => {

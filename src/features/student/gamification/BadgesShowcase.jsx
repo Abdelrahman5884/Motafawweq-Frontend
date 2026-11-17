@@ -32,6 +32,11 @@ export const BadgesShowcase = ({ lang }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+        {STUDENT_BADGES.length === 0 && (
+          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+            {lang === 'ar' ? 'لا توجد شارات مفتوحة حتى الآن.' : 'No badges unlocked yet.'}
+          </div>
+        )}
         {STUDENT_BADGES.map((b) => (
           <div
             key={b.id}

@@ -22,6 +22,11 @@ export const LeagueRulesTab = ({ lang }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+        {LEAGUE_RULES.length === 0 && (
+          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+            {lang === 'ar' ? 'لا توجد قواعد إضافية مسجلة حالياً.' : 'No scoring rules listed yet.'}
+          </div>
+        )}
         {LEAGUE_RULES.map((rule, idx) => (
           <div
             key={idx}

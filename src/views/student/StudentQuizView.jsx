@@ -63,6 +63,25 @@ export const StudentQuizView = () => {
       </div>
 
       {/* QUIZ SOLVING INTERFACE */}
+      {(!currentQuestionsList || currentQuestionsList.length === 0 || !currentQ) ? (
+        <div style={{
+          padding: '48px 24px',
+          textAlign: 'center',
+          borderRadius: '20px',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          color: 'var(--text-secondary)'
+        }}>
+          <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+            {lang === 'ar' ? 'لا توجد كويزات أو أسئلة متاحة حالياً' : 'No Quizzes Available'}
+          </div>
+          <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+            {lang === 'ar'
+              ? 'ستظهر هنا كويزات الحصص والتدريبات التفاعلية الخاصة بدروسك المسجلة.'
+              : 'Interactive lesson quizzes and practice questions will appear here.'}
+          </div>
+        </div>
+      ) : (
       <div>
         <QuizStatusBar
           quizSource={quizSource}
@@ -112,6 +131,7 @@ export const StudentQuizView = () => {
           />
         )}
       </div>
+      )}
 
       {/* Pre-Submit Review Sheet Modal (US-34) */}
       <QuizReviewModal

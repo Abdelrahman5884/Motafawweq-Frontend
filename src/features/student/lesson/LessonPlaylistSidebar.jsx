@@ -58,6 +58,11 @@ export const LessonPlaylistSidebar = ({
 
         {/* Lessons List in Playlist */}
         <div className="lv-playlist-list">
+          {playlist.length === 0 && (
+            <div style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12.5px', fontWeight: '600' }}>
+              {lang === 'ar' ? 'لا توجد دروس متاحة في هذه الدورة حالياً.' : 'No lessons available in this course.'}
+            </div>
+          )}
           {playlist.map((l, i) => {
             const isActive = l.id === activeLessonId;
             return (

@@ -47,6 +47,17 @@ export const LeaguePodium = ({ top1, top2, top3, lang, onSelectStudent, leagueBa
       </div>
 
       {/* Desktop Classic Olympic Podium (Hidden on mobile via CSS) */}
+      {(!top1 && !top2 && !top3) && (
+        <div style={{
+          padding: '28px 16px',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          fontSize: '13.5px',
+          fontWeight: '700'
+        }}>
+          {lang === 'ar' ? 'لم يتم تحديد أبطال منصة التتويج لهذا الأسبوع بعد.' : 'Top 3 podium has not been determined yet.'}
+        </div>
+      )}
       <div className="podium-desktop-layout">
         {/* 2nd Place */}
         {top2 && (

@@ -21,13 +21,8 @@ export const StudentRevisionView = () => {
   const [selectedRetryOption, setSelectedRetryOption] = useState(null);
   const [retryResult, setRetryResult] = useState(null);
 
-  // Pre-exam checklist state (US-74)
-  const [checklist, setChecklist] = useState([
-    { id: 'chk-1', textAr: 'مراجعة معادلة انشطار الماء ودور إنزيمات التفاعلات الضوئية', done: true },
-    { id: 'chk-2', textAr: 'فهم قانون بلاكمان للعوامل المحددة ورسم المنحنيات البيانية', done: false },
-    { id: 'chk-3', textAr: 'حل 15 سؤالاً من بنك الأخطاء والأسئلة الوزارية السابقة', done: false },
-    { id: 'chk-4', textAr: 'سماع ملخص كورنيل الصوتي المركز (8 دقائق)', done: true }
-  ]);
+  // Pre-exam checklist state (loaded dynamically)
+  const [checklist, setChecklist] = useState([]);
 
   const toggleChecklistItem = (id) => {
     setChecklist(prev => prev.map(item => item.id === id ? { ...item, done: !item.done } : item));

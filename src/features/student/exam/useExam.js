@@ -6,7 +6,15 @@ import { UPCOMING_EXAMS, LEAGUE_LEADERBOARD, AI_LECTURE_QUESTIONS_BANK, STUDENT_
 export const useExam = (lang) => {
   const [examState, setExamState] = useState('catalog');
   const [examSource, setExamSource] = useState('teacher');
-  const [activeExam, setActiveExam] = useState(UPCOMING_EXAMS[0]);
+  const [activeExam, setActiveExam] = useState(UPCOMING_EXAMS[0] || {
+    id: '',
+    titleAr: '',
+    subjectAr: '',
+    durationMinutes: 30,
+    questionsCount: 0,
+    attemptsAllowed: 1,
+    status: 'ready'
+  });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [pendingExam, setPendingExam] = useState(null);
 
@@ -17,7 +25,7 @@ export const useExam = (lang) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [flaggedQuestions, setFlaggedQuestions] = useState({});
-  const [timeLeft, setTimeLeft] = useState(activeExam.durationMinutes * 60);
+  const [timeLeft, setTimeLeft] = useState(((UPCOMING_EXAMS[0]?.durationMinutes) || 30) * 60);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
   const [showReviewConfirm, setShowReviewConfirm] = useState(false);
 

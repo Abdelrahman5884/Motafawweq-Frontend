@@ -143,6 +143,11 @@ export const StudentAnalyticsView = () => {
               </div>
             </div>
           ))}
+          {weakAreas.length === 0 && (
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: S.textSecondary, fontSize: '13.5px', fontWeight: '700' }}>
+              {lang === 'ar' ? 'لا توجد نقاط ضعف مسجلة حالياً.' : 'No weak areas recorded at the moment.'}
+            </div>
+          )}
         </div>
       </SCard>
     </SPage>

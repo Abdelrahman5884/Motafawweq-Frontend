@@ -5,6 +5,8 @@ import { UPCOMING_EXAMS, HOMEWORK_LIST } from '../../../data/studentData';
 
 export const UpcomingDeadlines = ({ lang, isRtl }) => {
   const navigate = useNavigate();
+  const nextExam = UPCOMING_EXAMS[0] || null;
+  const nextHw = HOMEWORK_LIST[0] || null;
 
   return (
     <div className="executive-deadlines-grid">
@@ -26,27 +28,28 @@ export const UpcomingDeadlines = ({ lang, isRtl }) => {
               }}>
                 <Calendar size={17} />
               </div>
-              <div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'الاختبارات القادمة (US-11)' : 'Upcoming Exams'}
-                </h3>
-              </div>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
+                {lang === 'ar' ? 'الاختبارات القادمة' : 'Upcoming Exams'}
+              </h3>
             </div>
-
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.12)', padding: '2px 8px', borderRadius: '6px' }}>
-              {lang === 'ar' ? 'متبقي 18 ساعة' : '18h left'}
-            </span>
           </div>
 
-          <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
-            {UPCOMING_EXAMS[0].titleAr}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-            {lang === 'ar'
-              ? `الموعد: الأحد 06:00 م • المدة: ${UPCOMING_EXAMS[0].durationMinutes} دقيقة • ${UPCOMING_EXAMS[0].questionsCount} سؤال (${UPCOMING_EXAMS[0].maxScore} درجة)`
-              : `Sunday 06:00 PM • ${UPCOMING_EXAMS[0].durationMinutes} mins • ${UPCOMING_EXAMS[0].questionsCount} questions`
-            }
-          </div>
+          {nextExam ? (
+            <>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                {nextExam.titleAr}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {lang === 'ar'
+                  ? `المدة: ${nextExam.durationMinutes} دقيقة • ${nextExam.questionsCount} سؤال`
+                  : `${nextExam.durationMinutes} mins • ${nextExam.questionsCount} questions`}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0 18px', fontWeight: '600' }}>
+              {lang === 'ar' ? 'لا توجد اختبارات قادمة حالياً.' : 'No upcoming exams at the moment.'}
+            </div>
+          )}
         </div>
 
         <button
@@ -65,11 +68,10 @@ export const UpcomingDeadlines = ({ lang, isRtl }) => {
             fontSize: '13px',
             fontWeight: '700',
             cursor: 'pointer',
-            minHeight: '40px',
-            transition: 'all 0.15s ease'
+            minHeight: '40px'
           }}
         >
-          <span>{lang === 'ar' ? 'مراجعة المنهج ودخول الاختبار' : 'View Exam & Prepare'}</span>
+          <span>{lang === 'ar' ? 'صفحة الامتحانات' : 'View Exams'}</span>
           {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
         </button>
       </div>
@@ -92,27 +94,28 @@ export const UpcomingDeadlines = ({ lang, isRtl }) => {
               }}>
                 <FileText size={17} />
               </div>
-              <div>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'الواجبات المطلوبة (US-12)' : 'Upcoming Homework'}
-                </h3>
-              </div>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
+                {lang === 'ar' ? 'الواجبات المطلوبة' : 'Upcoming Homework'}
+              </h3>
             </div>
-
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#EF4444', background: 'rgba(239, 68, 68, 0.12)', padding: '2px 8px', borderRadius: '6px' }}>
-              {lang === 'ar' ? 'ينتهي الليلة' : 'Due Tonight'}
-            </span>
           </div>
 
-          <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
-            {HOMEWORK_LIST[0].titleAr}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-            {lang === 'ar'
-              ? `الموعد النهائي: الليلة قبل 11:59 م • ${HOMEWORK_LIST[0].questionsCount} أسئلة (${HOMEWORK_LIST[0].maxScore} درجة) • مادة ${HOMEWORK_LIST[0].subjectAr}`
-              : `Deadline: Tonight 11:59 PM • ${HOMEWORK_LIST[0].questionsCount} questions (${HOMEWORK_LIST[0].maxScore} pts)`
-            }
-          </div>
+          {nextHw ? (
+            <>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                {nextHw.titleAr}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                {lang === 'ar'
+                  ? `الدرجة: ${nextHw.maxScore} درجة`
+                  : `Max score: ${nextHw.maxScore} pts`}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0 18px', fontWeight: '600' }}>
+              {lang === 'ar' ? 'لا توجد واجبات مطلوبة حالياً.' : 'No pending homework at the moment.'}
+            </div>
+          )}
         </div>
 
         <button
@@ -131,11 +134,10 @@ export const UpcomingDeadlines = ({ lang, isRtl }) => {
             fontSize: '13px',
             fontWeight: '700',
             cursor: 'pointer',
-            minHeight: '40px',
-            transition: 'all 0.15s ease'
+            minHeight: '40px'
           }}
         >
-          <span>{lang === 'ar' ? 'حل وتسليم الواجب الآن' : 'Solve & Submit Homework'}</span>
+          <span>{lang === 'ar' ? 'صفحة الواجبات' : 'View Homework'}</span>
           {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
         </button>
       </div>

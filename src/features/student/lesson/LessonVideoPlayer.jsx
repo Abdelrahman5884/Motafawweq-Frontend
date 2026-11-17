@@ -46,12 +46,14 @@ export const LessonVideoPlayer = ({
           <div className="lv-player__video-gradient" />
 
           {/* Chapter Pill */}
-          <div className="lv-player__chapter-pill">
-            <span className="lv-player__chapter-num">
-              {lang === 'ar' ? `المحطة ${currentCh.id} من 4` : `Part ${currentCh.id}/4`}
-            </span>
-            <span className="lv-player__chapter-title">{currentCh.titleAr}</span>
-          </div>
+          {currentCh && (
+            <div className="lv-player__chapter-pill">
+              <span className="lv-player__chapter-num">
+                {lang === 'ar' ? `المحطة ${currentCh.id}` : `Part ${currentCh.id}`}
+              </span>
+              <span className="lv-player__chapter-title">{currentCh.titleAr}</span>
+            </div>
+          )}
 
           {/* Center Play/Pause Overlay */}
           <button

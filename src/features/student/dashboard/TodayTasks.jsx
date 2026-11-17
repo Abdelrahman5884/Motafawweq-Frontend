@@ -87,6 +87,20 @@ export const TodayTasks = ({
 
       {/* Tasks List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {filteredTasks.length === 0 && (
+          <div style={{
+            padding: '28px 16px',
+            textAlign: 'center',
+            borderRadius: '12px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)',
+            fontSize: '13.5px',
+            fontWeight: '700'
+          }}>
+            {lang === 'ar' ? 'لا توجد مهام مجدولة لهذا اليوم حالياً.' : 'No tasks scheduled for today.'}
+          </div>
+        )}
         {filteredTasks.map((task) => (
           <div key={task.id} className="executive-task-row">
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>

@@ -59,7 +59,15 @@ export const AI_LECTURE_QUESTIONS_BANK = [];
 
 export const MISTAKE_BANK = [];
 
-export const generateActivityStreakGrid = () => [];
+export const generateActivityStreakGrid = () =>
+  Array.from({ length: 52 }, (_, w) =>
+    Array.from({ length: 7 }, (_, d) => ({
+      date: `2026-W${w + 1}-D${d + 1}`,
+      level: 0,
+      minutes: 0,
+      lessons: 0,
+    }))
+  );
 
 export const STUDENT_BADGES = [];
 

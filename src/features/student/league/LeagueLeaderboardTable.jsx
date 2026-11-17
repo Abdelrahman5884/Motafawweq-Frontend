@@ -2,6 +2,27 @@ import React from 'react';
 import { Award, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 
 export const LeagueLeaderboardTable = ({ students, lang, isRtl, onSelectStudent }) => {
+  if (!students || students.length === 0) {
+    return (
+      <div style={{
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px dashed var(--border-subtle)',
+        borderRadius: '18px',
+        padding: '44px 24px',
+        textAlign: 'center',
+        color: 'var(--text-secondary)'
+      }}>
+        <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+          {lang === 'ar' ? 'لا توجد بيانات متصدرين في هذا الدوري حالياً' : 'No Leaderboard Entries Yet'}
+        </div>
+        <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+          {lang === 'ar'
+            ? 'سيظهر ترتيب الطلاب هنا فور بدء المنافسة وحل الاختبارات.'
+            : 'Student rankings will appear here once the competition begins.'}
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface)',

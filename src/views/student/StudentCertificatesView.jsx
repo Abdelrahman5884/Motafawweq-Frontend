@@ -42,24 +42,45 @@ export const StudentCertificatesView = () => {
       <CertificateEligibilityCard lang={lang} />
 
       {/* Certificates Gallery (100% Mobile Responsive Grid) */}
-      <div
-        className="certificates-gallery-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
-          gap: '20px',
-          marginTop: '8px'
-        }}
-      >
-        {CERTIFICATES_LIST.map((cert) => (
-          <CertificateCard
-            key={cert.id}
-            cert={cert}
-            lang={lang}
-            onSelectCert={(c) => setSelectedCert(c)}
-          />
-        ))}
-      </div>
+      {CERTIFICATES_LIST.length === 0 ? (
+        <div style={{
+          padding: '48px 24px',
+          textAlign: 'center',
+          borderRadius: '20px',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          color: 'var(--text-secondary)',
+          marginTop: '16px'
+        }}>
+          <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+            {isAr ? 'لا توجد شهادات مصدرة حتى الآن' : 'No Certificates Issued Yet'}
+          </div>
+          <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+            {isAr
+              ? 'ستظهر شهادات التقدير والتفوق المعتمدة هنا فور إتمامك لمتطلبات الكورس.'
+              : 'Your verified course completion certificates will appear here once earned.'}
+          </div>
+        </div>
+      ) : (
+        <div
+          className="certificates-gallery-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+            gap: '20px',
+            marginTop: '8px'
+          }}
+        >
+          {CERTIFICATES_LIST.map((cert) => (
+            <CertificateCard
+              key={cert.id}
+              cert={cert}
+              lang={lang}
+              onSelectCert={(c) => setSelectedCert(c)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Official Certificate Preview Modal */}
       <CertificateModal

@@ -232,21 +232,41 @@ export const StudentHomeworkView = () => {
         </div>
 
         {/* Homework Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '20px',
-          animation: 'tabFadeIn 0.25s ease'
-        }}>
-          {filteredList.map((hw) => (
-            <HomeworkCard
-              key={hw.id}
-              hw={hw}
-              handleOpenHw={handleOpenHw}
-              lang={lang}
-            />
-          ))}
-        </div>
+        {filteredList.length === 0 ? (
+          <div style={{
+            padding: '48px 24px',
+            textAlign: 'center',
+            borderRadius: '20px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)'
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'لا توجد واجبات في هذا القسم حالياً' : 'No Homework Found'}
+            </div>
+            <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+              {lang === 'ar'
+                ? 'لم يتم تكليفك بأي واجبات دراسية حتى الآن.'
+                : 'No homework assignments have been posted yet.'}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '20px',
+            animation: 'tabFadeIn 0.25s ease'
+          }}>
+            {filteredList.map((hw) => (
+              <HomeworkCard
+                key={hw.id}
+                hw={hw}
+                handleOpenHw={handleOpenHw}
+                lang={lang}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Submission / Grade Modal */}
         <HomeworkSubmissionModal

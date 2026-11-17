@@ -35,6 +35,11 @@ export const LessonTranscriptTab = ({
 
       {/* Segments List */}
       <div className="lv-transcript__list">
+        {filtered.length === 0 && (
+          <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+            {lang === 'ar' ? 'لا يوجد تفريغ نصي متاح لهذا الدرس حالياً.' : 'No transcript available for this lesson.'}
+          </div>
+        )}
         {filtered.map(seg => {
           const isCurrent = currentTime >= seg.startSec && currentTime < seg.endSec;
           return (
