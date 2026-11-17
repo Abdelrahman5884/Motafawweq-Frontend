@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { teacherApi } from '../services/teacherApi';
+import { studentApi } from '../services/studentApi';
+import { useAuth } from './AuthContext';
 
 export const ALL_REGISTERED_STUDENTS = [];
 
@@ -59,6 +61,10 @@ export const parseScheduleSlots = (scheduleStr = '', defaultHall = 'القاعة
 const GroupsContext = createContext(null);
 
 export const GroupsProvider = ({ children }) => {
+  const { currentUser } = useAuth();
+  const isStudentRole = currentUser?.role === 'student';
+  const isTeacherRole = !currentUser?.role || currentUser?.role === 'teacher';
+
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
 
@@ -98,10 +104,70 @@ export const GroupsProvider = ({ children }) => {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // Fetch groups from backend
+  // Fetch groups from backend (role-aware: Teacher vs Student)
   const fetchGroups = useCallback(async () => {
+    if (!currentUser) {
+      setLoadingGroups(false);
+      return;
+    }
     setLoadingGroups(true);
     try {
+      if (isStudentRole) {
+        const res = await studentApi.groups.list();
+        const rawList = res?.data || [];
+        const enrolledMap = {};
+        const pendingMap = {};
+
+        const mappedGroups = rawList.map((g) => {
+          const gid = g.groupId || g.id || g.uuid;
+          const meEntry = {
+            id: g.enrollmentId || gid,
+            nameAr: currentUser?.nameAr || currentUser?.name || 'الطالب',
+            name: currentUser?.name || currentUser?.nameAr || 'الطالب',
+            phone: currentUser?.phone || '',
+            barcode: g.studentBarcode,
+            passcode: g.studentPasscode,
+            attendanceRate: g.attendanceRate ?? 100,
+          };
+          if (g.enrollmentStatus === 'enrolled') {
+            enrolledMap[gid] = [meEntry];
+            pendingMap[gid] = [];
+          } else {
+            enrolledMap[gid] = [];
+            pendingMap[gid] = [meEntry];
+          }
+
+          return {
+            id: gid,
+            uuid: gid,
+            nameAr: g.nameAr || g.name_ar,
+            nameEn: g.nameEn || g.name_en || g.nameAr,
+            subjectAr: g.subjectAr || 'الأحياء (الثانوية العامة)',
+            gradeAr: g.gradeAr || 'الصف الثالث الثانوي',
+            scheduleAr: g.scheduleAr || '',
+            centerName: g.centerName || 'سنتر الرواد التعليمي',
+            hallName: g.hallName || 'القاعة الرئيسية',
+            teacherName: g.teacherName || '',
+            enrollmentStatus: g.enrollmentStatus,
+            studentBarcode: g.studentBarcode,
+            studentPasscode: g.studentPasscode,
+            scheduleSlots: Array.isArray(g.scheduleSlots) && g.scheduleSlots.length > 0
+              ? g.scheduleSlots
+              : parseScheduleSlots(g.scheduleAr, g.hallName),
+          };
+        });
+
+        setGroups(mappedGroups);
+        setEnrolledStudents(enrolledMap);
+        setPendingStudents(pendingMap);
+        return;
+      }
+
+      if (!isTeacherRole) {
+        setLoadingGroups(false);
+        return;
+      }
+
       const res = await teacherApi.groups.list();
       const rawList = res?.data || [];
       const mappedGroups = rawList.map((g) => ({
@@ -149,11 +215,11 @@ export const GroupsProvider = ({ children }) => {
     } finally {
       setLoadingGroups(false);
     }
-  }, []);
+  }, [currentUser, isStudentRole, isTeacherRole]);
 
-  // Fetch Roster for active group
+  // Fetch Roster for active group (Teacher only)
   const fetchGroupRoster = useCallback(async (groupId) => {
-    if (!groupId) return;
+    if (!groupId || !isTeacherRole || !currentUser) return;
     try {
       const res = await teacherApi.roster.list(groupId);
       if (res?.data) {
@@ -165,11 +231,28 @@ export const GroupsProvider = ({ children }) => {
     } catch (err) {
       console.warn(`Roster fetch failed for group ${groupId}:`, err);
     }
-  }, []);
+  }, [isTeacherRole, currentUser]);
 
-  // Fetch Schedule Notes
+  // Fetch Schedule Notes & Student Personal Study Sessions
   const fetchScheduleNotes = useCallback(async () => {
+    if (!currentUser) return;
     try {
+      if (isStudentRole) {
+        const res = await studentApi.schedule.getWeekly();
+        if (Array.isArray(res?.data?.personalSessions)) {
+          setStudentStudySessions(res.data.personalSessions);
+        }
+        try {
+          const savedNotes = localStorage.getItem('motafawweq_student_schedule_notes');
+          if (savedNotes) {
+            setScheduleNotes(JSON.parse(savedNotes));
+          }
+        } catch {}
+        return;
+      }
+
+      if (!isTeacherRole) return;
+
       const res = await teacherApi.schedule.getWeekly();
       const daysData = res?.data?.days;
       if (daysData && typeof daysData === 'object') {
@@ -194,7 +277,7 @@ export const GroupsProvider = ({ children }) => {
     } catch (err) {
       console.warn('Weekly schedule fetch error:', err);
     }
-  }, []);
+  }, [currentUser, isStudentRole, isTeacherRole]);
 
   useEffect(() => {
     fetchGroups();
@@ -399,16 +482,20 @@ export const GroupsProvider = ({ children }) => {
   };
 
   // Student scans QR or submits join code
-  const studentJoinByCode = async (joinCode) => {
+  const studentJoinByCode = async (joinCode, extraData = {}) => {
     const cleanCode = (joinCode || '').trim().toUpperCase();
     try {
-      const res = await teacherApi.roster.studentJoin
-        ? teacherApi.roster.studentJoin(cleanCode)
-        : null;
+      const res = await studentApi.groups.join(cleanCode, {
+        parent_name_ar: extraData.parentNameAr,
+        parent_phone: extraData.parentPhone,
+      });
+      await fetchGroups();
       showToast('تم إرسال طلب الانضمام بنجاح!');
-      return { success: true, data: res?.data };
+      return { success: true, message: res?.message || 'تم إرسال طلب الانضمام بنجاح!', data: res?.data };
     } catch (err) {
-      return { success: false, error: err.message || 'كود المجموعة غير صحيح أو انتهت صلاحيته' };
+      const errMsg = err?.errors?.join_code?.[0] || err.message || 'كود المجموعة غير صحيح أو انتهت صلاحيته';
+      showToast(errMsg, 'warning');
+      return { success: false, message: errMsg, error: errMsg };
     }
   };
 
@@ -445,8 +532,31 @@ export const GroupsProvider = ({ children }) => {
     }
   };
 
-  // Schedule Notes CRUD
+  const persistStudentNotes = (nextNotes) => {
+    try {
+      localStorage.setItem('motafawweq_student_schedule_notes', JSON.stringify(nextNotes));
+    } catch {}
+  };
+
+  // Schedule Notes CRUD (Teacher API + Student local persistence)
   const addScheduleNote = async (dayKey, noteData) => {
+    if (isStudentRole) {
+      const newNote = {
+        id: `std-note-${Date.now()}`,
+        text: noteData.text,
+        time: noteData.time || '16:00',
+        priority: noteData.priority || 'medium',
+        isDone: false,
+      };
+      setScheduleNotes((prev) => {
+        const next = { ...prev, [dayKey]: [...(prev[dayKey] || []), newNote] };
+        persistStudentNotes(next);
+        return next;
+      });
+      showToast('تمت إضافة الملاحظة بنجاح إلى جدول المواعيد!');
+      return newNote;
+    }
+
     try {
       const res = await teacherApi.schedule.createNote({
         day_of_week: dayKey,
@@ -464,6 +574,18 @@ export const GroupsProvider = ({ children }) => {
   };
 
   const toggleScheduleNote = async (dayKey, noteId) => {
+    if (isStudentRole) {
+      setScheduleNotes((prev) => {
+        const next = {
+          ...prev,
+          [dayKey]: (prev[dayKey] || []).map((n) => (n.id === noteId ? { ...n, isDone: !n.isDone } : n)),
+        };
+        persistStudentNotes(next);
+        return next;
+      });
+      return;
+    }
+
     try {
       await teacherApi.schedule.toggleNote(noteId);
       await fetchScheduleNotes();
@@ -473,6 +595,19 @@ export const GroupsProvider = ({ children }) => {
   };
 
   const deleteScheduleNote = async (dayKey, noteId) => {
+    if (isStudentRole) {
+      setScheduleNotes((prev) => {
+        const next = {
+          ...prev,
+          [dayKey]: (prev[dayKey] || []).filter((n) => n.id !== noteId),
+        };
+        persistStudentNotes(next);
+        return next;
+      });
+      showToast('تم حذف الملاحظة بنجاح.');
+      return;
+    }
+
     try {
       await teacherApi.schedule.deleteNote(noteId);
       await fetchScheduleNotes();
@@ -483,8 +618,30 @@ export const GroupsProvider = ({ children }) => {
     }
   };
 
-  // Student Study Sessions Handlers (for student dashboard / self-study view)
-  const addStudySession = (session) => {
+  // Student Study Sessions Handlers (backed by /api/v1/student/study-sessions with overlap protection)
+  const addStudySession = async (session) => {
+    if (isStudentRole && currentUser) {
+      try {
+        const res = await studentApi.schedule.createStudySession({
+          day: session.day || 'tuesday',
+          subject: session.subject || 'مذاكرة عامة',
+          title: session.title || 'جلسة استذكار ومراجعة',
+          startTime: session.startTime || '19:00',
+          endTime: session.endTime || '21:00',
+          color: session.color || '#1588C7',
+          notes: session.notes || '',
+        });
+        const created = res.data;
+        setStudentStudySessions((prev) => [created, ...prev]);
+        showToast(`تمت إضافة جلسة مذاكرة «${created.subject}» إلى جدولك بنجاح!`);
+        return created;
+      } catch (err) {
+        const msg = err?.errors?.start_time?.[0] || err.message || 'فشل إضافة جلسة المذاكرة بسبب تعارض المواعيد.';
+        showToast(msg, 'warning');
+        throw err;
+      }
+    }
+
     const newSession = {
       id: `study-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       day: session.day || 'tuesday',
@@ -502,20 +659,42 @@ export const GroupsProvider = ({ children }) => {
     return newSession;
   };
 
-  const updateStudySession = (id, updatedData) => {
+  const updateStudySession = async (id, updatedData) => {
+    if (isStudentRole && currentUser && !String(id).startsWith('study-')) {
+      try {
+        const res = await studentApi.schedule.updateStudySession(id, updatedData);
+        setStudentStudySessions((prev) => prev.map((s) => (s.id === id ? res.data : s)));
+        showToast('تم تحديث جلسة المذاكرة بنجاح.');
+        return;
+      } catch (err) {
+        const msg = err?.errors?.start_time?.[0] || err.message || 'فشل تحديث جلسة المذاكرة.';
+        showToast(msg, 'warning');
+        throw err;
+      }
+    }
     setStudentStudySessions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...updatedData } : s))
     );
     showToast('تم تحديث جلسة المذاكرة بنجاح.');
   };
 
-  const toggleStudySession = (id) => {
+  const toggleStudySession = async (id) => {
+    if (isStudentRole && currentUser && !String(id).startsWith('study-')) {
+      try {
+        await studentApi.schedule.toggleStudySession(id);
+      } catch {}
+    }
     setStudentStudySessions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, isCompleted: !s.isCompleted } : s))
     );
   };
 
-  const deleteStudySession = (id) => {
+  const deleteStudySession = async (id) => {
+    if (isStudentRole && currentUser && !String(id).startsWith('study-')) {
+      try {
+        await studentApi.schedule.deleteStudySession(id);
+      } catch {}
+    }
     setStudentStudySessions((prev) => prev.filter((s) => s.id !== id));
     showToast('تم حذف جلسة المذاكرة من جدولك.');
   };

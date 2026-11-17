@@ -175,7 +175,7 @@ async function refreshTokenPair() {
 
 const NON_REFRESHABLE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/password/forgot', '/auth/password/verify-otp', '/auth/password/reset'];
 
-async function apiRequest(path, { method = 'GET', body, tokenOverride, skipAuthRefresh = false } = {}) {
+export async function apiRequest(path, { method = 'GET', body, headers: extraHeaders = {}, tokenOverride, skipAuthRefresh = false } = {}) {
   const token = tokenOverride ?? tokenStorage.getAccessToken();
   const lang = getActiveLang();
 
@@ -185,6 +185,7 @@ async function apiRequest(path, { method = 'GET', body, tokenOverride, skipAuthR
       'Accept': 'application/json',
       'Accept-Language': lang,
       'X-Locale': lang,
+      ...extraHeaders,
     };
     if (bearer) {
       headers['Authorization'] = `Bearer ${bearer}`;
@@ -263,6 +264,7 @@ async function apiRequest(path, { method = 'GET', body, tokenOverride, skipAuthR
 export const apiGet    = (path, opts)       => apiRequest(path, { ...opts, method: 'GET' });
 export const apiPost   = (path, body, opts) => apiRequest(path, { ...opts, method: 'POST', body });
 export const apiPut    = (path, body, opts) => apiRequest(path, { ...opts, method: 'PUT', body });
+export const apiPatch  = (path, body, opts) => apiRequest(path, { ...opts, method: 'PATCH', body });
 export const apiDelete = (path, opts)       => apiRequest(path, { ...opts, method: 'DELETE' });
 
 // ─── Domain Service Modules ────────────────────────────────────────────────────

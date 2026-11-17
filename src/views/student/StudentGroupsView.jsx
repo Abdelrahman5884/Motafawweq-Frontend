@@ -111,10 +111,10 @@ export const StudentGroupsView = ({ defaultTab }) => {
       : []
   );
 
-  const handleJoinSubmit = (e) => {
+  const handleJoinSubmit = async (e) => {
     e.preventDefault();
     if (!inputCode.trim()) return;
-    const res = studentJoinByCode(inputCode, {
+    const res = await studentJoinByCode(inputCode, {
       nameAr: studentNameAr,
       name: currentUser?.name || studentNameAr,
       phone: studentPhone,
@@ -122,7 +122,7 @@ export const StudentGroupsView = ({ defaultTab }) => {
       parentPhone: currentUser?.parentPhone || '+20 100 123 4567'
     });
     setJoinResult(res);
-    if (res.success) {
+    if (res?.success) {
       setInputCode('');
     }
   };

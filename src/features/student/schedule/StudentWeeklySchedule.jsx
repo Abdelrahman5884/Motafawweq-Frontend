@@ -215,21 +215,54 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
     return `${h12}:${m < 10 ? '0' + m : m} ${period}`;
   };
 
-  const handleSaveStudySession = (e) => {
+  const studyConflictError = useMemo(() => {
+    const parseMin = (t) => {
+      if (!t || !t.includes(':')) return -1;
+      const [h, m] = t.split(':').map(Number);
+      return Number.isNaN(h) || Number.isNaN(m) ? -1 : h * 60 + m;
+    };
+    const startMin = parseMin(newStudy.startTime);
+    const endMin = parseMin(newStudy.endTime);
+    if (startMin < 0 || endMin < 0 || endMin <= startMin) {
+      return isAr
+        ? 'وقت انتهاء جلسة المذاكرة يجب أن يكون بعد وقت البداية.'
+        : 'End time must be after start time.';
+    }
+    const daySessions = timetableByDay[newStudy.day] || [];
+    for (const s of daySessions) {
+      const sStart = parseMin(s.startTime);
+      const sEnd = parseMin(s.endTime);
+      if (sStart >= 0 && sEnd > sStart && startMin < sEnd && endMin > sStart) {
+        return isAr
+          ? `يوجد تعارض في هذا الموعد مع «${s.title}» (${formatTimeTo12h(s.startTime)} - ${formatTimeTo12h(s.endTime)}).`
+          : `Time conflict with "${s.title}" (${s.startTime} - ${s.endTime}).`;
+      }
+    }
+    return '';
+  }, [newStudy.day, newStudy.startTime, newStudy.endTime, timetableByDay, isAr]);
+
+  const handleSaveStudySession = async (e) => {
     e.preventDefault();
-    if (!newStudy.title.trim()) return;
-    addStudySession(newStudy);
-    setNewStudy({
-      subject: 'الأحياء (الثانوية العامة)',
-      title: '',
-      day: todayKey,
-      startTime: '19:00',
-      endTime: '21:00',
-      durationMinutes: 120,
-      notes: '',
-      color: '#1588C7'
-    });
-    setStudyModalOpen(false);
+    if (!newStudy.title.trim() || studyConflictError) return;
+    try {
+      await addStudySession({
+        ...newStudy,
+        durationMinutes: Math.max(15, (Number(newStudy.endTime.split(':')[0]) * 60 + Number(newStudy.endTime.split(':')[1])) - (Number(newStudy.startTime.split(':')[0]) * 60 + Number(newStudy.startTime.split(':')[1])))
+      });
+      setNewStudy({
+        subject: 'الأحياء (الثانوية العامة)',
+        title: '',
+        day: todayKey,
+        startTime: '19:00',
+        endTime: '21:00',
+        durationMinutes: 120,
+        notes: '',
+        color: '#1588C7'
+      });
+      setStudyModalOpen(false);
+    } catch {
+      // Keep modal open when server rejects due to overlap
+    }
   };
 
   const handleSaveNote = (e) => {
@@ -1691,6 +1724,24 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 />
               </div>
 
+              {studyConflictError && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#DC2626',
+                  fontSize: '12px',
+                  fontWeight: '700'
+                }}>
+                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                  <span>{studyConflictError}</span>
+                </div>
+              )}
+
               {/* Submit Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
                 <button
@@ -1711,14 +1762,16 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
                 <button
                   type="submit"
+                  disabled={Boolean(studyConflictError)}
                   style={{
                     padding: '8px 18px',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: 'var(--primary)',
+                    backgroundColor: studyConflictError ? 'var(--text-muted)' : 'var(--primary)',
                     color: '#FFFFFF',
                     fontWeight: '800',
-                    cursor: 'pointer'
+                    cursor: studyConflictError ? 'not-allowed' : 'pointer',
+                    opacity: studyConflictError ? 0.65 : 1
                   }}
                 >
                   {isAr ? 'تأكيد الإضافة للجدول' : 'Add to Schedule'}

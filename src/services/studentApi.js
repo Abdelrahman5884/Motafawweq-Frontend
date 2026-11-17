@@ -1,0 +1,115 @@
+/**
+ * Motafawweq — Student Portal API Service Layer
+ * Connects Student views and contexts to the secured /api/v1/student/* endpoints.
+ */
+
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, apiRequest } from './api';
+
+const makeIdempotencyKey = (prefix = 'std') =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+export const studentApi = {
+  // Phase 2: Profile, Study Goals, Preferences & Privacy
+  profile: {
+    get: () => apiGet('/student/profile'),
+    update: (data) => apiPut('/student/profile', data),
+  },
+
+  // Phase 3: Study Groups, Schedule, Personal Study Sessions & Attendance
+  groups: {
+    list: () => apiGet('/student/groups'),
+    join: (joinCode, extra = {}) =>
+      apiRequest('/student/groups/join', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('join') },
+        body: { join_code: joinCode, ...extra },
+      }),
+    leave: (groupUuid) => apiDelete(`/student/groups/${groupUuid}/leave`),
+  },
+
+  schedule: {
+    getWeekly: () => apiGet('/student/schedule'),
+    createStudySession: (data) => apiPost('/student/study-sessions', data),
+    updateStudySession: (uuid, data) => apiPut(`/student/study-sessions/${uuid}`, data),
+    toggleStudySession: (uuid) => apiPatch(`/student/study-sessions/${uuid}/toggle`),
+    deleteStudySession: (uuid) => apiDelete(`/student/study-sessions/${uuid}`),
+  },
+
+  attendance: {
+    getOverview: () => apiGet('/student/attendance'),
+  },
+
+  // Phase 4: Courses, Lessons, Anti-Skip Progress Heartbeat, Bookmarks & Notes
+  courses: {
+    list: () => apiGet('/student/courses'),
+    get: (courseUuid) => apiGet(`/student/courses/${courseUuid}`),
+  },
+
+  lessons: {
+    get: (lessonUuid) => apiGet(`/student/lessons/${lessonUuid}`),
+    recordProgress: (lessonUuid, data) =>
+      apiPost(`/student/lessons/${lessonUuid}/progress`, data),
+    toggleBookmark: (lessonUuid) =>
+      apiPost(`/student/lessons/${lessonUuid}/bookmark`),
+    createNote: (lessonUuid, data) =>
+      apiPost(`/student/lessons/${lessonUuid}/notes`, data),
+    deleteNote: (noteUuid) => apiDelete(`/student/lessons/notes/${noteUuid}`),
+  },
+
+  // Phase 5: Exams, Timed Attempts & Mistake Bank
+  exams: {
+    list: () => apiGet('/student/exams'),
+    start: (examUuid) =>
+      apiRequest(`/student/exams/${examUuid}/start`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('exam-start') },
+      }),
+    submit: (examUuid, data) =>
+      apiRequest(`/student/exams/${examUuid}/submit`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('exam-sub') },
+        body: data,
+      }),
+    mistakeBank: () => apiGet('/student/mistake-bank'),
+  },
+
+  // Phase 6: Homeworks
+  homeworks: {
+    list: () => apiGet('/student/homeworks'),
+    submit: (homeworkUuid, formDataOrPayload) =>
+      apiRequest(`/student/homeworks/${homeworkUuid}/submit`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('hw-sub') },
+        body: formDataOrPayload,
+      }),
+  },
+
+  // Phase 7 & 8: Gamification, Leagues, Leaderboard & Certificates
+  gamification: {
+    summary: () => apiGet('/student/gamification'),
+    leagues: () => apiGet('/student/leagues'),
+    leaderboard: (leagueUuid) =>
+      apiGet(`/student/leagues/${leagueUuid}/leaderboard`),
+    certificates: () => apiGet('/student/certificates'),
+  },
+
+  // Phase 9: Billing, Coupons & Direct Payments
+  billing: {
+    overview: () => apiGet('/student/billing'),
+    validateCoupon: (code, amountEgp = 0) =>
+      apiPost('/student/billing/coupons/validate', { code, amount_egp: amountEgp }),
+    createPayment: (data) =>
+      apiRequest('/student/billing/payments', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('pay') },
+        body: data,
+      }),
+  },
+
+  // Phase 10: Dashboard, Analytics & Revision Hub
+  dashboard: {
+    get: () => apiGet('/student/dashboard'),
+    analytics: () => apiGet('/student/analytics'),
+    revision: () => apiGet('/student/revision'),
+  },
+};
