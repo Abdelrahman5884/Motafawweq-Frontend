@@ -1,9 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { X, Building2, BookOpen, Calendar, MapPin, Coins, Plus, Check, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Building2, BookOpen, Calendar, MapPin, Coins, Plus, Check, Trash2, AlertTriangle } from 'lucide-react';
+
+const timeToMinutes = (t) => {
+  if (!t || typeof t !== 'string' || !t.includes(':')) return -1;
+  const [h, m] = t.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return -1;
+  return h * 60 + m;
+};
+
+const formatTimeTo12h = (t24) => {
+  if (!t24) return '';
+  const [h, m] = t24.split(':').map(Number);
+  const period = h >= 12 ? 'م' : 'ص';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m < 10 ? '0' + m : m} ${period}`;
+};
 
 export const ClassFormModal = ({
   isOpen,
   initialData = null,
+  existingGroups = [],
   lang = 'ar',
   onClose,
   onSubmit
@@ -37,8 +53,12 @@ export const ClassFormModal = ({
     { day: 'wednesday', startTime: '16:00', endTime: '18:00', hall: 'قاعة 1' }
   ]);
   const [manualScheduleEdit, setManualScheduleEdit] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    setSubmitError('');
+    setSubmitting(false);
     if (initialData) {
       setFormData({
         nameAr: initialData.nameAr || '',
@@ -81,15 +101,90 @@ export const ClassFormModal = ({
     }
   }, [initialData, isOpen]);
 
-  if (!isOpen) return null;
+  const scheduleConflicts = useMemo(() => {
+    const messages = [];
+    const conflictingIndices = new Set();
 
-  const formatTimeTo12h = (t24) => {
-    if (!t24) return '';
-    const [h, m] = t24.split(':').map(Number);
-    const period = h >= 12 ? 'م' : 'ص';
-    const h12 = h % 12 || 12;
-    return `${h12}:${m < 10 ? '0' + m : m} ${period}`;
-  };
+    const parsed = sessions.map((s, idx) => ({
+      idx,
+      day: s.day,
+      dayLabel: DAYS_LIST.find((d) => d.key === s.day)?.[lang === 'ar' ? 'ar' : 'en'] || s.day,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      startMin: timeToMinutes(s.startTime),
+      endMin: timeToMinutes(s.endTime)
+    }));
+
+    // 1. Check invalid time range (end <= start)
+    parsed.forEach((s) => {
+      if (s.startMin < 0 || s.endMin < 0 || s.endMin <= s.startMin) {
+        conflictingIndices.add(s.idx);
+        messages.push(
+          lang === 'ar'
+            ? `الحصة (${s.idx + 1}) يوم ${s.dayLabel}: وقت الانتهاء يجب أن يكون بعد وقت البداية.`
+            : `Session (${s.idx + 1}) on ${s.dayLabel}: end time must be after start time.`
+        );
+      }
+    });
+
+    // 2. Check intra-group overlaps
+    for (let i = 0; i < parsed.length; i++) {
+      for (let j = i + 1; j < parsed.length; j++) {
+        const a = parsed[i];
+        const b = parsed[j];
+        if (
+          a.day === b.day &&
+          a.startMin >= 0 && a.endMin > a.startMin &&
+          b.startMin >= 0 && b.endMin > b.startMin &&
+          a.startMin < b.endMin && a.endMin > b.startMin
+        ) {
+          conflictingIndices.add(a.idx);
+          conflictingIndices.add(b.idx);
+          messages.push(
+            lang === 'ar'
+              ? `تداخل داخل نفس المجموعة يوم ${a.dayLabel} بين الحصة (${a.idx + 1}) والحصة (${b.idx + 1}).`
+              : `Overlap within this group on ${a.dayLabel} between session (${a.idx + 1}) and (${b.idx + 1}).`
+          );
+        }
+      }
+    }
+
+    // 3. Check against other active groups
+    const currentId = initialData?.id || initialData?.uuid || null;
+    const otherGroups = (existingGroups || []).filter(
+      (g) => (g.status || 'active') === 'active' && g.id !== currentId && g.uuid !== currentId
+    );
+
+    parsed.forEach((s) => {
+      if (s.startMin < 0 || s.endMin <= s.startMin) return;
+      for (const grp of otherGroups) {
+        const grpSlots = grp.scheduleSlots || [];
+        for (const es of grpSlots) {
+          if (es.day !== s.day) continue;
+          const esStart = timeToMinutes(es.startTime);
+          const esEnd = timeToMinutes(es.endTime);
+          if (esStart < 0 || esEnd <= esStart) continue;
+          if (s.startMin < esEnd && s.endMin > esStart) {
+            conflictingIndices.add(s.idx);
+            messages.push(
+              lang === 'ar'
+                ? `تعارض يوم ${s.dayLabel} (${formatTimeTo12h(s.startTime)} - ${formatTimeTo12h(s.endTime)}) مع مجموعة «${grp.nameAr}» (${formatTimeTo12h(es.startTime)} - ${formatTimeTo12h(es.endTime)}).`
+                : `Conflict on ${s.dayLabel} with "${grp.nameEn || grp.nameAr}" (${es.startTime} - ${es.endTime}).`
+            );
+            break;
+          }
+        }
+      }
+    });
+
+    return {
+      hasError: messages.length > 0,
+      messages,
+      conflictingIndices
+    };
+  }, [sessions, existingGroups, initialData, lang]);
+
+  if (!isOpen) return null;
 
   const handleSessionCountChange = (count) => {
     const validCount = Math.max(1, Math.min(7, Number(count) || 1));
@@ -130,9 +225,13 @@ export const ClassFormModal = ({
     setFormData(prev => ({ ...prev, scheduleAr: summary }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.nameAr.trim()) return;
+    if (scheduleConflicts.hasError) {
+      setSubmitError(scheduleConflicts.messages[0]);
+      return;
+    }
 
     const formattedSlots = sessions.map((s, idx) => {
       const dayMeta = DAYS_LIST.find(d => d.key === s.day);
@@ -147,10 +246,19 @@ export const ClassFormModal = ({
       };
     });
 
-    onSubmit({
-      ...formData,
-      scheduleSlots: formattedSlots
-    });
+    setSubmitError('');
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        ...formData,
+        scheduleSlots: formattedSlots
+      });
+    } catch (err) {
+      const slotMsg = err?.errors?.slots?.[0];
+      setSubmitError(slotMsg || err?.message || (lang === 'ar' ? 'حدث خطأ أثناء حفظ المجموعة.' : 'Failed to save group.'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -418,7 +526,9 @@ export const ClassFormModal = ({
 
             {/* Session slots cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {sessions.map((sess, idx) => (
+              {sessions.map((sess, idx) => {
+                const hasConflict = scheduleConflicts.conflictingIndices.has(idx);
+                return (
                 <div
                   key={idx}
                   style={{
@@ -427,8 +537,8 @@ export const ClassFormModal = ({
                     gap: '8px',
                     padding: '10px 12px',
                     borderRadius: '10px',
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: hasConflict ? 'rgba(239, 68, 68, 0.05)' : 'var(--bg-surface)',
+                    border: hasConflict ? '1.5px solid #EF4444' : '1px solid var(--border-subtle)',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
                   }}
                 >
@@ -571,8 +681,33 @@ export const ClassFormModal = ({
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
+
+            {/* Live Schedule Conflict Warning */}
+            {scheduleConflicts.hasError && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                padding: '10px 12px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                color: '#DC2626',
+                fontSize: '12px',
+                fontWeight: '700',
+                lineHeight: 1.5
+              }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  {scheduleConflicts.messages.map((msg, i) => (
+                    <span key={i}>{msg}</span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Generated Summary Preview & Edit Toggle */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px' }}>
@@ -708,6 +843,24 @@ export const ClassFormModal = ({
             />
           </div>
 
+          {submitError && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 12px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#DC2626',
+              fontSize: '12px',
+              fontWeight: '700'
+            }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+              <span>{submitError}</span>
+            </div>
+          )}
+
           {/* Form Actions */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
             <button
@@ -729,6 +882,7 @@ export const ClassFormModal = ({
 
             <button
               type="submit"
+              disabled={scheduleConflicts.hasError || submitting}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -736,16 +890,21 @@ export const ClassFormModal = ({
                 padding: '9px 20px',
                 borderRadius: '10px',
                 border: 'none',
-                backgroundColor: 'var(--primary)',
+                backgroundColor: (scheduleConflicts.hasError || submitting) ? 'var(--text-muted)' : 'var(--primary)',
                 color: '#FFFFFF',
                 fontSize: '13px',
                 fontWeight: '800',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px var(--primary-glow)'
+                cursor: (scheduleConflicts.hasError || submitting) ? 'not-allowed' : 'pointer',
+                opacity: (scheduleConflicts.hasError || submitting) ? 0.65 : 1,
+                boxShadow: (scheduleConflicts.hasError || submitting) ? 'none' : '0 2px 8px var(--primary-glow)'
               }}
             >
               {isEdit ? <Check size={15} /> : <Plus size={15} />}
-              <span>{isEdit ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes') : (lang === 'ar' ? 'إنشاء المجموعة' : 'Create Group')}</span>
+              <span>
+                {submitting
+                  ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                  : (isEdit ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes') : (lang === 'ar' ? 'إنشاء المجموعة' : 'Create Group'))}
+              </span>
             </button>
           </div>
         </form>

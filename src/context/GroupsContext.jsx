@@ -171,7 +171,24 @@ export const GroupsProvider = ({ children }) => {
   const fetchScheduleNotes = useCallback(async () => {
     try {
       const res = await teacherApi.schedule.getWeekly();
-      if (res?.data?.notesByDay) {
+      const daysData = res?.data?.days;
+      if (daysData && typeof daysData === 'object') {
+        const mapped = {
+          saturday: [],
+          sunday: [],
+          monday: [],
+          tuesday: [],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+        };
+        Object.keys(mapped).forEach((dayKey) => {
+          if (Array.isArray(daysData[dayKey]?.notes)) {
+            mapped[dayKey] = daysData[dayKey].notes;
+          }
+        });
+        setScheduleNotes(mapped);
+      } else if (res?.data?.notesByDay) {
         setScheduleNotes(res.data.notesByDay);
       }
     } catch (err) {
@@ -301,6 +318,7 @@ export const GroupsProvider = ({ children }) => {
     } catch (err) {
       console.error('Failed to update group:', err);
       showToast(err.message || 'فشل تحديث بيانات المجموعة.', 'warning');
+      throw err;
     }
   };
 
@@ -434,7 +452,7 @@ export const GroupsProvider = ({ children }) => {
         day_of_week: dayKey,
         note_text: noteData.text,
         priority: noteData.priority || 'medium',
-        time_label: noteData.time || '16:00',
+        note_time: noteData.time || '16:00',
       });
       await fetchScheduleNotes();
       showToast('تمت إضافة الملاحظة بنجاح إلى جدول المواعيد!');

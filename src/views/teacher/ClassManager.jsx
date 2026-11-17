@@ -68,11 +68,11 @@ export const ClassManager = ({ defaultTab }) => {
     navigate('/teacher/students');
   };
 
-  const handleSaveForm = (formData) => {
+  const handleSaveForm = async (formData) => {
     if (editingClass) {
-      updateGroup(editingClass.id, formData);
+      await updateGroup(editingClass.id, formData);
     } else {
-      addGroup(formData);
+      await addGroup(formData);
     }
     setFormModalOpen(false);
     setEditingClass(null);
@@ -340,6 +340,7 @@ export const ClassManager = ({ defaultTab }) => {
       <ClassFormModal
         isOpen={formModalOpen}
         initialData={editingClass}
+        existingGroups={groups}
         lang={lang}
         onClose={() => {
           setFormModalOpen(false);
