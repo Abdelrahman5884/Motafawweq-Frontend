@@ -31,20 +31,20 @@ export const LeagueHeroBanner = ({
 
   // Champion of the league
   const champion = activeLeague?.champion || {
-    nameAr: activeLeague?.students?.[0]?.nameAr || 'سارة خالد منصور',
-    avatar: activeLeague?.students?.[0]?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80',
-    schoolAr: activeLeague?.students?.[0]?.schoolAr || 'مدرسة المتفوقات STEM كفر الشيخ',
-    score: activeLeague?.students?.[0]?.score || 18450,
-    streak: activeLeague?.students?.[0]?.streak || 28,
-    title: 'بطلة الجمهورية للأسبوع الحالي',
-    quoteAr: 'الاستمرار اليومي وحل امتحانات الوزارة الشاملة في كل المواد هو سر الصدارة في دوري الجمهورية.'
+    nameAr: activeLeague?.students?.[0]?.nameAr || '',
+    avatar: activeLeague?.students?.[0]?.avatar || '',
+    schoolAr: activeLeague?.students?.[0]?.schoolAr || '',
+    score: activeLeague?.students?.[0]?.score || 0,
+    streak: activeLeague?.students?.[0]?.streak || 0,
+    title: '',
+    quoteAr: ''
   };
 
   const studentUser = currentUser || {
-    nameAr: 'عمر طارق القاضي (أنت)',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&auto=format&fit=crop&q=80',
-    score: 17290,
-    rank: 2
+    nameAr: '',
+    avatar: '',
+    score: 0,
+    rank: null
   };
 
   const totalSlides = 3;

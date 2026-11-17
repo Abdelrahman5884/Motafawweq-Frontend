@@ -57,8 +57,8 @@ export const StudentGroupsView = ({ defaultTab }) => {
   const [selectedGroupForQr, setSelectedGroupForQr] = useState(null);
   const [isCenterQrPassOpen, setIsCenterQrPassOpen] = useState(false);
 
-  const studentNameAr = currentUser?.nameAr || 'عمر طارق القاضي';
-  const studentPhone = currentUser?.phone || '+20 102 458 9912';
+  const studentNameAr = currentUser?.nameAr || currentUser?.name || '';
+  const studentPhone = currentUser?.phone || '';
 
   // Identify which groups this student is enrolled in or pending
   const studentGroups = groups.map(g => {
@@ -118,8 +118,8 @@ export const StudentGroupsView = ({ defaultTab }) => {
       nameAr: studentNameAr,
       name: currentUser?.name || studentNameAr,
       phone: studentPhone,
-      parentNameAr: currentUser?.parentNameAr || 'م. طارق القاضي',
-      parentPhone: currentUser?.parentPhone || '+20 100 123 4567'
+      parentNameAr: currentUser?.parentNameAr || '',
+      parentPhone: currentUser?.parentPhone || ''
     });
     setJoinResult(res);
     if (res?.success) {

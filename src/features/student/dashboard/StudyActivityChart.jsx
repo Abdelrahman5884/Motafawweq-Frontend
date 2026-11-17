@@ -2,23 +2,18 @@ import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { generateSplinePaths } from '../../../utils';
 
-// Weekly Study Data (7 days) for the interactive SVG Area Spline Graph
+// Weekly Study Data (7 days) baseline
 const DEFAULT_WEEKLY_STUDY_DATA = [
-  { dayAr: 'السبت', dayEn: 'Sat', minutes: 45, lessons: 2, isToday: false },
-  { dayAr: 'الأحد', dayEn: 'Sun', minutes: 70, lessons: 3, isToday: false },
-  { dayAr: 'الإثنين', dayEn: 'Mon', minutes: 55, lessons: 2, isToday: false },
-  { dayAr: 'الثلاثاء', dayEn: 'Tue', minutes: 85, lessons: 4, isToday: false },
-  { dayAr: 'الأربعاء', dayEn: 'Wed', minutes: 40, lessons: 1, isToday: false },
-  { dayAr: 'الخميس', dayEn: 'Thu', minutes: 80, lessons: 3, isToday: false },
-  { dayAr: 'الجمعة', dayEn: 'Fri', minutes: 65, lessons: 2, isToday: true }
+  { dayAr: 'السبت', dayEn: 'Sat', minutes: 0, lessons: 0, isToday: false },
+  { dayAr: 'الأحد', dayEn: 'Sun', minutes: 0, lessons: 0, isToday: false },
+  { dayAr: 'الإثنين', dayEn: 'Mon', minutes: 0, lessons: 0, isToday: false },
+  { dayAr: 'الثلاثاء', dayEn: 'Tue', minutes: 0, lessons: 0, isToday: false },
+  { dayAr: 'الأربعاء', dayEn: 'Wed', minutes: 0, lessons: 0, isToday: false },
+  { dayAr: 'الخميس', dayEn: 'Thu', minutes: 0, lessons: 0, isToday: false },
+  { dayAr: 'الجمعة', dayEn: 'Fri', minutes: 0, lessons: 0, isToday: true }
 ];
 
-const DEFAULT_SUBJECT_MASTERY = [
-  { nameAr: 'الأحياء', nameEn: 'Biology', pct: 78, color: '#10B981' },
-  { nameAr: 'الفيزياء', nameEn: 'Physics', pct: 62, color: '#06B6D4' },
-  { nameAr: 'اللغة العربية', nameEn: 'Arabic', pct: 85, color: '#3B82F6' },
-  { nameAr: 'الكيمياء', nameEn: 'Chemistry', pct: 45, color: '#F59E0B' }
-];
+const DEFAULT_SUBJECT_MASTERY = [];
 
 export const StudyActivityChart = ({
   lang,
@@ -26,7 +21,7 @@ export const StudyActivityChart = ({
   themeAccent,
   studyData = DEFAULT_WEEKLY_STUDY_DATA,
   subjectMastery = DEFAULT_SUBJECT_MASTERY,
-  overallMasteryValue = 94.6
+  overallMasteryValue = 0
 }) => {
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
 

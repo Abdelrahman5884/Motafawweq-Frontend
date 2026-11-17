@@ -12,43 +12,43 @@ export const GamificationStatsCards = ({ lang = 'ar' }) => {
       id: 'exams-solved',
       titleAr: 'امتحانات تم حلها',
       titleEn: 'Exams Solved',
-      value: '24',
+      value: '0',
       subAr: 'شاملة كويزات وبنوك الأسئلة',
       subEn: 'Quizzes & question banks',
       icon: ClipboardCheck,
-      badgeAr: '+4 هذا الأسبوع'
+      badgeAr: '0 هذا الأسبوع'
     },
     {
       id: 'full-marks',
       titleAr: 'امتحانات بالدرجة النهائية (Full Mark)',
       titleEn: '100% Full Mark Exams',
-      value: '18',
+      value: '0',
       subAr: 'تقفيل كامل بدون أي خطأ',
       subEn: 'Perfect scores achieved',
       icon: CheckCircle2,
-      badgeAr: 'معدل تميز 75%'
+      badgeAr: 'معدل تميز 0%'
     },
     {
       id: 'lessons-studied',
       titleAr: 'حصص تمت مذاكرتها',
       titleEn: 'Lessons Studied',
-      value: '42',
-      subAr: 'من أصل 68 حصة مسجلة',
-      subEn: 'Of 68 total enrolled lessons',
+      value: '0',
+      subAr: 'من إجمالي الحصص المسجلة',
+      subEn: 'Of total enrolled lessons',
       icon: BookOpen,
-      badgeAr: 'تقدم 62%'
+      badgeAr: 'تقدم 0%'
     },
     {
       id: 'streak-days',
       titleAr: 'أيام الاستمرار والاستريك',
       titleEn: 'Current Study Streak',
-      value: '16',
+      value: '0',
       unitAr: 'يوماً',
       unitEn: 'days',
       subAr: 'مذاكرة يومية دون انقطاع',
       subEn: 'Consecutive study days',
       icon: Flame,
-      badgeAr: 'أطول سلسلة: 28 يوم'
+      badgeAr: 'أطول سلسلة: 0 يوم'
     }
   ];
 

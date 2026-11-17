@@ -9,49 +9,8 @@ import {
 export const StudentGamificationView = () => {
   const { lang } = useLanguage();
 
-  // Real, platform-specific weekly challenges
-  const challenges = [
-    { 
-      id: 'ch-1', 
-      titleAr: 'حل 5 كويزات في مادة الأحياء', 
-      descAr: 'تمارين تفاعلية من كورس د. سلمى السيد بنظام البابل شيت',
-      current: 4,
-      target: 5,
-      completed: false, 
-      xpReward: 250,
-      link: '/student/quiz'
-    },
-    { 
-      id: 'ch-2', 
-      titleAr: 'تقفيل امتحان شامل في مادة الفيزياء (100%)', 
-      descAr: 'الحصول على الدرجة النهائية في اختبار دوائر كيرشوف',
-      current: 1,
-      target: 1,
-      completed: true, 
-      xpReward: 350,
-      link: '/student/exam'
-    },
-    { 
-      id: 'ch-3', 
-      titleAr: 'مذاكرة 4 حصص من الكورسات المسجلة', 
-      descAr: 'إكمال مشاهدة وتلخيص الحصص على المنصة هذا الأسبوع',
-      current: 3,
-      target: 4,
-      completed: false, 
-      xpReward: 300,
-      link: '/student/courses'
-    },
-    { 
-      id: 'ch-4', 
-      titleAr: 'تصحيح 5 أسئلة من بنك الأخطاء', 
-      descAr: 'إعادة حل وتثبيت المفاهيم التي تم التعثر فيها سابقاً',
-      current: 3,
-      target: 5,
-      completed: false, 
-      xpReward: 200,
-      link: '/student/weak-areas'
-    }
-  ];
+  // Weekly challenges loaded dynamically
+  const challenges = [];
 
   return (
     <div style={{

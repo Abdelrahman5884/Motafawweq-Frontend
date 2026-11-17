@@ -29,37 +29,13 @@ export const StudentAnalyticsView = () => {
   const { lang } = useLanguage();
   const student = STUDENT_PROFILE;
 
-  const subjectAverages = [
-    { subjectAr: 'الأحياء', avg: 96, testsCount: 8, lessonsDone: 14, lessonsTotal: 18 },
-    { subjectAr: 'الفيزياء', avg: 88, testsCount: 6, lessonsDone: 11, lessonsTotal: 22 },
-    { subjectAr: 'الكيمياء', avg: 91, testsCount: 5, lessonsDone: 8, lessonsTotal: 16 },
-    { subjectAr: 'اللغة العربية', avg: 98, testsCount: 7, lessonsDone: 20, lessonsTotal: 24 },
-  ];
+  const subjectAverages = [];
 
-  const weakAreas = [
-    {
-      topicAr: 'دورة كالفن وتفاعلات الستروما',
-      subjectAr: 'الأحياء',
-      mastery: 64,
-      adviceAr: 'راجع الأسئلة من بنك الأخطاء وأعد سماع شرح الدقائق الأخيرة من الحصة.'
-    },
-    {
-      topicAr: 'قانون كيرشوف والدوائر المغلقة',
-      subjectAr: 'الفيزياء',
-      mastery: 71,
-      adviceAr: 'راجع تطبيق قاعدة الإشارات على المسارات المغلقة قبل الامتحان.'
-    },
-  ];
+  const weakAreas = [];
 
-  const weeklyScores = [
-    { week: 'الأسبوع 1', score: 82 },
-    { week: 'الأسبوع 2', score: 86 },
-    { week: 'الأسبوع 3', score: 91 },
-    { week: 'الأسبوع 4', score: 89 },
-    { week: 'الأسبوع 5', score: 96 },
-  ];
+  const weeklyScores = [];
 
-  const maxScore = Math.max(...weeklyScores.map(w => w.score));
+  const maxScore = weeklyScores.length > 0 ? Math.max(...weeklyScores.map(w => w.score), 1) : 100;
 
   return (
     <SPage>

@@ -12,15 +12,8 @@ import {
 export const StudentBillingView = () => {
   const { lang, isRtl } = useLanguage();
 
-  // Active Subscription details (US-106)
-  const [activeSub, setActiveSub] = useState({
-    planNameAr: 'باقة الفصل الدراسي الأول (توفير 25%)',
-    planNameEn: 'Semester 1 Hero Pass (Save 25%)',
-    status: 'active',
-    renewalDate: '2026-12-15',
-    daysRemaining: 88,
-    amountEgp: 450
-  });
+  // Active Subscription details (loaded dynamically)
+  const [activeSub, setActiveSub] = useState(null);
 
   // Checkout modal state (US-101, US-103, US-104)
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
@@ -34,33 +27,8 @@ export const StudentBillingView = () => {
   // Duration toggle period: 'monthly' | 'term' | 'annual' (per Voice Note)
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
 
-  // Past Invoices (US-105)
-  const [invoices, setInvoices] = useState([
-    {
-      id: 'INV-2026-881',
-      date: '2026-09-01',
-      descriptionAr: 'اشتراك باقة الفصل الدراسي الأول (5 شهور)',
-      descriptionEn: 'Semester 1 Hero Pass Subscription (5 Months)',
-      amount: '450 ج.م',
-      amountEn: '450 EGP',
-      method: 'فودافون كاش',
-      methodAr: 'فودافون كاش ومحافظ المحمول',
-      methodEn: 'Vodafone Cash & Mobile Wallets',
-      status: 'مدفوع'
-    },
-    {
-      id: 'INV-2026-724',
-      date: '2026-08-15',
-      descriptionAr: 'شراء كورس معسكر الكيمياء العضوية',
-      descriptionEn: 'Organic Chemistry Revision Camp',
-      amount: '180 ج.م',
-      amountEn: '180 EGP',
-      method: 'فوري باي (Fawry)',
-      methodAr: 'فوري باي (Fawry)',
-      methodEn: 'Fawry Pay',
-      status: 'مدفوع'
-    }
-  ]);
+  // Past Invoices (loaded dynamically)
+  const [invoices, setInvoices] = useState([]);
 
   const handleApplyCoupon = (e) => {
     e.preventDefault();

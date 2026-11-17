@@ -90,8 +90,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
   const [noteTime, setNoteTime] = useState('18:00');
   const [notePriority, setNotePriority] = useState('medium');
 
-  const studentNameAr = currentUser?.nameAr || 'عمر طارق القاضي';
-  const studentPhone = currentUser?.phone || '+20 102 458 9912';
+  const studentNameAr = currentUser?.nameAr || currentUser?.name || '';
+  const studentPhone = currentUser?.phone || '';
 
   // Extract enrolled center groups
   const enrolledGroups = useMemo(() => {
@@ -139,7 +139,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
             title: group.nameAr,
             centerName: group.centerName,
             hall: slot.hall || group.hallName || 'القاعة الرئيسية',
-            teacherName: group.teacherNameAr || 'د. سلمى السيد',
+            teacherName: group.teacherName || group.teacherNameAr || '',
             startTime: slot.startTime || '16:00',
             endTime: slot.endTime || '18:00',
             priceEgp: group.priceEgp,

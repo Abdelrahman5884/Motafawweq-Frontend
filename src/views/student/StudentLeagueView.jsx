@@ -39,10 +39,18 @@ export const StudentLeagueView = () => {
   const categoryLeagues = ALL_LEAGUES.filter(l => l.category === leagueCategory);
 
   // Currently active league object
-  const activeLeague = ALL_LEAGUES.find(l => l.id === selectedLeagueId) || categoryLeagues[0] || ALL_LEAGUES[0];
+  const activeLeague = ALL_LEAGUES.find(l => l.id === selectedLeagueId) || categoryLeagues[0] || ALL_LEAGUES[0] || {
+    id: '',
+    nameAr: '',
+    titleAr: '',
+    subtitleAr: '',
+    descriptionAr: '',
+    participantsCount: 0,
+    students: []
+  };
 
   // Students of current league
-  const leagueStudents = activeLeague.students || [];
+  const leagueStudents = activeLeague?.students || [];
 
   // Filter students by selected tier if tier exists, or fallback to all
   const filteredStudents = leagueStudents.filter(s => !selectedTier || s.tier === selectedTier);

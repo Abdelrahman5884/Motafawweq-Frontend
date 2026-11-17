@@ -35,7 +35,17 @@ export const useLesson = (lang) => {
     return saved ? JSON.parse(saved) : { l1: true, l2: true, l3: false, l4: false, l5: false, l6: false };
   });
 
-  const lesson = LESSONS_DATABASE[activeLessonId] || LESSONS_DATABASE.l3;
+  const lesson = LESSONS_DATABASE[activeLessonId] || LESSONS_DATABASE.l3 || {
+    id: activeLessonId || '',
+    titleAr: '',
+    descAr: '',
+    durationSec: 0,
+    durationFmt: '00:00',
+    time: '',
+    videoUrl: '',
+    completed: false,
+    chapters: []
+  };
 
   useEffect(() => {
     try {

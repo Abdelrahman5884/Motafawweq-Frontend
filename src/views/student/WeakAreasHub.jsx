@@ -8,44 +8,7 @@ export const WeakAreasHub = () => {
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
 
-  const weakConcepts = [
-    {
-      id: 'node-nadph',
-      title: 'NADP+ & ATP Synthesis',
-      titleAr: 'مركبا الطاقة التثبيتية (NADPH و ATP)',
-      mastery: 64,
-      status: 'Needs Immediate Review',
-      statusAr: 'يحتاج مراجعة فورية',
-      timestamp: '11:20',
-      seconds: 680,
-      mistakePattern: 'Confusing the role of NADP+ with chlorophyll pigments in photolysis.',
-      mistakePatternAr: 'الخلط بين دور مستقبل الهيدروجين NADP+ وبين امتصاص الأصباغ للضوء.'
-    },
-    {
-      id: 'node-pgal',
-      title: 'PGAL Synthesis in Calvin Cycle',
-      titleAr: 'تكوين فوسفو جليسرالدهيد (PGAL) في دورة كالفن',
-      mastery: 68,
-      status: 'Moderate Difficulty',
-      statusAr: 'صعوبة متوسطة',
-      timestamp: '19:00',
-      seconds: 1140,
-      mistakePattern: 'Forgetting that PGAL is formed after 2 seconds only and is a 3-carbon intermediate.',
-      mistakePatternAr: 'نسيان أن PGAL يتكون بعد ثانيتين فقط وهو أول مركب ثابت ثلاثي الكربون.'
-    },
-    {
-      id: 'node-dark',
-      title: 'Dark Reactions in Stroma',
-      titleAr: 'التفاعلات اللاضوئية في الستروما',
-      mastery: 72,
-      status: 'Improving',
-      statusAr: 'قيد التحسن',
-      timestamp: '14:45',
-      seconds: 885,
-      mistakePattern: 'Believing dark reactions can only occur at night.',
-      mistakePatternAr: 'الاعتقاد الخاطئ بأن التفاعلات اللاضوئية تحدث في الليل فقط.'
-    }
-  ];
+  const weakConcepts = [];
 
   return (
     <div style={{

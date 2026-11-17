@@ -129,16 +129,16 @@ export const StudentSmartLectureView = () => {
             subjectAr: 'الأحياء',
             subjectEn: 'Biology',
             gradeAr: 'الصف الثالث الثانوي',
-            teacherAr: 'د. سلمى السيد',
+            teacherAr: '',
             dateAr: lang === 'ar' ? 'اليوم - الآن' : 'Today - Just now',
             fileName: activeFile.name,
-            fileSize: activeFile.sizeFormatted || '24.6 MB',
-            duration: lesson.durationFmt || '35:00',
+            fileSize: activeFile.sizeFormatted || '',
+            duration: lesson.durationFmt || '',
             summaryAr: 'تم تحويل المحاضرة واستخراج خريطة المفاهيم والتفريغ الصوتي ومحاور الحصة والكويز بنجاح.',
             outputs: targetOutputs,
-            questionsCount: targetOutputs.includes('quiz') ? 5 : 0,
-            conceptsCount: 6,
-            keyTopics: ['انشطار الماء', 'تجربة فان نيل', 'الفسفرة الضوئية', 'دورة كالفن']
+            questionsCount: 0,
+            conceptsCount: 0,
+            keyTopics: []
           };
           const remaining = Array.isArray(list) ? list.filter(item => item.id !== 'conv-l3') : [];
           localStorage.setItem('mtfq_converted_lectures', JSON.stringify([newEntry, ...remaining]));

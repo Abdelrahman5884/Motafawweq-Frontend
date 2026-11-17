@@ -64,25 +64,8 @@ export const StudentDashboard = () => {
     return t.type === taskCategoryFilter;
   });
 
-  // Active last studied course for US-08 and US-09
-  const lastLesson = {
-    courseId: 'course-bio-301',
-    titleAr: 'البناء الضوئي وحركية الطاقة في الخلايا النباتية',
-    titleEn: 'Photosynthesis & Cellular Energy Dynamics',
-    subjectAr: 'الأحياء',
-    subjectEn: 'Biology',
-    teacherAr: 'د. سلمى السيد',
-    teacherEn: 'Dr. Salma El-Sayed',
-    lessonNumber: 3,
-    totalLessons: 12,
-    progressPercent: 68,
-    pausedMinute: '08:00',
-    totalDuration: '35:00',
-    remainingMinutes: 14,
-    nextLessonTitleAr: 'التنفس الخلوي وحلقة كريبس',
-    nextLessonTitleEn: 'Cellular Respiration & Krebs Cycle',
-    route: '/student/lesson'
-  };
+  // Active last studied course for US-08 and US-09 (loaded dynamically)
+  const lastLesson = null;
 
   // Subject filter options
   const filterOptions = [

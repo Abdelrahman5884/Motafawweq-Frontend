@@ -17,65 +17,7 @@ import {
   Calendar
 } from 'lucide-react';
 
-const INITIAL_CONVERTED_LECTURES = [
-  {
-    id: 'conv-l3',
-    lessonId: 'l3',
-    titleAr: 'البناء الضوئي وحركية الطاقة في الخلايا النباتية',
-    titleEn: 'Photosynthesis & Plant Cell Energy Kinetics',
-    subjectAr: 'الأحياء',
-    subjectEn: 'Biology',
-    gradeAr: 'الصف الثالث الثانوي',
-    teacherAr: 'د. سلمى السيد',
-    dateAr: 'اليوم - 11:20 ص',
-    fileName: 'محاضرة_الأحياء_الفصل_الثالث.mp4',
-    fileSize: '24.6 MB',
-    duration: '35:00',
-    summaryAr: 'شرح متكامل لآلية امتصاص الكلوروفيل وانشطار الماء وتجربة فان نيل وتخليق PGAL مع خريطة مفاهيم كاملة.',
-    outputs: ['graph', 'transcript', 'topics', 'quiz'],
-    questionsCount: 5,
-    conceptsCount: 6,
-    keyTopics: ['انشطار الماء', 'تجربة فان نيل', 'الفسفرة الضوئية', 'دورة كالفن']
-  },
-  {
-    id: 'conv-l2',
-    lessonId: 'l2',
-    titleAr: 'الأصباغ النباتية ومطياف الامتصاص والطاقة الضوئية',
-    titleEn: 'Plant Pigments & Absorption Spectrum',
-    subjectAr: 'الأحياء',
-    subjectEn: 'Biology',
-    gradeAr: 'الصف الثالث الثانوي',
-    teacherAr: 'د. سلمى السيد',
-    dateAr: 'أمس - 04:15 م',
-    fileName: 'محاضرة_الأصباغ_الضوئية.mp3',
-    fileSize: '16.2 MB',
-    duration: '30:00',
-    summaryAr: 'تفريغ وتلخيص كامل لدور جزيئات الكلوروفيل أ وب واستثارة ذرة المغنيسيوم في الأنظمة الضوئية.',
-    outputs: ['graph', 'transcript', 'topics'],
-    questionsCount: 0,
-    conceptsCount: 4,
-    keyTopics: ['كلوروفيل أ وب', 'الأنظمة الضوئية', 'ذرة المغنيسيوم']
-  },
-  {
-    id: 'conv-l1',
-    lessonId: 'l1',
-    titleAr: 'مقدمة البناء الضوئي وتركيب البلاستيدة الخضراء',
-    titleEn: 'Introduction to Photosynthesis & Chloroplasts',
-    subjectAr: 'الأحياء',
-    subjectEn: 'Biology',
-    gradeAr: 'الصف الثالث الثانوي',
-    teacherAr: 'د. سلمى السيد',
-    dateAr: 'منذ 3 أيام',
-    fileName: 'تشريح_البلاستيدة_والثيلاكويد.pdf',
-    fileSize: '8.4 MB',
-    duration: '25:00',
-    summaryAr: 'دراسة تشريح البلاستيدة الخضراء وأقراص الجرانا وغشاء الثيلاكويد ودور الستروما في التفاعلات الإنزيمية.',
-    outputs: ['graph', 'transcript', 'topics', 'quiz'],
-    questionsCount: 4,
-    conceptsCount: 5,
-    keyTopics: ['البلاستيدة الخضراء', 'الثيلاكويد', 'الجرانا', 'الستروما']
-  }
-];
+const INITIAL_CONVERTED_LECTURES = [];
 
 export const StudentConvertedLecturesView = () => {
   const navigate = useNavigate();
