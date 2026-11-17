@@ -1,12 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, FileText, ArrowRight, ArrowLeft } from 'lucide-react';
-import { UPCOMING_EXAMS, HOMEWORK_LIST } from '../../../data/studentData';
 
-export const UpcomingDeadlines = ({ lang, isRtl }) => {
+export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], lang, isRtl }) => {
   const navigate = useNavigate();
-  const nextExam = UPCOMING_EXAMS[0] || null;
-  const nextHw = HOMEWORK_LIST[0] || null;
+  const nextExam = upcomingExams[0] || null;
+  const nextHw = upcomingHomeworks[0] || null;
 
   return (
     <div className="executive-deadlines-grid">
@@ -41,8 +40,8 @@ export const UpcomingDeadlines = ({ lang, isRtl }) => {
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                 {lang === 'ar'
-                  ? `المدة: ${nextExam.durationMinutes} دقيقة • ${nextExam.questionsCount} سؤال`
-                  : `${nextExam.durationMinutes} mins • ${nextExam.questionsCount} questions`}
+                  ? `المدة: ${nextExam.durationMinutes || 30} دقيقة`
+                  : `${nextExam.durationMinutes || 30} mins`}
               </div>
             </>
           ) : (
@@ -107,8 +106,8 @@ export const UpcomingDeadlines = ({ lang, isRtl }) => {
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                 {lang === 'ar'
-                  ? `الدرجة: ${nextHw.maxScore} درجة`
-                  : `Max score: ${nextHw.maxScore} pts`}
+                  ? `الدرجة: ${nextHw.maxGrade || nextHw.maxScore || 20} درجة`
+                  : `Max score: ${nextHw.maxGrade || nextHw.maxScore || 20} pts`}
               </div>
             </>
           ) : (

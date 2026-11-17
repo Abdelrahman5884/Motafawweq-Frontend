@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
-import { COURSES_CATALOG, MINISTRY_CURRICULUM } from '../../data/studentData';
+import { studentApi } from '../../services/studentApi';
 import {
   Search,
   CheckCircle2,
@@ -22,10 +22,49 @@ export const StudentCoursesView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
 
-  // Category Tab: 'ministry' (مقررات وزارة التربية والتعليم) | 'teachers' (حصص وكورسات المعلمين)
-  const [activeCategory, setActiveCategory] = useState('ministry');
+  // Category Tab: 'ministry' | 'teachers'
+  const [activeCategory, setActiveCategory] = useState('teachers');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCurriculumModal, setSelectedCurriculumModal] = useState(null);
+  const [coursesCatalog, setCoursesCatalog] = useState([]);
+  const [ministryCurriculum] = useState([]);
+  const [enrolledCourses, setEnrolledCourses] = useState({});
+
+  useEffect(() => {
+    let mounted = true;
+    studentApi.courses.list()
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const mapped = list.map((c) => ({
+          id: c.id || c.uuid,
+          titleAr: c.titleAr,
+          subjectAr: c.gradeAr || 'مادة دراسية',
+          gradeAr: c.gradeAr || '',
+          isEnrolled: true,
+          progressPercent: Number(c.progressPercent || 0),
+          lessonsCount: Number(c.lessonsCount || 0),
+          durationHours: `${Math.max(1, Number(c.lessonsCount || 1))} ساعات`,
+          rating: '5.0',
+          priceEgp: 0,
+          teacher: {
+            nameAr: c.teacherName || 'المعلم',
+            titleAr: c.gradeAr || '',
+            avatar: ''
+          }
+        }));
+        setCoursesCatalog(mapped);
+        const enrolledMap = {};
+        mapped.forEach((m) => {
+          enrolledMap[m.id] = true;
+        });
+        setEnrolledCourses(enrolledMap);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const categoryLabels = {
     ministry: { ar: 'مقررات الوزارة المطورة', en: 'Ministry Curriculum' },
@@ -43,15 +82,6 @@ export const StudentCoursesView = () => {
         ]
       : []
   );
-
-  // Local state for enrolled courses
-  const [enrolledCourses, setEnrolledCourses] = useState(() => {
-    const initial = {};
-    COURSES_CATALOG.forEach(c => {
-      if (c.isEnrolled) initial[c.id] = true;
-    });
-    return initial;
-  });
 
   const [enrollToast, setEnrollToast] = useState(null);
 
@@ -74,24 +104,24 @@ export const StudentCoursesView = () => {
   };
 
   // Filter Ministry curriculum
-  const filteredMinistry = MINISTRY_CURRICULUM.filter(item => {
+  const filteredMinistry = ministryCurriculum.filter(item => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
     return (
-      item.titleAr.toLowerCase().includes(q) ||
-      item.subjectAr.toLowerCase().includes(q) ||
-      item.gradeAr.toLowerCase().includes(q)
+      (item.titleAr || '').toLowerCase().includes(q) ||
+      (item.subjectAr || '').toLowerCase().includes(q) ||
+      (item.gradeAr || '').toLowerCase().includes(q)
     );
   });
 
   // Filter Teacher courses
-  const filteredTeacherCourses = COURSES_CATALOG.filter(course => {
+  const filteredTeacherCourses = coursesCatalog.filter(course => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
     return (
-      course.titleAr.toLowerCase().includes(q) ||
-      course.subjectAr.toLowerCase().includes(q) ||
-      course.teacher.nameAr.toLowerCase().includes(q)
+      (course.titleAr || '').toLowerCase().includes(q) ||
+      (course.subjectAr || '').toLowerCase().includes(q) ||
+      (course.teacher?.nameAr || '').toLowerCase().includes(q)
     );
   });
 
@@ -279,7 +309,7 @@ export const StudentCoursesView = () => {
               backgroundColor: activeCategory === 'ministry' ? 'var(--primary-surface)' : 'var(--bg-hover)',
               color: activeCategory === 'ministry' ? 'var(--primary)' : 'var(--text-muted)'
             }}>
-              {MINISTRY_CURRICULUM.length}
+              {ministryCurriculum.length}
             </span>
           </button>
 
@@ -310,7 +340,7 @@ export const StudentCoursesView = () => {
               backgroundColor: activeCategory === 'teachers' ? 'var(--primary-surface)' : 'var(--bg-hover)',
               color: activeCategory === 'teachers' ? 'var(--primary)' : 'var(--text-muted)'
             }}>
-              {COURSES_CATALOG.length}
+              {coursesCatalog.length}
             </span>
           </button>
         </div>

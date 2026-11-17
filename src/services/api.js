@@ -178,10 +178,11 @@ const NON_REFRESHABLE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh',
 export async function apiRequest(path, { method = 'GET', body, headers: extraHeaders = {}, tokenOverride, skipAuthRefresh = false } = {}) {
   const token = tokenOverride ?? tokenStorage.getAccessToken();
   const lang = getActiveLang();
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const buildHeaders = (bearer) => {
     const headers = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'Accept': 'application/json',
       'Accept-Language': lang,
       'X-Locale': lang,
@@ -193,12 +194,14 @@ export async function apiRequest(path, { method = 'GET', body, headers: extraHea
     return headers;
   };
 
+  const serializedBody = body === undefined ? undefined : (isFormData ? body : JSON.stringify(body));
+
   let res;
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: buildHeaders(token),
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: serializedBody,
     });
   } catch {
     throw new ApiError({
@@ -224,7 +227,7 @@ export async function apiRequest(path, { method = 'GET', body, headers: extraHea
       res = await fetch(`${API_BASE_URL}${path}`, {
         method,
         headers: buildHeaders(freshTokens.access_token),
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: serializedBody,
       });
     } catch (refreshErr) {
       throw refreshErr;

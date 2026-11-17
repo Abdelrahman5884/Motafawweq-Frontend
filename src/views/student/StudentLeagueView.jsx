@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
-import { ALL_LEAGUES } from '../../data/leagueData';
+import { studentApi } from '../../services/studentApi';
 import { LEAGUE_TIERS } from '../../data/studentData';
 import { 
   ClipboardList, 
@@ -28,18 +28,59 @@ export const StudentLeagueView = () => {
   const { lang, isRtl } = useLanguage();
   const { currentUser } = useAuth();
 
-  // League category: 'general' (وزارة التربية والتعليم) or 'teachers' (دوريات المدرسين)
-  const [leagueCategory, setLeagueCategory] = useState('general');
-  const [selectedLeagueId, setSelectedLeagueId] = useState('general-republic');
+  const [leaguesList, setLeaguesList] = useState([]);
+  const [leagueCategory, setLeagueCategory] = useState('teachers');
+  const [selectedLeagueId, setSelectedLeagueId] = useState('');
   const [selectedTier, setSelectedTier] = useState('Diamond');
-  const [activeTab, setActiveTab] = useState('leaderboard'); // 'leaderboard' | 'rules' | 'prizes'
+  const [activeTab, setActiveTab] = useState('leaderboard');
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+  useEffect(() => {
+    let mounted = true;
+    studentApi.gamification.leagues()
+      .then(async (res) => {
+        if (!mounted) return;
+        const raw = Array.isArray(res?.data) ? res.data : [];
+        if (raw.length === 0) return;
+        const firstId = raw[0].id;
+        let lb = [];
+        try {
+          const lbRes = await studentApi.gamification.leaderboard(firstId);
+          lb = Array.isArray(lbRes?.data?.leaderboard) ? lbRes.data.leaderboard : [];
+        } catch {}
+        if (!mounted) return;
+        const mapped = raw.map((l, idx) => ({
+          id: l.id,
+          category: 'teachers',
+          nameAr: l.titleAr,
+          titleAr: l.titleAr,
+          subtitleAr: l.courseTitleAr || '',
+          badge: l.tier || 'Diamond',
+          participantsCount: Number(l.participantsCount || 0),
+          students: idx === 0 ? lb.map((s) => ({
+            rank: s.rank,
+            nameAr: s.displayName,
+            avatar: '',
+            score: Number(s.xpPoints || 0),
+            streak: Number(s.streakDays || 0),
+            tier: 'Diamond',
+            isMe: Boolean(s.isCurrentUser)
+          })) : []
+        }));
+        setLeaguesList(mapped);
+        setSelectedLeagueId(firstId);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Available leagues in current category
-  const categoryLeagues = ALL_LEAGUES.filter(l => l.category === leagueCategory);
+  const categoryLeagues = leaguesList.filter(l => l.category === leagueCategory);
 
   // Currently active league object
-  const activeLeague = ALL_LEAGUES.find(l => l.id === selectedLeagueId) || categoryLeagues[0] || ALL_LEAGUES[0] || {
+  const activeLeague = leaguesList.find(l => l.id === selectedLeagueId) || categoryLeagues[0] || leaguesList[0] || {
     id: '',
     nameAr: '',
     titleAr: '',
@@ -64,7 +105,7 @@ export const StudentLeagueView = () => {
   // Handler for category switch
   const handleCategorySwitch = (category) => {
     setLeagueCategory(category);
-    const firstInCat = ALL_LEAGUES.find(l => l.category === category);
+    const firstInCat = leaguesList.find(l => l.category === category);
     if (firstInCat) {
       setSelectedLeagueId(firstInCat.id);
     }

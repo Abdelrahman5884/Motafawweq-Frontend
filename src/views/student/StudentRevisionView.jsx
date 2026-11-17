@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { MISTAKE_BANK } from '../../data/studentData';
-import { MOCK_LESSON } from '../../data/mockData';
+import { studentApi } from '../../services/studentApi';
 import confetti from 'canvas-confetti';
 import {
   MistakeBankList,
@@ -15,14 +14,47 @@ export const StudentRevisionView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState('mistakes'); // 'mistakes' | 'bookmarked-lessons' | 'pre-exam'
-  const [mistakes, setMistakes] = useState(MISTAKE_BANK);
+  const [activeTab, setActiveTab] = useState('mistakes');
+  const [mistakes, setMistakes] = useState([]);
+  const [bookmarkedLesson, setBookmarkedLesson] = useState(null);
   const [activeMistakeModal, setActiveMistakeModal] = useState(null);
   const [selectedRetryOption, setSelectedRetryOption] = useState(null);
   const [retryResult, setRetryResult] = useState(null);
-
-  // Pre-exam checklist state (loaded dynamically)
   const [checklist, setChecklist] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    studentApi.dashboard.revision()
+      .then((res) => {
+        if (!mounted) return;
+        const data = res?.data || {};
+        const rawMistakes = Array.isArray(data.mistakeBank) ? data.mistakeBank : [];
+        setMistakes(rawMistakes.map((m) => ({
+          id: m.id,
+          subjectAr: m.examTitleAr || 'امتحان',
+          topicAr: m.examTitleAr || '',
+          examSourceAr: m.examTitleAr || '',
+          questionAr: m.questionAr,
+          options: m.optionsAr || [],
+          wrongSelectedIdx: m.selectedIndex,
+          correctIndex: m.correctIndex,
+          explanationAr: m.explanationAr || '',
+          solvedCorrectlyNow: false
+        })));
+        const bms = Array.isArray(data.bookmarkedLessons) ? data.bookmarkedLessons : [];
+        if (bms.length > 0) {
+          setBookmarkedLesson({
+            id: bms[0].lessonId,
+            titleAr: bms[0].lessonTitleAr,
+            subjectAr: bms[0].courseTitleAr
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const toggleChecklistItem = (id) => {
     setChecklist(prev => prev.map(item => item.id === id ? { ...item, done: !item.done } : item));
@@ -118,7 +150,7 @@ export const StudentRevisionView = () => {
       {/* TAB 2: BOOKMARKED LESSONS */}
       {activeTab === 'bookmarked-lessons' && (
         <BookmarkedLessonsTab
-          lesson={MOCK_LESSON}
+          lesson={bookmarkedLesson}
           lang={lang}
           onOpenLesson={() => navigate('/student/lesson')}
         />

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { STUDENT_PROFILE } from '../../data/studentData';
+import { studentApi } from '../../services/studentApi';
 import {
   Clock,
   CheckCircle2,
@@ -27,13 +27,39 @@ import {
 export const StudentAnalyticsView = () => {
   const navigate = useNavigate();
   const { lang } = useLanguage();
-  const student = STUDENT_PROFILE;
+  const [student, setStudent] = useState({
+    overallGpa: '0%',
+    studyMinutesToday: 0,
+    completedLessonsCount: 0,
+    totalEnrolledLessons: 0
+  });
+  const [subjectAverages] = useState([]);
+  const [weakAreas] = useState([]);
+  const [weeklyScores, setWeeklyScores] = useState([]);
 
-  const subjectAverages = [];
-
-  const weakAreas = [];
-
-  const weeklyScores = [];
+  useEffect(() => {
+    let mounted = true;
+    studentApi.dashboard.analytics()
+      .then((res) => {
+        if (!mounted) return;
+        const d = res?.data || {};
+        setStudent({
+          overallGpa: `${Number(d.avgExamScorePercent || 0)}%`,
+          studyMinutesToday: 0,
+          completedLessonsCount: Number(d.completedLessonsCount || 0),
+          totalEnrolledLessons: Number(d.completedLessonsCount || 0)
+        });
+        const recent = Array.isArray(d.recentExamPerformances) ? d.recentExamPerformances : [];
+        setWeeklyScores(recent.map((r, i) => ({
+          week: r.examTitleAr || `امتحان ${i + 1}`,
+          score: Math.round(Number(r.percentage || 0))
+        })));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const maxScore = weeklyScores.length > 0 ? Math.max(...weeklyScores.map(w => w.score), 1) : 100;
 

@@ -4,9 +4,9 @@ import {
   Clock, FileText, Award, RotateCcw, Play, Trophy,
   AlertCircle, X, EyeOff
 } from 'lucide-react';
-import { UPCOMING_EXAMS } from '../../../data/studentData';
 
 export const ExamCatalog = ({
+  examsList = [],
   handleRequestStartExam,
   pendingExam,
   setPendingExam,
@@ -63,7 +63,7 @@ export const ExamCatalog = ({
             fontWeight: '700',
             color: 'var(--text-secondary)'
           }}>
-            <span>{UPCOMING_EXAMS.filter(e => e.status === 'ready').length} {lang === 'ar' ? 'امتحانات متاحة الآن' : 'exams available'}</span>
+            <span>{examsList.filter(e => e.status === 'ready').length} {lang === 'ar' ? 'امتحانات متاحة الآن' : 'exams available'}</span>
           </div>
 
           <button
@@ -89,7 +89,7 @@ export const ExamCatalog = ({
       </div>
 
       {/* Clean Exam Cards Grid */}
-      {UPCOMING_EXAMS.length === 0 ? (
+      {examsList.length === 0 ? (
         <div style={{
           padding: '48px 24px',
           textAlign: 'center',
@@ -114,7 +114,7 @@ export const ExamCatalog = ({
         gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: '20px'
       }}>
-        {UPCOMING_EXAMS.map((exam) => {
+        {examsList.map((exam) => {
           const isReady = exam.status === 'ready';
 
           return (

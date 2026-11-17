@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { studentApi } from '../../services/studentApi';
 import {
   User,
   Shield,
@@ -114,6 +115,18 @@ export const StudentSettingsView = () => {
     if (e) e.preventDefault();
 
     try {
+      await studentApi.profile.update({
+        name: formData.nameAr || formData.name,
+        phone: formData.phone,
+        grade_ar: formData.grade,
+        governorate: formData.governorate,
+        school_name: formData.school,
+        parent_phone: formData.parentPhone,
+        daily_study_goal_minutes: Number(formData.dailyGoalMinutes) || 60,
+        show_on_leaderboard: Boolean(formData.leaderboardVisible),
+        nickname: formData.nickname,
+      });
+
       if (updateUserProfile) {
         await updateUserProfile(formData);
       }
@@ -143,6 +156,34 @@ export const StudentSettingsView = () => {
   };
 
   // Reset changes
+  useEffect(() => {
+    let mounted = true;
+    studentApi.profile.get()
+      .then((res) => {
+        if (!mounted || !res?.data) return;
+        const p = res.data;
+        setFormData((prev) => ({
+          ...prev,
+          name: p.name || prev.name,
+          nameAr: p.name || prev.nameAr,
+          nickname: p.nickname || prev.nickname,
+          grade: p.gradeAr || prev.grade,
+          school: p.schoolName || prev.school,
+          governorate: p.governorate || prev.governorate,
+          email: p.email || prev.email,
+          phone: p.phone || prev.phone,
+          parentPhone: p.parentPhone || prev.parentPhone,
+          studentCode: p.studentCode || prev.studentCode,
+          dailyGoalMinutes: Number(p.dailyStudyGoalMinutes || prev.dailyGoalMinutes),
+          leaderboardVisible: p.showOnLeaderboard !== undefined ? Boolean(p.showOnLeaderboard) : prev.leaderboardVisible,
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleResetChanges = () => {
     if (currentUser) {
       setFormData({

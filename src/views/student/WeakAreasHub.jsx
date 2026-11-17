@@ -1,14 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { studentApi } from '../../services/studentApi';
 import { AlertTriangle } from 'lucide-react';
 import { WeakAreaCard } from '../../features/student/analytics';
 
 export const WeakAreasHub = () => {
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
+  const [weakConcepts, setWeakConcepts] = useState([]);
 
-  const weakConcepts = [];
+  useEffect(() => {
+    let mounted = true;
+    studentApi.exams.mistakeBank()
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        setWeakConcepts(list.map((m, idx) => ({
+          id: m.id || `weak-${idx}`,
+          title: m.questionAr,
+          titleAr: m.questionAr,
+          mastery: 60,
+          status: 'Needs Review',
+          statusAr: 'يحتاج مراجعة',
+          timestamp: '00:00',
+          seconds: 0,
+          mistakePattern: m.explanationAr || '',
+          mistakePatternAr: m.explanationAr || m.examTitleAr || ''
+        })));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div style={{

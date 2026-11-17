@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { HOMEWORK_LIST } from '../../data/studentData';
+import { studentApi } from '../../services/studentApi';
 import confetti from 'canvas-confetti';
 import { CheckCircle2 } from 'lucide-react';
 import { SPage } from '../../components/student/ui';
@@ -11,15 +11,42 @@ export const StudentHomeworkView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
 
+  const [homeworksList, setHomeworksList] = useState([]);
   const [filterTab, setFilterTab] = useState('all');
   const [selectedHw, setSelectedHw] = useState(null);
   const [answerText, setAnswerText] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [selectedFileObj, setSelectedFileObj] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmationToast, setConfirmationToast] = useState(null);
   const [showPdfPreview, setShowPdfPreview] = useState(true);
 
-  const filteredList = HOMEWORK_LIST.filter(hw => {
+  const loadHomeworks = useCallback(async () => {
+    try {
+      const res = await studentApi.homeworks.list();
+      const raw = Array.isArray(res?.data) ? res.data : [];
+      setHomeworksList(raw.map((h) => ({
+        id: h.id || h.uuid,
+        titleAr: h.titleAr,
+        subjectAr: h.courseTitleAr || h.lessonTitleAr || 'واجب دراسي',
+        teacherNameAr: h.teacherName || '',
+        deadlineTextAr: h.dueDate ? `${h.dueDate} ${h.dueTime || ''}`.trim() : 'متاح للتسليم',
+        status: h.submissionStatus === 'not_submitted' ? 'pending' : (h.submissionStatus === 'graded' ? 'graded' : 'submitted'),
+        maxScore: Number(h.maxGrade || 20),
+        earnedScore: h.score !== null && h.score !== undefined ? Number(h.score) : 0,
+        questionsCount: 1,
+        feedbackAr: h.feedbackAr || ''
+      })));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHomeworks();
+  }, [loadHomeworks]);
+
+  const filteredList = homeworksList.filter(hw => {
     if (filterTab === 'all') return true;
     return hw.status === filterTab;
   });
@@ -28,35 +55,50 @@ export const StudentHomeworkView = () => {
     setSelectedHw(hw);
     setAnswerText(hw.submissionText || '');
     setUploadedFileName(hw.submittedFileUrl || '');
+    setSelectedFileObj(null);
     setShowPdfPreview(true);
   };
 
   const handleSimulateFileUpload = (e) => {
     const file = e.target.files?.[0];
-    setUploadedFileName(file ? file.name : 'حل-الواجب-عمر-طارق.pdf');
+    if (file) {
+      setSelectedFileObj(file);
+      setUploadedFileName(file.name);
+    }
   };
 
-  const handleSubmitHomework = (e) => {
+  const handleSubmitHomework = async (e) => {
     e.preventDefault();
-    if (!answerText.trim() && !uploadedFileName) {
+    if (!answerText.trim() && !selectedFileObj && !uploadedFileName) {
       alert(lang === 'ar' ? 'يرجى كتابة الحل أو إرفاق ملف الحل أولاً.' : 'Please enter an answer or upload a file.');
       return;
     }
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      let body;
+      if (selectedFileObj) {
+        body = new FormData();
+        body.append('file', selectedFileObj);
+        if (answerText.trim()) body.append('solution_text', answerText.trim());
+      } else {
+        body = { solution_text: answerText.trim() };
+      }
+      await studentApi.homeworks.submit(selectedHw.id, body);
+      await loadHomeworks();
       try {
         confetti({ particleCount: 70, spread: 60, origin: { y: 0.65 } });
-      } catch (err) {
-        // ignore
-      }
+      } catch {}
       setConfirmationToast(selectedHw.titleAr);
       setSelectedHw(null);
       setTimeout(() => setConfirmationToast(null), 3500);
-    }, 1000);
+    } catch (err) {
+      alert(err?.message || (lang === 'ar' ? 'فشل تسليم الواجب.' : 'Failed to submit homework.'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const pendingCount = HOMEWORK_LIST.filter(h => h.status === 'pending').length;
+  const pendingCount = homeworksList.filter(h => h.status === 'pending').length;
 
   return (
     <SPage maxWidth={1060}>
@@ -190,10 +232,10 @@ export const StudentHomeworkView = () => {
           boxSizing: 'border-box'
         }}>
           {[
-            { id: 'all', labelAr: 'جميع التكليفات', labelEn: 'All', count: HOMEWORK_LIST.length },
+            { id: 'all', labelAr: 'جميع التكليفات', labelEn: 'All', count: homeworksList.length },
             { id: 'pending', labelAr: 'مطلوب تسليمه', labelEn: 'Pending', count: pendingCount },
-            { id: 'submitted', labelAr: 'قيد المراجعة', labelEn: 'In Review', count: HOMEWORK_LIST.filter(h => h.status === 'submitted').length },
-            { id: 'graded', labelAr: 'تم التصحيح', labelEn: 'Graded', count: HOMEWORK_LIST.filter(h => h.status === 'graded').length }
+            { id: 'submitted', labelAr: 'قيد المراجعة', labelEn: 'In Review', count: homeworksList.filter(h => h.status === 'submitted').length },
+            { id: 'graded', labelAr: 'تم التصحيح', labelEn: 'Graded', count: homeworksList.filter(h => h.status === 'graded').length }
           ].map(tab => (
             <button
               key={tab.id}

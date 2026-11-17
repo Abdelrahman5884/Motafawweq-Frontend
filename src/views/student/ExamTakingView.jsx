@@ -56,6 +56,7 @@ export const ExamTakingView = () => {
       {/* VIEW 1: CLEAN & CALM EXAM CATALOG */}
       {exam.examState === 'catalog' && (
         <ExamCatalog
+          examsList={exam.examsList}
           handleRequestStartExam={exam.handleRequestStartExam}
           pendingExam={exam.pendingExam}
           setPendingExam={exam.setPendingExam}

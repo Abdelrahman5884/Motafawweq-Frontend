@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { STUDENT_PROFILE, TODAY_TASKS } from '../../data/studentData';
+import { useAuth } from '../../context/AuthContext';
+import { studentApi } from '../../services/studentApi';
 import { SPage } from '../../components/student/ui';
 import {
   DashboardHeader,
@@ -17,45 +18,142 @@ import {
 export const StudentDashboard = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
-  const student = STUDENT_PROFILE;
+  const { currentUser } = useAuth();
 
-  // Active filter state for subjects
+  const [student, setStudent] = useState({
+    id: currentUser?.id || '',
+    name: currentUser?.name || '',
+    nameAr: currentUser?.nameAr || currentUser?.name || '',
+    gradeNameAr: currentUser?.grade || '',
+    schoolAr: currentUser?.school || '',
+    xp: 0,
+    level: 1,
+    streakDays: 0,
+    studyMinutesToday: 0,
+    dailyGoalMinutes: 120,
+    completedLessonsCount: 0,
+    totalEnrolledLessons: 0,
+    overallGpa: '0%'
+  });
+
+  const [lastLesson, setLastLesson] = useState(null);
+  const [upcomingExams, setUpcomingExams] = useState([]);
+  const [upcomingHomeworks, setUpcomingHomeworks] = useState([]);
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadDashboard = async () => {
+      try {
+        const [dashRes, profRes, hwRes] = await Promise.all([
+          studentApi.dashboard.get().catch(() => null),
+          studentApi.profile.get().catch(() => null),
+          studentApi.homeworks.list().catch(() => null)
+        ]);
+        if (!mounted) return;
+
+        const kpis = dashRes?.data?.kpis || {};
+        const prof = profRes?.data || {};
+
+        setStudent({
+          id: prof.id || currentUser?.id || '',
+          name: prof.name || currentUser?.name || '',
+          nameAr: prof.name || currentUser?.nameAr || currentUser?.name || '',
+          gradeNameAr: prof.gradeAr || '',
+          schoolAr: prof.schoolName || '',
+          xp: Number(kpis.totalXp || 0),
+          level: Math.max(1, Math.floor(Number(kpis.totalXp || 0) / 100) + 1),
+          streakDays: 0,
+          studyMinutesToday: Math.round(Number(kpis.watchedHours || 0) * 60),
+          dailyGoalMinutes: Number(prof.dailyStudyGoalMinutes || 120),
+          completedLessonsCount: Number(kpis.completedLessons || 0),
+          totalEnrolledLessons: Number(kpis.completedLessons || 0),
+          overallGpa: `${Number(kpis.avgExamPercentage || 0)}%`
+        });
+
+        const cont = dashRes?.data?.continueLesson;
+        if (cont && cont.lessonId) {
+          setLastLesson({
+            courseId: cont.courseId,
+            lessonId: cont.lessonId,
+            titleAr: cont.lessonTitleAr,
+            titleEn: cont.lessonTitleAr,
+            subjectAr: cont.courseTitleAr || '',
+            subjectEn: cont.courseTitleAr || '',
+            teacherAr: '',
+            teacherEn: '',
+            lessonNumber: 1,
+            totalLessons: 1,
+            progressPercent: Number(cont.progressPercent || 0),
+            pausedMinute: '00:00',
+            totalDuration: '30:00',
+            remainingMinutes: 15,
+            nextLessonTitleAr: cont.courseTitleAr || '',
+            nextLessonTitleEn: cont.courseTitleAr || '',
+            route: '/student/lesson'
+          });
+        }
+
+        const deadlines = Array.isArray(dashRes?.data?.upcomingDeadlines) ? dashRes.data.upcomingDeadlines : [];
+        setUpcomingExams(deadlines);
+
+        const hws = Array.isArray(hwRes?.data)
+          ? hwRes.data.filter(h => h.submissionStatus === 'not_submitted')
+          : [];
+        setUpcomingHomeworks(hws);
+
+        const builtTasks = [
+          ...deadlines.map(e => ({
+            id: `exam-${e.id}`,
+            titleAr: e.titleAr,
+            titleEn: e.titleAr,
+            subjectAr: e.courseTitleAr || '',
+            type: 'quiz',
+            status: 'pending',
+            isCompleted: false,
+            route: '/student/exam'
+          })),
+          ...hws.map(h => ({
+            id: `hw-${h.id}`,
+            titleAr: h.titleAr,
+            titleEn: h.titleAr,
+            subjectAr: h.courseTitleAr || '',
+            type: 'homework',
+            status: 'pending',
+            isCompleted: false,
+            route: '/student/homework'
+          }))
+        ];
+        setTasks(builtTasks);
+      } catch {
+        // ignore
+      }
+    };
+    loadDashboard();
+    return () => {
+      mounted = false;
+    };
+  }, [currentUser]);
+
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
-
-  // Filter state for Today's Tasks (US-10)
   const [taskCategoryFilter, setTaskCategoryFilter] = useState('all');
 
-  // Interactive Today's Tasks with toggle capability (US-10)
-  const [tasks, setTasks] = useState(
-    TODAY_TASKS.map(t => ({
-      ...t,
-      isCompleted: t.status === 'completed'
-    }))
-  );
-
-  // Toggle task completed with celebration confetti
   const toggleTaskCompleted = (taskId) => {
-    setTasks(prev => {
-      return prev.map(t => {
+    setTasks(prev =>
+      prev.map(t => {
         if (t.id === taskId) {
           const nextState = !t.isCompleted;
           if (nextState) {
             try {
-              confetti({
-                particleCount: 45,
-                spread: 60,
-                origin: { y: 0.7 }
-              });
-            } catch (e) {
-              // ignore
-            }
+              confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+            } catch {}
           }
           return { ...t, isCompleted: nextState, status: nextState ? 'completed' : 'pending' };
         }
         return t;
-      });
-    });
+      })
+    );
   };
 
   const completedTasksCount = tasks.filter(t => t.isCompleted).length;
@@ -64,10 +162,6 @@ export const StudentDashboard = () => {
     return t.type === taskCategoryFilter;
   });
 
-  // Active last studied course for US-08 and US-09 (loaded dynamically)
-  const lastLesson = null;
-
-  // Subject filter options
   const filterOptions = [
     { id: 'all', labelAr: 'جميع المواد', labelEn: 'All Subjects' },
     { id: 'sub-bio', labelAr: 'الأحياء', labelEn: 'Biology' },
@@ -80,13 +174,11 @@ export const StudentDashboard = () => {
     filterOptions.find(o => o.id === selectedSubject)?.[lang === 'ar' ? 'labelAr' : 'labelEn'] ||
     (lang === 'ar' ? 'جميع المواد' : 'All Subjects');
 
-  // Adaptive theme colors for SVGs & UI
   const themeAccent = isDark ? '#38BDF8' : '#0284C7';
 
   return (
     <SPage maxWidth={1240}>
       <div className="executive-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* 1. US-07 — Dashboard Overview & Profile Header */}
         <DashboardHeader
           student={student}
           lang={lang}
@@ -101,7 +193,6 @@ export const StudentDashboard = () => {
           currentSubjectLabel={currentSubjectLabel}
         />
 
-        {/* 1.1 US-07 — 4 KPI Cards */}
         <DashboardKpis
           student={student}
           lang={lang}
@@ -109,14 +200,13 @@ export const StudentDashboard = () => {
           themeAccent={themeAccent}
         />
 
-        {/* 2. Charts (Area Spline Chart 65% + Donut Chart 35%) */}
         <StudyActivityChart
           lang={lang}
           isDark={isDark}
           themeAccent={themeAccent}
+          overallMasteryValue={parseFloat(student.overallGpa) || 0}
         />
 
-        {/* 3. US-08 & US-09 — Resume Hero */}
         <ContinueLessonHero
           lastLesson={lastLesson}
           lang={lang}
@@ -125,7 +215,6 @@ export const StudentDashboard = () => {
           themeAccent={themeAccent}
         />
 
-        {/* 4. US-10 — Today's Tasks & Checklist */}
         <TodayTasks
           tasks={tasks}
           filteredTasks={filteredTasks}
@@ -139,13 +228,13 @@ export const StudentDashboard = () => {
           themeAccent={themeAccent}
         />
 
-        {/* 5. US-11 & US-12 — Upcoming Exams & Homework */}
         <UpcomingDeadlines
+          upcomingExams={upcomingExams}
+          upcomingHomeworks={upcomingHomeworks}
           lang={lang}
           isRtl={isRtl}
         />
 
-        {/* 6. US-13 — AI Next-Step Guidance */}
         <SmartNextStepBanner
           lang={lang}
           isRtl={isRtl}

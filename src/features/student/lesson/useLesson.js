@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
+import { studentApi } from '../../../services/studentApi';
 import {
   COURSE_INFO,
   LESSONS_DATABASE,
@@ -15,6 +16,11 @@ import {
 export const useLesson = (lang) => {
   const playerRef = useRef(null);
   const kmRef = useRef(null);
+  const [liveCourseInfo, setLiveCourseInfo] = useState(COURSE_INFO);
+  const [liveLessonsMap, setLiveLessonsMap] = useState(LESSONS_DATABASE);
+  const [liveTranscript, setLiveTranscript] = useState(TRANSCRIPT_SEGMENTS);
+  const [liveGraphNodes, setLiveGraphNodes] = useState(GRAPH_NODES);
+  const [liveGraphEdges, setLiveGraphEdges] = useState(GRAPH_EDGES);
 
   // Active Lesson State
   const [activeLessonId, setActiveLessonId] = useState(() => {
@@ -35,7 +41,7 @@ export const useLesson = (lang) => {
     return saved ? JSON.parse(saved) : { l1: true, l2: true, l3: false, l4: false, l5: false, l6: false };
   });
 
-  const lesson = LESSONS_DATABASE[activeLessonId] || LESSONS_DATABASE.l3 || {
+  const lesson = liveLessonsMap[activeLessonId] || LESSONS_DATABASE[activeLessonId] || {
     id: activeLessonId || '',
     titleAr: '',
     descAr: '',
@@ -46,6 +52,112 @@ export const useLesson = (lang) => {
     completed: false,
     chapters: []
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const loadFromApi = async () => {
+      try {
+        const coursesRes = await studentApi.courses.list();
+        const courses = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
+        if (!mounted || courses.length === 0) return;
+
+        const firstCourseId = courses[0].id;
+        const courseDetailRes = await studentApi.courses.get(firstCourseId);
+        const courseData = courseDetailRes?.data || {};
+        if (!mounted) return;
+
+        setLiveCourseInfo({
+          titleAr: courseData.titleAr || '',
+          subjectAr: courseData.gradeAr || '',
+          gradeAr: courseData.gradeAr || '',
+          teacherAr: courseData.teacherName || '',
+          teacherImg: '',
+          summaryPdf: ''
+        });
+
+        const rawLessons = Array.isArray(courseData.lessons) ? courseData.lessons : [];
+        if (rawLessons.length === 0) return;
+
+        const map = {};
+        const statusMap = {};
+        rawLessons.forEach((l) => {
+          map[l.id] = {
+            id: l.id,
+            titleAr: l.titleAr,
+            descAr: '',
+            durationSec: 1800,
+            durationFmt: l.durationLabel || '30:00',
+            time: l.durationLabel || '30:00',
+            videoUrl: '',
+            completed: Boolean(l.isCompleted),
+            chapters: []
+          };
+          statusMap[l.id] = Boolean(l.isCompleted);
+        });
+
+        setLiveLessonsMap(map);
+        setLessonStatuses((prev) => ({ ...prev, ...statusMap }));
+
+        const targetId = rawLessons[0].id;
+        setActiveLessonId(targetId);
+
+        const lessonRes = await studentApi.lessons.get(targetId);
+        const ld = lessonRes?.data || {};
+        if (!mounted) return;
+
+        setLiveLessonsMap((prev) => ({
+          ...prev,
+          [targetId]: {
+            ...(prev[targetId] || {}),
+            id: targetId,
+            titleAr: ld.titleAr || prev[targetId]?.titleAr || '',
+            durationSec: 1800,
+            durationFmt: ld.durationLabel || '30:00',
+            time: ld.durationLabel || '30:00',
+            chapters: (ld.chapters || []).map((c, idx) => ({
+              id: c.id || idx + 1,
+              titleAr: c.titleAr,
+              startSec: 0,
+              endSec: 300,
+              keyTerms: [],
+              descAr: ''
+            }))
+          }
+        }));
+
+        if (Array.isArray(ld.transcript)) {
+          setLiveTranscript(ld.transcript.map((t, i) => ({
+            id: t.id || `seg-${i}`,
+            startSec: Number(t.startSeconds || 0),
+            endSec: Number(t.endSeconds || 60),
+            speaker: courseData.teacherName || '',
+            text: t.textAr || ''
+          })));
+        }
+
+        if (ld.conceptGraph) {
+          setLiveGraphNodes(ld.conceptGraph.nodes || []);
+          setLiveGraphEdges(ld.conceptGraph.edges || []);
+        }
+
+        if (Array.isArray(ld.notes)) {
+          setNotes(ld.notes.map((n) => ({
+            id: n.id,
+            ts: '00:00',
+            sec: Number(n.timestampSeconds || 0),
+            text: n.content,
+            date: (n.createdAt || '').slice(0, 10)
+          })));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadFromApi();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -162,10 +274,10 @@ export const useLesson = (lang) => {
   const [dlToast, setDlToast] = useState(null);
 
   // Playlist Array
-  const playlist = Object.keys(LESSONS_DATABASE).map(key => ({
+  const playlist = Object.keys(liveLessonsMap).map(key => ({
     id: key,
-    titleAr: LESSONS_DATABASE[key].titleAr,
-    time: LESSONS_DATABASE[key].time,
+    titleAr: liveLessonsMap[key].titleAr,
+    time: liveLessonsMap[key].time,
     completed: !!lessonStatuses[key],
     active: key === activeLessonId
   }));
@@ -255,10 +367,18 @@ export const useLesson = (lang) => {
           : 'Are you sure you want to mark this lesson as completed? You will receive +50 XP.',
         confirmText: lang === 'ar' ? 'نعم، أتممت الحصة' : 'Yes, Complete',
         confirmColor: 'emerald',
-        onConfirm: () => {
+        onConfirm: async () => {
           const nextStatuses = { ...lessonStatuses, [activeLessonId]: true };
           setLessonStatuses(nextStatuses);
           localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
+          if (activeLessonId && activeLessonId.length > 8) {
+            try {
+              await studentApi.lessons.recordProgress(activeLessonId, {
+                watched_seconds: Math.max(currentTime, lesson.durationSec || 60),
+                is_completed: true,
+              });
+            } catch {}
+          }
           try {
             confetti({
               particleCount: 85,
@@ -277,10 +397,18 @@ export const useLesson = (lang) => {
           : 'Do you want to revert this lesson status to in-progress?',
         confirmText: lang === 'ar' ? 'نعم، إلغاء الإتمام' : 'Yes, Revert',
         confirmColor: 'amber',
-        onConfirm: () => {
+        onConfirm: async () => {
           const nextStatuses = { ...lessonStatuses, [activeLessonId]: false };
           setLessonStatuses(nextStatuses);
           localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
+          if (activeLessonId && activeLessonId.length > 8) {
+            try {
+              await studentApi.lessons.recordProgress(activeLessonId, {
+                watched_seconds: currentTime,
+                is_completed: false,
+              });
+            } catch {}
+          }
         }
       });
     }
@@ -297,10 +425,15 @@ export const useLesson = (lang) => {
         : (lang === 'ar' ? 'هل تريد إضافة هذه الحصة إلى قائمة المحفوظات للرجوع إليها قبل الامتحانات؟' : 'Bookmark this lesson for quick revision?'),
       confirmText: isBookmarked ? (lang === 'ar' ? 'نعم، إزالة' : 'Remove') : (lang === 'ar' ? 'نعم، حفظ الحصة' : 'Bookmark'),
       confirmColor: isBookmarked ? 'amber' : 'emerald',
-      onConfirm: () => {
+      onConfirm: async () => {
         const next = !isBookmarked;
         setIsBookmarked(next);
         localStorage.setItem(`mtfq_bm_${activeLessonId}`, next.toString());
+        if (activeLessonId && activeLessonId.length > 8) {
+          try {
+            await studentApi.lessons.toggleBookmark(activeLessonId);
+          } catch {}
+        }
       }
     });
   };
@@ -316,17 +449,37 @@ export const useLesson = (lang) => {
   };
 
   // Notes
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!noteInput.trim()) return;
+    const text = noteInput.trim();
+    setNoteInput('');
+    if (activeLessonId && activeLessonId.length > 8) {
+      try {
+        const res = await studentApi.lessons.createNote(activeLessonId, {
+          timestamp_seconds: currentTime,
+          content: text,
+        });
+        const created = res?.data;
+        if (created) {
+          setNotes(prev => [{
+            id: created.id,
+            ts: fmt(created.timestampSeconds || currentTime),
+            sec: Number(created.timestampSeconds || currentTime),
+            text: created.content || text,
+            date: lang === 'ar' ? 'الآن' : 'Just now'
+          }, ...prev]);
+          return;
+        }
+      } catch {}
+    }
     const newN = {
       id: `n_${Date.now()}`,
       ts: fmt(currentTime),
       sec: currentTime,
-      text: noteInput.trim(),
+      text,
       date: lang === 'ar' ? 'الآن' : 'Just now'
     };
     setNotes(prev => [newN, ...prev]);
-    setNoteInput('');
   };
 
   const handleDeleteNote = (note) => {
@@ -335,7 +488,14 @@ export const useLesson = (lang) => {
       message: lang === 'ar' ? `هل أنت متأكد من حذف هذه الملاحظة المسجلة عند [${note.ts}]؟` : 'Are you sure you want to delete this note?',
       confirmText: lang === 'ar' ? 'نعم، احذفها' : 'Delete',
       confirmColor: 'red',
-      onConfirm: () => setNotes(prev => prev.filter(n => n.id !== note.id))
+      onConfirm: async () => {
+        if (note.id && String(note.id).length > 8) {
+          try {
+            await studentApi.lessons.deleteNote(note.id);
+          } catch {}
+        }
+        setNotes(prev => prev.filter(n => n.id !== note.id));
+      }
     });
   };
 
@@ -348,7 +508,7 @@ export const useLesson = (lang) => {
   };
 
   return {
-    courseInfo: COURSE_INFO,
+    courseInfo: liveCourseInfo,
     lesson,
     playlist,
     completedCount,
@@ -400,11 +560,11 @@ export const useLesson = (lang) => {
     toggleConceptMastered,
     selectedGraphNode,
     setSelectedGraphNode,
-    graphNodes: GRAPH_NODES,
-    graphEdges: GRAPH_EDGES,
+    graphNodes: liveGraphNodes,
+    graphEdges: liveGraphEdges,
     transcriptSearch,
     setTranscriptSearch,
-    transcriptSegments: TRANSCRIPT_SEGMENTS,
+    transcriptSegments: liveTranscript,
     notes,
     noteInput,
     setNoteInput,

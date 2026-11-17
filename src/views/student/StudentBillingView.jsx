@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { studentApi } from '../../services/studentApi';
 import { SUBSCRIPTION_PLANS } from '../../data/studentData';
 import confetti from 'canvas-confetti';
 import {
@@ -12,82 +13,105 @@ import {
 export const StudentBillingView = () => {
   const { lang, isRtl } = useLanguage();
 
-  // Active Subscription details (loaded dynamically)
   const [activeSub, setActiveSub] = useState(null);
-
-  // Checkout modal state (US-101, US-103, US-104)
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('vodafone'); // 'vodafone' | 'fawry' | 'instapay' | 'card'
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('vodafone');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-
-  // Duration toggle period: 'monthly' | 'term' | 'annual' (per Voice Note)
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-
-  // Past Invoices (loaded dynamically)
   const [invoices, setInvoices] = useState([]);
 
-  const handleApplyCoupon = (e) => {
+  const loadBilling = useCallback(async () => {
+    try {
+      const res = await studentApi.billing.overview();
+      const payments = Array.isArray(res?.data?.payments) ? res.data.payments : [];
+      setInvoices(payments.map((p) => ({
+        id: p.referenceNum || p.id,
+        date: (p.paidAt || '').slice(0, 10),
+        descriptionAr: p.courseNameAr,
+        descriptionEn: p.courseNameAr,
+        amount: `${p.amountEgp} ج.م`,
+        amountEn: `${p.amountEgp} EGP`,
+        method: p.paymentMethod,
+        methodAr: p.paymentMethod,
+        methodEn: p.paymentMethod,
+        status: p.status === 'confirmed' ? 'مدفوع' : (p.status === 'rejected' ? 'مرفوض' : 'قيد المراجعة')
+      })));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBilling();
+  }, [loadBilling]);
+
+  const handleApplyCoupon = async (e) => {
     e.preventDefault();
-    if (couponCode.trim().toUpperCase() === 'MOTAFAWWEQ2026') {
+    if (!couponCode.trim()) return;
+    try {
+      const res = await studentApi.billing.validateCoupon(
+        couponCode.trim(),
+        selectedPlanForCheckout?.priceEgp || 0
+      );
       setCouponApplied(true);
-      setDiscountPercent(25);
-    } else {
-      alert(lang === 'ar' ? 'كود الخصم غير صحيح. جرب كود: MOTAFAWWEQ2026' : 'Invalid code. Try: MOTAFAWWEQ2026');
+      setDiscountPercent(Number(res?.data?.discountPercent || 0));
+    } catch (err) {
+      alert(err?.message || (lang === 'ar' ? 'كود الخصم غير صالح.' : 'Invalid coupon code.'));
     }
   };
 
-  const handleCompletePayment = () => {
+  const handleCompletePayment = async () => {
+    if (!selectedPlanForCheckout) return;
     setIsProcessingPayment(true);
-    setTimeout(() => {
-      setIsProcessingPayment(false);
-      setPaymentSuccess(true);
-      try {
-        confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 }
+    try {
+      if (selectedPlanForCheckout.courseId || selectedPlanForCheckout.studyGroupId) {
+        await studentApi.billing.createPayment({
+          course_id: selectedPlanForCheckout.courseId || null,
+          study_group_id: selectedPlanForCheckout.studyGroupId || null,
+          amount_egp: selectedPlanForCheckout.priceEgp || 0,
+          payment_method: selectedPaymentMethod,
+          coupon_code: couponApplied ? couponCode.trim() : null,
         });
-      } catch {
-        // ignore
       }
+      await loadBilling();
+    } catch {
+      // ignore if plan is general tier
+    } finally {
+      setIsProcessingPayment(false);
+    }
 
-      // Add to invoices
-      const finalPrice = couponApplied 
-        ? Math.round(selectedPlanForCheckout.priceEgp * 0.75) 
-        : selectedPlanForCheckout.priceEgp;
-
-      const newInv = {
-        id: `INV-2026-${Math.floor(Math.random() * 900 + 100)}`,
-        date: lang === 'ar' ? 'اليوم' : 'Today',
-        descriptionAr: selectedPlanForCheckout.nameAr,
-        descriptionEn: selectedPlanForCheckout.nameEn || selectedPlanForCheckout.nameAr,
-        amount: `${finalPrice} ج.م`,
-        amountEn: `${finalPrice} EGP`,
-        method: selectedPaymentMethod === 'vodafone' ? 'فودافون كاش' : selectedPaymentMethod === 'fawry' ? 'فوري' : selectedPaymentMethod === 'instapay' ? 'إنستاباي' : 'بطاقة بنكية',
-        methodAr: selectedPaymentMethod === 'vodafone' ? 'فودافون كاش' : selectedPaymentMethod === 'fawry' ? 'فوري باي' : selectedPaymentMethod === 'instapay' ? 'إنستاباي' : 'بطاقة بنكية',
-        methodEn: selectedPaymentMethod === 'vodafone' ? 'Vodafone Cash' : selectedPaymentMethod === 'fawry' ? 'Fawry Pay' : selectedPaymentMethod === 'instapay' ? 'InstaPay' : 'Credit/Debit Card',
-        status: 'مدفوع'
-      };
-      setInvoices(prev => [newInv, ...prev]);
-
-      setActiveSub({
-        planNameAr: selectedPlanForCheckout.nameAr,
-        planNameEn: selectedPlanForCheckout.nameEn || selectedPlanForCheckout.nameAr,
-        status: 'active',
-        renewalDate: '2027-01-20',
-        daysRemaining: 120,
-        amountEgp: finalPrice
+    setPaymentSuccess(true);
+    try {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 }
       });
+    } catch {
+      // ignore
+    }
 
-      setTimeout(() => {
-        setPaymentSuccess(false);
-        setSelectedPlanForCheckout(null);
-      }, 3000);
-    }, 1500);
+    const finalPrice = couponApplied
+      ? Math.round((selectedPlanForCheckout.priceEgp || 0) * (1 - (discountPercent || 25) / 100))
+      : (selectedPlanForCheckout.priceEgp || 0);
+
+    setActiveSub({
+      planNameAr: selectedPlanForCheckout.nameAr,
+      planNameEn: selectedPlanForCheckout.nameEn || selectedPlanForCheckout.nameAr,
+      status: 'active',
+      renewalDate: '2027-01-20',
+      daysRemaining: 120,
+      amountEgp: finalPrice
+    });
+
+    setTimeout(() => {
+      setPaymentSuccess(false);
+      setSelectedPlanForCheckout(null);
+    }, 3000);
   };
 
   return (

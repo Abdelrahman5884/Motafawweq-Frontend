@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { CERTIFICATES_LIST } from '../../data/studentData';
+import { studentApi } from '../../services/studentApi';
 import {
   CertificateEligibilityCard,
   CertificateCard,
@@ -9,6 +9,31 @@ import {
 export const StudentCertificatesView = () => {
   const { lang, isRtl } = useLanguage();
   const [selectedCert, setSelectedCert] = useState(null);
+  const [certificatesList, setCertificatesList] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    studentApi.gamification.certificates()
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        setCertificatesList(list.map((c) => ({
+          id: c.id,
+          serialId: c.certificateNumber,
+          courseTitleAr: c.courseNameAr,
+          courseTitleEn: c.courseNameAr,
+          studentNameAr: c.studentNameAr,
+          gradePercent: `${c.gradePercent}%`,
+          honorsAr: c.honorsTitleAr,
+          issueDate: c.issueDate,
+          verifyUrl: c.verifyUrl
+        })));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const isAr = lang === 'ar';
 
@@ -42,7 +67,7 @@ export const StudentCertificatesView = () => {
       <CertificateEligibilityCard lang={lang} />
 
       {/* Certificates Gallery (100% Mobile Responsive Grid) */}
-      {CERTIFICATES_LIST.length === 0 ? (
+      {certificatesList.length === 0 ? (
         <div style={{
           padding: '48px 24px',
           textAlign: 'center',
@@ -71,7 +96,7 @@ export const StudentCertificatesView = () => {
             marginTop: '8px'
           }}
         >
-          {CERTIFICATES_LIST.map((cert) => (
+          {certificatesList.map((cert) => (
             <CertificateCard
               key={cert.id}
               cert={cert}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Trophy, 
@@ -12,16 +12,40 @@ import {
   Star
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+import { studentApi } from '../../../services/studentApi';
 
 export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
 
-  // Teacher leagues standings (loaded dynamically)
-  const teacherLeagues = [];
+  const [teacherLeagues, setTeacherLeagues] = useState([]);
+  const [pastLeagues] = useState([]);
 
-  // Past leagues archive (loaded dynamically)
-  const pastLeagues = [];
+  useEffect(() => {
+    let mounted = true;
+    studentApi.gamification.leagues().then((res) => {
+      if (!mounted) return;
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setTeacherLeagues(list.map((l, idx) => ({
+        id: l.id,
+        subject: l.courseNameAr || 'دوري التفوق',
+        rank: idx + 1,
+        medalTitle: idx === 0 ? 'منافس نشط' : 'مشارك',
+        teacherName: l.nameAr || 'بطولة الكورس',
+        courseTitle: l.courseNameAr || '',
+        statusAr: l.status === 'active' ? 'موسم نشط الآن' : 'موسم مكتمل',
+        totalStudents: l.participantsCount || 0,
+        xp: 0,
+        accentColor: '#F59E0B',
+        borderColor: 'rgba(245, 158, 11, 0.35)',
+        badgeBg: 'rgba(245, 158, 11, 0.14)',
+        glowColor: 'rgba(245, 158, 11, 0.18)',
+        cardBgDark: 'linear-gradient(160deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+        cardBgLight: 'linear-gradient(160deg, #FFFFFF 0%, #FFFBEB 100%)'
+      })));
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', marginBottom: '32px' }}>
