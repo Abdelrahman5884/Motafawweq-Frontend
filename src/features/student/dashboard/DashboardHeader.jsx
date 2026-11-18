@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BookOpen, ChevronDown, Check } from 'lucide-react';
+import { AvatarLightboxModal } from '../../../components/common/AvatarCropperModal';
 
 export const DashboardHeader = ({
   student,
@@ -14,6 +15,8 @@ export const DashboardHeader = ({
   filterOptions,
   currentSubjectLabel
 }) => {
+  const [isAvatarLightboxOpen, setIsAvatarLightboxOpen] = useState(false);
+
   return (
     <div style={{
       display: 'flex',
@@ -37,7 +40,9 @@ export const DashboardHeader = ({
             <img
               src={student.avatar}
               alt={student.name || 'Student'}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onClick={() => setIsAvatarLightboxOpen(true)}
+              title={lang === 'ar' ? 'اضغط لتكبير الصورة' : 'Click to enlarge'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
             />
           ) : (
             <div style={{
@@ -170,6 +175,14 @@ export const DashboardHeader = ({
           </div>
         )}
       </div>
+
+      <AvatarLightboxModal
+        isOpen={isAvatarLightboxOpen}
+        imageSrc={student.avatar}
+        altText={student.nameAr || student.name || 'Student'}
+        isAr={lang === 'ar'}
+        onClose={() => setIsAvatarLightboxOpen(false)}
+      />
     </div>
   );
 };

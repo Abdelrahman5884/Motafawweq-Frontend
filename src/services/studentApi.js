@@ -13,6 +13,14 @@ export const studentApi = {
   profile: {
     get: () => apiGet('/student/profile'),
     update: (data) => apiPut('/student/profile', data),
+    uploadAvatar: (file) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      return apiRequest('/student/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+    },
   },
 
   // Phase 3: Study Groups, Schedule, Personal Study Sessions & Attendance

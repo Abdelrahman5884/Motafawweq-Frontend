@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Camera, RefreshCw, Sparkles, User, School, MapPin, Building2, CheckCircle2, Copy, KeyRound } from 'lucide-react';
 import { SCard, SSection, SBadge, SButton } from '../../../components/student/ui';
+import { AvatarCropperModal, AvatarLightboxModal } from '../../../components/common/AvatarCropperModal';
+import { studentApi } from '../../../services/studentApi';
 
 // Curated avatars library for Egyptian high-school students
 export const PRESET_AVATARS = [
@@ -47,7 +49,12 @@ export const ProfileSettingsSection = ({
 }) => {
   const fileInputRef = useRef(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isAvatarLightboxOpen, setIsAvatarLightboxOpen] = useState(false);
 
+  const isAr = lang === 'ar';
   const studentLinkCode = formData.studentCode || formData.student_code || 'OMAR-2026';
 
   const handleCopyStudentCode = async () => {
@@ -62,14 +69,16 @@ export const ProfileSettingsSection = ({
 
   const onFileInput = (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(lang === 'ar' ? 'حجم الصورة يجب ألا يتجاوز 5 ميجابايت' : 'Image size must be under 5MB');
+      if (file.size > 10 * 1024 * 1024) {
+        alert(isAr ? 'حجم الصورة المختارة كبير جداً (الحد الأقصى 10 ميجابايت قبل القص).' : 'Selected image is too large (max 10 MB before cropping).');
         return;
       }
       const reader = new FileReader();
       reader.onload = (event) => {
-        handleAvatarUpload(event.target.result);
+        setCropImageSrc(event.target.result);
+        setIsCropperOpen(true);
       };
       reader.readAsDataURL(file);
     }
@@ -104,7 +113,17 @@ export const ProfileSettingsSection = ({
                 <img
                   src={formData.avatar || PRESET_AVATARS[0].url}
                   alt={formData.name || 'Student Avatar'}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onClick={() => setIsAvatarLightboxOpen(true)}
+                  title={isAr ? 'اضغط لتكبير الصورة' : 'Click to enlarge'}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    cursor: 'zoom-in',
+                    transition: 'transform 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.04)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
                 />
               </div>
 
@@ -745,6 +764,44 @@ export const ProfileSettingsSection = ({
           </div>
         </SSection>
       </SCard>
+
+      <AvatarCropperModal
+        isOpen={isCropperOpen}
+        imageSrc={cropImageSrc}
+        isAr={isAr}
+        isUploading={isUploadingAvatar}
+        onClose={() => {
+          if (!isUploadingAvatar) {
+            setIsCropperOpen(false);
+            setCropImageSrc(null);
+          }
+        }}
+        onConfirm={async (croppedFile, previewUrl) => {
+          setIsUploadingAvatar(true);
+          handleAvatarUpload(previewUrl);
+          try {
+            const uploadRes = await studentApi.profile.uploadAvatar(croppedFile);
+            const newAvatar = uploadRes?.data?.avatar;
+            if (newAvatar) {
+              handleAvatarUpload(newAvatar);
+            }
+            setIsCropperOpen(false);
+            setCropImageSrc(null);
+          } catch (err) {
+            alert(err?.message || (isAr ? 'فشل رفع الصورة الشخصية إلى السيرفر.' : 'Failed to upload profile picture.'));
+          } finally {
+            setIsUploadingAvatar(false);
+          }
+        }}
+      />
+
+      <AvatarLightboxModal
+        isOpen={isAvatarLightboxOpen}
+        imageSrc={formData.avatar || PRESET_AVATARS[0].url}
+        altText={formData.nameAr || formData.name || 'Student Avatar'}
+        isAr={isAr}
+        onClose={() => setIsAvatarLightboxOpen(false)}
+      />
     </div>
   );
 };
