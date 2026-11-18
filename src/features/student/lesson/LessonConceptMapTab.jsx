@@ -79,6 +79,21 @@ export const LessonConceptMapTab = ({
 
       {/* ── SUB-MODE 1: Interactive Network Graph (خريطة ك جراف) ── */}
       {roadmapViewMode === 'graph' && (
+        graphNodes.length === 0 ? (
+          <div style={{
+            padding: '32px 16px',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            backgroundColor: 'var(--bg-subtle)',
+            borderRadius: '14px',
+            border: '1px dashed var(--border-subtle)',
+            fontSize: '13.5px',
+            fontWeight: '700'
+          }}>
+            <Network size={28} color="var(--primary)" style={{ opacity: 0.6, marginBottom: '8px' }} />
+            <div>{lang === 'ar' ? 'لم يتم إضافة شبكة مفاهيم بيانية لهذه الحصة بعد.' : 'No interactive concept graph available for this lesson yet.'}</div>
+          </div>
+        ) : (
         <div className="lv-graph-container">
           <div className="lv-graph-hint">
             <Sparkles size={14} />
@@ -193,7 +208,7 @@ export const LessonConceptMapTab = ({
           </div>
 
           {/* Selected Node Details Bar */}
-          {activeGraphNodeObj && (
+          {activeGraphNodeObj?.id && (
             <div className="lv-graph-card animate-pop">
               <div className="lv-graph-card__head">
                 <div className="lv-graph-card__title-group">
@@ -221,10 +236,26 @@ export const LessonConceptMapTab = ({
             </div>
           )}
         </div>
+        )
       )}
 
       {/* ── SUB-MODE 2: Concept Cards Roadmap (خريطة البطاقات) ── */}
       {roadmapViewMode === 'cards' && (
+        (!lesson.chapters || lesson.chapters.length === 0) ? (
+          <div style={{
+            padding: '32px 16px',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            backgroundColor: 'var(--bg-subtle)',
+            borderRadius: '14px',
+            border: '1px dashed var(--border-subtle)',
+            fontSize: '13.5px',
+            fontWeight: '700'
+          }}>
+            <Layers size={28} color="var(--primary)" style={{ opacity: 0.6, marginBottom: '8px' }} />
+            <div>{lang === 'ar' ? 'لا توجد محطات أو خريطة مفاهيم مضافة لهذه الحصة حالياً.' : 'No concept roadmap chapters available for this lesson yet.'}</div>
+          </div>
+        ) : (
         <>
           {/* Overall Lesson Progress */}
           <div className="lv-km__progress">
@@ -236,20 +267,14 @@ export const LessonConceptMapTab = ({
             </span>
           </div>
 
-          {/* Central Node Badge */}
-          <div className="lv-km__center-badge">
-            <Sparkles size={14} />
-            <span>{lang === 'ar' ? 'المفهوم الجوهري: حركية الطاقة وانشطار الماء وتثبيت الكربون' : 'Core Concept: Photosynthesis Energy Transfer'}</span>
-          </div>
-
           {/* Concept Roadmap Cards */}
           <div className="lv-km__grid">
             {lesson.chapters.map((ch, i) => {
               const isDone = currentTime >= ch.endSec;
-              const isCurrent = currentCh.id === ch.id;
+              const isCurrent = currentCh?.id === ch.id;
               const isExpanded = expandedConcept === ch.id;
               const isMastered = !!masteredConcepts[ch.id];
-              const chProgress = isCurrent
+              const chProgress = isCurrent && ch.endSec > ch.startSec
                 ? Math.min(100, Math.max(0, ((currentTime - ch.startSec) / (ch.endSec - ch.startSec)) * 100))
                 : isDone ? 100 : 0;
 
@@ -321,25 +346,8 @@ export const LessonConceptMapTab = ({
               );
             })}
           </div>
-
-          {/* Learning Outcomes Checklist */}
-          <div className="lv-km__outcomes">
-            <h3 className="lv-km__outcomes-title">
-              <Target size={16} />
-              <span>{lang === 'ar' ? 'نواتج التعلم المستهدفة طبقاً لمواصفات الوزارة' : 'Target Learning Outcomes'}</span>
-            </h3>
-            {[
-              'تفسير معادلة البناء الضوئي وحركية انتقال الإلكترونات المستثارة عبر أغشية الثيلاكويد.',
-              'البرهنة بالدليل التجريبي على دور الماء كمصدر للأكسجين المتصاعد باستخدام نظائر O18 المشعة.',
-              'الربط بين مركبات الطاقة المختزنة NADPH2 و ATP وتفاعلات تثبيت غاز CO2 في ستروما البلاستيدة وتكوين PGAL.',
-            ].map((outcome, i) => (
-              <div key={i} className="lv-km__outcome" style={{ animationDelay: `${i * 0.1}s` }}>
-                <Check size={14} className="lv-km__outcome-icon" />
-                <span>{outcome}</span>
-              </div>
-            ))}
-          </div>
         </>
+        )
       )}
     </div>
   );

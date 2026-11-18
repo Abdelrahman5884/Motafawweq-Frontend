@@ -1,7 +1,7 @@
 import React from 'react';
 import { Check, Video, Clock, Star, Play } from 'lucide-react';
 
-export const TeacherCourseCard = ({ course, isEnrolled, lang, onContinue, onEnroll }) => {
+export const TeacherCourseCard = ({ course, isEnrolled, isPending = false, lang, onContinue, onEnroll }) => {
   return (
     <div
       className="clean-course-card"
@@ -51,6 +51,17 @@ export const TeacherCourseCard = ({ course, isEnrolled, lang, onContinue, onEnro
               <Check size={12} />
               <span>مشترك به</span>
             </span>
+          ) : isPending ? (
+            <span style={{
+              fontSize: '11.5px',
+              fontWeight: '700',
+              color: '#D97706',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              padding: '3px 8px',
+              borderRadius: '6px'
+            }}>
+              {lang === 'ar' ? 'بانتظار موافقة المعلم' : 'Pending Approval'}
+            </span>
           ) : (
             <span style={{
               fontSize: '11.5px',
@@ -60,7 +71,7 @@ export const TeacherCourseCard = ({ course, isEnrolled, lang, onContinue, onEnro
               padding: '3px 8px',
               borderRadius: '6px'
             }}>
-              {course.priceEgp} ج.م
+              {course.priceEgp > 0 ? `${course.priceEgp} ج.م` : (lang === 'ar' ? 'يتطلب موافقة المعلم' : 'Requires Approval')}
             </span>
           )}
         </div>
@@ -209,6 +220,29 @@ export const TeacherCourseCard = ({ course, isEnrolled, lang, onContinue, onEnro
             <Play size={14} fill="#FFFFFF" />
             <span>{lang === 'ar' ? 'متابعة الحصة الآن' : 'Continue Lesson'}</span>
           </button>
+        ) : isPending ? (
+          <button
+            type="button"
+            disabled
+            style={{
+              width: '100%',
+              padding: '11px 16px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              color: '#D97706',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              fontSize: '13px',
+              fontWeight: '800',
+              cursor: 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <Clock size={14} />
+            <span>{lang === 'ar' ? 'بانتظار موافقة المعلم' : 'Pending Teacher Approval'}</span>
+          </button>
         ) : (
           <button
             onClick={onEnroll}
@@ -229,7 +263,11 @@ export const TeacherCourseCard = ({ course, isEnrolled, lang, onContinue, onEnro
               gap: '6px'
             }}
           >
-            <span>{lang === 'ar' ? `الاشتراك بالكورس (${course.priceEgp} ج.م)` : 'Enroll in Course'}</span>
+            <span>
+              {course.priceEgp > 0
+                ? (lang === 'ar' ? `طلب الاشتراك بالكورس (${course.priceEgp} ج.م)` : `Request Enrollment (${course.priceEgp} EGP)`)
+                : (lang === 'ar' ? 'طلب التسجيل في المقرر' : 'Request Course Enrollment')}
+            </span>
           </button>
         )}
       </div>

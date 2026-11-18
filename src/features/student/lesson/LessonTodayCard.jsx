@@ -13,7 +13,7 @@ export const LessonTodayCard = ({
   className = ''
 }) => {
   const isAr = lang === 'ar';
-  const donutProgressVal = isCompleted ? 100 : Math.max(15, Math.round(progress));
+  const donutProgressVal = isCompleted ? 100 : Math.min(100, Math.max(0, Math.round(Number(progress) || 0)));
   const donutRadius = 36;
   const donutCircumference = 2 * Math.PI * donutRadius;
   const donutDashoffset = donutCircumference - (donutProgressVal / 100) * donutCircumference;

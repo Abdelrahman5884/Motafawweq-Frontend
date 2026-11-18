@@ -87,6 +87,29 @@ export const LessonMaterialsTab = ({
         </div>
       </div>
 
+      {/* EMPTY STATE */}
+      {((activeFilter === 'all' && attachments.length === 0 && whiteboardImages.length === 0) ||
+        (activeFilter === 'pdf' && attachments.length === 0) ||
+        (activeFilter === 'images' && whiteboardImages.length === 0)) && (
+        <div style={{
+          padding: '32px 16px',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+          backgroundColor: 'var(--bg-subtle)',
+          borderRadius: '14px',
+          border: '1px dashed var(--border-subtle)',
+          fontSize: '13.5px',
+          fontWeight: '700'
+        }}>
+          <FileText size={28} color="var(--primary)" style={{ opacity: 0.6, marginBottom: '8px' }} />
+          <div>
+            {lang === 'ar'
+              ? 'لا توجد ملفات أو صور سبورة مرفقة بهذه الحصة حالياً.'
+              : 'No files or whiteboard images attached to this lesson yet.'}
+          </div>
+        </div>
+      )}
+
       {/* SECTION 1: PDF BOOKLETS */}
       {showPdfs && attachments.length > 0 && (
         <div>

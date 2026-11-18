@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Play, CheckCircle2,
-  Lock, ChevronLeft, ChevronRight
+  Headphones, Video, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { LessonTodayCard } from './LessonTodayCard';
 
@@ -91,9 +91,11 @@ export const LessonPlaylistSidebar = ({
                     <span className="lv-pl-item__status-tag active">{lang === 'ar' ? 'تدرسه الآن' : 'Now'}</span>
                   ) : l.completed ? (
                     <span className="lv-pl-item__status-tag completed">{lang === 'ar' ? 'مكتمل' : 'Done'}</span>
-                  ) : (
-                    <span className="lv-pl-item__lock"><Lock size={12} /></span>
-                  )}
+                  ) : l.hasMedia ? (
+                    <span className="lv-pl-item__media-pill" title={l.mediaMode === 'audio' ? 'صوتي' : 'فيديو'}>
+                      {l.mediaMode === 'audio' ? <Headphones size={12} /> : <Video size={12} />}
+                    </span>
+                  ) : null}
                   {isRtl ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
                 </div>
               </div>

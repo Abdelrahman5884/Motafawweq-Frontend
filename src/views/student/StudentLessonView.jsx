@@ -101,6 +101,9 @@ export const StudentLessonView = () => {
     handleBookmarkClick,
     fmt,
     playerRef,
+    mediaElRef,
+    onMediaTimeUpdate,
+    onMediaLoadedMetadata,
     kmRef,
     activeLessonId,
     mobilePlaylistOpen,
@@ -188,14 +191,16 @@ export const StudentLessonView = () => {
   };
 
   const handleSummaryClick = () => {
+    const firstPdf = attachments[0];
+    if (!firstPdf) return;
     triggerConfirm({
       title: lang === 'ar' ? 'تأكيد تحميل ملخص الحصة' : 'Download Summary PDF',
       message: lang === 'ar'
-        ? `هل تريد بدء تحميل ملخص المحاضرة الشامل بصيغة PDF (${courseInfo.summaryPdf})؟`
-        : 'Do you want to download the comprehensive lesson summary PDF?',
+        ? `هل تريد بدء تحميل ملف "${firstPdf.titleAr || 'ملخص الحصة'}"؟`
+        : `Do you want to download "${firstPdf.titleAr || 'Lesson Summary PDF'}"?`,
       confirmText: lang === 'ar' ? 'نعم، ابدأ التحميل' : 'Yes, Download',
       confirmColor: 'primary',
-      onConfirm: () => handleDL({ id: 'summary', titleAr: courseInfo.summaryPdf })
+      onConfirm: () => handleDL(firstPdf)
     });
   };
 
@@ -320,6 +325,24 @@ export const StudentLessonView = () => {
     }
   };
 
+  if (loadingLesson) {
+    return (
+      <div className="lv">
+        <div className="lv-layout">
+          <div className="lv-content">
+            <div className="lv-skeleton-player" />
+            <div className="lv-skeleton-bar" style={{ width: '60%', height: '26px' }} />
+            <div className="lv-skeleton-bar" style={{ width: '40%', height: '16px' }} />
+          </div>
+          <aside className="lv-sidebar">
+            <div className="lv-skeleton-card" style={{ height: '190px' }} />
+            <div className="lv-skeleton-card" style={{ height: '320px' }} />
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
   if (!loadingLesson && playlist.length === 0 && !lesson?.titleAr) {
     return (
       <div style={{
@@ -391,6 +414,9 @@ export const StudentLessonView = () => {
           {/* Video / Audio Player Container */}
           <LessonVideoPlayer
             playerRef={playerRef}
+            mediaElRef={mediaElRef}
+            onMediaTimeUpdate={onMediaTimeUpdate}
+            onMediaLoadedMetadata={onMediaLoadedMetadata}
             lesson={lesson}
             courseInfo={courseInfo}
             currentCh={currentCh}
@@ -420,6 +446,7 @@ export const StudentLessonView = () => {
           <LessonHeaderActions
             lesson={lesson}
             courseInfo={courseInfo}
+            hasSummaryPdf={attachments.length > 0}
             isCompleted={isCompleted}
             isBookmarked={isBookmarked}
             handleCompleteButtonClick={handleCompleteButtonClick}

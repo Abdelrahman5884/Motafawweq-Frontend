@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import {
   Play, Pause, RotateCcw, FastForward, Volume2, VolumeX,
-  Maximize2, Minimize2, RotateCw, Headphones, Video
+  Maximize2, Minimize2, Headphones, Video
 } from 'lucide-react';
 
 function toYoutubeEmbedUrl(url = '') {
@@ -16,6 +16,9 @@ function toYoutubeEmbedUrl(url = '') {
 
 export const LessonVideoPlayer = ({
   playerRef,
+  mediaElRef,
+  onMediaTimeUpdate,
+  onMediaLoadedMetadata,
   lesson,
   courseInfo,
   currentCh,
@@ -34,39 +37,219 @@ export const LessonVideoPlayer = ({
   setIsMuted,
   isPlayerFS,
   togglePlayerFS,
-  toggleLandscape,
   isLandscape,
   progress,
   fmt,
   lang
 }) => {
-  const videoElRef = useRef(null);
-  const isYoutubeOrEmbed = Boolean(lesson?.isYoutube || (lesson?.embedUrl && (lesson.embedUrl.includes('youtube.com') || lesson.embedUrl.includes('youtu.be') || lesson.embedUrl.includes('vimeo.com'))));
+  const isYoutubeOrEmbed = Boolean(
+    lesson?.isYoutube ||
+    (lesson?.embedUrl && (
+      lesson.embedUrl.includes('youtube.com') ||
+      lesson.embedUrl.includes('youtu.be') ||
+      lesson.embedUrl.includes('vimeo.com')
+    ))
+  );
   const embedSrc = isYoutubeOrEmbed ? toYoutubeEmbedUrl(lesson?.embedUrl || lesson?.videoUrl) : '';
   const hasDirectMedia = Boolean(!isYoutubeOrEmbed && lesson?.videoUrl);
+  const isAudioOnlyLesson = lesson?.mediaMode === 'audio';
+  const showAudioStudio = (mediaMode === 'audio' || isAudioOnlyLesson) && !isYoutubeOrEmbed && hasDirectMedia;
 
   useEffect(() => {
-    const el = videoElRef.current;
+    const el = mediaElRef?.current;
     if (!el || !hasDirectMedia) return;
     el.playbackRate = speed || 1;
     el.volume = isMuted ? 0 : (volume ?? 0.85);
     el.muted = Boolean(isMuted);
-    if (isPlaying && el.paused) {
-      el.play().catch(() => {});
-    } else if (!isPlaying && !el.paused) {
-      el.pause();
+    if (showAudioStudio) {
+      if (isPlaying && el.paused) {
+        el.play().catch(() => {});
+      } else if (!isPlaying && !el.paused) {
+        el.pause();
+      }
     }
-  }, [isPlaying, speed, volume, isMuted, hasDirectMedia]);
+  }, [isPlaying, speed, volume, isMuted, hasDirectMedia, showAudioStudio, mediaElRef]);
+
+  const teacherInitial = (courseInfo?.teacherAr || 'م').trim().charAt(0);
 
   return (
     <div
       ref={playerRef}
-      className={`lv-player ${mediaMode === 'audio' ? 'lv-player--audio' : ''} ${isPlayerFS ? 'lv-player--fullscreen lv-player--fs' : ''} ${isLandscape ? 'lv-player--landscape lv-player--fs' : ''}`}
+      className={`lv-player ${showAudioStudio ? 'lv-player--audio' : ''} ${isPlayerFS ? 'lv-player--fullscreen lv-player--fs' : ''} ${isLandscape ? 'lv-player--landscape lv-player--fs' : ''}`}
     >
-      {mediaMode === 'video' ? (
+      {showAudioStudio ? (
+        <>
+          {/* Audio Studio Mode */}
+          <div className="lv-player__audio-studio">
+            <div className="lv-player__audio-glow" />
+            <div className="lv-player__audio-avatar-wrap">
+              {courseInfo?.teacherImg ? (
+                <img src={courseInfo.teacherImg} alt={courseInfo.teacherAr} className="lv-player__audio-avatar" />
+              ) : (
+                <div className="lv-player__audio-avatar lv-player__audio-avatar--fallback">
+                  {teacherInitial}
+                </div>
+              )}
+              <div className="lv-player__audio-badge"><Headphones size={13} /></div>
+            </div>
+
+            <p className="lv-player__audio-label">
+              {lang === 'ar' ? 'تسجيل الحصة الصوتي عالي النقاء' : 'HD Master Audio'}
+            </p>
+            <h3 className="lv-player__audio-title">{lesson.titleAr}</h3>
+            <p className="lv-player__audio-sub">
+              {courseInfo?.teacherAr}
+              {currentCh?.titleAr ? ` • ${currentCh.titleAr}` : ''}
+            </p>
+
+            {/* Hidden HTML5 Audio element controlled by .lv-controls */}
+            <audio
+              ref={mediaElRef}
+              src={lesson.videoUrl}
+              preload="metadata"
+              onLoadedMetadata={(e) => onMediaLoadedMetadata?.(e.currentTarget.duration)}
+              onTimeUpdate={(e) => onMediaTimeUpdate?.(e.currentTarget.currentTime)}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => setIsPlaying(false)}
+            />
+
+            {/* Pulsing Audio Waveform */}
+            <div className="lv-waveform">
+              {Array.from({ length: 32 }, (_, i) => (
+                <div
+                  key={i}
+                  className="lv-waveform__bar"
+                  style={{
+                    animationDelay: `${(i % 8) * 0.12}s`,
+                    animationPlayState: isPlaying ? 'running' : 'paused'
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="lv-player__audio-footer">
+              <span className="lv-player__data-badge">
+                {lang === 'ar' ? 'وضع الاستماع الصوتي • يوفر استهلاك الإنترنت' : 'Audio Mode • Data Saver'}
+              </span>
+              <button className="lv-player__fs-btn" onClick={togglePlayerFS} title={lang === 'ar' ? 'شاشة كاملة' : 'Fullscreen'}>
+                {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Custom Controls & Scrubber (Synced with real <audio> ref) */}
+          <div className="lv-controls">
+            <div
+              className="lv-scrub"
+              onClick={e => {
+                const r = e.currentTarget.getBoundingClientRect();
+                const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+                seekTo(Math.round(pct * (lesson.durationSec || 0)));
+              }}
+            >
+              <div className="lv-scrub__track">
+                {(lesson.chapters || []).map((c, i) => i > 0 && lesson.durationSec > 0 && (
+                  <div
+                    key={c.id}
+                    className="lv-scrub__mark"
+                    style={{ left: `${(c.startSec / lesson.durationSec) * 100}%` }}
+                    title={c.titleAr}
+                  />
+                ))}
+                <div className="lv-scrub__fill" style={{ width: `${progress}%` }} />
+                <div className="lv-scrub__thumb" style={{ left: `${progress}%` }} />
+              </div>
+            </div>
+
+            <div className="lv-controls__row">
+              <div className="lv-controls__left">
+                <button className="lv-ctrl-btn" onClick={() => seekBy(-10)} title="-10s">
+                  <RotateCcw size={16} />
+                </button>
+                <button className="lv-ctrl-btn" onClick={() => seekBy(10)} title="+10s">
+                  <FastForward size={16} />
+                </button>
+                <div className="lv-time">
+                  <span className="lv-time__curr">{fmt(currentTime)}</span>
+                  <span className="lv-time__sep">/</span>
+                  <span className="lv-time__tot">{lesson.durationFmt}</span>
+                </div>
+              </div>
+
+              <button
+                className="lv-play-btn"
+                onClick={() => setIsPlaying(!isPlaying)}
+                title={isPlaying ? (lang === 'ar' ? 'إيقاف' : 'Pause') : (lang === 'ar' ? 'تشغيل' : 'Play')}
+              >
+                {isPlaying ? (
+                  <Pause size={19} />
+                ) : (
+                  <Play size={19} fill="currentColor" style={{ marginInlineStart: '2px' }} />
+                )}
+              </button>
+
+              <div className="lv-controls__right">
+                <div className="lv-vol-group desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button
+                    className="lv-ctrl-btn"
+                    onClick={() => setIsMuted(!isMuted)}
+                    title={isMuted ? (lang === 'ar' ? 'إلغاء الكتم' : 'Unmute') : (lang === 'ar' ? 'كتم' : 'Mute')}
+                  >
+                    {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isMuted ? 0 : volume}
+                    onChange={e => {
+                      setVolume(parseFloat(e.target.value));
+                      setIsMuted(false);
+                    }}
+                    className="lv-vol"
+                    title={lang === 'ar' ? 'مستوى الصوت' : 'Volume'}
+                  />
+                </div>
+
+                <select
+                  value={speed}
+                  onChange={e => setSpeed(parseFloat(e.target.value))}
+                  className="lv-speed"
+                  title={lang === 'ar' ? 'سرعة التشغيل' : 'Playback Speed'}
+                >
+                  {[0.75, 1, 1.25, 1.5, 1.75, 2].map(s => (
+                    <option key={s} value={s}>{s === 1 ? '1.0x' : `${s}x`}</option>
+                  ))}
+                </select>
+
+                {!isAudioOnlyLesson && (
+                  <button
+                    className="lv-ctrl-btn lv-mode-toggle active"
+                    onClick={() => setMediaMode('video')}
+                    title={lang === 'ar' ? 'العودة لوضع الفيديو' : 'Switch to Video'}
+                  >
+                    <Video size={16} />
+                  </button>
+                )}
+
+                <button
+                  className="lv-ctrl-btn"
+                  onClick={togglePlayerFS}
+                  title={isPlayerFS ? (lang === 'ar' ? 'إنهاء الشاشة الكاملة' : 'Exit Fullscreen') : (lang === 'ar' ? 'شاشة كاملة' : 'Fullscreen')}
+                >
+                  {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
         <div className="lv-player__screen">
           {isYoutubeOrEmbed && embedSrc ? (
             <iframe
+              key={embedSrc}
               src={embedSrc}
               title={lesson.titleAr}
               className="lv-player__video"
@@ -76,46 +259,37 @@ export const LessonVideoPlayer = ({
             />
           ) : hasDirectMedia ? (
             <video
-              ref={videoElRef}
+              key={lesson.videoUrl}
+              ref={mediaElRef}
               src={lesson.videoUrl}
               controls
               playsInline
+              preload="metadata"
               className="lv-player__video"
               style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' }}
+              onLoadedMetadata={(e) => onMediaLoadedMetadata?.(e.currentTarget.duration)}
+              onTimeUpdate={(e) => onMediaTimeUpdate?.(e.currentTarget.currentTime)}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
-              onTimeUpdate={(e) => {
-                if (Math.abs(e.currentTarget.currentTime - currentTime) > 1.5) {
-                  seekTo(Math.floor(e.currentTarget.currentTime));
-                }
-              }}
+              onEnded={() => setIsPlaying(false)}
             />
           ) : (
-            <div style={{
-              width: '100%',
-              height: '100%',
-              minHeight: '300px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              color: '#CBD5E1',
-              background: 'linear-gradient(135deg, #06254E 0%, #0B192C 100%)',
-              padding: '24px',
-              textAlign: 'center'
-            }}>
-              <Video size={38} color="#38BDF8" />
-              <div style={{ fontSize: '15px', fontWeight: '800', color: '#FFFFFF' }}>
+            <div className="lv-player__empty">
+              <div className="lv-player__empty-icon">
+                <Video size={34} />
+              </div>
+              <div className="lv-player__empty-title">
                 {lesson.titleAr || (lang === 'ar' ? 'الحصة التعليمية' : 'Lesson')}
               </div>
-              <div style={{ fontSize: '12.5px', color: '#94A3B8' }}>
-                {lang === 'ar' ? 'لم يقم المعلم بإضافة فيديو أو رابط شرح لهذه الحصة بعد.' : 'No video or embed link uploaded for this lesson yet.'}
+              <div className="lv-player__empty-sub">
+                {lang === 'ar'
+                  ? 'لم يقم المعلم بإضافة فيديو أو رابط شرح لهذه الحصة بعد.'
+                  : 'No video or embed link uploaded for this lesson yet.'}
               </div>
             </div>
           )}
 
-          {/* Chapter Pill */}
+          {/* Chapter Pill (only if chapters exist) */}
           {currentCh && (
             <div className="lv-player__chapter-pill">
               <span className="lv-player__chapter-num">
@@ -125,201 +299,20 @@ export const LessonVideoPlayer = ({
             </div>
           )}
 
-          {/* Center Play/Pause Overlay (only when no iframe/direct video controls) */}
-          {!isYoutubeOrEmbed && !hasDirectMedia && (
-            <button
-              className="lv-player__center-btn"
-              onClick={() => setIsPlaying(!isPlaying)}
-              title={isPlaying ? 'إيقاف' : 'تشغيل'}
-            >
-              <span className="lv-player__center-ring" />
-              {isPlaying ? (
-                <Pause size={28} />
-              ) : (
-                <Play size={28} fill="currentColor" style={{ marginInlineStart: '3px' }} />
-              )}
-            </button>
+          {/* Audio-mode switch button for direct video lessons */}
+          {hasDirectMedia && !isYoutubeOrEmbed && (
+            <div className="lv-player__top-actions">
+              <button
+                className="lv-player__fs-btn"
+                onClick={() => setMediaMode('audio')}
+                title={lang === 'ar' ? 'التحويل للاستماع الصوتي' : 'Audio Mode'}
+              >
+                <Headphones size={15} />
+              </button>
+            </div>
           )}
-
-          {/* Fullscreen & Landscape Buttons */}
-          <div className="lv-player__top-actions">
-            <button
-              className="lv-player__fs-btn lv-player__rotate-btn"
-              onClick={toggleLandscape}
-              title={lang === 'ar' ? 'تشغيل بالعرض (Landscape للتليفون)' : 'Landscape Orientation'}
-            >
-              <RotateCw size={15} />
-            </button>
-
-            <button
-              className="lv-player__fs-btn"
-              onClick={togglePlayerFS}
-              title={isPlayerFS ? 'إنهاء وضع الشاشة الكاملة' : 'شاشة كاملة'}
-            >
-              {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Audio Studio (Adaptive Mode) */
-        <div className="lv-player__audio-studio">
-          <div className="lv-player__audio-glow" />
-          <div className="lv-player__audio-avatar-wrap">
-            <img src={courseInfo.teacherImg} alt={courseInfo.teacherAr} className="lv-player__audio-avatar" />
-            <div className="lv-player__audio-badge"><Headphones size={13} /></div>
-          </div>
-          <p className="lv-player__audio-label">
-            {lang === 'ar' ? 'تسجيل الحصة الصوتي عالي النقاء (HD Podcast)' : 'HD Master Audio'}
-          </p>
-          <h3 className="lv-player__audio-title">{lesson.titleAr}</h3>
-          <p className="lv-player__audio-sub">{courseInfo.teacherAr} {currentCh?.titleAr ? `• ${currentCh.titleAr}` : ''}</p>
-          {hasDirectMedia && (
-            <audio
-              ref={videoElRef}
-              src={lesson.videoUrl}
-              controls
-              style={{ width: '100%', maxWidth: '420px', margin: '10px auto', position: 'relative', zIndex: 2 }}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-            />
-          )}
-
-          {/* Pulsing Audio Waveform */}
-          <div className="lv-waveform">
-            {Array.from({ length: 32 }, (_, i) => (
-              <div
-                key={i}
-                className="lv-waveform__bar"
-                style={{
-                  animationDelay: `${(i % 8) * 0.12}s`,
-                  animationPlayState: isPlaying ? 'running' : 'paused'
-                }}
-              />
-            ))}
-          </div>
-
-          <div className="lv-player__audio-footer">
-            <span className="lv-player__data-badge">
-              {lang === 'ar' ? 'يوفر 85% من باقة الإنترنت' : '85% Data Saved'}
-            </span>
-            <button className="lv-player__fs-btn" onClick={togglePlayerFS} title="شاشة كاملة">
-              {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
-          </div>
         </div>
       )}
-
-      {/* Player Scrubber & Controls */}
-      <div className="lv-controls">
-        {/* Scrub Track */}
-        <div
-          className="lv-scrub"
-          onClick={e => {
-            const r = e.currentTarget.getBoundingClientRect();
-            const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-            seekTo(Math.round(pct * lesson.durationSec));
-          }}
-        >
-          <div className="lv-scrub__track">
-            {lesson.chapters.map((c, i) => i > 0 && (
-              <div
-                key={c.id}
-                className="lv-scrub__mark"
-                style={{ left: `${(c.startSec / lesson.durationSec) * 100}%` }}
-                title={c.titleAr}
-              />
-            ))}
-            <div className="lv-scrub__fill" style={{ width: `${progress}%` }} />
-            <div className="lv-scrub__thumb" style={{ left: `${progress}%` }} />
-          </div>
-        </div>
-
-        {/* Controls Row */}
-        <div className="lv-controls__row">
-          <div className="lv-controls__left">
-            <button className="lv-ctrl-btn" onClick={() => seekBy(-10)} title="-10s">
-              <RotateCcw size={16} />
-            </button>
-            <button className="lv-ctrl-btn" onClick={() => seekBy(10)} title="+10s">
-              <FastForward size={16} />
-            </button>
-            <div className="lv-time">
-              <span className="lv-time__curr">{fmt(currentTime)}</span>
-              <span className="lv-time__sep">/</span>
-              <span className="lv-time__tot">{lesson.durationFmt}</span>
-            </div>
-          </div>
-
-          {/* Primary Play Button */}
-          <button
-            className="lv-play-btn"
-            onClick={() => setIsPlaying(!isPlaying)}
-            title={isPlaying ? 'إيقاف' : 'تشغيل'}
-          >
-            {isPlaying ? (
-              <Pause size={19} />
-            ) : (
-              <Play size={19} fill="currentColor" style={{ marginInlineStart: '2px' }} />
-            )}
-          </button>
-
-          <div className="lv-controls__right">
-            {/* Mute / Volume (Desktop only — phones use hardware buttons) */}
-            <div className="lv-vol-group desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <button
-                className="lv-ctrl-btn"
-                onClick={() => setIsMuted(!isMuted)}
-                title={isMuted ? 'إلغاء الكتم' : 'كتم'}
-              >
-                {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={isMuted ? 0 : volume}
-                onChange={e => {
-                  setVolume(parseFloat(e.target.value));
-                  setIsMuted(false);
-                }}
-                className="lv-vol"
-                title="مستوى الصوت"
-              />
-            </div>
-
-            {/* Playback Speed */}
-            <select
-              value={speed}
-              onChange={e => setSpeed(parseFloat(e.target.value))}
-              className="lv-speed"
-              title="سرعة التشغيل"
-            >
-              {[0.75, 1, 1.25, 1.5, 1.75, 2].map(s => (
-                <option key={s} value={s}>{s === 1 ? '1.0x' : `${s}x`}</option>
-              ))}
-            </select>
-
-            {/* Adaptive Media Switcher (Video vs Audio) */}
-            <button
-              className={`lv-ctrl-btn lv-mode-toggle ${mediaMode === 'audio' ? 'active' : ''}`}
-              onClick={() => setMediaMode(m => m === 'video' ? 'audio' : 'video')}
-              title={mediaMode === 'video' ? 'التحويل للاستماع الصوتي (Podcast)' : 'التحويل للفيديو'}
-            >
-              {mediaMode === 'video' ? <Headphones size={16} /> : <Video size={16} />}
-            </button>
-
-            {/* Fullscreen Button */}
-            <button
-              className="lv-ctrl-btn"
-              onClick={togglePlayerFS}
-              title={isPlayerFS ? 'إنهاء وضع الشاشة الكاملة' : 'شاشة كاملة'}
-            >
-              {isPlayerFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

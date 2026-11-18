@@ -15,6 +15,7 @@ import {
 
 export const useLesson = (lang) => {
   const playerRef = useRef(null);
+  const mediaElRef = useRef(null);
   const kmRef = useRef(null);
   const [liveCourseInfo, setLiveCourseInfo] = useState(COURSE_INFO);
   const [liveLessonsMap, setLiveLessonsMap] = useState(LESSONS_DATABASE);
@@ -86,6 +87,7 @@ export const useLesson = (lang) => {
 
       setLiveAttachments(Array.isArray(ld.attachments) ? ld.attachments : []);
       setLiveWhiteboardImages(Array.isArray(ld.whiteboardImages) ? ld.whiteboardImages : []);
+      setMediaMode(ld.mediaMode === 'audio' ? 'audio' : 'video');
 
       setLiveTranscript(
         Array.isArray(ld.transcript)
@@ -155,10 +157,10 @@ export const useLesson = (lang) => {
 
         setLiveCourseInfo({
           titleAr: courseData.titleAr || '',
-          subjectAr: courseData.gradeAr || '',
+          subjectAr: courseData.subjectAr || courseData.titleAr || courseData.gradeAr || '',
           gradeAr: courseData.gradeAr || '',
           teacherAr: courseData.teacherName || '',
-          teacherImg: '',
+          teacherImg: courseData.teacherAvatar || '',
           summaryPdf: ''
         });
 
@@ -179,6 +181,8 @@ export const useLesson = (lang) => {
             durationFmt: l.durationLabel || '30:00',
             time: l.durationLabel || '30:00',
             videoUrl: '',
+            mediaMode: l.mediaMode || 'video',
+            hasMedia: Boolean(l.hasMedia),
             completed: Boolean(l.isCompleted),
             chapters: []
           };
@@ -188,7 +192,8 @@ export const useLesson = (lang) => {
         setLiveLessonsMap(map);
         setLessonStatuses(statusMap);
 
-        const targetId = (requestedLessonId && map[requestedLessonId]) ? requestedLessonId : rawLessons[0].id;
+        const firstPlayable = rawLessons.find((l) => l.hasMedia) || rawLessons[0];
+        const targetId = (requestedLessonId && map[requestedLessonId]) ? requestedLessonId : firstPlayable.id;
         setActiveLessonId(targetId);
 
         await loadLessonDetails(targetId, courseData.teacherName || '');
@@ -204,16 +209,6 @@ export const useLesson = (lang) => {
     };
   }, []);
 
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlId = params.get('id') || params.get('lessonId');
-      if (urlId && LESSONS_DATABASE[urlId] && urlId !== activeLessonId) {
-        setActiveLessonId(urlId);
-      }
-    } catch (e) {}
-  }, [window.location.search]);
-
   // Mobile drawer state
   const [mobilePlaylistOpen, setMobilePlaylistOpen] = useState(false);
 
@@ -221,8 +216,8 @@ export const useLesson = (lang) => {
   const [mediaMode, setMediaMode] = useState('video');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => {
-    const s = localStorage.getItem(`mtfq_pos_${activeLessonId}`);
-    return s ? parseInt(s, 10) : 480;
+    const s = activeLessonId ? localStorage.getItem(`mtfq_pos_${activeLessonId}`) : null;
+    return s ? parseInt(s, 10) : 0;
   });
   const [speed, setSpeed] = useState(1);
   const [volume, setVolume] = useState(0.85);
@@ -239,8 +234,8 @@ export const useLesson = (lang) => {
 
   // Checklist State ("درس اليوم" Card)
   const [lessonChecklist, setLessonChecklist] = useState({
-    watchVideo: true,
-    reviewNotes: true,
+    watchVideo: false,
+    reviewNotes: false,
     solveQuestions: false,
     completeMaterials: false
   });
@@ -323,6 +318,8 @@ export const useLesson = (lang) => {
     id: key,
     titleAr: liveLessonsMap[key].titleAr,
     time: liveLessonsMap[key].time,
+    mediaMode: liveLessonsMap[key].mediaMode || 'video',
+    hasMedia: Boolean(liveLessonsMap[key].hasMedia),
     completed: !!lessonStatuses[key],
     active: key === activeLessonId
   }));
@@ -362,41 +359,50 @@ export const useLesson = (lang) => {
     }
   };
 
-  // Video Time Simulation
-  useEffect(() => {
-    let interval = null;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= lesson.durationSec) {
-            setIsPlaying(false);
-            if (!lessonStatuses[activeLessonId]) {
-              const nextStatuses = { ...lessonStatuses, [activeLessonId]: true };
-              setLessonStatuses(nextStatuses);
-              localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
-              setShowCelebrationModal(true);
-            }
-            return lesson.durationSec;
-          }
-          const next = prev + 1;
-          localStorage.setItem(`mtfq_pos_${activeLessonId}`, next.toString());
-          return next;
-        });
-      }, 1000 / speed);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, speed, lesson.durationSec, activeLessonId, lessonStatuses]);
-
   const fmt = (sec) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
+    const safeSec = Number.isFinite(sec) && sec > 0 ? sec : 0;
+    const m = Math.floor(safeSec / 60);
+    const s = Math.floor(safeSec % 60);
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const onMediaTimeUpdate = (sec) => {
+    const next = Math.max(0, Math.floor(sec));
+    setCurrentTime(next);
+    if (activeLessonId) {
+      localStorage.setItem(`mtfq_pos_${activeLessonId}`, next.toString());
+    }
+  };
+
+  const onMediaLoadedMetadata = (durationSec) => {
+    if (!Number.isFinite(durationSec) || durationSec <= 0 || !activeLessonId) return;
+    const rounded = Math.round(durationSec);
+    setLiveLessonsMap((prev) => {
+      const existing = prev[activeLessonId];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        [activeLessonId]: {
+          ...existing,
+          durationSec: rounded,
+          durationFmt: fmt(rounded),
+        },
+      };
+    });
+  };
+
   const seekTo = (sec) => {
-    const target = Math.max(0, Math.min(lesson.durationSec, sec));
+    const maxDur = lesson.durationSec > 0 ? lesson.durationSec : sec;
+    const target = Math.max(0, Math.min(maxDur, sec));
     setCurrentTime(target);
-    localStorage.setItem(`mtfq_pos_${activeLessonId}`, target.toString());
+    if (mediaElRef.current && Number.isFinite(target)) {
+      try {
+        mediaElRef.current.currentTime = target;
+      } catch {}
+    }
+    if (activeLessonId) {
+      localStorage.setItem(`mtfq_pos_${activeLessonId}`, target.toString());
+    }
   };
 
   const seekBy = (sec) => seekTo(currentTime + sec);
@@ -482,14 +488,29 @@ export const useLesson = (lang) => {
     });
   };
 
-  // Download simulation
+  // Real file download / open
   const handleDL = (item) => {
+    if (!item) return;
     setDlId(item.id);
+    if (item.url) {
+      try {
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        if (item.titleAr) a.download = item.titleAr;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch {
+        window.open(item.url, '_blank', 'noopener,noreferrer');
+      }
+    }
     setTimeout(() => {
       setDlId(null);
-      setDlToast(lang === 'ar' ? `تم تحميل "${item.titleAr}" بنجاح!` : `Downloaded "${item.titleAr}"!`);
-      setTimeout(() => setDlToast(null), 3500);
-    }, 1400);
+      setDlToast(lang === 'ar' ? `تم فتح تحميل "${item.titleAr || 'الملف'}"` : `Opened "${item.titleAr || 'File'}"`);
+      setTimeout(() => setDlToast(null), 3000);
+    }, 500);
   };
 
   // Notes
@@ -643,6 +664,9 @@ export const useLesson = (lang) => {
     handleBookmarkClick,
     fmt,
     playerRef,
+    mediaElRef,
+    onMediaTimeUpdate,
+    onMediaLoadedMetadata,
     kmRef
   };
 };

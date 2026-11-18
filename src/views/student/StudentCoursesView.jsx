@@ -29,6 +29,7 @@ export const StudentCoursesView = () => {
   const [coursesCatalog, setCoursesCatalog] = useState([]);
   const [ministryCurriculum] = useState([]);
   const [enrolledCourses, setEnrolledCourses] = useState({});
+  const [pendingCourses, setPendingCourses] = useState({});
 
   useEffect(() => {
     let mounted = true;
@@ -42,6 +43,7 @@ export const StudentCoursesView = () => {
           subjectAr: c.subjectAr || c.gradeAr || 'مادة دراسية',
           gradeAr: c.gradeAr || '',
           isEnrolled: Boolean(c.isEnrolled),
+          isPending: Boolean(c.isPending),
           progressPercent: Number(c.progressPercent || 0),
           lessonsCount: Number(c.lessonsCount || 0),
           durationHours: c.hoursTotal || `${Math.max(1, Number(c.lessonsCount || 1))} ساعات`,
@@ -55,12 +57,16 @@ export const StudentCoursesView = () => {
         }));
         setCoursesCatalog(mapped);
         const enrolledMap = {};
+        const pendingMap = {};
         mapped.forEach((m) => {
           if (m.isEnrolled) {
             enrolledMap[m.id] = true;
+          } else if (m.isPending) {
+            pendingMap[m.id] = true;
           }
         });
         setEnrolledCourses(enrolledMap);
+        setPendingCourses(pendingMap);
       })
       .catch(() => {});
     return () => {
@@ -94,6 +100,7 @@ export const StudentCoursesView = () => {
         payment_method: 'vodafone',
         notes: `طلب اشتراك في مقرر: ${course.titleAr}`
       });
+      setPendingCourses(prev => ({ ...prev, [course.id]: true }));
       try {
         confetti({
           particleCount: 70,
@@ -103,7 +110,7 @@ export const StudentCoursesView = () => {
       } catch {
         // ignore
       }
-      setEnrollToast(`${course.titleAr} (تم إرسال طلب الاشتراك للمعلم)`);
+      setEnrollToast(`${course.titleAr} (تم إرسال طلب التسجيل للمعلم وبانتظار الموافقة)`);
       setTimeout(() => {
         setEnrollToast(null);
       }, 4000);
@@ -427,6 +434,7 @@ export const StudentCoursesView = () => {
                     key={course.id}
                     course={course}
                     isEnrolled={!!enrolledCourses[course.id]}
+                    isPending={!!pendingCourses[course.id]}
                     lang={lang}
                     onContinue={() => navigate(`/student/lesson?courseId=${course.id}`)}
                     onEnroll={() => handleEnroll(course)}
