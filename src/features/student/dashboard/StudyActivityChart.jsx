@@ -33,18 +33,19 @@ export const StudyActivityChart = ({
   const paddingTop = 36;
   const paddingBottom = 46;
   const baseline = chartHeight - paddingBottom;
-  const maxMinutes = 100;
+  const highestDataMins = studyData.reduce((mx, d) => Math.max(mx, Number(d.minutes || 0)), 0);
+  const maxMinutes = Math.max(100, Math.ceil(highestDataMins / 25) * 25);
 
   const points = studyData.map((item, idx) => {
-    const xStep = (chartWidth - paddingLeft - paddingRight) / (studyData.length - 1);
+    const xStep = (chartWidth - paddingLeft - paddingRight) / Math.max(1, studyData.length - 1);
     const x = paddingLeft + idx * xStep;
-    const yRatio = item.minutes / maxMinutes;
+    const yRatio = Math.min(1, Math.max(0, (Number(item.minutes) || 0) / maxMinutes));
     const y = baseline - yRatio * (baseline - paddingTop);
     return { ...item, x, y };
   });
 
   const { linePath, areaPath } = generateSplinePaths(points, baseline);
-  const yTicks = [100, 80, 60, 40, 20, 0];
+  const yTicks = [1, 0.8, 0.6, 0.4, 0.2, 0].map(r => Math.round(maxMinutes * r));
 
   // Donut chart calculations
   const donutRadius = 62;
@@ -411,31 +412,37 @@ export const StudyActivityChart = ({
           </div>
         </div>
 
-        {/* 4 Subjects Mini Legend */}
+        {/* Subjects Mini Legend */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
+          gridTemplateColumns: subjectMastery.length > 0 ? 'repeat(2, 1fr)' : '1fr',
           gap: '8px',
           paddingTop: '8px',
           borderTop: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.08)'}`
         }}>
-          {subjectMastery.map((sub, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: sub.color,
-                flexShrink: 0
-              }} />
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flex: 1 }}>
-                {lang === 'ar' ? sub.nameAr : sub.nameEn}
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                {sub.pct}%
-              </span>
+          {subjectMastery.length === 0 ? (
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '6px 0' }}>
+              {lang === 'ar' ? 'لا توجد مقررات مفعّلة بعد لعرض توزيع الإتقان.' : 'No enrolled courses yet.'}
             </div>
-          ))}
+          ) : (
+            subjectMastery.map((sub, i) => (
+              <div key={sub.id || i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: sub.color,
+                  flexShrink: 0
+                }} />
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {lang === 'ar' ? sub.nameAr : sub.nameEn}
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {sub.pct}%
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

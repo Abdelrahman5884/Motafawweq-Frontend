@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, ChevronDown, Check } from 'lucide-react';
 import { AvatarLightboxModal } from '../../../components/common/AvatarCropperModal';
 
@@ -16,6 +16,24 @@ export const DashboardHeader = ({
   currentSubjectLabel
 }) => {
   const [isAvatarLightboxOpen, setIsAvatarLightboxOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!subjectDropdownOpen) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setSubjectDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [subjectDropdownOpen, setSubjectDropdownOpen]);
+
+  const firstName = (lang === 'ar' ? (student.nameAr || student.name) : (student.name || student.nameAr) || '')
+    .trim()
+    .split(/\s+/)[0] || (lang === 'ar' ? 'بطل' : 'Student');
+
+  const gradeBadge = student.gradeNameAr || (lang === 'ar' ? 'بوابة الطالب' : 'Student Portal');
 
   return (
     <div style={{
@@ -83,11 +101,13 @@ export const DashboardHeader = ({
               color: themeAccent,
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)'}`
             }}>
-              {student.gradeNameAr}
+              {gradeBadge}
             </span>
-            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-              {student.trackAr}
-            </span>
+            {student.trackAr && (
+              <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                {student.trackAr}
+              </span>
+            )}
           </div>
 
           <h1 style={{
@@ -102,19 +122,18 @@ export const DashboardHeader = ({
             gap: '8px'
           }}>
             <span>{lang === 'ar' ? 'مرحباً' : 'Welcome,'}</span>
-            <span style={{ color: themeAccent }}>
-              {lang === 'ar' ? student.nameAr.split(' ')[0] : student.name.split(' ')[0]}
-            </span>
+            <span style={{ color: themeAccent }}>{firstName}</span>
           </h1>
         </div>
       </div>
 
       {/* Subject Filter Dropdown */}
-      <div style={{ position: 'relative' }}>
+      <div ref={dropdownRef} style={{ position: 'relative' }}>
         <button
+          type="button"
           onClick={() => setSubjectDropdownOpen(!subjectDropdownOpen)}
           className="executive-filter-btn"
-          style={{ minWidth: '155px', justifyContent: 'space-between' }}
+          style={{ minWidth: '165px', justifyContent: 'space-between' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <BookOpen size={15} style={{ color: themeAccent }} />
@@ -130,13 +149,12 @@ export const DashboardHeader = ({
           />
         </button>
 
-        {/* Dropdown Menu */}
         {subjectDropdownOpen && (
           <div style={{
             position: 'absolute',
             top: 'calc(100% + 6px)',
             insetInlineEnd: 0,
-            width: '180px',
+            minWidth: '195px',
             background: 'var(--bg-surface)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '12px',
@@ -147,6 +165,7 @@ export const DashboardHeader = ({
             {filterOptions.map((opt) => (
               <button
                 key={opt.id}
+                type="button"
                 onClick={() => {
                   setSelectedSubject(opt.id);
                   setSubjectDropdownOpen(false);
@@ -156,6 +175,7 @@ export const DashboardHeader = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  gap: '8px',
                   padding: '8px 12px',
                   background: selectedSubject === opt.id ? (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
                   color: selectedSubject === opt.id ? themeAccent : 'var(--text-primary)',
@@ -169,7 +189,7 @@ export const DashboardHeader = ({
                 }}
               >
                 <span>{lang === 'ar' ? opt.labelAr : opt.labelEn}</span>
-                {selectedSubject === opt.id && <Check size={14} style={{ color: themeAccent }} />}
+                {selectedSubject === opt.id && <Check size={14} style={{ color: themeAccent, flexShrink: 0 }} />}
               </button>
             ))}
           </div>

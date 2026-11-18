@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -43,6 +43,7 @@ export const StudentDashboard = () => {
   });
 
   const [lastLesson, setLastLesson] = useState(null);
+  const [continueLessonsByCourse, setContinueLessonsByCourse] = useState({});
   const [upcomingExams, setUpcomingExams] = useState([]);
   const [upcomingHomeworks, setUpcomingHomeworks] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -50,18 +51,28 @@ export const StudentDashboard = () => {
   const [subjectMastery, setSubjectMastery] = useState([]);
   const [smartRecommendation, setSmartRecommendation] = useState(null);
 
+  const [selectedSubject, setSelectedSubject] = useState('all');
+  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const [taskCategoryFilter, setTaskCategoryFilter] = useState('all');
+
+  const todayStorageKey = useMemo(() => {
+    const uid = currentUser?.id || 'guest';
+    const dayStr = new Date().toISOString().slice(0, 10);
+    return `mtfq_dash_tasks_${uid}_${dayStr}`;
+  }, [currentUser?.id]);
+
   useEffect(() => {
     let mounted = true;
     const loadDashboard = async () => {
       try {
-        const [dashRes, profRes, hwRes] = await Promise.all([
+        const [dashRes, profRes] = await Promise.all([
           studentApi.dashboard.get().catch(() => null),
-          studentApi.profile.get().catch(() => null),
-          studentApi.homeworks.list().catch(() => null)
+          studentApi.profile.get().catch(() => null)
         ]);
         if (!mounted) return;
 
-        const kpis = dashRes?.data?.kpis || {};
+        const data = dashRes?.data || {};
+        const kpis = data.kpis || {};
         const prof = profRes?.data || {};
 
         setStudent({
@@ -86,70 +97,92 @@ export const StudentDashboard = () => {
           overallGpa: `${Number(kpis.avgExamPercentage || 0)}%`
         });
 
-        if (Array.isArray(dashRes?.data?.weeklyActivity)) {
-          setWeeklyActivity(dashRes.data.weeklyActivity);
+        if (Array.isArray(data.weeklyActivity)) {
+          setWeeklyActivity(data.weeklyActivity);
         }
-        if (Array.isArray(dashRes?.data?.subjectMastery)) {
-          setSubjectMastery(dashRes.data.subjectMastery);
+        if (Array.isArray(data.subjectMastery)) {
+          setSubjectMastery(data.subjectMastery);
         }
-        if (dashRes?.data?.smartRecommendation) {
-          setSmartRecommendation(dashRes.data.smartRecommendation);
+        if (data.smartRecommendation) {
+          setSmartRecommendation(data.smartRecommendation);
+        }
+        if (data.continueLessonsByCourse && typeof data.continueLessonsByCourse === 'object') {
+          setContinueLessonsByCourse(data.continueLessonsByCourse);
         }
 
-        const cont = dashRes?.data?.continueLesson;
+        const cont = data.continueLesson;
         if (cont && cont.lessonId) {
           setLastLesson({
             courseId: cont.courseId,
             lessonId: cont.lessonId,
-            titleAr: cont.lessonTitleAr,
-            titleEn: cont.lessonTitleAr,
-            subjectAr: cont.courseTitleAr || '',
-            subjectEn: cont.courseTitleAr || '',
-            teacherAr: '',
-            teacherEn: '',
-            lessonNumber: 1,
-            totalLessons: 1,
+            titleAr: cont.titleAr || cont.lessonTitleAr,
+            titleEn: cont.titleEn || cont.lessonTitleAr,
+            subjectAr: cont.subjectAr || cont.courseTitleAr || '',
+            subjectEn: cont.subjectEn || cont.courseTitleAr || '',
+            teacherAr: cont.teacherAr || '',
+            teacherEn: cont.teacherEn || '',
+            lessonNumber: Number(cont.lessonNumber || 1),
+            totalLessons: Number(cont.totalLessons || 1),
             progressPercent: Number(cont.progressPercent || 0),
-            pausedMinute: '00:00',
-            totalDuration: '30:00',
-            remainingMinutes: 15,
-            nextLessonTitleAr: cont.courseTitleAr || '',
-            nextLessonTitleEn: cont.courseTitleAr || '',
-            route: '/student/lesson'
+            pausedMinute: cont.pausedMinute || '00:00',
+            totalDuration: cont.totalDuration || cont.durationLabel || '30:00',
+            remainingMinutes: Number(cont.remainingMinutes || 15),
+            nextLessonTitleAr: cont.nextLessonTitleAr || '',
+            nextLessonTitleEn: cont.nextLessonTitleEn || '',
+            route: cont.route || '/student/lesson'
           });
+        } else {
+          setLastLesson(null);
         }
 
-        const deadlines = Array.isArray(dashRes?.data?.upcomingDeadlines) ? dashRes.data.upcomingDeadlines : [];
+        const deadlines = Array.isArray(data.upcomingDeadlines) ? data.upcomingDeadlines : [];
         setUpcomingExams(deadlines);
 
-        const hws = Array.isArray(hwRes?.data)
-          ? hwRes.data.filter(h => h.submissionStatus === 'not_submitted')
-          : [];
+        const hws = Array.isArray(data.upcomingHomeworks) ? data.upcomingHomeworks : [];
         setUpcomingHomeworks(hws);
 
-        const builtTasks = [
-          ...deadlines.map(e => ({
-            id: `exam-${e.id}`,
-            titleAr: e.titleAr,
-            titleEn: e.titleAr,
-            subjectAr: e.courseTitleAr || '',
-            type: 'quiz',
-            status: 'pending',
-            isCompleted: false,
-            route: '/student/exam'
-          })),
-          ...hws.map(h => ({
-            id: `hw-${h.id}`,
-            titleAr: h.titleAr,
-            titleEn: h.titleAr,
-            subjectAr: h.courseTitleAr || '',
-            type: 'homework',
-            status: 'pending',
-            isCompleted: false,
-            route: '/student/homework'
+        let completedIdsMap = {};
+        try {
+          const saved = localStorage.getItem(todayStorageKey);
+          if (saved) completedIdsMap = JSON.parse(saved) || {};
+        } catch {}
+
+        const rawTasks = Array.isArray(data.todayTasks)
+          ? data.todayTasks
+          : [
+              ...deadlines.map(e => ({
+                id: `exam-${e.id}`,
+                courseId: e.courseId,
+                titleAr: e.titleAr,
+                titleEn: e.titleAr,
+                subjectAr: e.courseTitleAr || '',
+                type: 'quiz',
+                duration: `${e.durationMinutes || 30} دقيقة`,
+                deadline: e.dueDate ? `آخر موعد: ${e.dueDate}` : 'متاح الآن',
+                priority: 'urgent',
+                actionRoute: '/student/exam'
+              })),
+              ...hws.map(h => ({
+                id: `hw-${h.id}`,
+                courseId: h.courseId,
+                titleAr: h.titleAr,
+                titleEn: h.titleAr,
+                subjectAr: h.courseTitleAr || '',
+                type: 'homework',
+                duration: `${h.maxScore || 20} درجة`,
+                deadline: h.dueDate ? `التسليم: ${h.dueDate}` : 'مطلوب للتسليم',
+                priority: 'urgent',
+                actionRoute: '/student/homework'
+              }))
+            ];
+
+        setTasks(
+          rawTasks.map((t) => ({
+            ...t,
+            isCompleted: Boolean(completedIdsMap[t.id] || t.isCompleted),
+            status: completedIdsMap[t.id] || t.isCompleted ? 'completed' : 'pending'
           }))
-        ];
-        setTasks(builtTasks);
+        );
       } catch {
         // ignore
       }
@@ -158,15 +191,11 @@ export const StudentDashboard = () => {
     return () => {
       mounted = false;
     };
-  }, [currentUser]);
-
-  const [selectedSubject, setSelectedSubject] = useState('all');
-  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
-  const [taskCategoryFilter, setTaskCategoryFilter] = useState('all');
+  }, [currentUser, todayStorageKey]);
 
   const toggleTaskCompleted = (taskId) => {
-    setTasks(prev =>
-      prev.map(t => {
+    setTasks(prev => {
+      const nextList = prev.map(t => {
         if (t.id === taskId) {
           const nextState = !t.isCompleted;
           if (nextState) {
@@ -177,15 +206,81 @@ export const StudentDashboard = () => {
           return { ...t, isCompleted: nextState, status: nextState ? 'completed' : 'pending' };
         }
         return t;
-      })
-    );
+      });
+
+      try {
+        const map = {};
+        nextList.forEach(item => {
+          if (item.isCompleted) map[item.id] = true;
+        });
+        localStorage.setItem(todayStorageKey, JSON.stringify(map));
+      } catch {}
+
+      return nextList;
+    });
   };
 
-  const completedTasksCount = tasks.filter(t => t.isCompleted).length;
-  const filteredTasks = tasks.filter(t => {
+  // Active Subject Object when filtered
+  const selectedSubjectObj = useMemo(
+    () => (selectedSubject === 'all' ? null : subjectMastery.find((s) => s.id === selectedSubject) || null),
+    [selectedSubject, subjectMastery]
+  );
+
+  const matchesSelectedSubject = (itemCourseId, itemSubjectAr) => {
+    if (selectedSubject === 'all') return true;
+    if (itemCourseId && itemCourseId === selectedSubject) return true;
+    if (selectedSubjectObj && itemSubjectAr && itemSubjectAr === selectedSubjectObj.nameAr) return true;
+    return false;
+  };
+
+  // Filter tasks, exams, homeworks, continueLesson, KPIs, and overallMasteryValue by selectedSubject
+  const subjectTasks = useMemo(
+    () => tasks.filter((t) => matchesSelectedSubject(t.courseId, t.subjectAr)),
+    [tasks, selectedSubject, selectedSubjectObj]
+  );
+
+  const completedTasksCount = subjectTasks.filter(t => t.isCompleted).length;
+  const filteredTasks = subjectTasks.filter(t => {
     if (taskCategoryFilter === 'all') return true;
     return t.type === taskCategoryFilter;
   });
+
+  const filteredUpcomingExams = useMemo(
+    () => upcomingExams.filter((e) => matchesSelectedSubject(e.courseId, e.courseTitleAr)),
+    [upcomingExams, selectedSubject, selectedSubjectObj]
+  );
+
+  const filteredUpcomingHomeworks = useMemo(
+    () => upcomingHomeworks.filter((h) => matchesSelectedSubject(h.courseId, h.courseTitleAr)),
+    [upcomingHomeworks, selectedSubject, selectedSubjectObj]
+  );
+
+  const activeContinueLesson = useMemo(() => {
+    if (selectedSubject === 'all') return lastLesson;
+    if (continueLessonsByCourse[selectedSubject]) return continueLessonsByCourse[selectedSubject];
+    if (lastLesson && matchesSelectedSubject(lastLesson.courseId, lastLesson.subjectAr)) return lastLesson;
+    return null;
+  }, [selectedSubject, lastLesson, continueLessonsByCourse, selectedSubjectObj]);
+
+  const displayedStudentKpis = useMemo(() => {
+    if (!selectedSubjectObj) return student;
+    return {
+      ...student,
+      completedLessonsCount: Number(selectedSubjectObj.completedLessons ?? student.completedLessonsCount),
+      totalEnrolledLessons: Number(selectedSubjectObj.totalLessons ?? student.totalEnrolledLessons)
+    };
+  }, [student, selectedSubjectObj]);
+
+  const displayedMasteryValue = useMemo(() => {
+    if (selectedSubjectObj) return Number(selectedSubjectObj.pct || 0);
+    if (subjectMastery.length > 0) {
+      const avgCoursePct = Math.round(
+        subjectMastery.reduce((acc, s) => acc + Number(s.pct || 0), 0) / subjectMastery.length
+      );
+      return avgCoursePct || parseFloat(student.overallGpa) || 0;
+    }
+    return parseFloat(student.overallGpa) || 0;
+  }, [selectedSubjectObj, subjectMastery, student.overallGpa]);
 
   const filterOptions = [
     { id: 'all', labelAr: 'جميع المواد', labelEn: 'All Subjects' },
@@ -220,7 +315,7 @@ export const StudentDashboard = () => {
         />
 
         <DashboardKpis
-          student={student}
+          student={displayedStudentKpis}
           lang={lang}
           isDark={isDark}
           themeAccent={themeAccent}
@@ -232,11 +327,11 @@ export const StudentDashboard = () => {
           themeAccent={themeAccent}
           studyData={weeklyActivity.length > 0 ? weeklyActivity : undefined}
           subjectMastery={subjectMastery}
-          overallMasteryValue={parseFloat(student.overallGpa) || 0}
+          overallMasteryValue={displayedMasteryValue}
         />
 
         <ContinueLessonHero
-          lastLesson={lastLesson}
+          lastLesson={activeContinueLesson}
           lang={lang}
           isRtl={isRtl}
           isDark={isDark}
@@ -244,7 +339,7 @@ export const StudentDashboard = () => {
         />
 
         <TodayTasks
-          tasks={tasks}
+          tasks={subjectTasks}
           filteredTasks={filteredTasks}
           completedTasksCount={completedTasksCount}
           taskCategoryFilter={taskCategoryFilter}
@@ -257,8 +352,8 @@ export const StudentDashboard = () => {
         />
 
         <UpcomingDeadlines
-          upcomingExams={upcomingExams}
-          upcomingHomeworks={upcomingHomeworks}
+          upcomingExams={filteredUpcomingExams}
+          upcomingHomeworks={filteredUpcomingHomeworks}
           lang={lang}
           isRtl={isRtl}
         />

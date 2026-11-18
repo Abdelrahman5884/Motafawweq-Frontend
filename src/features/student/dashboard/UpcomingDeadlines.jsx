@@ -1,16 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, FileText, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Calendar, FileText, ArrowRight, ArrowLeft, Clock } from 'lucide-react';
 
 export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], lang, isRtl }) => {
   const navigate = useNavigate();
-  const nextExam = upcomingExams[0] || null;
-  const nextHw = upcomingHomeworks[0] || null;
 
   return (
     <div className="executive-deadlines-grid">
-      {/* US-11: Upcoming Exams */}
-      <div className="executive-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      {/* Upcoming Exams */}
+      <div className="executive-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '14px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -28,30 +26,73 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
                 <Calendar size={17} />
               </div>
               <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'الاختبارات القادمة' : 'Upcoming Exams'}
+                {lang === 'ar' ? 'الاختبارات المتاحة والقادمة' : 'Upcoming Exams'}
               </h3>
             </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '800',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              background: 'rgba(245, 158, 11, 0.12)',
+              color: '#D97706'
+            }}>
+              {upcomingExams.length}
+            </span>
           </div>
 
-          {nextExam ? (
-            <>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                {nextExam.titleAr}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-                {lang === 'ar'
-                  ? `المدة: ${nextExam.durationMinutes || 30} دقيقة`
-                  : `${nextExam.durationMinutes || 30} mins`}
-              </div>
-            </>
+          {upcomingExams.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {upcomingExams.slice(0, 3).map((exam) => (
+                <div
+                  key={exam.id}
+                  onClick={() => navigate('/student/exam')}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {exam.titleAr}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
+                      {exam.courseTitleAr && (
+                        <span style={{ color: '#D97706', fontWeight: '700' }}>{exam.courseTitleAr}</span>
+                      )}
+                      {exam.courseTitleAr && <span>•</span>}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <Clock size={11} />
+                        {lang === 'ar' ? `${exam.durationMinutes || 30} دقيقة` : `${exam.durationMinutes || 30}m`}
+                      </span>
+                      {exam.dueDate && (
+                        <>
+                          <span>•</span>
+                          <span>{exam.dueDate}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {isRtl ? <ArrowLeft size={14} color="#D97706" /> : <ArrowRight size={14} color="#D97706" />}
+                </div>
+              ))}
+            </div>
           ) : (
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0 18px', fontWeight: '600' }}>
-              {lang === 'ar' ? 'لا توجد اختبارات قادمة حالياً.' : 'No upcoming exams at the moment.'}
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0 6px', fontWeight: '600' }}>
+              {lang === 'ar' ? 'لا توجد اختبارات غير محلولة حالياً.' : 'No pending exams at the moment.'}
             </div>
           )}
         </div>
 
         <button
+          type="button"
           onClick={() => navigate('/student/exam')}
           style={{
             width: '100%',
@@ -75,8 +116,8 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
         </button>
       </div>
 
-      {/* US-12: Upcoming Homeworks & Deadlines */}
-      <div className="executive-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      {/* Upcoming Homeworks & Deadlines */}
+      <div className="executive-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '14px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -97,27 +138,71 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
                 {lang === 'ar' ? 'الواجبات المطلوبة' : 'Upcoming Homework'}
               </h3>
             </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '800',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              background: 'rgba(239, 68, 68, 0.12)',
+              color: '#DC2626'
+            }}>
+              {upcomingHomeworks.length}
+            </span>
           </div>
 
-          {nextHw ? (
-            <>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                {nextHw.titleAr}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-                {lang === 'ar'
-                  ? `الدرجة: ${nextHw.maxGrade || nextHw.maxScore || 20} درجة`
-                  : `Max score: ${nextHw.maxGrade || nextHw.maxScore || 20} pts`}
-              </div>
-            </>
+          {upcomingHomeworks.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {upcomingHomeworks.slice(0, 3).map((hw) => (
+                <div
+                  key={hw.id}
+                  onClick={() => navigate('/student/homework')}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {hw.titleAr}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
+                      {hw.courseTitleAr && (
+                        <span style={{ color: '#DC2626', fontWeight: '700' }}>{hw.courseTitleAr}</span>
+                      )}
+                      {hw.courseTitleAr && <span>•</span>}
+                      <span>
+                        {lang === 'ar'
+                          ? `${hw.maxGrade || hw.maxScore || 20} درجة`
+                          : `${hw.maxGrade || hw.maxScore || 20} pts`}
+                      </span>
+                      {hw.dueDate && (
+                        <>
+                          <span>•</span>
+                          <span>{hw.dueDate}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {isRtl ? <ArrowLeft size={14} color="#DC2626" /> : <ArrowRight size={14} color="#DC2626" />}
+                </div>
+              ))}
+            </div>
           ) : (
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0 18px', fontWeight: '600' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0 6px', fontWeight: '600' }}>
               {lang === 'ar' ? 'لا توجد واجبات مطلوبة حالياً.' : 'No pending homework at the moment.'}
             </div>
           )}
         </div>
 
         <button
+          type="button"
           onClick={() => navigate('/student/homework')}
           style={{
             width: '100%',
