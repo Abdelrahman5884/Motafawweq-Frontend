@@ -1,8 +1,18 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Play, Pause, RotateCcw, FastForward, Volume2, VolumeX,
   Maximize2, Minimize2, RotateCw, Headphones, Video
 } from 'lucide-react';
+
+function toYoutubeEmbedUrl(url = '') {
+  if (!url) return '';
+  if (url.includes('/embed/')) return url;
+  const watchMatch = url.match(/[?&]v=([^&#]+)/);
+  if (watchMatch?.[1]) return `https://www.youtube.com/embed/${watchMatch[1]}?rel=0`;
+  const shortMatch = url.match(/youtu\.be\/([^?&#]+)/);
+  if (shortMatch?.[1]) return `https://www.youtube.com/embed/${shortMatch[1]}?rel=0`;
+  return url;
+}
 
 export const LessonVideoPlayer = ({
   playerRef,
@@ -30,6 +40,24 @@ export const LessonVideoPlayer = ({
   fmt,
   lang
 }) => {
+  const videoElRef = useRef(null);
+  const isYoutubeOrEmbed = Boolean(lesson?.isYoutube || (lesson?.embedUrl && (lesson.embedUrl.includes('youtube.com') || lesson.embedUrl.includes('youtu.be') || lesson.embedUrl.includes('vimeo.com'))));
+  const embedSrc = isYoutubeOrEmbed ? toYoutubeEmbedUrl(lesson?.embedUrl || lesson?.videoUrl) : '';
+  const hasDirectMedia = Boolean(!isYoutubeOrEmbed && lesson?.videoUrl);
+
+  useEffect(() => {
+    const el = videoElRef.current;
+    if (!el || !hasDirectMedia) return;
+    el.playbackRate = speed || 1;
+    el.volume = isMuted ? 0 : (volume ?? 0.85);
+    el.muted = Boolean(isMuted);
+    if (isPlaying && el.paused) {
+      el.play().catch(() => {});
+    } else if (!isPlaying && !el.paused) {
+      el.pause();
+    }
+  }, [isPlaying, speed, volume, isMuted, hasDirectMedia]);
+
   return (
     <div
       ref={playerRef}
@@ -37,13 +65,55 @@ export const LessonVideoPlayer = ({
     >
       {mediaMode === 'video' ? (
         <div className="lv-player__screen">
-          <img
-            src={lesson.videoUrl}
-            alt={lesson.titleAr}
-            className="lv-player__video"
-            style={{ objectFit: 'contain' }}
-          />
-          <div className="lv-player__video-gradient" />
+          {isYoutubeOrEmbed && embedSrc ? (
+            <iframe
+              src={embedSrc}
+              title={lesson.titleAr}
+              className="lv-player__video"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              allowFullScreen
+            />
+          ) : hasDirectMedia ? (
+            <video
+              ref={videoElRef}
+              src={lesson.videoUrl}
+              controls
+              playsInline
+              className="lv-player__video"
+              style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' }}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onTimeUpdate={(e) => {
+                if (Math.abs(e.currentTarget.currentTime - currentTime) > 1.5) {
+                  seekTo(Math.floor(e.currentTarget.currentTime));
+                }
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '100%',
+              height: '100%',
+              minHeight: '300px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              color: '#CBD5E1',
+              background: 'linear-gradient(135deg, #06254E 0%, #0B192C 100%)',
+              padding: '24px',
+              textAlign: 'center'
+            }}>
+              <Video size={38} color="#38BDF8" />
+              <div style={{ fontSize: '15px', fontWeight: '800', color: '#FFFFFF' }}>
+                {lesson.titleAr || (lang === 'ar' ? 'الحصة التعليمية' : 'Lesson')}
+              </div>
+              <div style={{ fontSize: '12.5px', color: '#94A3B8' }}>
+                {lang === 'ar' ? 'لم يقم المعلم بإضافة فيديو أو رابط شرح لهذه الحصة بعد.' : 'No video or embed link uploaded for this lesson yet.'}
+              </div>
+            </div>
+          )}
 
           {/* Chapter Pill */}
           {currentCh && (
@@ -55,19 +125,21 @@ export const LessonVideoPlayer = ({
             </div>
           )}
 
-          {/* Center Play/Pause Overlay */}
-          <button
-            className="lv-player__center-btn"
-            onClick={() => setIsPlaying(!isPlaying)}
-            title={isPlaying ? 'إيقاف' : 'تشغيل'}
-          >
-            <span className="lv-player__center-ring" />
-            {isPlaying ? (
-              <Pause size={28} />
-            ) : (
-              <Play size={28} fill="currentColor" style={{ marginInlineStart: '3px' }} />
-            )}
-          </button>
+          {/* Center Play/Pause Overlay (only when no iframe/direct video controls) */}
+          {!isYoutubeOrEmbed && !hasDirectMedia && (
+            <button
+              className="lv-player__center-btn"
+              onClick={() => setIsPlaying(!isPlaying)}
+              title={isPlaying ? 'إيقاف' : 'تشغيل'}
+            >
+              <span className="lv-player__center-ring" />
+              {isPlaying ? (
+                <Pause size={28} />
+              ) : (
+                <Play size={28} fill="currentColor" style={{ marginInlineStart: '3px' }} />
+              )}
+            </button>
+          )}
 
           {/* Fullscreen & Landscape Buttons */}
           <div className="lv-player__top-actions">
@@ -100,7 +172,17 @@ export const LessonVideoPlayer = ({
             {lang === 'ar' ? 'تسجيل الحصة الصوتي عالي النقاء (HD Podcast)' : 'HD Master Audio'}
           </p>
           <h3 className="lv-player__audio-title">{lesson.titleAr}</h3>
-          <p className="lv-player__audio-sub">{courseInfo.teacherAr} • {currentCh.titleAr}</p>
+          <p className="lv-player__audio-sub">{courseInfo.teacherAr} {currentCh?.titleAr ? `• ${currentCh.titleAr}` : ''}</p>
+          {hasDirectMedia && (
+            <audio
+              ref={videoElRef}
+              src={lesson.videoUrl}
+              controls
+              style={{ width: '100%', maxWidth: '420px', margin: '10px auto', position: 'relative', zIndex: 2 }}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+          )}
 
           {/* Pulsing Audio Waveform */}
           <div className="lv-waveform">

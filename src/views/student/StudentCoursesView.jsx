@@ -39,24 +39,26 @@ export const StudentCoursesView = () => {
         const mapped = list.map((c) => ({
           id: c.id || c.uuid,
           titleAr: c.titleAr,
-          subjectAr: c.gradeAr || 'مادة دراسية',
+          subjectAr: c.subjectAr || c.gradeAr || 'مادة دراسية',
           gradeAr: c.gradeAr || '',
-          isEnrolled: true,
+          isEnrolled: Boolean(c.isEnrolled),
           progressPercent: Number(c.progressPercent || 0),
           lessonsCount: Number(c.lessonsCount || 0),
-          durationHours: `${Math.max(1, Number(c.lessonsCount || 1))} ساعات`,
+          durationHours: c.hoursTotal || `${Math.max(1, Number(c.lessonsCount || 1))} ساعات`,
           rating: '5.0',
-          priceEgp: 0,
+          priceEgp: Number(c.priceEgp || 0),
           teacher: {
             nameAr: c.teacherName || 'المعلم',
             titleAr: c.gradeAr || '',
-            avatar: ''
+            avatar: c.teacherAvatar || ''
           }
         }));
         setCoursesCatalog(mapped);
         const enrolledMap = {};
         mapped.forEach((m) => {
-          enrolledMap[m.id] = true;
+          if (m.isEnrolled) {
+            enrolledMap[m.id] = true;
+          }
         });
         setEnrolledCourses(enrolledMap);
       })
@@ -85,22 +87,29 @@ export const StudentCoursesView = () => {
 
   const [enrollToast, setEnrollToast] = useState(null);
 
-  const handleEnroll = (course) => {
-    setEnrolledCourses(prev => ({ ...prev, [course.id]: true }));
+  const handleEnroll = async (course) => {
     try {
-      confetti({
-        particleCount: 70,
-        spread: 60,
-        origin: { y: 0.65 }
+      await studentApi.billing.createPayment({
+        course_uuid: course.id,
+        payment_method: 'vodafone',
+        notes: `طلب اشتراك في مقرر: ${course.titleAr}`
       });
-    } catch (e) {
-      // ignore
+      try {
+        confetti({
+          particleCount: 70,
+          spread: 60,
+          origin: { y: 0.65 }
+        });
+      } catch {
+        // ignore
+      }
+      setEnrollToast(`${course.titleAr} (تم إرسال طلب الاشتراك للمعلم)`);
+      setTimeout(() => {
+        setEnrollToast(null);
+      }, 4000);
+    } catch (err) {
+      alert(err?.message || (lang === 'ar' ? 'تعذر إرسال طلب الاشتراك.' : 'Could not submit enrollment request.'));
     }
-
-    setEnrollToast(course.titleAr);
-    setTimeout(() => {
-      setEnrollToast(null);
-    }, 4000);
   };
 
   // Filter Ministry curriculum

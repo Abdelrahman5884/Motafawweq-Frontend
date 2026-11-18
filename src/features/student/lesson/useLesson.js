@@ -21,6 +21,8 @@ export const useLesson = (lang) => {
   const [liveTranscript, setLiveTranscript] = useState(TRANSCRIPT_SEGMENTS);
   const [liveGraphNodes, setLiveGraphNodes] = useState(GRAPH_NODES);
   const [liveGraphEdges, setLiveGraphEdges] = useState(GRAPH_EDGES);
+  const [liveAttachments, setLiveAttachments] = useState(ATTACHMENTS_LIST);
+  const [liveWhiteboardImages, setLiveWhiteboardImages] = useState(WHITEBOARD_IMAGES_LIST);
 
   // Active Lesson State
   const [activeLessonId, setActiveLessonId] = useState(() => {
@@ -63,9 +65,14 @@ export const useLesson = (lang) => {
           ...(prev[targetId] || {}),
           id: targetId,
           titleAr: ld.titleAr || prev[targetId]?.titleAr || '',
-          durationSec: 1800,
+          descAr: ld.descAr || '',
+          durationSec: Number(ld.durationSeconds || 1800),
           durationFmt: ld.durationLabel || '30:00',
           time: ld.durationLabel || '30:00',
+          videoUrl: ld.mediaUrl || ld.embedUrl || '',
+          embedUrl: ld.embedUrl || '',
+          isYoutube: Boolean(ld.isYoutube),
+          mediaMode: ld.mediaMode || 'video',
           chapters: (ld.chapters || []).map((c, idx) => ({
             id: c.id || idx + 1,
             titleAr: c.titleAr,
@@ -76,6 +83,9 @@ export const useLesson = (lang) => {
           }))
         }
       }));
+
+      setLiveAttachments(Array.isArray(ld.attachments) ? ld.attachments : []);
+      setLiveWhiteboardImages(Array.isArray(ld.whiteboardImages) ? ld.whiteboardImages : []);
 
       setLiveTranscript(
         Array.isArray(ld.transcript)
@@ -135,7 +145,10 @@ export const useLesson = (lang) => {
           return;
         }
 
-        const chosenCourse = (requestedCourseId && courses.find((c) => c.id === requestedCourseId)) || courses[0];
+        const chosenCourse =
+          (requestedCourseId && courses.find((c) => c.id === requestedCourseId)) ||
+          courses.find((c) => c.isEnrolled) ||
+          courses[0];
         const courseDetailRes = await studentApi.courses.get(chosenCourse.id);
         const courseData = courseDetailRes?.data || {};
         if (!mounted) return;
@@ -538,6 +551,19 @@ export const useLesson = (lang) => {
     }));
   };
 
+  // Heartbeat progress sync to backend every 15s while playing
+  useEffect(() => {
+    if (!isPlaying || !activeLessonId || activeLessonId.length <= 8) return;
+    const hb = setInterval(() => {
+      studentApi.lessons.recordProgress(activeLessonId, {
+        position_seconds: Math.floor(currentTime),
+        watched_delta_seconds: 15,
+        duration_seconds: Math.max(60, lesson.durationSec || 1800),
+      }).catch(() => {});
+    }, 15000);
+    return () => clearInterval(hb);
+  }, [isPlaying, activeLessonId, currentTime, lesson.durationSec]);
+
   return {
     loadingLesson,
     courseInfo: liveCourseInfo,
@@ -607,8 +633,8 @@ export const useLesson = (lang) => {
     setSavedQ,
     revealedA,
     setRevealedA,
-    attachments: ATTACHMENTS_LIST,
-    whiteboardImages: WHITEBOARD_IMAGES_LIST,
+    attachments: liveAttachments,
+    whiteboardImages: liveWhiteboardImages,
     dlId,
     dlToast,
     handleDL,

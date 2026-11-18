@@ -93,8 +93,11 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
   const studentNameAr = currentUser?.nameAr || currentUser?.name || '';
   const studentPhone = currentUser?.phone || '';
 
-  // Extract enrolled center groups
+  // Extract joined center groups (both enrolled and pending appear in timetable)
   const enrolledGroups = useMemo(() => {
+    if (currentUser?.role === 'student') {
+      return groups;
+    }
     return groups.filter(g => {
       const list = enrolledStudents[g.id] || [];
       return list.some(s => s.nameAr === studentNameAr || s.phone === studentPhone || s.name === currentUser?.name);

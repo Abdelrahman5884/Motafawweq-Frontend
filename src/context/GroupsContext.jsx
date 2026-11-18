@@ -486,8 +486,8 @@ export const GroupsProvider = ({ children }) => {
         parent_name_ar: extraData.parentNameAr,
         parent_phone: extraData.parentPhone,
       });
-      await fetchGroups();
-      showToast('تم إرسال طلب الانضمام بنجاح!');
+      await Promise.all([fetchGroups(), fetchScheduleNotes()]);
+      showToast('تم إرسال طلب الانضمام بنجاح! ظهرت مواعيد المجموعة في جدولك.');
       return { success: true, message: res?.message || 'تم إرسال طلب الانضمام بنجاح!', data: res?.data };
     } catch (err) {
       const errMsg = err?.errors?.join_code?.[0] || err.message || 'كود المجموعة غير صحيح أو انتهت صلاحيته';

@@ -86,7 +86,7 @@ export const StudentGroupsView = ({ defaultTab }) => {
 
   const todaySessionsCount = useMemo(() => {
     let centerCount = 0;
-    studentGroups.filter(g => g.isEnrolled).forEach(g => {
+    studentGroups.forEach(g => {
       const slots = g.scheduleSlots || [];
       centerCount += slots.filter(s => (s.day || '').toLowerCase() === todayDayKey).length;
     });
