@@ -24,15 +24,21 @@ export const StudentDashboard = () => {
     id: currentUser?.id || '',
     name: currentUser?.name || '',
     nameAr: currentUser?.nameAr || currentUser?.name || '',
+    avatar: currentUser?.avatar || '',
     gradeNameAr: currentUser?.grade || '',
+    trackAr: currentUser?.track || '',
     schoolAr: currentUser?.school || '',
     xp: 0,
     level: 1,
     streakDays: 0,
+    longestStreakDays: 0,
     studyMinutesToday: 0,
     dailyGoalMinutes: 120,
     completedLessonsCount: 0,
     totalEnrolledLessons: 0,
+    examsCompletedCount: 0,
+    fullMarkExamsCount: 0,
+    batchRank: null,
     overallGpa: '0%'
   });
 
@@ -40,6 +46,9 @@ export const StudentDashboard = () => {
   const [upcomingExams, setUpcomingExams] = useState([]);
   const [upcomingHomeworks, setUpcomingHomeworks] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [weeklyActivity, setWeeklyActivity] = useState([]);
+  const [subjectMastery, setSubjectMastery] = useState([]);
+  const [smartRecommendation, setSmartRecommendation] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -59,17 +68,33 @@ export const StudentDashboard = () => {
           id: prof.id || currentUser?.id || '',
           name: prof.name || currentUser?.name || '',
           nameAr: prof.name || currentUser?.nameAr || currentUser?.name || '',
-          gradeNameAr: prof.gradeAr || '',
+          avatar: prof.avatar || currentUser?.avatar || '',
+          gradeNameAr: prof.gradeAr || currentUser?.grade || '',
+          trackAr: prof.trackAr || currentUser?.track || '',
           schoolAr: prof.schoolName || '',
           xp: Number(kpis.totalXp || 0),
           level: Math.max(1, Math.floor(Number(kpis.totalXp || 0) / 100) + 1),
-          streakDays: 0,
-          studyMinutesToday: Math.round(Number(kpis.watchedHours || 0) * 60),
+          streakDays: Number(kpis.streakDays || 0),
+          longestStreakDays: Number(kpis.longestStreakDays || kpis.streakDays || 0),
+          studyMinutesToday: Number(kpis.studyMinutesToday ?? Math.round(Number(kpis.watchedHours || 0) * 60)),
           dailyGoalMinutes: Number(prof.dailyStudyGoalMinutes || 120),
           completedLessonsCount: Number(kpis.completedLessons || 0),
-          totalEnrolledLessons: Number(kpis.completedLessons || 0),
+          totalEnrolledLessons: Number(kpis.totalEnrolledLessons ?? kpis.completedLessons ?? 0),
+          examsCompletedCount: Number(kpis.examsCompletedCount || 0),
+          fullMarkExamsCount: Number(kpis.fullMarkExamsCount || 0),
+          batchRank: kpis.batchRank ?? null,
           overallGpa: `${Number(kpis.avgExamPercentage || 0)}%`
         });
+
+        if (Array.isArray(dashRes?.data?.weeklyActivity)) {
+          setWeeklyActivity(dashRes.data.weeklyActivity);
+        }
+        if (Array.isArray(dashRes?.data?.subjectMastery)) {
+          setSubjectMastery(dashRes.data.subjectMastery);
+        }
+        if (dashRes?.data?.smartRecommendation) {
+          setSmartRecommendation(dashRes.data.smartRecommendation);
+        }
 
         const cont = dashRes?.data?.continueLesson;
         if (cont && cont.lessonId) {
@@ -164,10 +189,11 @@ export const StudentDashboard = () => {
 
   const filterOptions = [
     { id: 'all', labelAr: 'جميع المواد', labelEn: 'All Subjects' },
-    { id: 'sub-bio', labelAr: 'الأحياء', labelEn: 'Biology' },
-    { id: 'sub-phy', labelAr: 'الفيزياء', labelEn: 'Physics' },
-    { id: 'sub-chem', labelAr: 'الكيمياء', labelEn: 'Chemistry' },
-    { id: 'sub-ar', labelAr: 'اللغة العربية', labelEn: 'Arabic' }
+    ...subjectMastery.map((s) => ({
+      id: s.id,
+      labelAr: s.nameAr,
+      labelEn: s.nameEn || s.nameAr
+    }))
   ];
 
   const currentSubjectLabel =
@@ -204,6 +230,8 @@ export const StudentDashboard = () => {
           lang={lang}
           isDark={isDark}
           themeAccent={themeAccent}
+          studyData={weeklyActivity.length > 0 ? weeklyActivity : undefined}
+          subjectMastery={subjectMastery}
           overallMasteryValue={parseFloat(student.overallGpa) || 0}
         />
 
@@ -239,6 +267,7 @@ export const StudentDashboard = () => {
           lang={lang}
           isRtl={isRtl}
           isDark={isDark}
+          recommendation={smartRecommendation}
         />
       </div>
     </SPage>

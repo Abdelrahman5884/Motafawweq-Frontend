@@ -426,7 +426,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                 }}>
                   {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
                 </div>
-                {currentRole === 'student' && (
+                {currentRole === 'student' && Number(currentUser?.streakDays || 0) > 0 && (
                   <div
                     title={lang === 'ar' ? 'سلسلة الاستريك المتتالية' : 'Daily Streak'}
                     style={{
@@ -444,7 +444,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                     }}
                   >
                     <Flame size={12} color="#F59E0B" />
-                    <span>16 {lang === 'ar' ? 'يوم' : 'd'}</span>
+                    <span>{currentUser.streakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
                   </div>
                 )}
               </div>

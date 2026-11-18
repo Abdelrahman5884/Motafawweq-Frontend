@@ -27,19 +27,17 @@ export const useLesson = (lang) => {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlId = params.get('id') || params.get('lessonId');
-      if (urlId && LESSONS_DATABASE[urlId]) return urlId;
+      if (urlId) return urlId;
       const stored = sessionStorage.getItem('mtfq_target_lesson');
-      if (stored && LESSONS_DATABASE[stored]) {
+      if (stored) {
         sessionStorage.removeItem('mtfq_target_lesson');
         return stored;
       }
-    } catch (e) {}
-    return 'l3';
+    } catch {}
+    return '';
   });
-  const [lessonStatuses, setLessonStatuses] = useState(() => {
-    const saved = localStorage.getItem('mtfq_lesson_statuses');
-    return saved ? JSON.parse(saved) : { l1: true, l2: true, l3: false, l4: false, l5: false, l6: false };
-  });
+  const [lessonStatuses, setLessonStatuses] = useState({});
+  const [loadingLesson, setLoadingLesson] = useState(true);
 
   const lesson = liveLessonsMap[activeLessonId] || LESSONS_DATABASE[activeLessonId] || {
     id: activeLessonId || '',
@@ -53,16 +51,92 @@ export const useLesson = (lang) => {
     chapters: []
   };
 
+  const loadLessonDetails = async (targetId, fallbackTeacherName = '') => {
+    if (!targetId || targetId.length <= 8) return;
+    try {
+      const lessonRes = await studentApi.lessons.get(targetId);
+      const ld = lessonRes?.data || {};
+
+      setLiveLessonsMap((prev) => ({
+        ...prev,
+        [targetId]: {
+          ...(prev[targetId] || {}),
+          id: targetId,
+          titleAr: ld.titleAr || prev[targetId]?.titleAr || '',
+          durationSec: 1800,
+          durationFmt: ld.durationLabel || '30:00',
+          time: ld.durationLabel || '30:00',
+          chapters: (ld.chapters || []).map((c, idx) => ({
+            id: c.id || idx + 1,
+            titleAr: c.titleAr,
+            startSec: 0,
+            endSec: 300,
+            keyTerms: [],
+            descAr: ''
+          }))
+        }
+      }));
+
+      setLiveTranscript(
+        Array.isArray(ld.transcript)
+          ? ld.transcript.map((t, i) => ({
+              id: t.id || `seg-${i}`,
+              startSec: Number(t.startSeconds || 0),
+              endSec: Number(t.endSeconds || 60),
+              speaker: fallbackTeacherName || '',
+              text: t.textAr || ''
+            }))
+          : []
+      );
+
+      if (ld.conceptGraph) {
+        setLiveGraphNodes(ld.conceptGraph.nodes || []);
+        setLiveGraphEdges(ld.conceptGraph.edges || []);
+      } else {
+        setLiveGraphNodes([]);
+        setLiveGraphEdges([]);
+      }
+
+      if (ld.progress) {
+        setCurrentTime(Number(ld.progress.maxPositionSeconds || ld.progress.watchedSeconds || 0));
+        setIsBookmarked(Boolean(ld.progress.isBookmarked));
+        setLessonStatuses((prev) => ({ ...prev, [targetId]: Boolean(ld.progress.isCompleted) }));
+      }
+
+      setNotes(
+        Array.isArray(ld.notes)
+          ? ld.notes.map((n) => ({
+              id: n.id,
+              ts: fmt(Number(n.timestampSeconds || 0)),
+              sec: Number(n.timestampSeconds || 0),
+              text: n.content,
+              date: (n.createdAt || '').slice(0, 10)
+            }))
+          : []
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     const loadFromApi = async () => {
+      setLoadingLesson(true);
       try {
+        const params = new URLSearchParams(window.location.search);
+        const requestedCourseId = params.get('courseId');
+        const requestedLessonId = params.get('id') || params.get('lessonId');
+
         const coursesRes = await studentApi.courses.list();
         const courses = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
-        if (!mounted || courses.length === 0) return;
+        if (!mounted || courses.length === 0) {
+          setLoadingLesson(false);
+          return;
+        }
 
-        const firstCourseId = courses[0].id;
-        const courseDetailRes = await studentApi.courses.get(firstCourseId);
+        const chosenCourse = (requestedCourseId && courses.find((c) => c.id === requestedCourseId)) || courses[0];
+        const courseDetailRes = await studentApi.courses.get(chosenCourse.id);
         const courseData = courseDetailRes?.data || {};
         if (!mounted) return;
 
@@ -76,7 +150,10 @@ export const useLesson = (lang) => {
         });
 
         const rawLessons = Array.isArray(courseData.lessons) ? courseData.lessons : [];
-        if (rawLessons.length === 0) return;
+        if (rawLessons.length === 0) {
+          setLoadingLesson(false);
+          return;
+        }
 
         const map = {};
         const statusMap = {};
@@ -96,61 +173,16 @@ export const useLesson = (lang) => {
         });
 
         setLiveLessonsMap(map);
-        setLessonStatuses((prev) => ({ ...prev, ...statusMap }));
+        setLessonStatuses(statusMap);
 
-        const targetId = rawLessons[0].id;
+        const targetId = (requestedLessonId && map[requestedLessonId]) ? requestedLessonId : rawLessons[0].id;
         setActiveLessonId(targetId);
 
-        const lessonRes = await studentApi.lessons.get(targetId);
-        const ld = lessonRes?.data || {};
-        if (!mounted) return;
-
-        setLiveLessonsMap((prev) => ({
-          ...prev,
-          [targetId]: {
-            ...(prev[targetId] || {}),
-            id: targetId,
-            titleAr: ld.titleAr || prev[targetId]?.titleAr || '',
-            durationSec: 1800,
-            durationFmt: ld.durationLabel || '30:00',
-            time: ld.durationLabel || '30:00',
-            chapters: (ld.chapters || []).map((c, idx) => ({
-              id: c.id || idx + 1,
-              titleAr: c.titleAr,
-              startSec: 0,
-              endSec: 300,
-              keyTerms: [],
-              descAr: ''
-            }))
-          }
-        }));
-
-        if (Array.isArray(ld.transcript)) {
-          setLiveTranscript(ld.transcript.map((t, i) => ({
-            id: t.id || `seg-${i}`,
-            startSec: Number(t.startSeconds || 0),
-            endSec: Number(t.endSeconds || 60),
-            speaker: courseData.teacherName || '',
-            text: t.textAr || ''
-          })));
-        }
-
-        if (ld.conceptGraph) {
-          setLiveGraphNodes(ld.conceptGraph.nodes || []);
-          setLiveGraphEdges(ld.conceptGraph.edges || []);
-        }
-
-        if (Array.isArray(ld.notes)) {
-          setNotes(ld.notes.map((n) => ({
-            id: n.id,
-            ts: '00:00',
-            sec: Number(n.timestampSeconds || 0),
-            text: n.content,
-            date: (n.createdAt || '').slice(0, 10)
-          })));
-        }
+        await loadLessonDetails(targetId, courseData.teacherName || '');
       } catch {
         // ignore
+      } finally {
+        if (mounted) setLoadingLesson(false);
       }
     };
     loadFromApi();
@@ -294,10 +326,9 @@ export const useLesson = (lang) => {
   const switchLesson = (lid) => {
     setActiveLessonId(lid);
     setIsPlaying(false);
-    const s = localStorage.getItem(`mtfq_pos_${lid}`);
-    setCurrentTime(s ? parseInt(s, 10) : 0);
-    setIsBookmarked(localStorage.getItem(`mtfq_bm_${lid}`) === 'true');
+    setCurrentTime(0);
     setMobilePlaylistOpen(false);
+    loadLessonDetails(lid, liveCourseInfo?.teacherAr || '');
   };
 
   const handlePlaylistLessonClick = (targetLesson) => {
@@ -508,6 +539,7 @@ export const useLesson = (lang) => {
   };
 
   return {
+    loadingLesson,
     courseInfo: liveCourseInfo,
     lesson,
     playlist,

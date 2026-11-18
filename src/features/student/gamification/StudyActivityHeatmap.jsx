@@ -1,12 +1,24 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
-import { generateActivityStreakGrid } from '../../../data/studentData';
+import { studentApi } from '../../../services/studentApi';
 
 export const StudyActivityHeatmap = ({ lang }) => {
   const [hoveredDay, setHoveredDay] = useState(null);
+  const [streakWeeks, setStreakWeeks] = useState([]);
 
-  // Generate 52 weeks GitHub-style activity matrix
-  const streakWeeks = useMemo(() => generateActivityStreakGrid(), []);
+  useEffect(() => {
+    let mounted = true;
+    studentApi.gamification.heatmap()
+      .then((res) => {
+        if (!mounted) return;
+        const weeks = Array.isArray(res?.data?.weeks) ? res.data.weeks : [];
+        setStreakWeeks(weeks);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Intensity color mapper for cohesive platform theme
   const getSquareColor = (level) => {

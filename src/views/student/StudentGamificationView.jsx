@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { studentApi } from '../../services/studentApi';
 import {
   StudyActivityHeatmap,
   WeeklyChallenges,
@@ -8,9 +9,20 @@ import {
 
 export const StudentGamificationView = () => {
   const { lang } = useLanguage();
+  const [challenges, setChallenges] = useState([]);
 
-  // Weekly challenges loaded dynamically
-  const challenges = [];
+  useEffect(() => {
+    let mounted = true;
+    studentApi.gamification.challenges()
+      .then((res) => {
+        if (!mounted) return;
+        setChallenges(Array.isArray(res?.data) ? res.data : []);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div style={{

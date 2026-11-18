@@ -86,16 +86,34 @@ export const TeacherCourseCard = ({ course, isEnrolled, lang, onContinue, onEnro
           paddingBottom: '12px',
           borderBottom: '1px solid var(--border-subtle)'
         }}>
-          <img
-            src={course.teacher.avatar}
-            alt={course.teacher.nameAr}
-            style={{
+          {course.teacher?.avatar ? (
+            <img
+              src={course.teacher.avatar}
+              alt={course.teacher.nameAr}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                objectFit: 'cover'
+              }}
+            />
+          ) : (
+            <div style={{
               width: '32px',
               height: '32px',
               borderRadius: '50%',
-              objectFit: 'cover'
-            }}
-          />
+              backgroundColor: 'var(--primary-surface)',
+              color: 'var(--primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '13px',
+              fontWeight: '800',
+              flexShrink: 0
+            }}>
+              {(course.teacher?.nameAr || 'م').trim().charAt(0)}
+            </div>
+          )}
           <div>
             <div style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
               {course.teacher.nameAr}

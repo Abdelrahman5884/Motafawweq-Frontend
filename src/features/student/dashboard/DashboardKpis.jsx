@@ -2,6 +2,18 @@ import React from 'react';
 import { BookOpen, GraduationCap, ClipboardCheck, Flame } from 'lucide-react';
 
 export const DashboardKpis = ({ student, lang, isDark, themeAccent }) => {
+  const examsSolved = Number(student.examsCompletedCount || 0);
+  const fullMarkCount = Number(student.fullMarkExamsCount || 0);
+  const topScoreRate = examsSolved > 0 ? Math.round((fullMarkCount / examsSolved) * 100) : 0;
+
+  const completedLessons = Number(student.completedLessonsCount || 0);
+  const totalLessons = Number(student.totalEnrolledLessons || 0);
+  const lessonProgressPct = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+  const streakDays = Number(student.streakDays || 0);
+  const longestStreak = Number(student.longestStreakDays || streakDays);
+  const batchRank = student.batchRank ? `#${student.batchRank}` : '--';
+
   return (
     <div className="executive-kpi-grid">
       {/* Card 1: Combined Exams & Full Marks (امتحانات تم حلها + الدرجة النهائية) */}
@@ -11,14 +23,14 @@ export const DashboardKpis = ({ student, lang, isDark, themeAccent }) => {
             <ClipboardCheck size={19} />
           </div>
           <span style={{ fontSize: '11px', fontWeight: '700', color: '#10B981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
-            {lang === 'ar' ? 'معدل تميز 75%' : '75% Top Score'}
+            {lang === 'ar' ? `معدل تميز ${topScoreRate}%` : `${topScoreRate}% Top Score`}
           </span>
         </div>
         <div>
           <div className="executive-dual-stat">
             <div>
               <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
-                24
+                {examsSolved}
               </div>
               <div className="executive-kpi-sub" style={{ marginTop: '3px' }}>
                 {lang === 'ar' ? 'امتحانات تم حلها' : 'Exams Solved'}
@@ -29,7 +41,7 @@ export const DashboardKpis = ({ student, lang, isDark, themeAccent }) => {
 
             <div>
               <div style={{ fontSize: '28px', fontWeight: '800', color: '#10B981', lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
-                18
+                {fullMarkCount}
               </div>
               <div className="executive-kpi-sub" style={{ marginTop: '3px' }}>
                 {lang === 'ar' ? 'فول مارك (100%)' : 'Full Mark (100%)'}
@@ -46,14 +58,14 @@ export const DashboardKpis = ({ student, lang, isDark, themeAccent }) => {
             <BookOpen size={19} />
           </div>
           <span style={{ fontSize: '11px', fontWeight: '700', color: '#6366F1', background: 'rgba(99, 102, 241, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
-            {lang === 'ar' ? 'تقدم 62%' : '62% Progress'}
+            {lang === 'ar' ? `تقدم ${lessonProgressPct}%` : `${lessonProgressPct}% Progress`}
           </span>
         </div>
         <div>
           <div className="executive-kpi-val">
-            <span>{student.completedLessonsCount}</span>
+            <span>{completedLessons}</span>
             <span style={{ fontSize: '18px', fontWeight: '500', color: 'var(--text-muted)', marginInlineStart: '4px' }}>
-              / {student.totalEnrolledLessons}
+              / {totalLessons}
             </span>
           </div>
           <div className="executive-kpi-sub">
@@ -69,12 +81,12 @@ export const DashboardKpis = ({ student, lang, isDark, themeAccent }) => {
             <Flame size={19} />
           </div>
           <span style={{ fontSize: '11px', fontWeight: '700', color: '#EA580C', background: 'rgba(249, 115, 22, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
-            {lang === 'ar' ? 'أطول سلسلة: 28 يوم' : 'Longest: 28d'}
+            {lang === 'ar' ? `أطول سلسلة: ${longestStreak} يوم` : `Longest: ${longestStreak}d`}
           </span>
         </div>
         <div>
           <div className="executive-kpi-val">
-            <span>{student.streakDays}</span>
+            <span>{streakDays}</span>
             <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-muted)', marginInlineStart: '6px' }}>
               {lang === 'ar' ? 'يوماً' : 'Days'}
             </span>
@@ -92,7 +104,7 @@ export const DashboardKpis = ({ student, lang, isDark, themeAccent }) => {
             <GraduationCap size={19} />
           </div>
           <span style={{ fontSize: '11px', fontWeight: '700', color: '#3B82F6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 8px', borderRadius: '6px' }}>
-            {lang === 'ar' ? 'دوري النخبة' : 'Elite League'}
+            {lang === 'ar' ? `${Number(student.xp || 0)} XP` : `${Number(student.xp || 0)} XP`}
           </span>
         </div>
         <div>
@@ -113,7 +125,7 @@ export const DashboardKpis = ({ student, lang, isDark, themeAccent }) => {
 
             <div>
               <div style={{ fontSize: '28px', fontWeight: '800', color: themeAccent, lineHeight: 1.1, fontFamily: 'var(--font-heading)' }}>
-                #2
+                {batchRank}
               </div>
               <div className="executive-kpi-sub" style={{ marginTop: '3px' }}>
                 {lang === 'ar' ? 'ترتيب الدفعة' : 'Batch Rank'}

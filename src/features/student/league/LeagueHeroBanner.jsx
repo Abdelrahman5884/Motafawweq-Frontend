@@ -430,7 +430,9 @@ export const LeagueHeroBanner = ({
               margin: '0 0 6px 0',
               color: '#FFFFFF'
             }}>
-              {lang === 'ar' ? 'أنت في المركز #2 (وصيف الجمهورية) 🥈' : 'You are Ranked #2 Nationwide 🥈'}
+              {activeLeague?.myRank
+                ? (lang === 'ar' ? `أنت في المركز #${activeLeague.myRank} في الدوري` : `You are Ranked #${activeLeague.myRank}`)
+                : (lang === 'ar' ? 'ابدأ المنافسة في دوري المتفوقين' : 'Join the League Competition')}
             </h2>
 
             <p style={{
@@ -440,9 +442,13 @@ export const LeagueHeroBanner = ({
               maxWidth: '520px',
               lineHeight: 1.6
             }}>
-              {lang === 'ar'
-                ? `يفصلك ${((champion.score || 18450) - (studentUser.score || 17290)).toLocaleString()} نقطة فقط عن انتزاع المركز الأول وتثبيت صورتك في هذا السلايدر أمام طلاب مصر!`
-                : 'Only 1,160 pts separate you from taking #1 and having your picture featured in the hero slider!'}
+              {activeLeague?.myRank && champion.score > 0
+                ? (lang === 'ar'
+                    ? `يفصلك ${Math.max(0, (champion.score || 0) - (activeLeague?.myXp || studentUser.score || 0)).toLocaleString()} نقطة عن انتزاع المركز الأول في هذا الدوري!`
+                    : `${Math.max(0, (champion.score || 0) - (activeLeague?.myXp || studentUser.score || 0)).toLocaleString()} pts separate you from taking #1!`)
+                : (lang === 'ar'
+                    ? 'حل الامتحانات والواجبات وأكمل حصصك لجمع نقاط XP والتقدم في ترتيب الدوري!'
+                    : 'Complete lessons, homeworks, and exams to earn XP and climb the leaderboard!')}
             </p>
 
             {/* Quick Actions */}
@@ -523,10 +529,10 @@ export const LeagueHeroBanner = ({
               />
             </div>
             <span style={{ fontSize: '12px', fontWeight: '800', color: '#FFFFFF', marginTop: '8px' }}>
-              {studentUser.nameAr}
+              {studentUser.nameAr || studentUser.name}
             </span>
             <span style={{ fontSize: '11px', color: 'var(--primary-light)' }}>
-              17,290 {lang === 'ar' ? 'نقطة عامة' : 'pts'}
+              {Number(activeLeague?.myXp || studentUser.score || 0).toLocaleString()} {lang === 'ar' ? 'نقطة عامة' : 'pts'}
             </span>
           </div>
         </div>

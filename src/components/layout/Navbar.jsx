@@ -20,7 +20,6 @@ import {
   ChevronRight,
   ChevronLeft
 } from 'lucide-react';
-import { STUDENT_PROFILE } from '../../data/studentData';
 import { Breadcrumbs } from './Breadcrumbs';
 
 export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, hasSidebar }) => {

@@ -33,11 +33,27 @@ export const DashboardHeader = ({
           overflow: 'hidden',
           flexShrink: 0
         }}>
-          <img
-            src={student.avatar}
-            alt={student.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          {student.avatar ? (
+            <img
+              src={student.avatar}
+              alt={student.name || 'Student'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <div style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.12)',
+              color: themeAccent,
+              fontWeight: '800',
+              fontSize: '18px'
+            }}>
+              {(student.nameAr || student.name || 'ط').trim().charAt(0)}
+            </div>
+          )}
           <span style={{
             position: 'absolute',
             bottom: '3px',

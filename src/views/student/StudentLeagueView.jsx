@@ -56,6 +56,8 @@ export const StudentLeagueView = () => {
           titleAr: l.titleAr,
           subtitleAr: l.courseTitleAr || '',
           badge: l.tier || 'Diamond',
+          myRank: l.myRank || null,
+          myXp: l.myXp || 0,
           participantsCount: Number(l.participantsCount || 0),
           students: idx === 0 ? lb.map((s) => ({
             rank: s.rank,
@@ -75,6 +77,39 @@ export const StudentLeagueView = () => {
       mounted = false;
     };
   }, []);
+
+  // Load leaderboard whenever selectedLeagueId changes
+  useEffect(() => {
+    if (!selectedLeagueId) return;
+    let mounted = true;
+    studentApi.gamification.leaderboard(selectedLeagueId)
+      .then((lbRes) => {
+        if (!mounted) return;
+        const lb = Array.isArray(lbRes?.data?.leaderboard) ? lbRes.data.leaderboard : [];
+        setLeaguesList((prev) =>
+          prev.map((l) =>
+            l.id === selectedLeagueId
+              ? {
+                  ...l,
+                  students: lb.map((s) => ({
+                    rank: s.rank,
+                    nameAr: s.displayName,
+                    avatar: '',
+                    score: Number(s.xpPoints || 0),
+                    streak: Number(s.streakDays || 0),
+                    tier: 'Diamond',
+                    isMe: Boolean(s.isCurrentUser),
+                  })),
+                }
+              : l
+          )
+        );
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [selectedLeagueId]);
 
   // Available leagues in current category
   const categoryLeagues = leaguesList.filter(l => l.category === leagueCategory);

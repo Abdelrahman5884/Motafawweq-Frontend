@@ -33,6 +33,9 @@ export const studentApi = {
     updateStudySession: (uuid, data) => apiPut(`/student/study-sessions/${uuid}`, data),
     toggleStudySession: (uuid) => apiPatch(`/student/study-sessions/${uuid}/toggle`),
     deleteStudySession: (uuid) => apiDelete(`/student/study-sessions/${uuid}`),
+    createNote: (data) => apiPost('/student/schedule/notes', data),
+    toggleNote: (uuid) => apiPatch(`/student/schedule/notes/${uuid}/toggle`),
+    deleteNote: (uuid) => apiDelete(`/student/schedule/notes/${uuid}`),
   },
 
   attendance: {
@@ -87,10 +90,27 @@ export const studentApi = {
   // Phase 7 & 8: Gamification, Leagues, Leaderboard & Certificates
   gamification: {
     summary: () => apiGet('/student/gamification'),
+    heatmap: () => apiGet('/student/gamification/heatmap'),
+    challenges: () => apiGet('/student/gamification/challenges'),
     leagues: () => apiGet('/student/leagues'),
+    pastLeagues: () => apiGet('/student/leagues/history'),
     leaderboard: (leagueUuid) =>
       apiGet(`/student/leagues/${leagueUuid}/leaderboard`),
     certificates: () => apiGet('/student/certificates'),
+    certificateEligibility: () => apiGet('/student/certificates/eligibility'),
+  },
+
+  // Phase 12: Converted Lectures Archive
+  convertedLectures: {
+    list: () => apiGet('/student/converted-lectures'),
+    get: (uuid) => apiGet(`/student/converted-lectures/${uuid}`),
+    create: (formDataOrPayload) =>
+      apiRequest('/student/converted-lectures', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('conv') },
+        body: formDataOrPayload,
+      }),
+    delete: (uuid) => apiDelete(`/student/converted-lectures/${uuid}`),
   },
 
   // Phase 9: Billing, Coupons & Direct Payments

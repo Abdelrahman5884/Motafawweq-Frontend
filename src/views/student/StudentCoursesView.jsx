@@ -376,7 +376,7 @@ export const StudentCoursesView = () => {
                     key={item.id}
                     item={item}
                     lang={lang}
-                    onContinue={() => navigate('/student/lesson')}
+                    onContinue={() => navigate(`/student/lesson?courseId=${course.id}`)}
                     onOpenModal={(item) => setSelectedCurriculumModal(item)}
                   />
                 ))}
@@ -419,7 +419,7 @@ export const StudentCoursesView = () => {
                     course={course}
                     isEnrolled={!!enrolledCourses[course.id]}
                     lang={lang}
-                    onContinue={() => navigate('/student/lesson')}
+                    onContinue={() => navigate(`/student/lesson?courseId=${course.id}`)}
                     onEnroll={() => handleEnroll(course)}
                   />
                 ))}

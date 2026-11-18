@@ -118,13 +118,31 @@ export const StudentSettingsView = () => {
       await studentApi.profile.update({
         name: formData.nameAr || formData.name,
         phone: formData.phone,
+        avatar: formData.avatar && String(formData.avatar).length <= 2048 ? formData.avatar : undefined,
         grade_ar: formData.grade,
+        track_ar: formData.track,
         governorate: formData.governorate,
         school_name: formData.school,
+        center_name: formData.center,
         parent_phone: formData.parentPhone,
         daily_study_goal_minutes: Number(formData.dailyGoalMinutes) || 60,
         show_on_leaderboard: Boolean(formData.leaderboardVisible),
         nickname: formData.nickname,
+        target_goal: formData.targetGoal,
+        preferences: {
+          playbackSpeed: formData.playbackSpeed,
+          autoCornell: Boolean(formData.autoCornell),
+          soundEffects: Boolean(formData.soundEffects),
+          pomodoroReminder: Boolean(formData.pomodoroReminder),
+          weeklyLessonsTarget: Number(formData.weeklyLessonsTarget) || 8,
+          preferredStudyTime: formData.preferredStudyTime || 'evening',
+        },
+        notifications: {
+          notifyWhatsapp: Boolean(formData.notifyWhatsapp),
+          notifyStreak: Boolean(formData.notifyStreak),
+          notifyHomework: Boolean(formData.notifyHomework),
+          parentReportSync: Boolean(formData.parentReportSync),
+        },
       });
 
       if (updateUserProfile) {
@@ -162,13 +180,19 @@ export const StudentSettingsView = () => {
       .then((res) => {
         if (!mounted || !res?.data) return;
         const p = res.data;
+        const prefs = p.preferences || {};
+        const notifs = p.notifications || {};
         setFormData((prev) => ({
           ...prev,
           name: p.name || prev.name,
           nameAr: p.name || prev.nameAr,
+          avatar: p.avatar || prev.avatar,
           nickname: p.nickname || prev.nickname,
+          targetGoal: p.targetGoal || prev.targetGoal,
           grade: p.gradeAr || prev.grade,
+          track: p.trackAr || prev.track,
           school: p.schoolName || prev.school,
+          center: p.centerName || prev.center,
           governorate: p.governorate || prev.governorate,
           email: p.email || prev.email,
           phone: p.phone || prev.phone,
@@ -176,6 +200,16 @@ export const StudentSettingsView = () => {
           studentCode: p.studentCode || prev.studentCode,
           dailyGoalMinutes: Number(p.dailyStudyGoalMinutes || prev.dailyGoalMinutes),
           leaderboardVisible: p.showOnLeaderboard !== undefined ? Boolean(p.showOnLeaderboard) : prev.leaderboardVisible,
+          playbackSpeed: prefs.playbackSpeed || prev.playbackSpeed,
+          autoCornell: prefs.autoCornell !== undefined ? Boolean(prefs.autoCornell) : prev.autoCornell,
+          soundEffects: prefs.soundEffects !== undefined ? Boolean(prefs.soundEffects) : prev.soundEffects,
+          pomodoroReminder: prefs.pomodoroReminder !== undefined ? Boolean(prefs.pomodoroReminder) : prev.pomodoroReminder,
+          weeklyLessonsTarget: prefs.weeklyLessonsTarget !== undefined ? Number(prefs.weeklyLessonsTarget) : prev.weeklyLessonsTarget,
+          preferredStudyTime: prefs.preferredStudyTime || prev.preferredStudyTime,
+          notifyWhatsapp: notifs.notifyWhatsapp !== undefined ? Boolean(notifs.notifyWhatsapp) : prev.notifyWhatsapp,
+          notifyStreak: notifs.notifyStreak !== undefined ? Boolean(notifs.notifyStreak) : prev.notifyStreak,
+          notifyHomework: notifs.notifyHomework !== undefined ? Boolean(notifs.notifyHomework) : prev.notifyHomework,
+          parentReportSync: notifs.parentReportSync !== undefined ? Boolean(notifs.parentReportSync) : prev.parentReportSync,
         }));
       })
       .catch(() => {});

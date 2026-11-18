@@ -242,12 +242,9 @@ export const GroupsProvider = ({ children }) => {
         if (Array.isArray(res?.data?.personalSessions)) {
           setStudentStudySessions(res.data.personalSessions);
         }
-        try {
-          const savedNotes = localStorage.getItem('motafawweq_student_schedule_notes');
-          if (savedNotes) {
-            setScheduleNotes(JSON.parse(savedNotes));
-          }
-        } catch {}
+        if (res?.data?.scheduleNotes && typeof res.data.scheduleNotes === 'object') {
+          setScheduleNotes(res.data.scheduleNotes);
+        }
         return;
       }
 
@@ -532,29 +529,29 @@ export const GroupsProvider = ({ children }) => {
     }
   };
 
-  const persistStudentNotes = (nextNotes) => {
-    try {
-      localStorage.setItem('motafawweq_student_schedule_notes', JSON.stringify(nextNotes));
-    } catch {}
-  };
-
-  // Schedule Notes CRUD (Teacher API + Student local persistence)
+  // Schedule Notes CRUD (Teacher API + Student API)
   const addScheduleNote = async (dayKey, noteData) => {
     if (isStudentRole) {
-      const newNote = {
-        id: `std-note-${Date.now()}`,
-        text: noteData.text,
-        time: noteData.time || '16:00',
-        priority: noteData.priority || 'medium',
-        isDone: false,
-      };
-      setScheduleNotes((prev) => {
-        const next = { ...prev, [dayKey]: [...(prev[dayKey] || []), newNote] };
-        persistStudentNotes(next);
-        return next;
-      });
-      showToast('تمت إضافة الملاحظة بنجاح إلى جدول المواعيد!');
-      return newNote;
+      try {
+        const res = await studentApi.schedule.createNote({
+          day_of_week: dayKey,
+          text: noteData.text,
+          time: noteData.time || '16:00',
+          priority: noteData.priority || 'medium',
+        });
+        const created = res?.data;
+        if (created) {
+          setScheduleNotes((prev) => ({
+            ...prev,
+            [dayKey]: [...(prev[dayKey] || []), created],
+          }));
+        }
+        showToast('تمت إضافة الملاحظة بنجاح إلى جدول المواعيد!');
+        return created;
+      } catch (err) {
+        showToast(err?.message || 'فشل إضافة الملاحظة.', 'warning');
+        return null;
+      }
     }
 
     try {
@@ -575,14 +572,13 @@ export const GroupsProvider = ({ children }) => {
 
   const toggleScheduleNote = async (dayKey, noteId) => {
     if (isStudentRole) {
-      setScheduleNotes((prev) => {
-        const next = {
+      try {
+        await studentApi.schedule.toggleNote(noteId);
+        setScheduleNotes((prev) => ({
           ...prev,
           [dayKey]: (prev[dayKey] || []).map((n) => (n.id === noteId ? { ...n, isDone: !n.isDone } : n)),
-        };
-        persistStudentNotes(next);
-        return next;
-      });
+        }));
+      } catch {}
       return;
     }
 
@@ -596,15 +592,16 @@ export const GroupsProvider = ({ children }) => {
 
   const deleteScheduleNote = async (dayKey, noteId) => {
     if (isStudentRole) {
-      setScheduleNotes((prev) => {
-        const next = {
+      try {
+        await studentApi.schedule.deleteNote(noteId);
+        setScheduleNotes((prev) => ({
           ...prev,
           [dayKey]: (prev[dayKey] || []).filter((n) => n.id !== noteId),
-        };
-        persistStudentNotes(next);
-        return next;
-      });
-      showToast('تم حذف الملاحظة بنجاح.');
+        }));
+        showToast('تم حذف الملاحظة بنجاح.');
+      } catch (err) {
+        showToast(err?.message || 'فشل حذف الملاحظة.', 'warning');
+      }
       return;
     }
 

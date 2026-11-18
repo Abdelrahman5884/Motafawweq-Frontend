@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useGroups } from '../../context/GroupsContext';
+import { useAuth } from '../../context/AuthContext';
+import { studentApi } from '../../services/studentApi';
 import { RealQRCode } from '../common/RealQRCode';
 import { 
   Building2, 
@@ -19,18 +21,30 @@ import {
 export const StudentCenterQrPassModal = ({ isOpen, onClose, studentInfo }) => {
   const { lang, isRtl } = useLanguage();
   const { groups, enrolledStudents } = useGroups();
+  const { currentUser } = useAuth();
+  const [attendanceData, setAttendanceData] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let mounted = true;
+    studentApi.attendance.getOverview()
+      .then((res) => {
+        if (mounted && res?.data) setAttendanceData(res.data);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // Default student information if not provided
-  const student = studentInfo || {
-    name: 'أحمد محمود رضوان',
-    phone: '01001122334',
-    code: 'STU-88219',
-    grade: 'الصف الثالث الثانوي — علمي رياضة'
+  const student = {
+    name: studentInfo?.name || currentUser?.nameAr || currentUser?.name || '',
+    phone: studentInfo?.phone || currentUser?.phone || '',
+    code: attendanceData?.studentCode || attendanceData?.primaryBarcode || studentInfo?.code || currentUser?.studentCode || '',
+    grade: studentInfo?.grade || currentUser?.grade || ''
   };
 
-  const qrValue = `QR-STU-${student.phone}`;
+  const qrValue = attendanceData?.rotatingQrPayload || (student.code ? `MOTAFAWWEQ:ATT:${student.code}` : `QR-STU-${student.phone || 'PASS'}`);
 
   // Find groups student is enrolled in
   const studentGroups = groups.filter(g => {
@@ -185,14 +199,15 @@ export const StudentCenterQrPassModal = ({ isOpen, onClose, studentInfo }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {studentGroups.length === 0 ? (
                 <div style={{
-                  padding: '10px 14px',
+                  padding: '12px 14px',
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--bg-app)',
                   border: '1px solid var(--border-subtle)',
                   fontSize: '12px',
-                  color: 'var(--text-secondary)'
+                  color: 'var(--text-secondary)',
+                  textAlign: 'center'
                 }}>
-                  {lang === 'ar' ? 'مجموعة الفيزياء للثانوية العامة — السبت 02:00 م (قاعة 1)' : 'Physics 3rd Year - Saturday 2:00 PM'}
+                  {lang === 'ar' ? 'لا توجد مجموعات مسجل بها حالياً.' : 'No enrolled cohorts linked yet.'}
                 </div>
               ) : (
                 studentGroups.map(grp => (
@@ -214,7 +229,7 @@ export const StudentCenterQrPassModal = ({ isOpen, onClose, studentInfo }) => {
                         {grp.nameAr}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                        {grp.teacherNameAr} • {grp.hallName || 'القاعة 1'}
+                        {grp.teacherNameAr || grp.teacherName || ''} {grp.hallName ? `• ${grp.hallName}` : ''}
                       </div>
                     </div>
                     <span style={{
@@ -225,7 +240,7 @@ export const StudentCenterQrPassModal = ({ isOpen, onClose, studentInfo }) => {
                       backgroundColor: 'rgba(21, 136, 199, 0.1)',
                       color: 'var(--primary)'
                     }}>
-                      {grp.scheduleTime || 'السبت 02:00 م'}
+                      {grp.scheduleAr || grp.scheduleTime || ''}
                     </span>
                   </div>
                 ))

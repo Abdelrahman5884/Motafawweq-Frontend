@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { studentApi } from '../../services/studentApi';
 import {
   FolderCheck,
   PlayCircle,
@@ -17,40 +18,34 @@ import {
   Calendar
 } from 'lucide-react';
 
-const INITIAL_CONVERTED_LECTURES = [];
-
 export const StudentConvertedLecturesView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
 
-  const [lectures, setLectures] = useState(() => {
-    try {
-      const stored = localStorage.getItem('mtfq_converted_lectures');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return INITIAL_CONVERTED_LECTURES;
-  });
-
+  const [lectures, setLectures] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // Sync to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem('mtfq_converted_lectures', JSON.stringify(lectures));
-    } catch (e) {}
-  }, [lectures]);
+    let mounted = true;
+    studentApi.convertedLectures.list()
+      .then((res) => {
+        if (!mounted) return;
+        setLectures(Array.isArray(res?.data) ? res.data : []);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Open in "حصصي" (StudentLessonView)
   const handleOpenInLesson = (lecture) => {
-    const targetId = lecture.lessonId || 'l3';
-    try {
-      sessionStorage.setItem('mtfq_target_lesson', targetId);
-    } catch (e) {}
-    navigate(`/student/lesson?id=${targetId}`);
+    if (lecture.lessonId) {
+      navigate(`/student/lesson?id=${lecture.lessonId}`);
+    } else {
+      navigate('/student/lesson');
+    }
   };
 
   // Open in Conversion Studio
@@ -59,10 +54,15 @@ export const StudentConvertedLecturesView = () => {
   };
 
   // Delete lecture
-  const handleDeleteLecture = (id) => {
-    const updated = lectures.filter(l => l.id !== id);
-    setLectures(updated);
-    setDeleteConfirmId(null);
+  const handleDeleteLecture = async (id) => {
+    try {
+      await studentApi.convertedLectures.delete(id);
+      setLectures((prev) => prev.filter((l) => l.id !== id));
+    } catch {
+      // ignore
+    } finally {
+      setDeleteConfirmId(null);
+    }
   };
 
   // Filter lectures

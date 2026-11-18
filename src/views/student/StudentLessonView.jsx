@@ -27,6 +27,7 @@ export const StudentLessonView = () => {
   const lessonState = useLesson(lang);
 
   const {
+    loadingLesson,
     courseInfo,
     lesson,
     playlist,
@@ -318,6 +319,47 @@ export const StudentLessonView = () => {
         return null;
     }
   };
+
+  if (!loadingLesson && playlist.length === 0 && !lesson?.titleAr) {
+    return (
+      <div style={{
+        maxWidth: '720px',
+        margin: '48px auto',
+        padding: '48px 24px',
+        textAlign: 'center',
+        borderRadius: '20px',
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px dashed var(--border-subtle)',
+        color: 'var(--text-secondary)',
+        fontFamily: 'var(--font-arabic)'
+      }}>
+        <BookOpen size={40} color="var(--primary)" style={{ marginBottom: '12px', opacity: 0.7 }} />
+        <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+          {lang === 'ar' ? 'لا توجد حصص متاحة للمشاهدة حالياً' : 'No Lessons Available Yet'}
+        </h2>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px' }}>
+          {lang === 'ar'
+            ? 'انضم إلى مجموعة دراسية بكود المعلم أو استعرض المقررات المتاحة لتظهر حصصك هنا.'
+            : 'Join a study group or browse available courses to access lessons here.'}
+        </p>
+        <button
+          onClick={() => navigate('/student/courses')}
+          style={{
+            padding: '10px 22px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--primary)',
+            color: '#FFFFFF',
+            border: 'none',
+            fontSize: '13.5px',
+            fontWeight: '800',
+            cursor: 'pointer'
+          }}
+        >
+          {lang === 'ar' ? 'الذهاب إلى المقررات' : 'Go to Courses'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="lv">

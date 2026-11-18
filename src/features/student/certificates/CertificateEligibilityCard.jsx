@@ -8,8 +8,11 @@ import { ShieldCheck, CheckCircle2, UserCheck, BookOpenCheck, Trophy } from 'luc
  * - Fully bilingual: Arabic (RTL) / English (LTR)
  * - High-standard academic phrasing and refined typography
  */
-export const CertificateEligibilityCard = ({ lang = 'ar' }) => {
+export const CertificateEligibilityCard = ({ lang = 'ar', eligibility = null }) => {
   const isAr = lang === 'ar';
+  const teacherEligible = Boolean(eligibility?.teacher?.eligible);
+  const ministryEligible = Boolean(eligibility?.ministry?.eligible);
+  const leagueEligible = Boolean(eligibility?.league?.eligible);
 
   const content = {
     ar: {
@@ -24,7 +27,7 @@ export const CertificateEligibilityCard = ({ lang = 'ar' }) => {
           title: 'إتمام المقررات التخصصية للمعلم المشرف',
           requirement: 'إتمام 100% من المحاضرات المقررة، واجتياز الاختبارات التقييمية، واعتماد الواجبات والتطبيقات من قِبل المعلم المشرف.',
           documentType: 'شهادة إتمام وتفوق معتمدة وموقعة رقمياً من المعلم الخبير ومنصة متفوّق.',
-          status: 'مستوفى الشروط • الشهادة موثقة وجاهزة',
+          status: teacherEligible ? 'مستوفى الشروط • الشهادة موثقة وجاهزة' : 'قيد التقدم • أكمل دروس المقرر 100%',
           icon: UserCheck
         },
         {
@@ -34,7 +37,7 @@ export const CertificateEligibilityCard = ({ lang = 'ar' }) => {
           title: 'اجتياز المنهج والامتحانات الرسمية النازلة على المنصة',
           requirement: 'استكمال كامل مفردات المنهج الدراسي واجتياز الامتحانات الوزارية المعتمدة على المنصة بنسبة نجاح لا تقل عن 80%.',
           documentType: 'شهادة إتمام دراسي رسمية مطابقة لمواصفات وزارة التربية والتعليم والتعليم الفني.',
-          status: 'مستوفى الشروط • اعتماد أكاديمي وزاري',
+          status: ministryEligible ? 'مستوفى الشروط • اعتماد أكاديمي وزاري' : 'قيد التقدم • اجتز الامتحانات بنسبة 80%+',
           icon: BookOpenCheck
         },
         {
@@ -44,7 +47,7 @@ export const CertificateEligibilityCard = ({ lang = 'ar' }) => {
           title: 'الصدارة والترتيب ضمن العشرة الأوائل على مستوى الجمهورية',
           requirement: 'إحراز الصدارة أو تحقيق مركز متقدم ضمن قائمة العشرة الأوائل (Top 10) في الترتيب العام لدوري المتفوقين الوطني.',
           documentType: 'شهادة التميز الشرفية ووسام صدارة الترتيب ممهورة بختم مسابقات المنصة الرسمي.',
-          status: 'مستوفى الشروط • الحائز على صدارة الترتيب',
+          status: leagueEligible ? 'مستوفى الشروط • الحائز على صدارة الترتيب' : 'قيد التقدم • نافس لدخول قائمة العشرة الأوائل',
           icon: Trophy
         }
       ]

@@ -2,8 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Target, ArrowRight, ArrowLeft } from 'lucide-react';
 
-export const SmartNextStepBanner = ({ lang, isRtl, isDark }) => {
+export const SmartNextStepBanner = ({ lang, isRtl, isDark, recommendation }) => {
   const navigate = useNavigate();
+
+  const messageText = recommendation
+    ? (lang === 'ar' ? recommendation.textAr : recommendation.textEn)
+    : (lang === 'ar'
+      ? 'ابدأ رحلتك الدراسية بالانضمام إلى مجموعات معلميك أو استعراض المقررات المتاحة.'
+      : 'Start your learning journey by joining your teacher cohorts or exploring available courses.');
+
+  const targetRoute = recommendation?.route || '/student/courses';
+  const buttonText = recommendation
+    ? (lang === 'ar' ? recommendation.buttonAr : recommendation.buttonEn)
+    : (lang === 'ar' ? 'استعراض المقررات' : 'Browse Courses');
 
   return (
     <div className="executive-card" style={{
@@ -35,24 +46,21 @@ export const SmartNextStepBanner = ({ lang, isRtl, isDark }) => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
             <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', background: 'rgba(21, 136, 199, 0.12)', padding: '2px 8px', borderRadius: '6px' }}>
-              {lang === 'ar' ? 'توصية المستشار الذكي (US-13)' : 'AI Smart Next Step'}
+              {lang === 'ar' ? 'توصية المستشار الذكي' : 'AI Smart Next Step'}
             </span>
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {lang === 'ar' ? 'إرشاد موجه يزيل أي حيرة' : 'Zero hesitation workflow'}
+              {lang === 'ar' ? 'إرشاد موجه حسب تقدمك الفعلي' : 'Personalized workflow'}
             </span>
           </div>
 
           <div style={{ fontSize: '13.5px', color: 'var(--text-primary)', lineHeight: 1.45 }}>
-            {lang === 'ar'
-              ? 'خطوتك التالية الموصى بها الآن: تسليم واجب الأحياء المطلوب قبل إغلاقه الليلة، ثم استكمال آخر 14 دقيقة من درس "البناء الضوئي" لضمان الاستعداد التام لاختبار الأحد والحفاظ على ترتيبك #2.'
-              : 'Your recommended next step: Submit Biology homework before midnight, then finish the remaining 14m of Photosynthesis lesson to stay ready for Sunday’s exam and retain your #2 rank.'
-            }
+            {messageText}
           </div>
         </div>
       </div>
 
       <button
-        onClick={() => navigate('/student/homework')}
+        onClick={() => navigate(targetRoute)}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -72,7 +80,7 @@ export const SmartNextStepBanner = ({ lang, isRtl, isDark }) => {
         onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
         onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
       >
-        <span>{lang === 'ar' ? 'تنفيذ الخطوة التالية فوراً' : 'Execute Next Step'}</span>
+        <span>{buttonText}</span>
         {isRtl ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
       </button>
     </div>

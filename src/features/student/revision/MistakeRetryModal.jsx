@@ -40,47 +40,56 @@ export const MistakeRetryModal = ({
         </h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-          <button
-            onClick={() => setSelectedRetryOption('opt-wrong')}
-            style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: selectedRetryOption === 'opt-wrong' ? '#FEF2F2' : 'var(--bg-subtle)',
-              border: '1.5px solid',
-              borderColor: selectedRetryOption === 'opt-wrong' ? 'var(--danger)' : 'var(--border-subtle)',
-              color: 'var(--text-primary)',
-              textAlign: isRtl ? 'right' : 'left',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            {activeMistakeModal.wrongAnswerGivenAr}
-          </button>
+          {(activeMistakeModal.options || []).map((optText, idx) => {
+            const isSelected = selectedRetryOption === idx;
+            const isCorrectOpt = retryResult && idx === activeMistakeModal.correctIndex;
+            const isWrongSelected = retryResult === 'wrong' && isSelected && idx !== activeMistakeModal.correctIndex;
 
-          <button
-            onClick={() => setSelectedRetryOption('opt-correct')}
-            style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: selectedRetryOption === 'opt-correct' ? '#ECFDF5' : 'var(--bg-subtle)',
-              border: '1.5px solid',
-              borderColor: selectedRetryOption === 'opt-correct' ? 'var(--success)' : 'var(--border-subtle)',
-              color: 'var(--text-primary)',
-              textAlign: isRtl ? 'right' : 'left',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            {activeMistakeModal.correctAnswerAr}
-          </button>
+            return (
+              <button
+                key={idx}
+                onClick={() => setSelectedRetryOption(idx)}
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: isCorrectOpt
+                    ? '#ECFDF5'
+                    : isWrongSelected
+                    ? '#FEF2F2'
+                    : isSelected
+                    ? 'var(--primary-surface)'
+                    : 'var(--bg-subtle)',
+                  border: '1.5px solid',
+                  borderColor: isCorrectOpt
+                    ? 'var(--success)'
+                    : isWrongSelected
+                    ? 'var(--danger)'
+                    : isSelected
+                    ? 'var(--primary)'
+                    : 'var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  textAlign: isRtl ? 'right' : 'left',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {optText}
+              </button>
+            );
+          })}
         </div>
 
         {retryResult === 'correct' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', borderRadius: '12px', backgroundColor: '#ECFDF5', color: '#065F46', fontSize: '13px', fontWeight: '800', marginBottom: '16px' }}>
             <CheckCircle2 size={16} color="var(--success)" />
-            <span>إجابة صحيحة! تم تصحيح الفهم في سجلك التعليمي.</span>
+            <span>إجابة صحيحة! {activeMistakeModal.explanationAr || 'تم تصحيح الفهم في سجلك التعليمي.'}</span>
+          </div>
+        )}
+
+        {retryResult === 'wrong' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', borderRadius: '12px', backgroundColor: '#FEF2F2', color: '#991B1B', fontSize: '13px', fontWeight: '800', marginBottom: '16px' }}>
+            <span>إجابة غير صحيحة — جرّب اختياراً آخر أو راجع التفسير العلمي.</span>
           </div>
         )}
 

@@ -10,26 +10,31 @@ export const StudentCertificatesView = () => {
   const { lang, isRtl } = useLanguage();
   const [selectedCert, setSelectedCert] = useState(null);
   const [certificatesList, setCertificatesList] = useState([]);
+  const [eligibility, setEligibility] = useState(null);
 
   useEffect(() => {
     let mounted = true;
-    studentApi.gamification.certificates()
-      .then((res) => {
-        if (!mounted) return;
-        const list = Array.isArray(res?.data) ? res.data : [];
-        setCertificatesList(list.map((c) => ({
-          id: c.id,
-          serialId: c.certificateNumber,
-          courseTitleAr: c.courseNameAr,
-          courseTitleEn: c.courseNameAr,
-          studentNameAr: c.studentNameAr,
-          gradePercent: `${c.gradePercent}%`,
-          honorsAr: c.honorsTitleAr,
-          issueDate: c.issueDate,
-          verifyUrl: c.verifyUrl
-        })));
-      })
-      .catch(() => {});
+    Promise.all([
+      studentApi.gamification.certificates().catch(() => null),
+      studentApi.gamification.certificateEligibility().catch(() => null),
+    ]).then(([certsRes, eligRes]) => {
+      if (!mounted) return;
+      const list = Array.isArray(certsRes?.data) ? certsRes.data : [];
+      setCertificatesList(list.map((c) => ({
+        id: c.id,
+        serialId: c.certificateNumber,
+        courseTitleAr: c.courseNameAr,
+        courseTitleEn: c.courseNameAr,
+        studentNameAr: c.studentNameAr,
+        gradePercent: `${c.gradePercent}%`,
+        honorsAr: c.honorsTitleAr,
+        issueDate: c.issueDate,
+        verifyUrl: c.verifyUrl
+      })));
+      if (eligRes?.data) {
+        setEligibility(eligRes.data);
+      }
+    });
     return () => {
       mounted = false;
     };
@@ -64,7 +69,7 @@ export const StudentCertificatesView = () => {
       </div>
 
       {/* 3-Tier Criteria Checklist Card (Calm Formal Aesthetic) */}
-      <CertificateEligibilityCard lang={lang} />
+      <CertificateEligibilityCard lang={lang} eligibility={eligibility} />
 
       {/* Certificates Gallery (100% Mobile Responsive Grid) */}
       {certificatesList.length === 0 ? (

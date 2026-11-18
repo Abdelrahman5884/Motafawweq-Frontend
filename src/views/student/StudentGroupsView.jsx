@@ -509,7 +509,7 @@ export const StudentGroupsView = ({ defaultTab }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                   <div>
                     <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
-                      {lang === 'ar' ? `المعلم: ${g.teacherNameAr || 'د. سلمى السيد'}` : `Teacher: ${g.teacherNameEn || 'Dr. Salma El-Sayed'}`}
+                      {lang === 'ar' ? `المعلم: ${g.teacherNameAr || g.teacherName || ''}` : `Teacher: ${g.teacherNameEn || g.teacherName || ''}`}
                     </span>
                   </div>
 
@@ -570,8 +570,8 @@ export const StudentGroupsView = ({ defaultTab }) => {
         studentInfo={{
           name: studentNameAr,
           phone: studentPhone,
-          code: 'STU-88219',
-          grade: 'الصف الثالث الثانوي — علمي رياضة'
+          code: currentUser?.studentCode || currentUser?.student_code || '',
+          grade: currentUser?.grade || ''
         }}
       />
     </div>

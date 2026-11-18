@@ -19,23 +19,26 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
   const { isDark } = useTheme();
 
   const [teacherLeagues, setTeacherLeagues] = useState([]);
-  const [pastLeagues] = useState([]);
+  const [pastLeagues, setPastLeagues] = useState([]);
 
   useEffect(() => {
     let mounted = true;
-    studentApi.gamification.leagues().then((res) => {
+    Promise.all([
+      studentApi.gamification.leagues().catch(() => null),
+      studentApi.gamification.pastLeagues().catch(() => null),
+    ]).then(([leaguesRes, pastRes]) => {
       if (!mounted) return;
-      const list = Array.isArray(res?.data) ? res.data : [];
+      const list = Array.isArray(leaguesRes?.data) ? leaguesRes.data : [];
       setTeacherLeagues(list.map((l, idx) => ({
         id: l.id,
-        subject: l.courseNameAr || 'دوري التفوق',
-        rank: idx + 1,
-        medalTitle: idx === 0 ? 'منافس نشط' : 'مشارك',
-        teacherName: l.nameAr || 'بطولة الكورس',
-        courseTitle: l.courseNameAr || '',
-        statusAr: l.status === 'active' ? 'موسم نشط الآن' : 'موسم مكتمل',
+        subject: l.courseTitleAr || 'دوري التفوق',
+        rank: l.myRank || (idx + 1),
+        medalTitle: l.myBadgeAr || (l.myRank === 1 ? 'المتصدر' : 'منافس نشط'),
+        teacherName: l.teacherName || l.titleAr || 'بطولة الكورس',
+        courseTitle: l.courseTitleAr || '',
+        statusAr: l.isActive ? 'موسم نشط الآن' : 'موسم مكتمل',
         totalStudents: l.participantsCount || 0,
-        xp: 0,
+        xp: l.myXp || 0,
         accentColor: '#F59E0B',
         borderColor: 'rgba(245, 158, 11, 0.35)',
         badgeBg: 'rgba(245, 158, 11, 0.14)',
@@ -43,7 +46,17 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
         cardBgDark: 'linear-gradient(160deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
         cardBgLight: 'linear-gradient(160deg, #FFFFFF 0%, #FFFBEB 100%)'
       })));
-    }).catch(() => {});
+
+      const past = Array.isArray(pastRes?.data) ? pastRes.data : [];
+      setPastLeagues(past.map((p) => ({
+        ...p,
+        accentColor: '#F59E0B',
+        borderColor: 'rgba(245, 158, 11, 0.35)',
+        glowColor: 'rgba(245, 158, 11, 0.15)',
+        cardBgDark: 'linear-gradient(160deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+        cardBgLight: 'linear-gradient(160deg, #FFFFFF 0%, #FFFBEB 100%)'
+      })));
+    });
     return () => { mounted = false; };
   }, []);
 

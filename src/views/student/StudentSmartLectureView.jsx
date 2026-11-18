@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
-import { MOCK_LESSON } from '../../data/mockData';
+import { studentApi } from '../../services/studentApi';
 import { NotebookMindMapCanvas } from '../../components/knowledge-map/NotebookMindMapCanvas';
 import { Sparkles, Brain, FileText, Layers, CheckCircle2, FolderCheck, PlayCircle } from 'lucide-react';
 import {
@@ -16,7 +16,17 @@ import '../../features/student/smart-lecture/smart-lecture.css';
 export const StudentSmartLectureView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
-  const lesson = MOCK_LESSON;
+  const [generatedLecture, setGeneratedLecture] = useState(null);
+  const lesson = {
+    titleAr: generatedLecture?.titleAr || '',
+    title: generatedLecture?.titleAr || '',
+    unitAr: generatedLecture?.subjectAr || '',
+    unit: generatedLecture?.subjectAr || '',
+    durationFmt: generatedLecture?.duration || '00:00',
+    transcript: Array.isArray(generatedLecture?.transcript) ? generatedLecture.transcript : [],
+    chapters: Array.isArray(generatedLecture?.topics) ? generatedLecture.topics : [],
+    notebookMindMap: generatedLecture?.mindmap || null,
+  };
 
   // Selected outputs: 'graph' | 'transcript' | 'topics' | 'quiz'
   const [selectedOutputs, setSelectedOutputs] = useState(['graph', 'transcript', 'topics']);
@@ -26,6 +36,7 @@ export const StudentSmartLectureView = () => {
 
   // Upload & AI Processing Simulation
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [rawFileObj, setRawFileObj] = useState(null);
   const [lectureTitle, setLectureTitle] = useState('');
   const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'processing' | 'done'
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -96,65 +107,51 @@ export const StudentSmartLectureView = () => {
     };
   }, []);
 
-  // Sequential AI stages simulation
-  const runAiStages = (targetOutputs) => {
+  // Sequential AI stages + real backend save
+  const runAiStages = async (targetOutputs) => {
     const totalStages = 1 + targetOutputs.length;
-    let stage = 0;
-    setCurrentStageIndex(0);
+    for (let s = 0; s < totalStages; s++) {
+      setCurrentStageIndex(s);
+      await new Promise((r) => setTimeout(r, 250));
+    }
 
-    const stepInterval = setInterval(() => {
-      stage += 1;
-      if (stage < totalStages) {
-        setCurrentStageIndex(stage);
+    try {
+      let body;
+      if (rawFileObj) {
+        body = new FormData();
+        body.append('file', rawFileObj);
+        if (lectureTitle.trim()) body.append('title_ar', lectureTitle.trim());
+        targetOutputs.forEach((out) => body.append('outputs[]', out));
       } else {
-        clearInterval(stepInterval);
-        setCurrentStageIndex(totalStages);
-        setUploadStatus('done');
-        setHasGenerated(true); // Content appears now!
-
-        // Save newly generated lecture to converted lectures archive
-        try {
-          const stored = localStorage.getItem('mtfq_converted_lectures');
-          const list = stored ? JSON.parse(stored) : [];
-          const activeFile = uploadedFile || {
-            name: lang === 'ar' ? 'محاضرة_الأحياء_الفصل_الثالث.mp4' : 'Biology_Lecture_Chapter3.mp4',
-            sizeFormatted: '24.6 MB'
-          };
-          const chosenTitle = lectureTitle.trim() || activeFile.name.replace(/\.[^/.]+$/, '') || lesson.titleAr;
-          const newEntry = {
-            id: `conv-${Date.now()}`,
-            lessonId: 'l3',
-            titleAr: chosenTitle,
-            titleEn: chosenTitle,
-            subjectAr: 'الأحياء',
-            subjectEn: 'Biology',
-            gradeAr: 'الصف الثالث الثانوي',
-            teacherAr: '',
-            dateAr: lang === 'ar' ? 'اليوم - الآن' : 'Today - Just now',
-            fileName: activeFile.name,
-            fileSize: activeFile.sizeFormatted || '',
-            duration: lesson.durationFmt || '',
-            summaryAr: 'تم تحويل المحاضرة واستخراج خريطة المفاهيم والتفريغ الصوتي ومحاور الحصة والكويز بنجاح.',
-            outputs: targetOutputs,
-            questionsCount: 0,
-            conceptsCount: 0,
-            keyTopics: []
-          };
-          const remaining = Array.isArray(list) ? list.filter(item => item.id !== 'conv-l3') : [];
-          localStorage.setItem('mtfq_converted_lectures', JSON.stringify([newEntry, ...remaining]));
-        } catch (e) {}
-
-        // Ensure active tab matches generated outputs
-        if (!targetOutputs.includes('graph') && activeTab === 'map') {
-          setActiveTab(targetOutputs.includes('transcript') ? 'transcript' : 'topics');
-        }
+        body = {
+          title_ar: lectureTitle.trim() || uploadedFile?.name || 'محاضرة جديدة',
+          file_name: uploadedFile?.name || null,
+          file_size: uploadedFile?.sizeFormatted || null,
+          outputs: targetOutputs,
+        };
       }
-    }, 600);
+
+      const res = await studentApi.convertedLectures.create(body);
+      if (res?.data) {
+        setGeneratedLecture(res.data);
+      }
+      setCurrentStageIndex(totalStages);
+      setUploadStatus('done');
+      setHasGenerated(true);
+
+      if (!targetOutputs.includes('graph') && activeTab === 'map') {
+        setActiveTab(targetOutputs.includes('transcript') ? 'transcript' : 'topics');
+      }
+    } catch (err) {
+      setUploadStatus('idle');
+      alert(err?.message || (lang === 'ar' ? 'تعذر حفظ طلب تحويل المحاضرة.' : 'Failed to save lecture conversion.'));
+    }
   };
 
   // Upload handler: Registers the file ready for generation
   const handleFileUpload = (file) => {
     if (!file) return;
+    setRawFileObj(file);
     setUploadedFile({
       name: file.name,
       sizeFormatted: formatFileSize(file.size),
@@ -171,41 +168,30 @@ export const StudentSmartLectureView = () => {
   // Generate trigger: Called when user clicks Generate button
   const handleGenerate = () => {
     if (uploadStatus === 'processing' || uploadStatus === 'uploading') return;
+    if (!uploadedFile && !lectureTitle.trim()) {
+      alert(lang === 'ar' ? 'يرجى اختيار ملف محاضرة أو كتابة عنوان المحاضرة أولاً.' : 'Please select a lecture file or enter a title first.');
+      return;
+    }
     if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
     if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
 
-    // Fallback sample file if user didn't pick one yet
-    const activeFile = uploadedFile || {
-      name: lang === 'ar' ? 'محاضرة_الأحياء_الفصل_الثالث.mp4' : 'Biology_Lecture_Chapter3.mp4',
-      sizeFormatted: '24.6 MB',
-      type: 'video/mp4'
-    };
-    if (!uploadedFile) {
-      setUploadedFile(activeFile);
-    }
-
     setUploadStatus('uploading');
-    setUploadProgress(20);
+    setUploadProgress(50);
     setCurrentStageIndex(0);
 
-    let current = 20;
-    uploadTimerRef.current = setInterval(() => {
-      current += Math.floor(Math.random() * 25) + 20;
-      if (current >= 100) {
-        clearInterval(uploadTimerRef.current);
-        setUploadProgress(100);
-        setUploadStatus('processing');
-        runAiStages(selectedOutputs);
-      } else {
-        setUploadProgress(current);
-      }
-    }, 130);
+    setTimeout(() => {
+      setUploadProgress(100);
+      setUploadStatus('processing');
+      runAiStages(selectedOutputs);
+    }, 200);
   };
 
   const handleResetFile = () => {
     if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
     if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
     setUploadedFile(null);
+    setRawFileObj(null);
+    setGeneratedLecture(null);
     setLectureTitle('');
     setUploadStatus('idle');
     setUploadProgress(0);

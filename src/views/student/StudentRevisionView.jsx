@@ -49,6 +49,9 @@ export const StudentRevisionView = () => {
             subjectAr: bms[0].courseTitleAr
           });
         }
+        if (Array.isArray(data.preExamChecklist)) {
+          setChecklist(data.preExamChecklist);
+        }
       })
       .catch(() => {});
     return () => {
@@ -67,21 +70,23 @@ export const StudentRevisionView = () => {
   };
 
   const handleResolveMistake = () => {
-    if (selectedRetryOption === null) return;
+    if (selectedRetryOption === null || !activeMistakeModal) return;
 
-    // Simulate correct resolution
-    setRetryResult('correct');
-    try {
-      confetti({
-        particleCount: 90,
-        spread: 60,
-        origin: { y: 0.6 }
-      });
-    } catch (e) {
-      // ignore
+    const isRight = Number(selectedRetryOption) === Number(activeMistakeModal.correctIndex);
+    setRetryResult(isRight ? 'correct' : 'wrong');
+
+    if (isRight) {
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {
+        // ignore
+      }
+      setMistakes(prev => prev.map(item => item.id === activeMistakeModal.id ? { ...item, solvedCorrectlyNow: true } : item));
     }
-
-    setMistakes(prev => prev.map(item => item.id === activeMistakeModal.id ? { ...item, solvedCorrectlyNow: true } : item));
   };
 
   const unsolvedMistakesCount = mistakes.filter(m => !m.solvedCorrectlyNow).length;
