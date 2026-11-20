@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Smartphone, Users, BookOpen } from 'lucide-react';
 import { RealQRCode } from '../../../components/common/RealQRCode';
 import { useGroups } from '../../../context/GroupsContext';
 import { useAuth } from '../../../context/AuthContext';
+import { copyTextToClipboard } from '../../../utils';
 
 export const ClassQrModal = ({
   showQrModal,
@@ -17,14 +18,28 @@ export const ClassQrModal = ({
   const [copied, setCopied] = useState(false);
   const [simulated, setSimulated] = useState(false);
 
+  useEffect(() => {
+    if (!showQrModal) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [showQrModal, onClose]);
+
   if (!showQrModal || !selectedClass) return null;
 
-  const qrValue = `https://motafawweq.me/join-group/${selectedClass.joinCode}`;
+  const cleanJoinCode = String(selectedClass.joinCode || selectedClass.join_code || '').trim().toUpperCase();
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://motafawweq.me';
+  const qrValue = cleanJoinCode ? `${origin}/join-group/${cleanJoinCode}` : origin;
 
-  const handleCopyCode = () => {
-    navigator.clipboard?.writeText(selectedClass.joinCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyCode = async () => {
+    if (!cleanJoinCode) return;
+    const ok = await copyTextToClipboard(cleanJoinCode);
+    if (ok) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleSimulateScan = () => {
@@ -165,7 +180,7 @@ export const ClassQrModal = ({
           }}
         >
           {copied ? <Check size={15} color="var(--primary)" /> : <Copy size={15} />}
-          <span>{selectedClass.joinCode}</span>
+          <span dir="ltr">{cleanJoinCode || '—'}</span>
         </div>
 
         {/* Action Buttons: Student mode vs Teacher mode */}

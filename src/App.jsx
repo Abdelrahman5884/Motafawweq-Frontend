@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { StudentActivityProvider } from './context/StudentActivityContext';
 import { BreadcrumbProvider } from './context/BreadcrumbContext';
 import { DialogProvider } from './context/DialogContext';
 
@@ -78,6 +79,12 @@ import { AdminDashboard } from './views/admin/AdminDashboard';
 
 const SIDEBAR_EXPANDED = 260;
 const SIDEBAR_COLLAPSED = 76;
+
+function JoinGroupRedirect() {
+  const { code } = useParams();
+  const clean = encodeURIComponent((code || '').trim().toUpperCase());
+  return <Navigate to={clean ? `/student/groups?joinCode=${clean}` : '/student/groups'} replace />;
+}
 
 // Shell layout component — proper fixed-sidebar architecture
 function AppShell({ children }) {
@@ -367,7 +374,8 @@ export default function App() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <GroupsProvider>
+          <StudentActivityProvider>
+            <GroupsProvider>
             <CenterProvider>
               <BrowserRouter>
                 <DialogProvider>
@@ -405,6 +413,7 @@ export default function App() {
                     <Route path="/teacher/processing" element={<AIProcessingScreen />} />
 
                     {/* Student Routes */}
+                    <Route path="/join-group/:code" element={<JoinGroupRedirect />} />
                     <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
                     <Route path="/student/dashboard" element={<StudentDashboard />} />
                     <Route path="/student/groups" element={<StudentGroupsView />} />
@@ -454,7 +463,8 @@ export default function App() {
               </DialogProvider>
             </BrowserRouter>
           </CenterProvider>
-        </GroupsProvider>
+            </GroupsProvider>
+          </StudentActivityProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

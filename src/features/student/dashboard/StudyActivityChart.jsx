@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { generateSplinePaths } from '../../../utils';
+import { clamp, generateSplinePaths } from '../../../utils';
 
-// Weekly Study Data (7 days) baseline
+// Fallback baseline when API hasn't returned yet
 const DEFAULT_WEEKLY_STUDY_DATA = [
   { dayAr: 'السبت', dayEn: 'Sat', minutes: 0, lessons: 0, isToday: false },
   { dayAr: 'الأحد', dayEn: 'Sun', minutes: 0, lessons: 0, isToday: false },
@@ -21,20 +21,22 @@ export const StudyActivityChart = ({
   themeAccent,
   studyData = DEFAULT_WEEKLY_STUDY_DATA,
   subjectMastery = DEFAULT_SUBJECT_MASTERY,
-  overallMasteryValue = 0
+  overallMasteryValue = 0,
+  selectedSubject = 'all',
+  onSelectSubject = null
 }) => {
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
 
   // Chart coordinate mapping (viewBox: 680 x 230)
   const chartWidth = 680;
   const chartHeight = 230;
-  const paddingLeft = 72; // Generous space so Y-axis labels never collide with Saturday dot
-  const paddingRight = 36;
+  const paddingLeft = 72;
+  const paddingRight = 38;
   const paddingTop = 36;
   const paddingBottom = 46;
   const baseline = chartHeight - paddingBottom;
   const highestDataMins = studyData.reduce((mx, d) => Math.max(mx, Number(d.minutes || 0)), 0);
-  const maxMinutes = Math.max(100, Math.ceil(highestDataMins / 25) * 25);
+  const maxMinutes = Math.max(60, Math.ceil(highestDataMins / 20) * 20);
 
   const points = studyData.map((item, idx) => {
     const xStep = (chartWidth - paddingLeft - paddingRight) / Math.max(1, studyData.length - 1);
@@ -44,18 +46,21 @@ export const StudyActivityChart = ({
     return { ...item, x, y };
   });
 
-  const { linePath, areaPath } = generateSplinePaths(points, baseline);
-  const yTicks = [1, 0.8, 0.6, 0.4, 0.2, 0].map(r => Math.round(maxMinutes * r));
+  const { linePath, areaPath } = generateSplinePaths(points, baseline, paddingTop);
+  const yTicks = [1, 0.75, 0.5, 0.25, 0].map(r => Math.round(maxMinutes * r));
 
   // Donut chart calculations
+  const safeMastery = clamp(Math.round(Number(overallMasteryValue) || 0), 0, 100);
   const donutRadius = 62;
   const donutCircumference = 2 * Math.PI * donutRadius;
-  const donutDashOffset = donutCircumference - (overallMasteryValue / 100) * donutCircumference;
+  const donutDashOffset = donutCircumference - (safeMastery / 100) * donutCircumference;
 
   // Adaptive theme colors for SVGs
   const themeGridStroke = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(15, 23, 42, 0.08)';
   const themeTrackStroke = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
   const themeAxisFill = isDark ? '#94A3B8' : '#64748B';
+
+  const hoveredPoint = hoveredPointIndex !== null ? points[hoveredPointIndex] : null;
 
   return (
     <div className="executive-charts-grid">
@@ -93,7 +98,7 @@ export const StudyActivityChart = ({
               </span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-              {lang === 'ar' ? 'إجمالي دقائق المذاكرة والحصص المنجزة يومياً' : 'Daily study minutes and completed sessions'}
+              {lang === 'ar' ? 'إجمالي دقائق تواجدك ومذاكرتك على المنصة يومياً' : 'Daily active minutes on the platform and completed lessons'}
             </p>
           </div>
 
@@ -115,11 +120,11 @@ export const StudyActivityChart = ({
         </div>
 
         {/* SVG Area Spline Visualizer */}
-        <div style={{ position: 'relative', width: '100%', height: '240px' }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio: `${chartWidth} / ${chartHeight}`, maxHeight: '260px' }}>
           <svg
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            preserveAspectRatio="none"
-            style={{ width: '100%', height: '100%', overflow: 'visible' }}
+            preserveAspectRatio="xMidYMid meet"
+            style={{ width: '100%', height: '100%', overflow: 'visible', display: 'block' }}
           >
             <defs>
               <linearGradient id="execAreaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -133,7 +138,7 @@ export const StudyActivityChart = ({
               </filter>
             </defs>
 
-            {/* Y-Axis Label: Title on top of the vertical axis */}
+            {/* Y-Axis Title */}
             <text
               x={paddingLeft - 10}
               y={paddingTop - 14}
@@ -197,9 +202,11 @@ export const StudyActivityChart = ({
             {/* Interactive Points, Vertical Guide Lines, Value Badges & X-Axis Labels */}
             {points.map((p, idx) => {
               const isHovered = hoveredPointIndex === idx;
+              const mins = Number(p.minutes || 0);
+              const badgeWidth = mins >= 100 ? 48 : 40;
               return (
-                <g key={idx}>
-                  {/* Vertical Guideline connecting point to day name */}
+                <g key={p.date || idx}>
+                  {/* Vertical Guideline */}
                   <line
                     x1={p.x}
                     y1={p.y + (p.isToday || isHovered ? 8 : 5)}
@@ -214,9 +221,9 @@ export const StudyActivityChart = ({
                   {/* Value Badge directly above the point */}
                   <g style={{ transition: 'transform 0.15s ease' }}>
                     <rect
-                      x={p.x - 19}
+                      x={p.x - badgeWidth / 2}
                       y={p.y - 25}
-                      width="38"
+                      width={badgeWidth}
                       height="17"
                       rx="5"
                       fill={p.isToday ? themeAccent : (isDark ? '#1E293B' : '#F1F5F9')}
@@ -232,7 +239,7 @@ export const StudyActivityChart = ({
                       fontWeight="800"
                       fontFamily="var(--font-heading)"
                     >
-                      {p.minutes} {lang === 'ar' ? 'د' : 'm'}
+                      {mins} {lang === 'ar' ? 'د' : 'm'}
                     </text>
                   </g>
 
@@ -240,7 +247,7 @@ export const StudyActivityChart = ({
                   <circle
                     cx={p.x}
                     cy={p.y}
-                    r="18"
+                    r="20"
                     fill="transparent"
                     style={{ cursor: 'pointer' }}
                     onMouseEnter={() => setHoveredPointIndex(idx)}
@@ -255,7 +262,7 @@ export const StudyActivityChart = ({
                       r={isHovered ? 8 : 6}
                       fill={isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.2)'}
                       filter="url(#glowEffect)"
-                      style={{ transition: 'r 0.2s ease' }}
+                      style={{ transition: 'r 0.2s ease', pointerEvents: 'none' }}
                     />
                   )}
 
@@ -267,7 +274,7 @@ export const StudyActivityChart = ({
                     fill={isDark ? '#0E1726' : '#FFFFFF'}
                     stroke={themeAccent}
                     strokeWidth="2.5"
-                    style={{ transition: 'r 0.2s ease, stroke-width 0.2s ease' }}
+                    style={{ transition: 'r 0.2s ease, stroke-width 0.2s ease', pointerEvents: 'none' }}
                   />
 
                   {/* Day Label */}
@@ -301,11 +308,11 @@ export const StudyActivityChart = ({
           </svg>
 
           {/* Floating Tooltip on Hover */}
-          {hoveredPointIndex !== null && (
+          {hoveredPoint && (
             <div style={{
               position: 'absolute',
-              left: `${(points[hoveredPointIndex].x / chartWidth) * 100}%`,
-              top: `${(points[hoveredPointIndex].y / chartHeight) * 100}%`,
+              left: `${(hoveredPoint.x / chartWidth) * 100}%`,
+              top: `${(hoveredPoint.y / chartHeight) * 100}%`,
               transform: 'translate(-50%, -145%)',
               background: isDark ? '#131E33' : '#FFFFFF',
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.35)' : 'rgba(2, 132, 199, 0.25)'}`,
@@ -321,12 +328,13 @@ export const StudyActivityChart = ({
               animation: 'fadeInArea 0.15s ease'
             }}>
               <div style={{ color: themeAccent, fontSize: '11px', marginBottom: '2px' }}>
-                {lang === 'ar' ? points[hoveredPointIndex].dayAr : points[hoveredPointIndex].dayEn}
+                {lang === 'ar' ? hoveredPoint.dayAr : hoveredPoint.dayEn}
+                {hoveredPoint.date ? ` • ${hoveredPoint.date}` : ''}
               </div>
               <div>
-                {points[hoveredPointIndex].minutes} {lang === 'ar' ? 'دقيقة' : 'mins'}
+                {hoveredPoint.minutes} {lang === 'ar' ? 'دقيقة' : 'mins'}
                 <span style={{ color: 'var(--text-muted)', marginInlineStart: '6px', fontSize: '11px' }}>
-                  ({points[hoveredPointIndex].lessons} {lang === 'ar' ? 'حصص' : 'lessons'})
+                  ({hoveredPoint.lessons || 0} {lang === 'ar' ? 'حصص' : 'lessons'})
                 </span>
               </div>
             </div>
@@ -399,7 +407,7 @@ export const StudyActivityChart = ({
               fontFamily: 'var(--font-heading)',
               lineHeight: 1
             }}>
-              {overallMasteryValue}%
+              {safeMastery}%
             </span>
             <span style={{
               fontSize: '11px',
@@ -412,11 +420,11 @@ export const StudyActivityChart = ({
           </div>
         </div>
 
-        {/* Subjects Mini Legend */}
+        {/* Interactive Subjects Mini Legend */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: subjectMastery.length > 0 ? 'repeat(2, 1fr)' : '1fr',
-          gap: '8px',
+          gap: '6px',
           paddingTop: '8px',
           borderTop: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.08)'}`
         }}>
@@ -425,23 +433,46 @@ export const StudyActivityChart = ({
               {lang === 'ar' ? 'لا توجد مقررات مفعّلة بعد لعرض توزيع الإتقان.' : 'No enrolled courses yet.'}
             </div>
           ) : (
-            subjectMastery.map((sub, i) => (
-              <div key={sub.id || i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: sub.color,
-                  flexShrink: 0
-                }} />
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {lang === 'ar' ? sub.nameAr : sub.nameEn}
-                </span>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  {sub.pct}%
-                </span>
-              </div>
-            ))
+            subjectMastery.map((sub, i) => {
+              const isSelected = selectedSubject === sub.id;
+              return (
+                <button
+                  key={sub.id || i}
+                  type="button"
+                  onClick={() => onSelectSubject && onSelectSubject(isSelected ? 'all' : sub.id)}
+                  title={lang === 'ar' ? 'اضغط للفلترة بهذه المادة' : 'Click to filter by this subject'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    padding: '4px 6px',
+                    borderRadius: '7px',
+                    border: isSelected ? `1px solid ${themeAccent}` : '1px solid transparent',
+                    background: isSelected
+                      ? (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.08)')
+                      : 'transparent',
+                    cursor: onSelectSubject ? 'pointer' : 'default',
+                    textAlign: 'inherit',
+                    width: '100%',
+                    minWidth: 0
+                  }}
+                >
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: sub.color,
+                    flexShrink: 0
+                  }} />
+                  <span style={{ fontSize: '12px', color: isSelected ? themeAccent : 'var(--text-secondary)', fontWeight: isSelected ? '700' : '500', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {lang === 'ar' ? sub.nameAr : (sub.nameEn || sub.nameAr)}
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    {sub.pct}%
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
       </div>

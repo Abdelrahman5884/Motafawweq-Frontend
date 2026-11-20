@@ -44,10 +44,13 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
           {upcomingExams.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {upcomingExams.slice(0, 3).map((exam) => (
-                <div
+                <button
                   key={exam.id}
-                  onClick={() => navigate('/student/exam')}
+                  type="button"
+                  onClick={() => navigate(`/student/exam?examId=${encodeURIComponent(exam.id)}`)}
                   style={{
+                    width: '100%',
+                    textAlign: isRtl ? 'right' : 'left',
                     padding: '10px 12px',
                     borderRadius: '10px',
                     backgroundColor: 'var(--bg-subtle)',
@@ -61,13 +64,15 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {exam.titleAr}
+                      {lang === 'ar' ? exam.titleAr : (exam.titleEn || exam.titleAr)}
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
-                      {exam.courseTitleAr && (
-                        <span style={{ color: '#D97706', fontWeight: '700' }}>{exam.courseTitleAr}</span>
+                      {(exam.courseTitleAr || exam.courseTitleEn) && (
+                        <span style={{ color: '#D97706', fontWeight: '700' }}>
+                          {lang === 'ar' ? exam.courseTitleAr : (exam.courseTitleEn || exam.courseTitleAr)}
+                        </span>
                       )}
-                      {exam.courseTitleAr && <span>•</span>}
+                      {(exam.courseTitleAr || exam.courseTitleEn) && <span>•</span>}
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                         <Clock size={11} />
                         {lang === 'ar' ? `${exam.durationMinutes || 30} دقيقة` : `${exam.durationMinutes || 30}m`}
@@ -80,8 +85,8 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
                       )}
                     </div>
                   </div>
-                  {isRtl ? <ArrowLeft size={14} color="#D97706" /> : <ArrowRight size={14} color="#D97706" />}
-                </div>
+                  {isRtl ? <ArrowLeft size={14} color="#D97706" style={{ flexShrink: 0 }} /> : <ArrowRight size={14} color="#D97706" style={{ flexShrink: 0 }} />}
+                </button>
               ))}
             </div>
           ) : (
@@ -153,10 +158,13 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
           {upcomingHomeworks.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {upcomingHomeworks.slice(0, 3).map((hw) => (
-                <div
+                <button
                   key={hw.id}
-                  onClick={() => navigate('/student/homework')}
+                  type="button"
+                  onClick={() => navigate(`/student/homework?homeworkId=${encodeURIComponent(hw.id)}`)}
                   style={{
+                    width: '100%',
+                    textAlign: isRtl ? 'right' : 'left',
                     padding: '10px 12px',
                     borderRadius: '10px',
                     backgroundColor: 'var(--bg-subtle)',
@@ -170,13 +178,15 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {hw.titleAr}
+                      {lang === 'ar' ? hw.titleAr : (hw.titleEn || hw.titleAr)}
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
-                      {hw.courseTitleAr && (
-                        <span style={{ color: '#DC2626', fontWeight: '700' }}>{hw.courseTitleAr}</span>
+                      {(hw.courseTitleAr || hw.courseTitleEn) && (
+                        <span style={{ color: '#DC2626', fontWeight: '700' }}>
+                          {lang === 'ar' ? hw.courseTitleAr : (hw.courseTitleEn || hw.courseTitleAr)}
+                        </span>
                       )}
-                      {hw.courseTitleAr && <span>•</span>}
+                      {(hw.courseTitleAr || hw.courseTitleEn) && <span>•</span>}
                       <span>
                         {lang === 'ar'
                           ? `${hw.maxGrade || hw.maxScore || 20} درجة`
@@ -190,8 +200,8 @@ export const UpcomingDeadlines = ({ upcomingExams = [], upcomingHomeworks = [], 
                       )}
                     </div>
                   </div>
-                  {isRtl ? <ArrowLeft size={14} color="#DC2626" /> : <ArrowRight size={14} color="#DC2626" />}
-                </div>
+                  {isRtl ? <ArrowLeft size={14} color="#DC2626" style={{ flexShrink: 0 }} /> : <ArrowRight size={14} color="#DC2626" style={{ flexShrink: 0 }} />}
+                </button>
               ))}
             </div>
           ) : (

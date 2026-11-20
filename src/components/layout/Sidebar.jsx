@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useStudentActivity } from '../../context/StudentActivityContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -41,8 +42,10 @@ import {
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
   const { currentRole, currentUser } = useAuth();
+  const { streakDays: liveStreakDays } = useStudentActivity();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
+  const sidebarStreakDays = Number(liveStreakDays || currentUser?.streakDays || 0);
 
   // Effective role derived from path or current user role
   const effectiveRole = location.pathname.startsWith('/center')
@@ -426,7 +429,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                 }}>
                   {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
                 </div>
-                {currentRole === 'student' && Number(currentUser?.streakDays || 0) > 0 && (
+                {currentRole === 'student' && sidebarStreakDays > 0 && (
                   <div
                     title={lang === 'ar' ? 'سلسلة الاستريك المتتالية' : 'Daily Streak'}
                     style={{
@@ -444,7 +447,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                     }}
                   >
                     <Flame size={12} color="#F59E0B" />
-                    <span>{currentUser.streakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
+                    <span>{sidebarStreakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
                   </div>
                 )}
               </div>

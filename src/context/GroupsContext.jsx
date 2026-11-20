@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { tokenStorage } from '../services/api';
 import { teacherApi } from '../services/teacherApi';
 import { studentApi } from '../services/studentApi';
+import { extractGroupJoinCode } from '../utils';
 import { useAuth } from './AuthContext';
 
 export const ALL_REGISTERED_STUDENTS = [];
@@ -58,15 +60,39 @@ export const parseScheduleSlots = (scheduleStr = '', defaultHall = 'القاعة
   return slots;
 };
 
+const EMPTY_NOTES_MAP = {
+  saturday: [],
+  sunday: [],
+  monday: [],
+  tuesday: [],
+  wednesday: [],
+  thursday: [],
+  friday: [],
+};
+
+const DAY_LABELS = {
+  saturday: { ar: 'السبت', en: 'Saturday' },
+  sunday: { ar: 'الأحد', en: 'Sunday' },
+  monday: { ar: 'الاثنين', en: 'Monday' },
+  tuesday: { ar: 'الثلاثاء', en: 'Tuesday' },
+  wednesday: { ar: 'الأربعاء', en: 'Wednesday' },
+  thursday: { ar: 'الخميس', en: 'Thursday' },
+  friday: { ar: 'الجمعة', en: 'Friday' },
+};
+
 const GroupsContext = createContext(null);
 
 export const GroupsProvider = ({ children }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated, authLoading } = useAuth();
+  const hasToken = Boolean(tokenStorage.getAccessToken());
   const isStudentRole = currentUser?.role === 'student';
-  const isTeacherRole = !currentUser?.role || currentUser?.role === 'teacher';
+  const isTeacherRole = currentUser?.role === 'teacher';
+  const activeUserId = isAuthenticated && hasToken && currentUser?.id ? String(currentUser.id) : '';
+  const studySessionsStorageKey = activeUserId ? `motafawweq_student_study_sessions_${activeUserId}` : '';
 
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
+  const [groupsError, setGroupsError] = useState(null);
 
   // Enrolled and pending students keyed by group id/uuid
   const [enrolledStudents, setEnrolledStudents] = useState({});
@@ -76,60 +102,55 @@ export const GroupsProvider = ({ children }) => {
   const [activeGroupId, setActiveGroupId] = useState('');
 
   // Schedule Notes per day
-  const [scheduleNotes, setScheduleNotes] = useState({
-    saturday: [],
-    sunday: [],
-    monday: [],
-    tuesday: [],
-    wednesday: [],
-    thursday: [],
-    friday: [],
-  });
+  const [scheduleNotes, setScheduleNotes] = useState(() => ({ ...EMPTY_NOTES_MAP }));
 
   // Student Study Sessions (Self-Study slots)
-  const [studentStudySessions, setStudentStudySessions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('motafawweq_student_study_sessions');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [studentStudySessions, setStudentStudySessions] = useState([]);
 
   // Global toast message notification
   const [toast, setToast] = useState(null);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
+    window.setTimeout(() => setToast(null), 3500);
   }, []);
 
   // Fetch groups from backend (role-aware: Teacher vs Student)
   const fetchGroups = useCallback(async () => {
-    if (!currentUser) {
+    if (authLoading) return;
+    if (!activeUserId || (!isStudentRole && !isTeacherRole)) {
+      setGroups([]);
+      setEnrolledStudents({});
+      setPendingStudents({});
+      setGroupsError(null);
       setLoadingGroups(false);
       return;
     }
+
     setLoadingGroups(true);
+    setGroupsError(null);
     try {
       if (isStudentRole) {
         const res = await studentApi.groups.list();
-        const rawList = res?.data || [];
+        const rawList = Array.isArray(res?.data) ? res.data : [];
         const enrolledMap = {};
         const pendingMap = {};
 
         const mappedGroups = rawList.map((g) => {
           const gid = g.groupId || g.id || g.uuid;
+          const status = g.enrollmentStatus || 'pending';
           const meEntry = {
             id: g.enrollmentId || gid,
             nameAr: currentUser?.nameAr || currentUser?.name || 'الطالب',
             name: currentUser?.name || currentUser?.nameAr || 'الطالب',
             phone: currentUser?.phone || '',
-            barcode: g.studentBarcode,
-            passcode: g.studentPasscode,
-            attendanceRate: g.attendanceRate ?? 100,
+            barcode: g.studentBarcode || null,
+            passcode: g.studentPasscode || null,
+            attendanceRate: Number(g.attendanceRate ?? 100),
+            attendedSessions: Number(g.attendedSessions ?? 0),
+            totalSessions: Number(g.totalSessions ?? 0),
           };
-          if (g.enrollmentStatus === 'enrolled') {
+          if (status === 'enrolled') {
             enrolledMap[gid] = [meEntry];
             pendingMap[gid] = [];
           } else {
@@ -137,23 +158,57 @@ export const GroupsProvider = ({ children }) => {
             pendingMap[gid] = [meEntry];
           }
 
+          const rawSlots = Array.isArray(g.scheduleSlots) ? g.scheduleSlots : [];
+          const normalizedSlots = rawSlots.length > 0
+            ? rawSlots.map((s) => {
+                const dayKey = String(s.day || s.day_of_week || '').toLowerCase();
+                const meta = DAY_LABELS[dayKey] || { ar: dayKey, en: dayKey };
+                return {
+                  id: s.id || `slot-${dayKey}-${s.startTime || ''}`,
+                  day: dayKey,
+                  dayAr: s.dayAr || meta.ar,
+                  dayEn: s.dayEn || meta.en,
+                  startTime: s.startTime || s.start_time || '16:00',
+                  endTime: s.endTime || s.end_time || '18:00',
+                  hall: s.hall || s.hall_name || g.hallName || 'القاعة الرئيسية',
+                };
+              })
+            : parseScheduleSlots(g.scheduleAr, g.hallName);
+
+          const rawPrice = g.priceEgp ?? g.price_egp ?? 0;
+          const numericPrice = !Number.isNaN(Number(rawPrice)) ? Number(rawPrice) : 0;
+
           return {
             id: gid,
             uuid: gid,
-            nameAr: g.nameAr || g.name_ar,
-            nameEn: g.nameEn || g.name_en || g.nameAr,
-            subjectAr: g.subjectAr || 'الأحياء (الثانوية العامة)',
-            gradeAr: g.gradeAr || 'الصف الثالث الثانوي',
-            scheduleAr: g.scheduleAr || '',
-            centerName: g.centerName || 'سنتر الرواد التعليمي',
-            hallName: g.hallName || 'القاعة الرئيسية',
-            teacherName: g.teacherName || '',
-            enrollmentStatus: g.enrollmentStatus,
-            studentBarcode: g.studentBarcode,
-            studentPasscode: g.studentPasscode,
-            scheduleSlots: Array.isArray(g.scheduleSlots) && g.scheduleSlots.length > 0
-              ? g.scheduleSlots
-              : parseScheduleSlots(g.scheduleAr, g.hallName),
+            enrollmentId: g.enrollmentId || gid,
+            courseId: g.courseId || null,
+            nameAr: g.nameAr || g.name_ar || '',
+            nameEn: g.nameEn || g.name_en || g.nameAr || '',
+            subjectAr: g.subjectAr || g.subject_ar || '',
+            subjectEn: g.subjectEn || g.subject_en || g.subjectAr || '',
+            gradeAr: g.gradeAr || g.grade_ar || '',
+            gradeEn: g.gradeEn || g.grade_en || g.gradeAr || '',
+            scheduleAr: g.scheduleAr || g.schedule_ar || '',
+            scheduleEn: g.scheduleEn || g.schedule_en || g.scheduleAr || '',
+            centerName: g.centerName || g.center_name || '',
+            hallName: g.hallName || g.hall_name || '',
+            priceEgp: numericPrice,
+            joinCode: String(g.joinCode || g.join_code || '').trim().toUpperCase(),
+            maxStudents: Number(g.maxStudents || g.max_students || 50),
+            enrolledCount: Number(g.enrolledCount || g.enrolled_count || 0),
+            teacherName: g.teacherName || g.teacherNameAr || '',
+            teacherNameAr: g.teacherNameAr || g.teacherName || '',
+            teacherNameEn: g.teacherNameEn || g.teacherName || '',
+            enrollmentStatus: status,
+            studentBarcode: g.studentBarcode || null,
+            studentPasscode: g.studentPasscode || null,
+            attendanceRate: Number(g.attendanceRate ?? 100),
+            attendedSessions: Number(g.attendedSessions ?? 0),
+            totalSessions: Number(g.totalSessions ?? 0),
+            enrolledAt: g.enrolledAt || null,
+            requestedAt: g.requestedAt || null,
+            scheduleSlots: normalizedSlots,
           };
         });
 
@@ -163,13 +218,8 @@ export const GroupsProvider = ({ children }) => {
         return;
       }
 
-      if (!isTeacherRole) {
-        setLoadingGroups(false);
-        return;
-      }
-
       const res = await teacherApi.groups.list();
-      const rawList = res?.data || [];
+      const rawList = Array.isArray(res?.data) ? res.data : [];
       const mappedGroups = rawList.map((g) => ({
         id: g.id || g.uuid,
         uuid: g.uuid || g.id,
@@ -183,26 +233,30 @@ export const GroupsProvider = ({ children }) => {
         scheduleEn: g.scheduleEn || g.schedule_en || 'Sundays & Wednesdays 4:00 PM',
         centerName: g.centerName || g.center_name || 'سنتر الرواد التعليمي',
         hallName: g.hallName || g.hall_name || 'القاعة الرئيسية',
-        priceEgp: (g.priceEgp !== undefined && g.priceEgp !== null && !isNaN(Number(g.priceEgp)))
+        priceEgp: (g.priceEgp !== undefined && g.priceEgp !== null && !Number.isNaN(Number(g.priceEgp)))
           ? Number(g.priceEgp)
-          : (g.price_egp !== undefined && g.price_egp !== null && !isNaN(Number(g.price_egp)))
+          : (g.price_egp !== undefined && g.price_egp !== null && !Number.isNaN(Number(g.price_egp)))
           ? Number(g.price_egp)
           : 0,
-        joinCode: g.joinCode || g.join_code,
+        joinCode: String(g.joinCode || g.join_code || '').trim().toUpperCase(),
         maxStudents: Number(g.maxStudents || g.max_students) || 50,
         enrolledCount: Number(g.enrolledCount || g.enrolled_count) || 0,
         pendingCount: Number(g.pendingCount || g.pending_count) || 0,
         status: g.status || 'active',
         scheduleSlots: Array.isArray(g.scheduleSlots || g.schedule_slots) && (g.scheduleSlots || g.schedule_slots).length > 0
-          ? (g.scheduleSlots || g.schedule_slots).map((s) => ({
-              id: s.id || `slot-${s.day || s.day_of_week}`,
-              day: s.day || s.day_of_week,
-              dayAr: s.dayAr || (s.day_of_week === 'sunday' ? 'الأحد' : s.day_of_week === 'monday' ? 'الاثنين' : s.day_of_week === 'tuesday' ? 'الثلاثاء' : s.day_of_week === 'wednesday' ? 'الأربعاء' : s.day_of_week === 'thursday' ? 'الخميس' : s.day_of_week === 'friday' ? 'الجمعة' : 'السبت'),
-              dayEn: s.dayEn || s.day_of_week,
-              startTime: s.startTime || s.start_time,
-              endTime: s.endTime || s.end_time,
-              hall: s.hall || s.hall_name || g.hallName || g.hall_name || 'القاعة الرئيسية',
-            }))
+          ? (g.scheduleSlots || g.schedule_slots).map((s) => {
+              const dayKey = String(s.day || s.day_of_week || '').toLowerCase();
+              const meta = DAY_LABELS[dayKey] || { ar: dayKey, en: dayKey };
+              return {
+                id: s.id || `slot-${dayKey}`,
+                day: dayKey,
+                dayAr: s.dayAr || meta.ar,
+                dayEn: s.dayEn || meta.en,
+                startTime: s.startTime || s.start_time,
+                endTime: s.endTime || s.end_time,
+                hall: s.hall || s.hall_name || g.hallName || g.hall_name || 'القاعة الرئيسية',
+              };
+            })
           : parseScheduleSlots(g.scheduleAr || g.schedule_ar, g.hallName || g.hall_name),
       }));
 
@@ -211,15 +265,15 @@ export const GroupsProvider = ({ children }) => {
         setActiveGroupId((prev) => (prev && mappedGroups.some((m) => m.id === prev) ? prev : mappedGroups[0].id));
       }
     } catch (err) {
-      console.warn('Teacher groups API fetch error:', err);
+      setGroupsError(err?.message || 'تعذر تحميل بيانات المجموعات الدراسية.');
     } finally {
       setLoadingGroups(false);
     }
-  }, [currentUser, isStudentRole, isTeacherRole]);
+  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, currentUser?.name, currentUser?.nameAr, currentUser?.phone]);
 
   // Fetch Roster for active group (Teacher only)
   const fetchGroupRoster = useCallback(async (groupId) => {
-    if (!groupId || !isTeacherRole || !currentUser) return;
+    if (authLoading || !groupId || !isTeacherRole || !activeUserId) return;
     try {
       const res = await teacherApi.roster.list(groupId);
       if (res?.data) {
@@ -228,14 +282,20 @@ export const GroupsProvider = ({ children }) => {
         setEnrolledStudents((prev) => ({ ...prev, [groupId]: enrolled }));
         setPendingStudents((prev) => ({ ...prev, [groupId]: pending }));
       }
-    } catch (err) {
-      console.warn(`Roster fetch failed for group ${groupId}:`, err);
+    } catch {
+      // ignore non-critical roster fetch errors
     }
-  }, [isTeacherRole, currentUser]);
+  }, [authLoading, isTeacherRole, activeUserId]);
 
   // Fetch Schedule Notes & Student Personal Study Sessions
   const fetchScheduleNotes = useCallback(async () => {
-    if (!currentUser) return;
+    if (authLoading) return;
+    if (!activeUserId || (!isStudentRole && !isTeacherRole)) {
+      setScheduleNotes({ ...EMPTY_NOTES_MAP });
+      setStudentStudySessions([]);
+      return;
+    }
+
     try {
       if (isStudentRole) {
         const res = await studentApi.schedule.getWeekly();
@@ -243,25 +303,15 @@ export const GroupsProvider = ({ children }) => {
           setStudentStudySessions(res.data.personalSessions);
         }
         if (res?.data?.scheduleNotes && typeof res.data.scheduleNotes === 'object') {
-          setScheduleNotes(res.data.scheduleNotes);
+          setScheduleNotes({ ...EMPTY_NOTES_MAP, ...res.data.scheduleNotes });
         }
         return;
       }
 
-      if (!isTeacherRole) return;
-
       const res = await teacherApi.schedule.getWeekly();
       const daysData = res?.data?.days;
       if (daysData && typeof daysData === 'object') {
-        const mapped = {
-          saturday: [],
-          sunday: [],
-          monday: [],
-          tuesday: [],
-          wednesday: [],
-          thursday: [],
-          friday: [],
-        };
+        const mapped = { ...EMPTY_NOTES_MAP };
         Object.keys(mapped).forEach((dayKey) => {
           if (Array.isArray(daysData[dayKey]?.notes)) {
             mapped[dayKey] = daysData[dayKey].notes;
@@ -269,12 +319,20 @@ export const GroupsProvider = ({ children }) => {
         });
         setScheduleNotes(mapped);
       } else if (res?.data?.notesByDay) {
-        setScheduleNotes(res.data.notesByDay);
+        setScheduleNotes({ ...EMPTY_NOTES_MAP, ...res.data.notesByDay });
       }
-    } catch (err) {
-      console.warn('Weekly schedule fetch error:', err);
+    } catch {
+      // Fallback to user-scoped local cache if offline
+      if (isStudentRole && studySessionsStorageKey) {
+        try {
+          const cached = localStorage.getItem(studySessionsStorageKey);
+          if (cached) setStudentStudySessions(JSON.parse(cached) || []);
+        } catch {
+          // ignore
+        }
+      }
     }
-  }, [currentUser, isStudentRole, isTeacherRole]);
+  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, studySessionsStorageKey]);
 
   useEffect(() => {
     fetchGroups();
@@ -282,16 +340,19 @@ export const GroupsProvider = ({ children }) => {
   }, [fetchGroups, fetchScheduleNotes]);
 
   useEffect(() => {
-    if (activeGroupId) {
+    if (activeGroupId && isTeacherRole) {
       fetchGroupRoster(activeGroupId);
     }
-  }, [activeGroupId, fetchGroupRoster]);
+  }, [activeGroupId, isTeacherRole, fetchGroupRoster]);
 
   useEffect(() => {
+    if (!studySessionsStorageKey || !isStudentRole) return;
     try {
-      localStorage.setItem('motafawweq_student_study_sessions', JSON.stringify(studentStudySessions));
-    } catch (e) {}
-  }, [studentStudySessions]);
+      localStorage.setItem(studySessionsStorageKey, JSON.stringify(studentStudySessions));
+    } catch {
+      // ignore storage errors
+    }
+  }, [studentStudySessions, studySessionsStorageKey, isStudentRole]);
 
   // Add new study group
   const addGroup = async (groupData) => {
@@ -478,21 +539,43 @@ export const GroupsProvider = ({ children }) => {
     }
   };
 
-  // Student scans QR or submits join code
+  // Student scans QR or submits join code (accepts raw code or full QR join URL)
   const studentJoinByCode = async (joinCode, extraData = {}) => {
-    const cleanCode = (joinCode || '').trim().toUpperCase();
+    const cleanCode = extractGroupJoinCode(joinCode);
+    if (!cleanCode) {
+      const msg = 'يرجى إدخال كود المجموعة أولاً.';
+      showToast(msg, 'warning');
+      return { success: false, message: msg, error: msg };
+    }
     try {
       const res = await studentApi.groups.join(cleanCode, {
-        parent_name_ar: extraData.parentNameAr,
-        parent_phone: extraData.parentPhone,
+        parent_name_ar: extraData.parentNameAr || undefined,
+        parent_phone: extraData.parentPhone || undefined,
       });
       await Promise.all([fetchGroups(), fetchScheduleNotes()]);
-      showToast('تم إرسال طلب الانضمام بنجاح! ظهرت مواعيد المجموعة في جدولك.');
-      return { success: true, message: res?.message || 'تم إرسال طلب الانضمام بنجاح!', data: res?.data };
+      const successMsg = res?.message || 'تم إرسال طلب الانضمام بنجاح! بانتظار موافقة المعلم.';
+      showToast(successMsg);
+      return { success: true, message: successMsg, data: res?.data };
     } catch (err) {
-      const errMsg = err?.errors?.join_code?.[0] || err.message || 'كود المجموعة غير صحيح أو انتهت صلاحيته';
+      const errMsg = err?.errors?.join_code?.[0] || err?.message || 'كود المجموعة غير صحيح أو انتهت صلاحيته';
       showToast(errMsg, 'warning');
       return { success: false, message: errMsg, error: errMsg };
+    }
+  };
+
+  // Student leaves an enrolled group or cancels a pending join request
+  const studentLeaveGroup = async (groupUuid) => {
+    if (!groupUuid) return { success: false, error: 'معرف المجموعة غير صالح.' };
+    try {
+      const res = await studentApi.groups.leave(groupUuid);
+      await Promise.all([fetchGroups(), fetchScheduleNotes()]);
+      const msg = res?.message || 'تم مغادرة المجموعة الدراسية بنجاح.';
+      showToast(msg);
+      return { success: true, message: msg };
+    } catch (err) {
+      const errMsg = err?.message || 'تعذر مغادرة المجموعة حالياً.';
+      showToast(errMsg, 'warning');
+      return { success: false, error: errMsg };
     }
   };
 
@@ -572,13 +655,20 @@ export const GroupsProvider = ({ children }) => {
 
   const toggleScheduleNote = async (dayKey, noteId) => {
     if (isStudentRole) {
+      setScheduleNotes((prev) => ({
+        ...prev,
+        [dayKey]: (prev[dayKey] || []).map((n) => (n.id === noteId ? { ...n, isDone: !n.isDone } : n)),
+      }));
       try {
         await studentApi.schedule.toggleNote(noteId);
+      } catch (err) {
+        // Revert optimistic update on failure
         setScheduleNotes((prev) => ({
           ...prev,
           [dayKey]: (prev[dayKey] || []).map((n) => (n.id === noteId ? { ...n, isDone: !n.isDone } : n)),
         }));
-      } catch {}
+        showToast(err?.message || 'تعذر تحديث حالة الملحوظة.', 'warning');
+      }
       return;
     }
 
@@ -586,7 +676,7 @@ export const GroupsProvider = ({ children }) => {
       await teacherApi.schedule.toggleNote(noteId);
       await fetchScheduleNotes();
     } catch (err) {
-      console.error('Failed to toggle note:', err);
+      showToast(err?.message || 'تعذر تحديث الملحوظة.', 'warning');
     }
   };
 
@@ -610,14 +700,13 @@ export const GroupsProvider = ({ children }) => {
       await fetchScheduleNotes();
       showToast('تم حذف الملاحظة بنجاح.');
     } catch (err) {
-      console.error('Failed to delete note:', err);
-      showToast(err.message || 'فشل حذف الملاحظة.', 'warning');
+      showToast(err?.message || 'فشل حذف الملاحظة.', 'warning');
     }
   };
 
   // Student Study Sessions Handlers (backed by /api/v1/student/study-sessions with overlap protection)
   const addStudySession = async (session) => {
-    if (isStudentRole && currentUser) {
+    if (isStudentRole && activeUserId) {
       try {
         const res = await studentApi.schedule.createStudySession({
           day: session.day || 'tuesday',
@@ -657,12 +746,20 @@ export const GroupsProvider = ({ children }) => {
   };
 
   const updateStudySession = async (id, updatedData) => {
-    if (isStudentRole && currentUser && !String(id).startsWith('study-')) {
+    if (isStudentRole && activeUserId && !String(id).startsWith('study-')) {
       try {
-        const res = await studentApi.schedule.updateStudySession(id, updatedData);
+        const res = await studentApi.schedule.updateStudySession(id, {
+          day: updatedData.day,
+          subject: updatedData.subject,
+          title: updatedData.title,
+          startTime: updatedData.startTime,
+          endTime: updatedData.endTime,
+          color: updatedData.color,
+          notes: updatedData.notes || '',
+        });
         setStudentStudySessions((prev) => prev.map((s) => (s.id === id ? res.data : s)));
         showToast('تم تحديث جلسة المذاكرة بنجاح.');
-        return;
+        return res.data;
       } catch (err) {
         const msg = err?.errors?.start_time?.[0] || err.message || 'فشل تحديث جلسة المذاكرة.';
         showToast(msg, 'warning');
@@ -673,24 +770,33 @@ export const GroupsProvider = ({ children }) => {
       prev.map((s) => (s.id === id ? { ...s, ...updatedData } : s))
     );
     showToast('تم تحديث جلسة المذاكرة بنجاح.');
+    return updatedData;
   };
 
   const toggleStudySession = async (id) => {
-    if (isStudentRole && currentUser && !String(id).startsWith('study-')) {
-      try {
-        await studentApi.schedule.toggleStudySession(id);
-      } catch {}
-    }
     setStudentStudySessions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, isCompleted: !s.isCompleted } : s))
     );
+    if (isStudentRole && activeUserId && !String(id).startsWith('study-')) {
+      try {
+        await studentApi.schedule.toggleStudySession(id);
+      } catch (err) {
+        setStudentStudySessions((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, isCompleted: !s.isCompleted } : s))
+        );
+        showToast(err?.message || 'تعذر تحديث حالة جلسة المذاكرة.', 'warning');
+      }
+    }
   };
 
   const deleteStudySession = async (id) => {
-    if (isStudentRole && currentUser && !String(id).startsWith('study-')) {
+    if (isStudentRole && activeUserId && !String(id).startsWith('study-')) {
       try {
         await studentApi.schedule.deleteStudySession(id);
-      } catch {}
+      } catch (err) {
+        showToast(err?.message || 'تعذر حذف جلسة المذاكرة.', 'warning');
+        return;
+      }
     }
     setStudentStudySessions((prev) => prev.filter((s) => s.id !== id));
     showToast('تم حذف جلسة المذاكرة من جدولك.');
@@ -700,11 +806,17 @@ export const GroupsProvider = ({ children }) => {
     return groups.find((g) => g.id === activeGroupId) || groups[0] || null;
   };
 
+  const refreshGroups = useCallback(async () => {
+    await Promise.all([fetchGroups(), fetchScheduleNotes()]);
+  }, [fetchGroups, fetchScheduleNotes]);
+
   return (
     <GroupsContext.Provider
       value={{
         groups,
         loadingGroups,
+        groupsError,
+        refreshGroups,
         activeGroupId,
         setActiveGroupId,
         getActiveGroup,
@@ -718,6 +830,7 @@ export const GroupsProvider = ({ children }) => {
         removeStudentFromGroup,
         inviteStudentToGroup,
         studentJoinByCode,
+        studentLeaveGroup,
         toggleStudentAttendance,
         recordStudentAttendanceByCode,
         scheduleNotes,

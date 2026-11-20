@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useGroups } from '../../../context/GroupsContext';
@@ -13,19 +13,13 @@ import {
   Circle,
   Plus,
   Trash2,
-  Sparkles,
+  Pencil,
   Flame,
   Search,
   Check,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Layers,
   GraduationCap,
-  Award,
   AlertCircle,
   StickyNote,
-  UserCheck,
   Target
 } from 'lucide-react';
 
@@ -40,7 +34,7 @@ export const DAYS_CONFIG = [
 ];
 
 export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
-  const { lang, isRtl } = useLanguage();
+  const { lang } = useLanguage();
   const { isDark } = useTheme();
   const { currentUser } = useAuth();
   const isAr = lang === 'ar';
@@ -50,6 +44,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
     enrolledStudents,
     studentStudySessions,
     addStudySession,
+    updateStudySession,
     toggleStudySession,
     deleteStudySession,
     scheduleNotes,
@@ -66,12 +61,14 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
   }, []);
 
   const [selectedDayKey, setSelectedDayKey] = useState(todayKey);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'focus' | 'agenda'
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'focus'
   const [filterType, setFilterType] = useState('all'); // 'all' | 'center' | 'study'
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Add Study Session Modal State
+  // Add / Edit Study Session Modal State
   const [studyModalOpen, setStudyModalOpen] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [isSavingStudy, setIsSavingStudy] = useState(false);
   const [newStudy, setNewStudy] = useState({
     subject: 'الأحياء (الثانوية العامة)',
     title: '',
@@ -85,10 +82,24 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
   // Add Note Modal State
   const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteTargetDay, setNoteTargetDay] = useState(todayKey);
   const [noteText, setNoteText] = useState('');
   const [noteTime, setNoteTime] = useState('18:00');
   const [notePriority, setNotePriority] = useState('medium');
+
+  useEffect(() => {
+    if (!studyModalOpen && !noteModalOpen) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setStudyModalOpen(false);
+        setEditingSessionId(null);
+        setNoteModalOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [studyModalOpen, noteModalOpen]);
 
   const studentNameAr = currentUser?.nameAr || currentUser?.name || '';
   const studentPhone = currentUser?.phone || '';
@@ -210,13 +221,29 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
     };
   }, [enrolledGroups, studentStudySessions]);
 
-  const formatTimeTo12h = (t24) => {
+  const formatTimeTo12h = useCallback((t24) => {
     if (!t24) return '';
     const [h, m] = t24.split(':').map(Number);
     const period = h >= 12 ? (isAr ? 'م' : 'PM') : (isAr ? 'ص' : 'AM');
     const h12 = h % 12 || 12;
     return `${h12}:${m < 10 ? '0' + m : m} ${period}`;
-  };
+  }, [isAr]);
+
+  const availableSubjects = useMemo(() => {
+    const base = [
+      'الأحياء (الثانوية العامة)',
+      'الفيزياء (الثانوية العامة)',
+      'الكيمياء',
+      'اللغة العربية',
+      'اللغة الإنجليزية',
+      'الرياضيات',
+      'الجيولوجيا وعلوم البيئة'
+    ];
+    const enrolledSubjs = enrolledGroups
+      .map((g) => (g.subjectAr || '').trim())
+      .filter(Boolean);
+    return Array.from(new Set([...enrolledSubjs, ...base]));
+  }, [enrolledGroups]);
 
   const studyConflictError = useMemo(() => {
     const parseMin = (t) => {
@@ -233,6 +260,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
     }
     const daySessions = timetableByDay[newStudy.day] || [];
     for (const s of daySessions) {
+      if (editingSessionId && s.id === editingSessionId) continue;
       const sStart = parseMin(s.startTime);
       const sEnd = parseMin(s.endTime);
       if (sStart >= 0 && sEnd > sStart && startMin < sEnd && endMin > sStart) {
@@ -242,42 +270,85 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
       }
     }
     return '';
-  }, [newStudy.day, newStudy.startTime, newStudy.endTime, timetableByDay, isAr]);
+  }, [newStudy.day, newStudy.startTime, newStudy.endTime, timetableByDay, editingSessionId, isAr, formatTimeTo12h]);
+
+  const openCreateStudyModal = (dayKey) => {
+    setEditingSessionId(null);
+    setNewStudy({
+      subject: availableSubjects[0] || 'الأحياء (الثانوية العامة)',
+      title: '',
+      day: dayKey || selectedDayKey,
+      startTime: '19:00',
+      endTime: '21:00',
+      durationMinutes: 120,
+      notes: '',
+      color: '#1588C7'
+    });
+    setStudyModalOpen(true);
+  };
+
+  const openEditStudyModal = (item, dayKey) => {
+    setEditingSessionId(item.id);
+    setNewStudy({
+      subject: item.subject || availableSubjects[0] || 'الأحياء (الثانوية العامة)',
+      title: item.title || '',
+      day: dayKey || selectedDayKey,
+      startTime: item.startTime || '19:00',
+      endTime: item.endTime || '21:00',
+      durationMinutes: item.durationMinutes || 120,
+      notes: item.notes || '',
+      color: item.color || '#1588C7'
+    });
+    setStudyModalOpen(true);
+  };
 
   const handleSaveStudySession = async (e) => {
     e.preventDefault();
-    if (!newStudy.title.trim() || studyConflictError) return;
+    if (!newStudy.title.trim() || studyConflictError || isSavingStudy) return;
+    setIsSavingStudy(true);
+    const computedDuration = Math.max(
+      15,
+      (Number(newStudy.endTime.split(':')[0]) * 60 + Number(newStudy.endTime.split(':')[1])) -
+        (Number(newStudy.startTime.split(':')[0]) * 60 + Number(newStudy.startTime.split(':')[1]))
+    );
     try {
-      await addStudySession({
-        ...newStudy,
-        durationMinutes: Math.max(15, (Number(newStudy.endTime.split(':')[0]) * 60 + Number(newStudy.endTime.split(':')[1])) - (Number(newStudy.startTime.split(':')[0]) * 60 + Number(newStudy.startTime.split(':')[1])))
-      });
-      setNewStudy({
-        subject: 'الأحياء (الثانوية العامة)',
-        title: '',
-        day: todayKey,
-        startTime: '19:00',
-        endTime: '21:00',
-        durationMinutes: 120,
-        notes: '',
-        color: '#1588C7'
-      });
+      if (editingSessionId) {
+        await updateStudySession(editingSessionId, {
+          ...newStudy,
+          durationMinutes: computedDuration
+        });
+      } else {
+        await addStudySession({
+          ...newStudy,
+          durationMinutes: computedDuration
+        });
+      }
+      setEditingSessionId(null);
       setStudyModalOpen(false);
     } catch {
       // Keep modal open when server rejects due to overlap
+    } finally {
+      setIsSavingStudy(false);
     }
   };
 
-  const handleSaveNote = (e) => {
+  const handleSaveNote = async (e) => {
     e.preventDefault();
-    if (!noteText.trim()) return;
-    addScheduleNote(noteTargetDay, {
-      text: noteText.trim(),
-      time: noteTime,
-      priority: notePriority
-    });
-    setNoteText('');
-    setNoteModalOpen(false);
+    if (!noteText.trim() || isSavingNote) return;
+    setIsSavingNote(true);
+    try {
+      await addScheduleNote(noteTargetDay, {
+        text: noteText.trim(),
+        time: noteTime,
+        priority: notePriority
+      });
+      setNoteText('');
+      setNoteTime('18:00');
+      setNotePriority('medium');
+      setNoteModalOpen(false);
+    } finally {
+      setIsSavingNote(false);
+    }
   };
 
   return (
@@ -691,10 +762,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
           {/* Add Study Session Button */}
           <button
-            onClick={() => {
-              setNewStudy(prev => ({ ...prev, day: selectedDayKey }));
-              setStudyModalOpen(true);
-            }}
+            type="button"
+            onClick={() => openCreateStudyModal(selectedDayKey)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -1104,10 +1173,10 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
                   {/* Add Study Session / Note trigger */}
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setNewStudy(prev => ({ ...prev, day: day.key }));
-                      setStudyModalOpen(true);
+                      openCreateStudyModal(day.key);
                     }}
                     style={{
                       width: '100%',
@@ -1224,10 +1293,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
               </button>
 
               <button
-                onClick={() => {
-                  setNewStudy(prev => ({ ...prev, day: selectedDayKey }));
-                  setStudyModalOpen(true);
-                }}
+                type="button"
+                onClick={() => openCreateStudyModal(selectedDayKey)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1397,6 +1464,23 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                         </button>
 
                         <button
+                          type="button"
+                          onClick={() => openEditStudyModal(item, selectedDayKey)}
+                          style={{
+                            padding: '8px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-subtle)',
+                            backgroundColor: 'transparent',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer'
+                          }}
+                          title={isAr ? 'تعديل الجلسة' : 'Edit'}
+                        >
+                          <Pencil size={14} />
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => deleteStudySession(item.id)}
                           style={{
                             padding: '8px',
@@ -1412,16 +1496,22 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                         </button>
                       </>
                     ) : (
-                      <span style={{
-                        fontSize: '11.5px',
-                        fontWeight: '800',
-                        color: 'var(--primary)',
-                        backgroundColor: 'var(--primary-surface)',
-                        padding: '6px 12px',
-                        borderRadius: '8px'
-                      }}>
-                        {isAr ? 'كود: ' + item.joinCode : item.joinCode}
-                      </span>
+                      item.joinCode ? (
+                        <span
+                          dir="ltr"
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: '800',
+                            fontFamily: 'monospace',
+                            color: 'var(--primary)',
+                            backgroundColor: 'var(--primary-surface)',
+                            padding: '6px 12px',
+                            borderRadius: '8px'
+                          }}
+                        >
+                          {item.joinCode}
+                        </span>
+                      ) : null
                     )}
                   </div>
                 </div>
@@ -1537,37 +1627,46 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
         </div>
       )}
 
-      {/* ── MODAL: ADD STUDY SESSION ── */}
+      {/* ── MODAL: ADD / EDIT STUDY SESSION ── */}
       {studyModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(4, 25, 53, 0.75)',
-          backdropFilter: 'blur(6px)',
-          zIndex: 10001,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: '18px',
-            padding: '24px',
-            maxWidth: '480px',
-            width: '100%',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-lg)'
-          }}>
+        <div
+          onClick={() => { setStudyModalOpen(false); setEditingSessionId(null); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(4, 25, 53, 0.75)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 10001,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: '18px',
+              padding: '24px',
+              maxWidth: '480px',
+              width: '100%',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-lg)'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <BookOpen size={20} color="var(--primary)" />
                 <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                  {isAr ? 'إضافة جلسة استذكار ومراجعة' : 'Add Self-Study Session'}
+                  {editingSessionId
+                    ? (isAr ? 'تعديل جلسة الاستذكار والمراجعة' : 'Edit Self-Study Session')
+                    : (isAr ? 'إضافة جلسة استذكار ومراجعة' : 'Add Self-Study Session')}
                 </h3>
               </div>
               <button
-                onClick={() => setStudyModalOpen(false)}
+                type="button"
+                onClick={() => { setStudyModalOpen(false); setEditingSessionId(null); }}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
               >
                 ✕
@@ -1595,13 +1694,9 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                     outline: 'none'
                   }}
                 >
-                  <option value="الأحياء (الثانوية العامة)">{isAr ? 'الأحياء (الثانوية العامة)' : 'Biology'}</option>
-                  <option value="الفيزياء (الثانوية العامة)">{isAr ? 'الفيزياء (الثانوية العامة)' : 'Physics'}</option>
-                  <option value="الكيمياء">{isAr ? 'الكيمياء' : 'Chemistry'}</option>
-                  <option value="اللغة العربية">{isAr ? 'اللغة العربية' : 'Arabic'}</option>
-                  <option value="اللغة الإنجليزية">{isAr ? 'اللغة الإنجليزية' : 'English'}</option>
-                  <option value="الرياضيات">{isAr ? 'الرياضيات والرياضيات التطبيقية' : 'Mathematics'}</option>
-                  <option value="الجيولوجيا وعلوم البيئة">{isAr ? 'الجيولوجيا وعلوم البيئة' : 'Geology'}</option>
+                  {availableSubjects.map((subj) => (
+                    <option key={subj} value={subj}>{subj}</option>
+                  ))}
                 </select>
               </div>
 
@@ -1765,19 +1860,23 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
                 <button
                   type="submit"
-                  disabled={Boolean(studyConflictError)}
+                  disabled={Boolean(studyConflictError) || isSavingStudy}
                   style={{
                     padding: '8px 18px',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: studyConflictError ? 'var(--text-muted)' : 'var(--primary)',
+                    backgroundColor: studyConflictError || isSavingStudy ? 'var(--text-muted)' : 'var(--primary)',
                     color: '#FFFFFF',
                     fontWeight: '800',
-                    cursor: studyConflictError ? 'not-allowed' : 'pointer',
-                    opacity: studyConflictError ? 0.65 : 1
+                    cursor: studyConflictError || isSavingStudy ? 'not-allowed' : 'pointer',
+                    opacity: studyConflictError || isSavingStudy ? 0.65 : 1
                   }}
                 >
-                  {isAr ? 'تأكيد الإضافة للجدول' : 'Add to Schedule'}
+                  {isSavingStudy
+                    ? (isAr ? 'جاري الحفظ...' : 'Saving...')
+                    : editingSessionId
+                    ? (isAr ? 'حفظ التعديلات' : 'Save Changes')
+                    : (isAr ? 'تأكيد الإضافة للجدول' : 'Add to Schedule')}
                 </button>
               </div>
             </form>
@@ -1787,26 +1886,32 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
       {/* ── MODAL: ADD DAILY NOTE ── */}
       {noteModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(4, 25, 53, 0.75)',
-          backdropFilter: 'blur(6px)',
-          zIndex: 10001,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: '18px',
-            padding: '24px',
-            maxWidth: '440px',
-            width: '100%',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-lg)'
-          }}>
+        <div
+          onClick={() => setNoteModalOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(4, 25, 53, 0.75)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 10001,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: '18px',
+              padding: '24px',
+              maxWidth: '440px',
+              width: '100%',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-lg)'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <StickyNote size={20} color="var(--primary)" />
@@ -1815,6 +1920,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setNoteModalOpen(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
               >
@@ -1848,6 +1954,53 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 />
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    {isAr ? 'الوقت (اختياري)' : 'Time'}
+                  </label>
+                  <input
+                    type="time"
+                    value={noteTime}
+                    onChange={(e) => setNoteTime(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    {isAr ? 'الأولوية' : 'Priority'}
+                  </label>
+                  <select
+                    value={notePriority}
+                    onChange={(e) => setNotePriority(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="low">{isAr ? 'عادية' : 'Low'}</option>
+                    <option value="medium">{isAr ? 'متوسطة' : 'Medium'}</option>
+                    <option value="high">{isAr ? 'عاجلة' : 'High'}</option>
+                  </select>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button
                   type="button"
@@ -1867,6 +2020,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
                 <button
                   type="submit"
+                  disabled={isSavingNote || !noteText.trim()}
                   style={{
                     padding: '8px 18px',
                     borderRadius: '8px',
@@ -1874,10 +2028,11 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                     backgroundColor: 'var(--primary)',
                     color: '#FFFFFF',
                     fontWeight: '800',
-                    cursor: 'pointer'
+                    cursor: isSavingNote ? 'wait' : 'pointer',
+                    opacity: isSavingNote || !noteText.trim() ? 0.65 : 1
                   }}
                 >
-                  {isAr ? 'حفظ الملحوظة' : 'Save Note'}
+                  {isSavingNote ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ الملحوظة' : 'Save Note')}
                 </button>
               </div>
             </form>

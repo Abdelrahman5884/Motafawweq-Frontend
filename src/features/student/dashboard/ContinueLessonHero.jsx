@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Play, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccent }) => {
   const navigate = useNavigate();
@@ -40,7 +40,11 @@ export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccen
     );
   }
 
-  const hasStarted = Number(lastLesson.progressPercent || 0) > 0 && lastLesson.pausedMinute && lastLesson.pausedMinute !== '00:00';
+  const isCompleted = Boolean(lastLesson.isCompleted || Number(lastLesson.progressPercent || 0) >= 100);
+  const hasStarted = !isCompleted && (
+    Number(lastLesson.progressPercent || 0) > 0 ||
+    (Boolean(lastLesson.pausedMinute) && lastLesson.pausedMinute !== '00:00')
+  );
   const subjectName = lang === 'ar' ? lastLesson.subjectAr : (lastLesson.subjectEn || lastLesson.subjectAr);
   const teacherName = lang === 'ar' ? lastLesson.teacherAr : (lastLesson.teacherEn || lastLesson.teacherAr);
 
@@ -61,14 +65,16 @@ export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccen
             width: '46px',
             height: '46px',
             borderRadius: '12px',
-            background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)',
-            color: themeAccent,
+            background: isCompleted
+              ? 'rgba(16, 185, 129, 0.14)'
+              : (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)'),
+            color: isCompleted ? '#10B981' : themeAccent,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0
           }}>
-            <Play size={22} fill={themeAccent} />
+            {isCompleted ? <CheckCircle2 size={22} /> : <Play size={22} fill={themeAccent} />}
           </div>
 
           <div>
@@ -78,11 +84,17 @@ export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccen
                 fontWeight: '700',
                 padding: '2px 8px',
                 borderRadius: '6px',
-                background: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)',
-                color: themeAccent,
-                border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)'}`
+                background: isCompleted
+                  ? 'rgba(16, 185, 129, 0.12)'
+                  : (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)'),
+                color: isCompleted ? '#10B981' : themeAccent,
+                border: `1px solid ${isCompleted
+                  ? 'rgba(16, 185, 129, 0.25)'
+                  : (isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)')}`
               }}>
-                {hasStarted
+                {isCompleted
+                  ? (lang === 'ar' ? 'حصة مكتملة — جاهزة للمراجعة' : 'Completed — Ready to Review')
+                  : hasStarted
                   ? (lang === 'ar' ? 'آخر درس توقفت عنده' : 'Last Studied Lesson')
                   : (lang === 'ar' ? 'الحصة المقترحة للبدء' : 'Next Up Lesson')}
               </span>
@@ -104,7 +116,11 @@ export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccen
 
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span>
-                {hasStarted
+                {isCompleted
+                  ? (lang === 'ar'
+                      ? `أتممت مشاهدة الحصة بالكامل (${lastLesson.totalDuration})`
+                      : `Completed full lesson (${lastLesson.totalDuration})`)
+                  : hasStarted
                   ? (lang === 'ar'
                       ? `توقفت عند الدقيقة ${lastLesson.pausedMinute} من ${lastLesson.totalDuration} (متبقي ${lastLesson.remainingMinutes} دقيقة)`
                       : `Paused at ${lastLesson.pausedMinute} / ${lastLesson.totalDuration} (${lastLesson.remainingMinutes}m left)`)
@@ -133,7 +149,7 @@ export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccen
               <span>{lang === 'ar' ? `الدرس ${lastLesson.lessonNumber} من ${lastLesson.totalLessons}` : `Lesson ${lastLesson.lessonNumber}/${lastLesson.totalLessons}`}</span>
             </div>
             <div style={{ height: '6px', background: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)', borderRadius: '99px', overflow: 'hidden' }}>
-              <div style={{ width: `${lastLesson.progressPercent}%`, height: '100%', background: themeAccent, borderRadius: '99px' }} />
+              <div style={{ width: `${Math.min(100, Math.max(0, Number(lastLesson.progressPercent || 0)))}%`, height: '100%', background: isCompleted ? '#10B981' : themeAccent, borderRadius: '99px' }} />
             </div>
           </div>
 
@@ -162,8 +178,10 @@ export const ContinueLessonHero = ({ lastLesson, lang, isRtl, isDark, themeAccen
           >
             <Play size={16} fill="#FFFFFF" />
             <span>
-              {hasStarted
-                ? (lang === 'ar' ? `أكمل من حيث توقفت (${lastLesson.pausedMinute})` : 'Resume Where You Left Off')
+              {isCompleted
+                ? (lang === 'ar' ? 'مراجعة الحصة' : 'Review Lesson')
+                : hasStarted
+                ? (lang === 'ar' ? `أكمل من حيث توقفت (${lastLesson.pausedMinute})` : `Resume (${lastLesson.pausedMinute})`)
                 : (lang === 'ar' ? 'ابدأ مشاهدة الحصة الآن' : 'Start Lesson Now')}
             </span>
             {isRtl ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}

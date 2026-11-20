@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { studentApi } from '../../services/studentApi';
@@ -10,6 +10,7 @@ import { HomeworkCard, HomeworkSubmissionModal } from '../../features/student/ho
 export const StudentHomeworkView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
+  const deepLinkHandledRef = useRef(false);
 
   const [homeworksList, setHomeworksList] = useState([]);
   const [filterTab, setFilterTab] = useState('all');
@@ -25,7 +26,7 @@ export const StudentHomeworkView = () => {
     try {
       const res = await studentApi.homeworks.list();
       const raw = Array.isArray(res?.data) ? res.data : [];
-      setHomeworksList(raw.map((h) => ({
+      const mapped = raw.map((h) => ({
         id: h.id || h.uuid,
         titleAr: h.titleAr,
         subjectAr: h.courseTitleAr || h.lessonTitleAr || 'واجب دراسي',
@@ -36,7 +37,23 @@ export const StudentHomeworkView = () => {
         earnedScore: h.score !== null && h.score !== undefined ? Number(h.score) : 0,
         questionsCount: 1,
         feedbackAr: h.feedbackAr || ''
-      })));
+      }));
+      setHomeworksList(mapped);
+
+      if (!deepLinkHandledRef.current && typeof window !== 'undefined') {
+        const requestedHwId = new URLSearchParams(window.location.search).get('homeworkId');
+        if (requestedHwId) {
+          deepLinkHandledRef.current = true;
+          const targetHw = mapped.find((item) => item.id === requestedHwId);
+          if (targetHw) {
+            setSelectedHw(targetHw);
+            setAnswerText('');
+            setUploadedFileName('');
+            setSelectedFileObj(null);
+            setShowPdfPreview(true);
+          }
+        }
+      }
     } catch {
       // ignore
     }

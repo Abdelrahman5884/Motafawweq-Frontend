@@ -175,7 +175,7 @@ async function refreshTokenPair() {
 
 const NON_REFRESHABLE_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/password/forgot', '/auth/password/verify-otp', '/auth/password/reset'];
 
-export async function apiRequest(path, { method = 'GET', body, headers: extraHeaders = {}, tokenOverride, skipAuthRefresh = false } = {}) {
+export async function apiRequest(path, { method = 'GET', body, headers: extraHeaders = {}, tokenOverride, skipAuthRefresh = false, keepalive = false } = {}) {
   const token = tokenOverride ?? tokenStorage.getAccessToken();
   const lang = getActiveLang();
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
@@ -202,6 +202,7 @@ export async function apiRequest(path, { method = 'GET', body, headers: extraHea
       method,
       headers: buildHeaders(token),
       body: serializedBody,
+      keepalive,
     });
   } catch {
     throw new ApiError({

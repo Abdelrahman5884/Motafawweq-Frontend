@@ -16,6 +16,7 @@ export const DashboardHeader = ({
   currentSubjectLabel
 }) => {
   const [isAvatarLightboxOpen, setIsAvatarLightboxOpen] = useState(false);
+  const [failedAvatarSrc, setFailedAvatarSrc] = useState(null);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -25,8 +26,17 @@ export const DashboardHeader = ({
         setSubjectDropdownOpen(false);
       }
     };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setSubjectDropdownOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [subjectDropdownOpen, setSubjectDropdownOpen]);
 
   const firstName = (lang === 'ar' ? (student.nameAr || student.name) : (student.name || student.nameAr) || '')
@@ -34,6 +44,7 @@ export const DashboardHeader = ({
     .split(/\s+/)[0] || (lang === 'ar' ? 'بطل' : 'Student');
 
   const gradeBadge = student.gradeNameAr || (lang === 'ar' ? 'بوابة الطالب' : 'Student Portal');
+  const showAvatarImage = Boolean(student.avatar) && failedAvatarSrc !== student.avatar;
 
   return (
     <div style={{
@@ -54,11 +65,12 @@ export const DashboardHeader = ({
           overflow: 'hidden',
           flexShrink: 0
         }}>
-          {student.avatar ? (
+          {showAvatarImage ? (
             <img
               src={student.avatar}
               alt={student.name || 'Student'}
               onClick={() => setIsAvatarLightboxOpen(true)}
+              onError={() => setFailedAvatarSrc(student.avatar)}
               title={lang === 'ar' ? 'اضغط لتكبير الصورة' : 'Click to enlarge'}
               style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
             />
@@ -131,6 +143,8 @@ export const DashboardHeader = ({
       <div ref={dropdownRef} style={{ position: 'relative' }}>
         <button
           type="button"
+          aria-haspopup="listbox"
+          aria-expanded={subjectDropdownOpen}
           onClick={() => setSubjectDropdownOpen(!subjectDropdownOpen)}
           className="executive-filter-btn"
           style={{ minWidth: '165px', justifyContent: 'space-between' }}
@@ -150,22 +164,27 @@ export const DashboardHeader = ({
         </button>
 
         {subjectDropdownOpen && (
-          <div style={{
-            position: 'absolute',
-            top: 'calc(100% + 6px)',
-            insetInlineEnd: 0,
-            minWidth: '195px',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '12px',
-            boxShadow: isDark ? '0 12px 30px rgba(0, 0, 0, 0.5)' : '0 12px 30px rgba(0, 0, 0, 0.12)',
-            padding: '6px',
-            zIndex: 50
-          }}>
+          <div
+            role="listbox"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              insetInlineEnd: 0,
+              minWidth: '205px',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              boxShadow: isDark ? '0 12px 30px rgba(0, 0, 0, 0.5)' : '0 12px 30px rgba(0, 0, 0, 0.12)',
+              padding: '6px',
+              zIndex: 50
+            }}
+          >
             {filterOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
+                role="option"
+                aria-selected={selectedSubject === opt.id}
                 onClick={() => {
                   setSelectedSubject(opt.id);
                   setSubjectDropdownOpen(false);
@@ -196,13 +215,15 @@ export const DashboardHeader = ({
         )}
       </div>
 
-      <AvatarLightboxModal
-        isOpen={isAvatarLightboxOpen}
-        imageSrc={student.avatar}
-        altText={student.nameAr || student.name || 'Student'}
-        isAr={lang === 'ar'}
-        onClose={() => setIsAvatarLightboxOpen(false)}
-      />
+      {showAvatarImage && (
+        <AvatarLightboxModal
+          isOpen={isAvatarLightboxOpen}
+          imageSrc={student.avatar}
+          altText={student.nameAr || student.name || 'Student'}
+          isAr={lang === 'ar'}
+          onClose={() => setIsAvatarLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 };

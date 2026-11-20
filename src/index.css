@@ -2034,8 +2034,22 @@ button, input, select, textarea {
   padding: 14px 16px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all 0.2s ease;
+}
+
+[data-theme="light"] .executive-task-row {
+  background: #F8FAFC;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.executive-task-row:hover {
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+[data-theme="light"] .executive-task-row:hover {
+  background: #F1F5F9;
+  border-color: rgba(2, 132, 199, 0.25);
 }
 
 .executive-task-action-btn {
@@ -2054,10 +2068,41 @@ button, input, select, textarea {
   transition: all 0.15s ease;
 }
 
+[data-theme="light"] .executive-task-action-btn {
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0F172A;
+}
+
 .executive-task-action-btn:hover {
   background: rgba(56, 189, 248, 0.15);
   border-color: rgba(56, 189, 248, 0.35);
   color: #FFFFFF;
+}
+
+[data-theme="light"] .executive-task-action-btn:hover {
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.35);
+  color: #0284C7;
+}
+
+/* Live platform timer indicator & dashboard loading skeleton */
+@keyframes liveDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.live-time-dot {
+  animation: liveDotPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes executiveSkeletonPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+
+.executive-skeleton {
+  animation: executiveSkeletonPulse 1.4s ease-in-out infinite;
 }
 
 @media (max-width: 640px) {

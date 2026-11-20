@@ -134,10 +134,20 @@ export const studentApi = {
       }),
   },
 
-  // Phase 10: Dashboard, Analytics & Revision Hub
+  // Phase 10: Dashboard, Daily Platform Activity Heartbeat, Analytics & Revision Hub
   dashboard: {
-    get: () => apiGet('/student/dashboard'),
+    get: (timezone) =>
+      apiGet(
+        timezone
+          ? `/student/dashboard?timezone=${encodeURIComponent(timezone)}`
+          : '/student/dashboard'
+      ),
     analytics: () => apiGet('/student/analytics'),
     revision: () => apiGet('/student/revision'),
+  },
+
+  activity: {
+    heartbeat: (data, opts = {}) =>
+      apiPost('/student/activity/heartbeat', data, opts),
   },
 };

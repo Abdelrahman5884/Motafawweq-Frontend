@@ -9,6 +9,7 @@ export const TodayTasks = ({
   taskCategoryFilter,
   setTaskCategoryFilter,
   toggleTaskCompleted,
+  togglingTaskId = null,
   lang,
   isRtl,
   isDark,
@@ -122,19 +123,26 @@ export const TodayTasks = ({
         )}
         {filteredTasks.map((task) => {
           const targetRoute = task.actionRoute || task.route || '/student/courses';
+          const subjectLabel = lang === 'ar' ? task.subjectAr : (task.subjectEn || task.subjectAr);
+          const durationLabel = lang === 'ar' ? (task.durationAr || task.duration) : (task.durationEn || task.duration);
+          const deadlineLabel = lang === 'ar' ? (task.deadlineAr || task.deadline) : (task.deadlineEn || task.deadline);
+          const isToggling = togglingTaskId === task.id;
+
           return (
             <div key={task.id} className="executive-task-row">
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <button
                   type="button"
+                  disabled={isToggling}
                   onClick={() => toggleTaskCompleted(task.id)}
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    cursor: 'pointer',
+                    cursor: isToggling ? 'wait' : 'pointer',
                     padding: 0,
                     display: 'flex',
                     alignItems: 'center',
+                    opacity: isToggling ? 0.55 : 1,
                     color: task.isCompleted ? '#10B981' : 'var(--text-muted)',
                     transition: 'transform 0.15s ease'
                   }}
@@ -157,20 +165,20 @@ export const TodayTasks = ({
                     {lang === 'ar' ? task.titleAr : (task.titleEn || task.titleAr)}
                   </div>
                   <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    {task.subjectAr && (
-                      <span style={{ color: themeAccent, fontWeight: '700' }}>{task.subjectAr}</span>
+                    {subjectLabel && (
+                      <span style={{ color: themeAccent, fontWeight: '700' }}>{subjectLabel}</span>
                     )}
-                    {task.duration && (
+                    {durationLabel && (
                       <>
-                        {task.subjectAr && <span>•</span>}
-                        <span>{task.duration}</span>
+                        {subjectLabel && <span>•</span>}
+                        <span>{durationLabel}</span>
                       </>
                     )}
-                    {task.deadline && (
+                    {deadlineLabel && (
                       <>
-                        {(task.subjectAr || task.duration) && <span>•</span>}
+                        {(subjectLabel || durationLabel) && <span>•</span>}
                         <span style={{ color: task.priority === 'urgent' ? '#F59E0B' : 'var(--text-secondary)', fontWeight: task.priority === 'urgent' ? '700' : '500' }}>
-                          {task.deadline}
+                          {deadlineLabel}
                         </span>
                       </>
                     )}
@@ -184,7 +192,9 @@ export const TodayTasks = ({
                 className="executive-task-action-btn"
               >
                 <span>
-                  {task.type === 'homework'
+                  {task.source === 'study_session'
+                    ? (lang === 'ar' ? 'فتح الجدول' : 'Open Schedule')
+                    : task.type === 'homework'
                     ? (lang === 'ar' ? 'حل الواجب' : 'Solve Homework')
                     : task.type === 'quiz'
                     ? (lang === 'ar' ? 'بدء الاختبار' : 'Start Exam')

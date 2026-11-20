@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { studentApi } from '../../../services/studentApi';
 
 export const useExam = (lang) => {
+  const deepLinkHandledRef = useRef(false);
   const [examsList, setExamsList] = useState([]);
   const [examState, setExamState] = useState('catalog');
   const [examSource, setExamSource] = useState('teacher');
@@ -51,6 +52,16 @@ export const useExam = (lang) => {
       setExamsList(mapped);
       if (mapped.length > 0) {
         setActiveExam((prev) => (prev.id ? prev : mapped[0]));
+        if (!deepLinkHandledRef.current && typeof window !== 'undefined') {
+          const requestedExamId = new URLSearchParams(window.location.search).get('examId');
+          if (requestedExamId) {
+            deepLinkHandledRef.current = true;
+            const targetExam = mapped.find((ex) => ex.id === requestedExamId && ex.status === 'ready');
+            if (targetExam) {
+              setPendingExam(targetExam);
+            }
+          }
+        }
       }
     } catch {
       // ignore

@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import confetti from 'canvas-confetti';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useStudentActivity } from '../../context/StudentActivityContext';
 import { studentApi } from '../../services/studentApi';
+import { getLocalDateKey, getClientTimezone } from '../../utils';
 import { SPage } from '../../components/student/ui';
 import {
   DashboardHeader,
@@ -18,7 +21,19 @@ import {
 export const StudentDashboard = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
-  const { currentUser } = useAuth();
+  const { currentUser, authLoading } = useAuth();
+  const {
+    activeSecondsToday,
+    activeMinutesToday,
+    streakDays: liveStreakDays,
+    longestStreakDays: liveLongestStreakDays,
+    streakWasReset: liveStreakWasReset,
+    todayDate: liveTodayDate,
+    isTracking,
+    hydrated: activityHydrated,
+    dayRolloverCount,
+    syncFromServerSnapshot
+  } = useStudentActivity();
 
   const [student, setStudent] = useState({
     id: currentUser?.id || '',
@@ -32,7 +47,9 @@ export const StudentDashboard = () => {
     level: 1,
     streakDays: 0,
     longestStreakDays: 0,
+    streakWasReset: false,
     studyMinutesToday: 0,
+    studySecondsToday: 0,
     dailyGoalMinutes: 120,
     completedLessonsCount: 0,
     totalEnrolledLessons: 0,
@@ -51,157 +68,213 @@ export const StudentDashboard = () => {
   const [subjectMastery, setSubjectMastery] = useState([]);
   const [smartRecommendation, setSmartRecommendation] = useState(null);
 
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const [togglingTaskId, setTogglingTaskId] = useState(null);
+
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
   const [taskCategoryFilter, setTaskCategoryFilter] = useState('all');
 
+  const clientTimezone = useMemo(() => getClientTimezone(), []);
+  const activeDayStr = liveTodayDate || getLocalDateKey();
+
   const todayStorageKey = useMemo(() => {
     const uid = currentUser?.id || 'guest';
-    const dayStr = new Date().toISOString().slice(0, 10);
-    return `mtfq_dash_tasks_${uid}_${dayStr}`;
-  }, [currentUser?.id]);
+    return `mtfq_dash_tasks_${uid}_${activeDayStr}`;
+  }, [currentUser?.id, activeDayStr]);
+
+  const fetchDashboardData = useCallback(async () => {
+    const [dashRes, profRes] = await Promise.all([
+      studentApi.dashboard.get(clientTimezone),
+      studentApi.profile.get().catch(() => null)
+    ]);
+
+    const data = dashRes?.data || {};
+    const kpis = data.kpis || {};
+    const prof = profRes?.data || {};
+
+    if (data.activity) {
+      syncFromServerSnapshot(data.activity);
+    }
+
+    const studySec = Number(kpis.studySecondsToday ?? Math.round(Number(kpis.studyMinutesToday || 0) * 60));
+
+    setStudent({
+      id: prof.id || currentUser?.id || '',
+      name: prof.name || currentUser?.name || '',
+      nameAr: prof.name || currentUser?.nameAr || currentUser?.name || '',
+      avatar: prof.avatar || currentUser?.avatar || '',
+      gradeNameAr: prof.gradeAr || currentUser?.grade || '',
+      trackAr: prof.trackAr || currentUser?.track || '',
+      schoolAr: prof.schoolName || '',
+      xp: Number(kpis.totalXp || 0),
+      level: Math.max(1, Math.floor(Number(kpis.totalXp || 0) / 100) + 1),
+      streakDays: Number(kpis.streakDays || 0),
+      longestStreakDays: Number(kpis.longestStreakDays || kpis.streakDays || 0),
+      streakWasReset: Boolean(kpis.streakWasReset),
+      studyMinutesToday: Number(kpis.studyMinutesToday ?? Math.floor(studySec / 60)),
+      studySecondsToday: studySec,
+      dailyGoalMinutes: Number(prof.dailyStudyGoalMinutes || 120),
+      completedLessonsCount: Number(kpis.completedLessons || 0),
+      totalEnrolledLessons: Number(kpis.totalEnrolledLessons ?? kpis.completedLessons ?? 0),
+      examsCompletedCount: Number(kpis.examsCompletedCount || 0),
+      fullMarkExamsCount: Number(kpis.fullMarkExamsCount || 0),
+      batchRank: kpis.batchRank ?? null,
+      overallGpa: `${Number(kpis.avgExamPercentage || 0)}%`
+    });
+
+    setWeeklyActivity(Array.isArray(data.weeklyActivity) ? data.weeklyActivity : []);
+    setSubjectMastery(Array.isArray(data.subjectMastery) ? data.subjectMastery : []);
+    setSmartRecommendation(data.smartRecommendation || null);
+    setContinueLessonsByCourse(
+      data.continueLessonsByCourse && typeof data.continueLessonsByCourse === 'object'
+        ? data.continueLessonsByCourse
+        : {}
+    );
+
+    const cont = data.continueLesson;
+    if (cont && cont.lessonId) {
+      setLastLesson({
+        courseId: cont.courseId,
+        lessonId: cont.lessonId,
+        titleAr: cont.titleAr || cont.lessonTitleAr,
+        titleEn: cont.titleEn || cont.titleAr || cont.lessonTitleAr,
+        subjectAr: cont.subjectAr || cont.courseTitleAr || '',
+        subjectEn: cont.subjectEn || cont.courseTitleAr || '',
+        teacherAr: cont.teacherAr || '',
+        teacherEn: cont.teacherEn || '',
+        lessonNumber: Number(cont.lessonNumber || 1),
+        totalLessons: Number(cont.totalLessons || 1),
+        progressPercent: Number(cont.progressPercent || 0),
+        isCompleted: Boolean(cont.isCompleted),
+        pausedMinute: cont.pausedMinute || '00:00',
+        totalDuration: cont.totalDuration || cont.durationLabel || '30:00',
+        remainingMinutes: Number(cont.remainingMinutes ?? 0),
+        nextLessonTitleAr: cont.nextLessonTitleAr || '',
+        nextLessonTitleEn: cont.nextLessonTitleEn || '',
+        route: cont.route || '/student/lesson'
+      });
+    } else {
+      setLastLesson(null);
+    }
+
+    const deadlines = Array.isArray(data.upcomingDeadlines) ? data.upcomingDeadlines : [];
+    setUpcomingExams(deadlines);
+
+    const hws = Array.isArray(data.upcomingHomeworks) ? data.upcomingHomeworks : [];
+    setUpcomingHomeworks(hws);
+
+    let completedIdsMap = {};
+    try {
+      const saved = localStorage.getItem(todayStorageKey);
+      if (saved) completedIdsMap = JSON.parse(saved) || {};
+    } catch {
+      // ignore storage parse error
+    }
+
+    const rawTasks = Array.isArray(data.todayTasks) ? data.todayTasks : [];
+
+    setTasks(
+      rawTasks.map((t) => {
+        const isDone = t.source === 'study_session'
+          ? Boolean(t.isCompleted)
+          : Boolean(completedIdsMap[t.id] || t.isCompleted);
+
+        return {
+          ...t,
+          isCompleted: isDone,
+          status: isDone ? 'completed' : 'pending'
+        };
+      })
+    );
+
+    setLoadError(null);
+  }, [clientTimezone, currentUser?.avatar, currentUser?.grade, currentUser?.id, currentUser?.name, currentUser?.nameAr, currentUser?.track, syncFromServerSnapshot, todayStorageKey]);
 
   useEffect(() => {
-    let mounted = true;
-    const loadDashboard = async () => {
+    if (authLoading) return undefined;
+    let active = true;
+    const run = async () => {
       try {
-        const [dashRes, profRes] = await Promise.all([
-          studentApi.dashboard.get().catch(() => null),
-          studentApi.profile.get().catch(() => null)
-        ]);
-        if (!mounted) return;
-
-        const data = dashRes?.data || {};
-        const kpis = data.kpis || {};
-        const prof = profRes?.data || {};
-
-        setStudent({
-          id: prof.id || currentUser?.id || '',
-          name: prof.name || currentUser?.name || '',
-          nameAr: prof.name || currentUser?.nameAr || currentUser?.name || '',
-          avatar: prof.avatar || currentUser?.avatar || '',
-          gradeNameAr: prof.gradeAr || currentUser?.grade || '',
-          trackAr: prof.trackAr || currentUser?.track || '',
-          schoolAr: prof.schoolName || '',
-          xp: Number(kpis.totalXp || 0),
-          level: Math.max(1, Math.floor(Number(kpis.totalXp || 0) / 100) + 1),
-          streakDays: Number(kpis.streakDays || 0),
-          longestStreakDays: Number(kpis.longestStreakDays || kpis.streakDays || 0),
-          studyMinutesToday: Number(kpis.studyMinutesToday ?? Math.round(Number(kpis.watchedHours || 0) * 60)),
-          dailyGoalMinutes: Number(prof.dailyStudyGoalMinutes || 120),
-          completedLessonsCount: Number(kpis.completedLessons || 0),
-          totalEnrolledLessons: Number(kpis.totalEnrolledLessons ?? kpis.completedLessons ?? 0),
-          examsCompletedCount: Number(kpis.examsCompletedCount || 0),
-          fullMarkExamsCount: Number(kpis.fullMarkExamsCount || 0),
-          batchRank: kpis.batchRank ?? null,
-          overallGpa: `${Number(kpis.avgExamPercentage || 0)}%`
-        });
-
-        if (Array.isArray(data.weeklyActivity)) {
-          setWeeklyActivity(data.weeklyActivity);
-        }
-        if (Array.isArray(data.subjectMastery)) {
-          setSubjectMastery(data.subjectMastery);
-        }
-        if (data.smartRecommendation) {
-          setSmartRecommendation(data.smartRecommendation);
-        }
-        if (data.continueLessonsByCourse && typeof data.continueLessonsByCourse === 'object') {
-          setContinueLessonsByCourse(data.continueLessonsByCourse);
-        }
-
-        const cont = data.continueLesson;
-        if (cont && cont.lessonId) {
-          setLastLesson({
-            courseId: cont.courseId,
-            lessonId: cont.lessonId,
-            titleAr: cont.titleAr || cont.lessonTitleAr,
-            titleEn: cont.titleEn || cont.lessonTitleAr,
-            subjectAr: cont.subjectAr || cont.courseTitleAr || '',
-            subjectEn: cont.subjectEn || cont.courseTitleAr || '',
-            teacherAr: cont.teacherAr || '',
-            teacherEn: cont.teacherEn || '',
-            lessonNumber: Number(cont.lessonNumber || 1),
-            totalLessons: Number(cont.totalLessons || 1),
-            progressPercent: Number(cont.progressPercent || 0),
-            pausedMinute: cont.pausedMinute || '00:00',
-            totalDuration: cont.totalDuration || cont.durationLabel || '30:00',
-            remainingMinutes: Number(cont.remainingMinutes || 15),
-            nextLessonTitleAr: cont.nextLessonTitleAr || '',
-            nextLessonTitleEn: cont.nextLessonTitleEn || '',
-            route: cont.route || '/student/lesson'
-          });
-        } else {
-          setLastLesson(null);
-        }
-
-        const deadlines = Array.isArray(data.upcomingDeadlines) ? data.upcomingDeadlines : [];
-        setUpcomingExams(deadlines);
-
-        const hws = Array.isArray(data.upcomingHomeworks) ? data.upcomingHomeworks : [];
-        setUpcomingHomeworks(hws);
-
-        let completedIdsMap = {};
-        try {
-          const saved = localStorage.getItem(todayStorageKey);
-          if (saved) completedIdsMap = JSON.parse(saved) || {};
-        } catch {}
-
-        const rawTasks = Array.isArray(data.todayTasks)
-          ? data.todayTasks
-          : [
-              ...deadlines.map(e => ({
-                id: `exam-${e.id}`,
-                courseId: e.courseId,
-                titleAr: e.titleAr,
-                titleEn: e.titleAr,
-                subjectAr: e.courseTitleAr || '',
-                type: 'quiz',
-                duration: `${e.durationMinutes || 30} دقيقة`,
-                deadline: e.dueDate ? `آخر موعد: ${e.dueDate}` : 'متاح الآن',
-                priority: 'urgent',
-                actionRoute: '/student/exam'
-              })),
-              ...hws.map(h => ({
-                id: `hw-${h.id}`,
-                courseId: h.courseId,
-                titleAr: h.titleAr,
-                titleEn: h.titleAr,
-                subjectAr: h.courseTitleAr || '',
-                type: 'homework',
-                duration: `${h.maxScore || 20} درجة`,
-                deadline: h.dueDate ? `التسليم: ${h.dueDate}` : 'مطلوب للتسليم',
-                priority: 'urgent',
-                actionRoute: '/student/homework'
-              }))
-            ];
-
-        setTasks(
-          rawTasks.map((t) => ({
-            ...t,
-            isCompleted: Boolean(completedIdsMap[t.id] || t.isCompleted),
-            status: completedIdsMap[t.id] || t.isCompleted ? 'completed' : 'pending'
-          }))
+        await fetchDashboardData();
+      } catch (err) {
+        if (!active) return;
+        setLoadError(
+          err?.message ||
+            (lang === 'ar'
+              ? 'تعذر تحميل بيانات لوحة التحكم. تحقق من الاتصال وحاول مرة أخرى.'
+              : 'Unable to load dashboard data. Please check your connection and try again.')
         );
-      } catch {
-        // ignore
+      } finally {
+        if (active) setLoading(false);
       }
     };
-    loadDashboard();
+    run();
     return () => {
-      mounted = false;
+      active = false;
     };
-  }, [currentUser, todayStorageKey]);
+  }, [authLoading, fetchDashboardData, dayRolloverCount, reloadNonce, lang]);
 
-  const toggleTaskCompleted = (taskId) => {
-    setTasks(prev => {
-      const nextList = prev.map(t => {
+  const handleRetry = () => {
+    setLoading(true);
+    setLoadError(null);
+    setReloadNonce((n) => n + 1);
+  };
+
+  const toggleTaskCompleted = async (taskId) => {
+    const targetTask = tasks.find((t) => t.id === taskId);
+    if (!targetTask) return;
+
+    // Database-backed personal study session toggle
+    if (targetTask.source === 'study_session' && targetTask.sessionUuid) {
+      const nextState = !targetTask.isCompleted;
+      setTogglingTaskId(taskId);
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? { ...t, isCompleted: nextState, status: nextState ? 'completed' : 'pending' }
+            : t
+        )
+      );
+
+      if (nextState) {
+        try {
+          confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+        } catch {
+          // ignore confetti errors
+        }
+      }
+
+      try {
+        await studentApi.schedule.toggleStudySession(targetTask.sessionUuid);
+      } catch {
+        // Revert optimistic update on failure
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId
+              ? { ...t, isCompleted: !nextState, status: !nextState ? 'completed' : 'pending' }
+              : t
+          )
+        );
+      } finally {
+        setTogglingTaskId(null);
+      }
+      return;
+    }
+
+    // Local daily checklist toggle for lesson/exam/homework reminders
+    setTasks((prev) => {
+      const nextList = prev.map((t) => {
         if (t.id === taskId) {
           const nextState = !t.isCompleted;
           if (nextState) {
             try {
               confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
-            } catch {}
+            } catch {
+              // ignore
+            }
           }
           return { ...t, isCompleted: nextState, status: nextState ? 'completed' : 'pending' };
         }
@@ -210,66 +283,119 @@ export const StudentDashboard = () => {
 
       try {
         const map = {};
-        nextList.forEach(item => {
-          if (item.isCompleted) map[item.id] = true;
+        nextList.forEach((item) => {
+          if (item.source !== 'study_session' && item.isCompleted) {
+            map[item.id] = true;
+          }
         });
         localStorage.setItem(todayStorageKey, JSON.stringify(map));
-      } catch {}
+      } catch {
+        // ignore storage errors
+      }
 
       return nextList;
     });
   };
 
+  // Merge live real-time platform timer & streak from StudentActivityContext into student state
+  const liveStudent = useMemo(() => {
+    const mergedSeconds = activityHydrated ? activeSecondsToday : student.studySecondsToday;
+    const mergedMinutes = Math.floor(mergedSeconds / 60);
+    const mergedStreak = activityHydrated ? liveStreakDays : student.streakDays;
+    const mergedLongest = Math.max(
+      mergedStreak,
+      activityHydrated ? liveLongestStreakDays : student.longestStreakDays
+    );
+
+    return {
+      ...student,
+      studySecondsToday: mergedSeconds,
+      studyMinutesToday: mergedMinutes,
+      streakDays: mergedStreak,
+      longestStreakDays: mergedLongest,
+      streakWasReset: activityHydrated ? (liveStreakWasReset || student.streakWasReset) : student.streakWasReset,
+    };
+  }, [
+    student,
+    activityHydrated,
+    activeSecondsToday,
+    liveStreakDays,
+    liveLongestStreakDays,
+    liveStreakWasReset
+  ]);
+
+  // Keep Today's point in the 7-day chart live-updated as active minutes increment
+  const liveWeeklyActivity = useMemo(() => {
+    if (!Array.isArray(weeklyActivity) || weeklyActivity.length === 0) return [];
+    return weeklyActivity.map((day) => {
+      if (!day.isToday) return day;
+      const liveMins = activityHydrated ? activeMinutesToday : Number(day.minutes || 0);
+      return {
+        ...day,
+        minutes: liveMins,
+      };
+    });
+  }, [weeklyActivity, activityHydrated, activeMinutesToday]);
+
+  const effectiveSelectedSubject = useMemo(() => {
+    if (selectedSubject === 'all') return 'all';
+    if (subjectMastery.length > 0 && !subjectMastery.some((s) => s.id === selectedSubject)) {
+      return 'all';
+    }
+    return selectedSubject;
+  }, [selectedSubject, subjectMastery]);
+
   // Active Subject Object when filtered
   const selectedSubjectObj = useMemo(
-    () => (selectedSubject === 'all' ? null : subjectMastery.find((s) => s.id === selectedSubject) || null),
-    [selectedSubject, subjectMastery]
+    () => (effectiveSelectedSubject === 'all' ? null : subjectMastery.find((s) => s.id === effectiveSelectedSubject) || null),
+    [effectiveSelectedSubject, subjectMastery]
   );
 
-  const matchesSelectedSubject = (itemCourseId, itemSubjectAr) => {
-    if (selectedSubject === 'all') return true;
-    if (itemCourseId && itemCourseId === selectedSubject) return true;
+  const matchesSelectedSubject = useCallback((itemCourseId, itemSubjectAr) => {
+    if (effectiveSelectedSubject === 'all') return true;
+    if (itemCourseId && itemCourseId === effectiveSelectedSubject) return true;
     if (selectedSubjectObj && itemSubjectAr && itemSubjectAr === selectedSubjectObj.nameAr) return true;
     return false;
-  };
+  }, [effectiveSelectedSubject, selectedSubjectObj]);
 
-  // Filter tasks, exams, homeworks, continueLesson, KPIs, and overallMasteryValue by selectedSubject
   const subjectTasks = useMemo(
     () => tasks.filter((t) => matchesSelectedSubject(t.courseId, t.subjectAr)),
-    [tasks, selectedSubject, selectedSubjectObj]
+    [tasks, matchesSelectedSubject]
   );
 
-  const completedTasksCount = subjectTasks.filter(t => t.isCompleted).length;
-  const filteredTasks = subjectTasks.filter(t => {
+  const completedTasksCount = subjectTasks.filter((t) => t.isCompleted).length;
+  const filteredTasks = subjectTasks.filter((t) => {
     if (taskCategoryFilter === 'all') return true;
     return t.type === taskCategoryFilter;
   });
 
   const filteredUpcomingExams = useMemo(
     () => upcomingExams.filter((e) => matchesSelectedSubject(e.courseId, e.courseTitleAr)),
-    [upcomingExams, selectedSubject, selectedSubjectObj]
+    [upcomingExams, matchesSelectedSubject]
   );
 
   const filteredUpcomingHomeworks = useMemo(
     () => upcomingHomeworks.filter((h) => matchesSelectedSubject(h.courseId, h.courseTitleAr)),
-    [upcomingHomeworks, selectedSubject, selectedSubjectObj]
+    [upcomingHomeworks, matchesSelectedSubject]
   );
 
   const activeContinueLesson = useMemo(() => {
-    if (selectedSubject === 'all') return lastLesson;
-    if (continueLessonsByCourse[selectedSubject]) return continueLessonsByCourse[selectedSubject];
+    if (effectiveSelectedSubject === 'all') return lastLesson;
+    if (continueLessonsByCourse[effectiveSelectedSubject]) return continueLessonsByCourse[effectiveSelectedSubject];
     if (lastLesson && matchesSelectedSubject(lastLesson.courseId, lastLesson.subjectAr)) return lastLesson;
     return null;
-  }, [selectedSubject, lastLesson, continueLessonsByCourse, selectedSubjectObj]);
+  }, [effectiveSelectedSubject, lastLesson, continueLessonsByCourse, matchesSelectedSubject]);
 
   const displayedStudentKpis = useMemo(() => {
-    if (!selectedSubjectObj) return student;
+    if (!selectedSubjectObj) return liveStudent;
     return {
-      ...student,
-      completedLessonsCount: Number(selectedSubjectObj.completedLessons ?? student.completedLessonsCount),
-      totalEnrolledLessons: Number(selectedSubjectObj.totalLessons ?? student.totalEnrolledLessons)
+      ...liveStudent,
+      completedLessonsCount: Number(selectedSubjectObj.completedLessons ?? liveStudent.completedLessonsCount),
+      totalEnrolledLessons: Number(selectedSubjectObj.totalLessons ?? liveStudent.totalEnrolledLessons),
+      examsCompletedCount: Number(selectedSubjectObj.examsCompletedCount ?? 0),
+      fullMarkExamsCount: Number(selectedSubjectObj.fullMarkExamsCount ?? 0)
     };
-  }, [student, selectedSubjectObj]);
+  }, [liveStudent, selectedSubjectObj]);
 
   const displayedMasteryValue = useMemo(() => {
     if (selectedSubjectObj) return Number(selectedSubjectObj.pct || 0);
@@ -277,10 +403,48 @@ export const StudentDashboard = () => {
       const avgCoursePct = Math.round(
         subjectMastery.reduce((acc, s) => acc + Number(s.pct || 0), 0) / subjectMastery.length
       );
-      return avgCoursePct || parseFloat(student.overallGpa) || 0;
+      return avgCoursePct || parseFloat(liveStudent.overallGpa) || 0;
     }
-    return parseFloat(student.overallGpa) || 0;
-  }, [selectedSubjectObj, subjectMastery, student.overallGpa]);
+    return parseFloat(liveStudent.overallGpa) || 0;
+  }, [selectedSubjectObj, subjectMastery, liveStudent.overallGpa]);
+
+  const displayedRecommendation = useMemo(() => {
+    if (!selectedSubjectObj) return smartRecommendation;
+
+    if (activeContinueLesson && !activeContinueLesson.isCompleted) {
+      return {
+        textAr: `خطوتك التالية في مقرر «${selectedSubjectObj.nameAr}»: استكمال درس «${activeContinueLesson.titleAr}» (${activeContinueLesson.progressPercent}% مكتمل).`,
+        textEn: `Next step in "${selectedSubjectObj.nameEn || selectedSubjectObj.nameAr}": Continue "${activeContinueLesson.titleEn || activeContinueLesson.titleAr}" (${activeContinueLesson.progressPercent}% completed).`,
+        route: `/student/lesson?courseId=${activeContinueLesson.courseId}&lessonId=${activeContinueLesson.lessonId}`,
+        buttonAr: 'متابعة الدرس الآن',
+        buttonEn: 'Continue Lesson'
+      };
+    }
+
+    if (filteredUpcomingExams.length > 0) {
+      const nextExam = filteredUpcomingExams[0];
+      return {
+        textAr: `لديك اختبار متاح في «${selectedSubjectObj.nameAr}»: «${nextExam.titleAr}» — ابدأ الآن لرفع مستواك.`,
+        textEn: `You have an active exam in "${selectedSubjectObj.nameEn || selectedSubjectObj.nameAr}": "${nextExam.titleEn || nextExam.titleAr}".`,
+        route: `/student/exam?examId=${encodeURIComponent(nextExam.id)}`,
+        buttonAr: 'بدء الاختبار الآن',
+        buttonEn: 'Start Exam Now'
+      };
+    }
+
+    if (filteredUpcomingHomeworks.length > 0) {
+      const nextHw = filteredUpcomingHomeworks[0];
+      return {
+        textAr: `لديك واجب مطلوب في «${selectedSubjectObj.nameAr}»: «${nextHw.titleAr}» — قم بتسليمه قبل الموعد النهائي.`,
+        textEn: `Pending homework in "${selectedSubjectObj.nameEn || selectedSubjectObj.nameAr}": "${nextHw.titleEn || nextHw.titleAr}".`,
+        route: `/student/homework?homeworkId=${encodeURIComponent(nextHw.id)}`,
+        buttonAr: 'حل الواجب الآن',
+        buttonEn: 'Solve Homework'
+      };
+    }
+
+    return smartRecommendation;
+  }, [selectedSubjectObj, smartRecommendation, activeContinueLesson, filteredUpcomingExams, filteredUpcomingHomeworks]);
 
   const filterOptions = [
     { id: 'all', labelAr: 'جميع المواد', labelEn: 'All Subjects' },
@@ -292,7 +456,7 @@ export const StudentDashboard = () => {
   ];
 
   const currentSubjectLabel =
-    filterOptions.find(o => o.id === selectedSubject)?.[lang === 'ar' ? 'labelAr' : 'labelEn'] ||
+    filterOptions.find((o) => o.id === effectiveSelectedSubject)?.[lang === 'ar' ? 'labelAr' : 'labelEn'] ||
     (lang === 'ar' ? 'جميع المواد' : 'All Subjects');
 
   const themeAccent = isDark ? '#38BDF8' : '#0284C7';
@@ -301,12 +465,12 @@ export const StudentDashboard = () => {
     <SPage maxWidth={1240}>
       <div className="executive-dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <DashboardHeader
-          student={student}
+          student={liveStudent}
           lang={lang}
           isRtl={isRtl}
           isDark={isDark}
           themeAccent={themeAccent}
-          selectedSubject={selectedSubject}
+          selectedSubject={effectiveSelectedSubject}
           setSelectedSubject={setSelectedSubject}
           subjectDropdownOpen={subjectDropdownOpen}
           setSubjectDropdownOpen={setSubjectDropdownOpen}
@@ -314,56 +478,118 @@ export const StudentDashboard = () => {
           currentSubjectLabel={currentSubjectLabel}
         />
 
-        <DashboardKpis
-          student={displayedStudentKpis}
-          lang={lang}
-          isDark={isDark}
-          themeAccent={themeAccent}
-        />
+        {loadError && (
+          <div
+            role="alert"
+            className="executive-card"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              borderColor: 'rgba(239, 68, 68, 0.35)',
+              background: isDark ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.05)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#EF4444', fontSize: '13.5px', fontWeight: '600' }}>
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <span>{loadError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleRetry}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: '8px',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                background: 'rgba(239, 68, 68, 0.12)',
+                color: '#EF4444',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              <RefreshCw size={14} />
+              <span>{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</span>
+            </button>
+          </div>
+        )}
 
-        <StudyActivityChart
-          lang={lang}
-          isDark={isDark}
-          themeAccent={themeAccent}
-          studyData={weeklyActivity.length > 0 ? weeklyActivity : undefined}
-          subjectMastery={subjectMastery}
-          overallMasteryValue={displayedMasteryValue}
-        />
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} aria-busy="true">
+            <div className="executive-kpi-grid">
+              {[0, 1, 2, 3].map((idx) => (
+                <div key={idx} className="executive-kpi-card executive-skeleton" style={{ minHeight: '138px' }} />
+              ))}
+            </div>
+            <div className="executive-charts-grid">
+              <div className="executive-card executive-chart-main executive-skeleton" style={{ minHeight: '300px' }} />
+              <div className="executive-card executive-chart-side executive-skeleton" style={{ minHeight: '300px' }} />
+            </div>
+            <div className="executive-card executive-skeleton" style={{ minHeight: '120px' }} />
+          </div>
+        ) : (
+          <>
+            <DashboardKpis
+              student={displayedStudentKpis}
+              lang={lang}
+              isDark={isDark}
+              themeAccent={themeAccent}
+              isTrackingTime={isTracking}
+            />
 
-        <ContinueLessonHero
-          lastLesson={activeContinueLesson}
-          lang={lang}
-          isRtl={isRtl}
-          isDark={isDark}
-          themeAccent={themeAccent}
-        />
+            <StudyActivityChart
+              lang={lang}
+              isDark={isDark}
+              themeAccent={themeAccent}
+              studyData={liveWeeklyActivity.length > 0 ? liveWeeklyActivity : undefined}
+              subjectMastery={subjectMastery}
+              overallMasteryValue={displayedMasteryValue}
+              selectedSubject={effectiveSelectedSubject}
+              onSelectSubject={setSelectedSubject}
+            />
 
-        <TodayTasks
-          tasks={subjectTasks}
-          filteredTasks={filteredTasks}
-          completedTasksCount={completedTasksCount}
-          taskCategoryFilter={taskCategoryFilter}
-          setTaskCategoryFilter={setTaskCategoryFilter}
-          toggleTaskCompleted={toggleTaskCompleted}
-          lang={lang}
-          isRtl={isRtl}
-          isDark={isDark}
-          themeAccent={themeAccent}
-        />
+            <ContinueLessonHero
+              lastLesson={activeContinueLesson}
+              lang={lang}
+              isRtl={isRtl}
+              isDark={isDark}
+              themeAccent={themeAccent}
+            />
 
-        <UpcomingDeadlines
-          upcomingExams={filteredUpcomingExams}
-          upcomingHomeworks={filteredUpcomingHomeworks}
-          lang={lang}
-          isRtl={isRtl}
-        />
+            <TodayTasks
+              tasks={subjectTasks}
+              filteredTasks={filteredTasks}
+              completedTasksCount={completedTasksCount}
+              taskCategoryFilter={taskCategoryFilter}
+              setTaskCategoryFilter={setTaskCategoryFilter}
+              toggleTaskCompleted={toggleTaskCompleted}
+              togglingTaskId={togglingTaskId}
+              lang={lang}
+              isRtl={isRtl}
+              isDark={isDark}
+              themeAccent={themeAccent}
+            />
 
-        <SmartNextStepBanner
-          lang={lang}
-          isRtl={isRtl}
-          isDark={isDark}
-          recommendation={smartRecommendation}
-        />
+            <UpcomingDeadlines
+              upcomingExams={filteredUpcomingExams}
+              upcomingHomeworks={filteredUpcomingHomeworks}
+              lang={lang}
+              isRtl={isRtl}
+            />
+
+            <SmartNextStepBanner
+              lang={lang}
+              isRtl={isRtl}
+              isDark={isDark}
+              recommendation={displayedRecommendation}
+            />
+          </>
+        )}
       </div>
     </SPage>
   );

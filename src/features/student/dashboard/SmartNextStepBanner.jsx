@@ -60,6 +60,7 @@ export const SmartNextStepBanner = ({ lang, isRtl, isDark, recommendation }) => 
       </div>
 
       <button
+        type="button"
         onClick={() => navigate(targetRoute)}
         style={{
           display: 'inline-flex',

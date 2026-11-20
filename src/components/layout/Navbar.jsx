@@ -18,7 +18,8 @@ import {
   Flame,
   Trophy,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  ShieldCheck
 } from 'lucide-react';
 import { Breadcrumbs } from './Breadcrumbs';
 
