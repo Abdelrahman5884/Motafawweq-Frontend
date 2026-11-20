@@ -1,1 +1,2 @@
-export { StudentWeeklySchedule, DAYS_CONFIG } from './StudentWeeklySchedule';
+export { StudentWeeklySchedule } from './StudentWeeklySchedule';
+export { DAYS_CONFIG } from './scheduleUtils';

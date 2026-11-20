@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { tokenStorage } from '../services/api';
 import { teacherApi } from '../services/teacherApi';
 import { studentApi } from '../services/studentApi';
@@ -93,6 +93,8 @@ export const GroupsProvider = ({ children }) => {
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [groupsError, setGroupsError] = useState(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
+  const [scheduleError, setScheduleError] = useState(null);
 
   // Enrolled and pending students keyed by group id/uuid
   const [enrolledStudents, setEnrolledStudents] = useState({});
@@ -109,10 +111,25 @@ export const GroupsProvider = ({ children }) => {
 
   // Global toast message notification
   const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   const showToast = useCallback((message, type = 'success') => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
     setToast({ message, type });
-    window.setTimeout(() => setToast(null), 3500);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3500);
   }, []);
 
   // Fetch groups from backend (role-aware: Teacher vs Student)
@@ -293,9 +310,13 @@ export const GroupsProvider = ({ children }) => {
     if (!activeUserId || (!isStudentRole && !isTeacherRole)) {
       setScheduleNotes({ ...EMPTY_NOTES_MAP });
       setStudentStudySessions([]);
+      setScheduleError(null);
+      setLoadingSchedule(false);
       return;
     }
 
+    setLoadingSchedule(true);
+    setScheduleError(null);
     try {
       if (isStudentRole) {
         const res = await studentApi.schedule.getWeekly();
@@ -321,7 +342,8 @@ export const GroupsProvider = ({ children }) => {
       } else if (res?.data?.notesByDay) {
         setScheduleNotes({ ...EMPTY_NOTES_MAP, ...res.data.notesByDay });
       }
-    } catch {
+    } catch (err) {
+      setScheduleError(err?.message || 'تعذر تحميل بيانات الجدول الأسبوعي.');
       // Fallback to user-scoped local cache if offline
       if (isStudentRole && studySessionsStorageKey) {
         try {
@@ -331,6 +353,8 @@ export const GroupsProvider = ({ children }) => {
           // ignore
         }
       }
+    } finally {
+      setLoadingSchedule(false);
     }
   }, [authLoading, activeUserId, isStudentRole, isTeacherRole, studySessionsStorageKey]);
 
@@ -619,21 +643,23 @@ export const GroupsProvider = ({ children }) => {
         const res = await studentApi.schedule.createNote({
           day_of_week: dayKey,
           text: noteData.text,
-          time: noteData.time || '16:00',
+          time: noteData.time ? noteData.time : null,
           priority: noteData.priority || 'medium',
         });
         const created = res?.data;
         if (created) {
+          const targetDay = created.day || dayKey;
           setScheduleNotes((prev) => ({
             ...prev,
-            [dayKey]: [...(prev[dayKey] || []), created],
+            [targetDay]: [...(prev[targetDay] || []), created],
           }));
         }
-        showToast('تمت إضافة الملاحظة بنجاح إلى جدول المواعيد!');
+        showToast('تمت إضافة الملحوظة بنجاح إلى جدول المواعيد!');
         return created;
       } catch (err) {
-        showToast(err?.message || 'فشل إضافة الملاحظة.', 'warning');
-        return null;
+        const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+        showToast(firstErr || err?.message || 'فشل إضافة الملحوظة.', 'warning');
+        throw err;
       }
     }
 
@@ -645,12 +671,48 @@ export const GroupsProvider = ({ children }) => {
         note_time: noteData.time || '16:00',
       });
       await fetchScheduleNotes();
-      showToast('تمت إضافة الملاحظة بنجاح إلى جدول المواعيد!');
+      showToast('تمت إضافة الملحوظة بنجاح إلى جدول المواعيد!');
       return res.data;
     } catch (err) {
       console.error('Failed to add schedule note:', err);
-      showToast(err.message || 'فشل إضافة الملاحظة.', 'warning');
+      showToast(err.message || 'فشل إضافة الملحوظة.', 'warning');
+      throw err;
     }
+  };
+
+  const updateScheduleNote = async (previousDayKey, noteId, noteData) => {
+    if (isStudentRole) {
+      try {
+        const targetDay = noteData.day || previousDayKey;
+        const res = await studentApi.schedule.updateNote(noteId, {
+          day_of_week: targetDay,
+          text: noteData.text,
+          time: noteData.time ? noteData.time : null,
+          priority: noteData.priority || 'medium',
+        });
+        const updated = res?.data;
+        if (updated) {
+          const newDay = updated.day || targetDay;
+          setScheduleNotes((prev) => {
+            const next = { ...prev };
+            if (newDay === previousDayKey) {
+              next[newDay] = (prev[newDay] || []).map((n) => (n.id === noteId ? updated : n));
+            } else {
+              next[previousDayKey] = (prev[previousDayKey] || []).filter((n) => n.id !== noteId);
+              next[newDay] = [...(prev[newDay] || []), updated];
+            }
+            return next;
+          });
+        }
+        showToast('تم تحديث الملحوظة بنجاح.');
+        return updated;
+      } catch (err) {
+        const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+        showToast(firstErr || err?.message || 'تعذر تحديث الملحوظة.', 'warning');
+        throw err;
+      }
+    }
+    return null;
   };
 
   const toggleScheduleNote = async (dayKey, noteId) => {
@@ -816,6 +878,8 @@ export const GroupsProvider = ({ children }) => {
         groups,
         loadingGroups,
         groupsError,
+        loadingSchedule,
+        scheduleError,
         refreshGroups,
         activeGroupId,
         setActiveGroupId,
@@ -835,6 +899,7 @@ export const GroupsProvider = ({ children }) => {
         recordStudentAttendanceByCode,
         scheduleNotes,
         addScheduleNote,
+        updateScheduleNote,
         toggleScheduleNote,
         deleteScheduleNote,
         studentStudySessions,
@@ -850,11 +915,14 @@ export const GroupsProvider = ({ children }) => {
       {/* Floating Global Notification Toast */}
       {toast && (
         <div
+          role="status"
+          aria-live="polite"
           style={{
             position: 'fixed',
             bottom: '24px',
             right: '24px',
             zIndex: 100000,
+            maxWidth: 'min(92vw, 420px)',
             backgroundColor: toast.type === 'warning' ? '#B45309' : '#06254E',
             color: '#FFFFFF',
             padding: '12px 20px',
@@ -865,6 +933,9 @@ export const GroupsProvider = ({ children }) => {
             gap: '10px',
             fontSize: '13px',
             fontWeight: '700',
+            lineHeight: 1.5,
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
             animation: 'fadeIn 0.2s ease-out',
           }}
         >

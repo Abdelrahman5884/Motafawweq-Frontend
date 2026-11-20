@@ -228,7 +228,7 @@ export const StudentGroupsView = ({ defaultTab }) => {
 
   return (
     <div style={{
-      maxWidth: activeTab === 'schedule' ? '1280px' : '1120px',
+      maxWidth: activeTab === 'schedule' ? '1380px' : '1120px',
       margin: '0 auto',
       padding: '28px 20px 80px',
       fontFamily: 'var(--font-arabic)',

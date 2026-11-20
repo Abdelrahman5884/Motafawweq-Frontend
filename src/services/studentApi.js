@@ -42,6 +42,7 @@ export const studentApi = {
     toggleStudySession: (uuid) => apiPatch(`/student/study-sessions/${uuid}/toggle`),
     deleteStudySession: (uuid) => apiDelete(`/student/study-sessions/${uuid}`),
     createNote: (data) => apiPost('/student/schedule/notes', data),
+    updateNote: (uuid, data) => apiPut(`/student/schedule/notes/${uuid}`, data),
     toggleNote: (uuid) => apiPatch(`/student/schedule/notes/${uuid}/toggle`),
     deleteNote: (uuid) => apiDelete(`/student/schedule/notes/${uuid}`),
   },
