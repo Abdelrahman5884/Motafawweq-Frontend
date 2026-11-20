@@ -45,8 +45,8 @@ export const LeagueLeaderboardTable = ({
               ? 'جرّب اختيار «جميع المستويات» أو مسح البحث لعرض كامل الترتيب.'
               : 'Try selecting All Tiers or clearing the search box.'
             : isAr
-              ? 'سيظهر الترتيب تلقائياً فور بدء إتمام الحصص والواجبات والامتحانات.'
-              : 'Rankings update automatically as students complete lessons, homeworks, and exams.'}
+              ? 'سيظهر الترتيب تلقائياً فور بدء حل الامتحانات والحفاظ على الاستريك اليومي.'
+              : 'Rankings update automatically as students solve exams and build their daily streak.'}
         </div>
       </div>
     );

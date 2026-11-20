@@ -82,8 +82,8 @@ export const StudentLeagueView = () => {
             </h1>
             <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
               {isAr
-                ? 'تنافس بنظام النقاط المعتمد تلقائياً من الحصص والواجبات والامتحانات والاستمرار اليومي'
-                : 'Compete live with server-verified XP earned from lessons, homeworks, exams, and daily streaks'}
+                ? 'نظام النقاط الرسمي: الصواب والخطأ (+1)، الاختياري (+3)، المقالي (+5)، تقفيل الامتحان (+3)، والاستريك اليومي (+3/يوم)'
+                : 'Official points: True/False (+1), MCQ (+3), Essay (+5), Full Mark (+3 bonus), and Daily Streak (+3/day)'}
             </p>
           </div>
 
