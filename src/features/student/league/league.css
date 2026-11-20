@@ -1,0 +1,51 @@
+/* Scoped student league styles */
+@keyframes lgFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.league-podium-desktop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  max-width: 680px;
+  margin: 0 auto;
+  padding-top: 12px;
+}
+
+.league-podium-mobile {
+  display: none;
+}
+
+.league-row-item {
+  transition: background-color 0.15s ease;
+}
+
+.league-row-item:hover {
+  background-color: var(--bg-subtle);
+}
+
+.league-podium-card {
+  transition: transform 0.16s ease;
+}
+
+.league-podium-card:hover {
+  transform: translateY(-3px);
+}
+
+@media (max-width: 640px) {
+  .league-podium-desktop {
+    display: none !important;
+  }
+
+  .league-podium-mobile {
+    display: block !important;
+  }
+}

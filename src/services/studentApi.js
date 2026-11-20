@@ -112,7 +112,9 @@ export const studentApi = {
     leagues: () => apiGet('/student/leagues'),
     pastLeagues: () => apiGet('/student/leagues/history'),
     leaderboard: (leagueUuid) =>
-      apiGet(`/student/leagues/${leagueUuid}/leaderboard`),
+      leagueUuid === 'general'
+        ? apiGet('/student/leagues/general/leaderboard')
+        : apiGet(`/student/leagues/${leagueUuid}/leaderboard`),
     certificates: () => apiGet('/student/certificates'),
     certificateEligibility: () => apiGet('/student/certificates/eligibility'),
   },
