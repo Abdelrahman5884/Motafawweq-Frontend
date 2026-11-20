@@ -1,456 +1,516 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Award, RotateCcw, Trophy, CheckCircle2, Lock } from 'lucide-react';
+import {
+  CheckCircle2,
+  XCircle,
+  Lock,
+  Clock,
+  ArrowRight,
+  ArrowLeft,
+  MessageSquare,
+} from 'lucide-react';
 
 export const ExamResults = ({
   activeExam,
-  isPerfectScore,
-  examSource,
-  scorePercent,
-  correctCount,
-  questions,
-  handleRetakeExam,
-  setExamState,
-  totalEarnedPoints,
-  basePoints,
-  perfectBonusPoints,
-  streakBonusPoints,
-  studentTotalScore,
-  gapToLead,
-  selectedAnswers,
-  lang
+  serverResult,
+  onBackToCatalog,
+  lang = 'ar',
 }) => {
-  const navigate = useNavigate();
+  const isAr = lang === 'ar';
 
-  // If the teacher has hidden results for this exam ("حجب النتيجة عن الطلاب")
-  if (activeExam && activeExam.showResults === false) {
+  const result = serverResult || {};
+  const showResults = result.showResults !== false && activeExam?.showResults !== false;
+  const isPendingManualGrading =
+    Boolean(result.isPendingManualGrading) || result.status === 'submitted';
+  const totalQuestions = Number(result.totalQuestions || activeExam?.questionsCount || 0);
+  const xpAwarded = Number(result.xpAwarded || 0);
+
+  // Case 1: Results hidden by teacher OR awaiting manual grading of essay questions
+  if (!showResults || isPendingManualGrading) {
     return (
-      <div style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: '24px',
-        padding: '36px 24px',
-        textAlign: 'center',
-        maxWidth: '680px',
-        margin: '20px auto 40px',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          backgroundColor: 'rgba(0, 102, 204, 0.08)',
-          border: '1px solid rgba(0, 102, 204, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 16px',
-          color: 'var(--primary)'
-        }}>
-          <CheckCircle2 size={28} />
+      <div
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '24px',
+          padding: '36px 24px',
+          textAlign: 'center',
+          maxWidth: '680px',
+          margin: '16px auto 40px',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div
+          style={{
+            width: '58px',
+            height: '58px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(21, 136, 199, 0.1)',
+            border: '1px solid rgba(21, 136, 199, 0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px',
+            color: 'var(--primary)',
+          }}
+        >
+          {isPendingManualGrading ? <Clock size={28} /> : <CheckCircle2 size={28} />}
         </div>
 
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 12px',
-          borderRadius: '20px',
-          backgroundColor: 'rgba(245, 158, 11, 0.15)',
-          color: '#D97706',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          fontSize: '12px',
-          fontWeight: '700',
-          marginBottom: '14px'
-        }}>
-          <Lock size={13} />
-          <span>{lang === 'ar' ? 'النتيجة محجوبة مؤقتاً بقرار المعلم' : 'Results Hidden by Teacher'}</span>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 12px',
+            borderRadius: '999px',
+            backgroundColor: 'rgba(245, 158, 11, 0.14)',
+            color: '#D97706',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            fontSize: '12px',
+            fontWeight: '800',
+            marginBottom: '14px',
+          }}
+        >
+          {isPendingManualGrading ? <Clock size={13} /> : <Lock size={13} />}
+          <span>
+            {isPendingManualGrading
+              ? isAr
+                ? 'تم التسليم — بانتظار تصحيح الأسئلة المقالية'
+                : 'Submitted — Pending Essay Grading'
+              : isAr
+                ? 'النتيجة محجوبة مؤقتاً بقرار المعلم'
+                : 'Results Temporarily Withheld by Teacher'}
+          </span>
         </div>
 
-        <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 10px' }}>
-          {lang === 'ar' ? 'تم تسليم إجاباتك بنجاح وحفظها بالنظام!' : 'Exam Submitted Successfully!'}
+        <h2 style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 10px' }}>
+          {isAr ? 'تم استلام وحفظ ورقة إجابتك بنجاح!' : 'Exam Submitted Successfully!'}
         </h2>
 
-        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 auto 24px', maxWidth: '520px' }}>
-          {lang === 'ar' 
-            ? 'قام معلم المادة بحجب ظهور الدرجات ونموذج الإجابة لجميع الطلاب حتى انتهاء موعد الاختبار وتدقيق الإجابات. سيتم إعلان نتيجتك فور اعتمادها.'
-            : 'The instructor has locked exam results until all submissions are reviewed. Your scores will be available once finalized.'}
+        <p
+          style={{
+            fontSize: '13.5px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.65,
+            margin: '0 auto 22px',
+            maxWidth: '520px',
+          }}
+        >
+          {isPendingManualGrading
+            ? isAr
+              ? 'يحتوي هذا الامتحان على أسئلة مقالية تتطلب مراجعة المعلم. ستظهر درجتك التفصيلية ونموذج الإجابة هنا فور اعتماد التصحيح.'
+              : 'This exam contains essay questions that require teacher grading. Your detailed score will appear here once graded.'
+            : isAr
+              ? 'قام معلم المادة بحجب ظهور الدرجات ونموذج الإجابة مؤقتاً حتى انتهاء فترة الاختبار. ستظهر نتيجتك فور إتاحتها.'
+              : 'Your teacher has temporarily hidden scores and model answers until the exam window closes.'}
         </p>
 
-        {/* Specs Pill */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '16px',
-          padding: '10px 18px',
-          borderRadius: '10px',
-          backgroundColor: 'var(--bg-subtle)',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '12.5px',
-          color: 'var(--text-secondary)',
-          marginBottom: '28px'
-        }}>
-          <span>{lang === 'ar' ? `عدد الأسئلة المستلمة: ${questions.length} سؤال` : `${questions.length} Questions Submitted`}</span>
-          <span>•</span>
-          <span>{lang === 'ar' ? 'حالة ورقة الإجابة: مقفلة ومؤمنة' : 'Answer Sheet: Secured'}</span>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '12px',
+            padding: '10px 18px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+            fontSize: '12.5px',
+            color: 'var(--text-secondary)',
+            fontWeight: '700',
+            marginBottom: '26px',
+          }}
+        >
+          <span>
+            {isAr ? `عدد الأسئلة المستلمة: ${totalQuestions}` : `${totalQuestions} Questions Submitted`}
+          </span>
+          {isPendingManualGrading && showResults && Number(result.score) > 0 && (
+            <>
+              <span>•</span>
+              <span style={{ color: '#059669' }}>
+                {isAr
+                  ? `الدرجة المبدئية للموضوعي: ${result.score} / ${result.fullMark || activeExam?.maxScore || 0}`
+                  : `Preliminary Objective Score: ${result.score} / ${result.fullMark || activeExam?.maxScore || 0}`}
+              </span>
+            </>
+          )}
+          {xpAwarded > 0 && (
+            <>
+              <span>•</span>
+              <span style={{ color: 'var(--primary)' }}>+{xpAwarded} XP</span>
+            </>
+          )}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <button
-            onClick={() => setExamState('catalog')}
+            type="button"
+            onClick={onBackToCatalog}
             style={{
               padding: '10px 24px',
               borderRadius: '10px',
               backgroundColor: 'var(--primary)',
               color: '#FFFFFF',
               fontSize: '13px',
-              fontWeight: '700',
+              fontWeight: '800',
               border: 'none',
               cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)'
             }}
           >
-            {lang === 'ar' ? 'العودة لقائمة الامتحانات' : 'Back to Exams'}
-          </button>
-
-          <button
-            onClick={() => navigate('/student/dashboard')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '10px',
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            {lang === 'ar' ? 'لوحة تحكم الطالب' : 'Student Dashboard'}
+            {isAr ? 'العودة لقائمة الامتحانات' : 'Back to Exams'}
           </button>
         </div>
       </div>
     );
   }
 
+  // Case 2: Graded & Visible Results (100% Real Server Data — ZERO hardcoded fake leaderboard!)
+  const score = Number(result.score ?? 0);
+  const fullMark = Number(result.fullMark || activeExam?.maxScore || 50);
+  const scorePercent = Math.round(Number(result.percentage ?? 0));
+  const isPassed = Boolean(result.isPassed);
+  const isPerfectScore = Boolean(result.isFullMark || scorePercent >= 100);
+  const correctCount = Number(result.correctCount ?? 0);
+  const wrongCount = Number(result.wrongCount ?? 0);
+  const unansweredCount = Number(result.unansweredCount ?? 0);
+  const reviewItems = Array.isArray(result.review) ? result.review : [];
+
   return (
-    <div>
-      {/* Rich Gamified Scorecard & League Points */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: isPerfectScore ? '2px solid var(--success)' : '1px solid var(--border-subtle)',
-        borderRadius: '24px',
-        padding: '28px',
-        marginBottom: '20px',
-        boxShadow: 'var(--shadow-sm)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Top row: Score + Quiz Source Badge + Actions */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '18px',
-          marginBottom: '20px'
-        }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <span style={{
-                fontSize: '11.5px',
-                fontWeight: '700',
-                padding: '3px 10px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                color: 'var(--primary)'
-              }}>
-                {examSource === 'ai' ? 'كويز المحاضرة' : 'امتحان المعلم الرسمي'}
-              </span>
-              {isPerfectScore && (
-                <span style={{
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Scorecard Hero */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: isPerfectScore
+            ? '2px solid #059669'
+            : isPassed
+              ? '1px solid rgba(21, 136, 199, 0.35)'
+              : '1px solid rgba(220, 38, 38, 0.35)',
+          borderRadius: '24px',
+          padding: '26px',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+            marginBottom: '20px',
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              <span
+                style={{
                   fontSize: '11.5px',
-                  fontWeight: '700',
+                  fontWeight: '800',
                   padding: '3px 10px',
                   borderRadius: '8px',
-                  backgroundColor: 'var(--success-light)',
-                  color: 'var(--success)'
-                }}>
-                  درجة كاملة 100%
-                </span>
-              )}
+                  backgroundColor: 'var(--primary-surface)',
+                  color: 'var(--primary)',
+                }}
+              >
+                {result.examTitleAr || activeExam?.titleAr}
+              </span>
+
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: '800',
+                  padding: '3px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: isPassed ? 'rgba(5, 150, 105, 0.12)' : 'rgba(220, 38, 38, 0.12)',
+                  color: isPassed ? '#059669' : '#DC2626',
+                }}
+              >
+                {isPerfectScore
+                  ? isAr
+                    ? 'درجة نهائية كاملة 100%'
+                    : 'Perfect Score 100%'
+                  : isPassed
+                    ? isAr
+                      ? 'ناجح'
+                      : 'Passed'
+                    : isAr
+                      ? 'تحتاج إلى مراجعة إضافية'
+                      : 'Needs Review'}
+              </span>
             </div>
 
-            <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-              {isPerfectScore 
-                ? (lang === 'ar' ? 'درجة نهائية كاملة 100%! أداء متميز' : 'Perfect Score 100%!')
-                : scorePercent >= 75 
-                ? (lang === 'ar' ? 'نتيجة متميزة وجديرة بالتكريم' : 'Outstanding Performance!')
-                : (lang === 'ar' ? 'انتهى الاختبار وتم التصحيح الفوري' : 'Exam Completed')}
+            <h2 style={{ fontSize: '23px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+              {isPerfectScore
+                ? isAr
+                  ? 'ممتاز يا بطل! حققت الدرجة النهائية'
+                  : 'Outstanding! Perfect Score!'
+                : isPassed
+                  ? isAr
+                    ? 'أحسنت! تم تصحيح الامتحان بنجاح'
+                    : 'Great Job! Exam Graded'
+                  : isAr
+                    ? 'انتهى الاختبار — راجع أخطاءك الآن لتعزيز مستواك'
+                    : 'Exam Completed — Review Your Answers'}
             </h2>
 
-            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              {lang === 'ar' 
-                ? `أجبت بشكل صحيح على ${correctCount} من أصل ${questions.length} أسئلة (${scorePercent}%)`
-                : `Score: ${correctCount} of ${questions.length} correct (${scorePercent}%)`}
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <button
-              onClick={handleRetakeExam}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '10px 18px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1px solid var(--border-medium)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              <RotateCcw size={14} />
-              <span>{lang === 'ar' ? 'إعادة المحاولة' : 'Retake'}</span>
-            </button>
-
-            <button
-              onClick={() => setExamState('catalog')}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-secondary)',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              {lang === 'ar' ? 'قائمة الامتحانات' : 'Exam Catalog'}
-            </button>
-          </div>
-        </div>
-
-        {/* Points Earned & Breakdown Highlight */}
-        <div style={{
-          backgroundColor: 'rgba(21, 136, 199, 0.06)',
-          border: '1px solid rgba(21, 136, 199, 0.2)',
-          borderRadius: '18px',
-          padding: '18px 22px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '20px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(21, 136, 199, 0.3)'
-            }}>
-              <Award size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase' }}>
-                {lang === 'ar' ? 'النقاط المحتسبة في دوري المتفوقين' : 'League Points Earned'}
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '2px' }}>
-                +{totalEarnedPoints} {lang === 'ar' ? 'نقطة' : 'pts'}
-              </div>
-            </div>
-          </div>
-
-          {/* Points Breakdown Badges */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <div style={{
-              padding: '6px 12px',
-              borderRadius: '10px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '12px',
-              fontWeight: '600',
-              color: 'var(--text-primary)'
-            }}>
-              +{basePoints} {lang === 'ar' ? 'نقطة إجابات' : 'answers'}
-            </div>
-
-            {isPerfectScore ? (
-              <div style={{
-                padding: '6px 12px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--success-light)',
-                border: '1px solid var(--success)',
-                fontSize: '12px',
-                fontWeight: '700',
-                color: 'var(--success)'
-              }}>
-                +{perfectBonusPoints} {lang === 'ar' ? 'نقاط بونص التقفيل' : 'full mark bonus'}
-              </div>
-            ) : (
-              <div style={{
-                padding: '6px 12px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px dashed var(--border-medium)',
-                fontSize: '11.5px',
-                fontWeight: '500',
-                color: 'var(--text-secondary)'
-              }}>
-                {lang === 'ar' ? 'قفل 100% لتحصل على 3 نقاط بونص' : 'Get 100% for 3 bonus pts'}
-              </div>
-            )}
-
-            <div style={{
-              padding: '6px 12px',
-              borderRadius: '10px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '12px',
-              fontWeight: '600',
-              color: 'var(--text-primary)'
-            }}>
-              +{streakBonusPoints} {lang === 'ar' ? 'نقطة استريك' : 'streak pt'}
-            </div>
-          </div>
-        </div>
-
-        {/* League Standing Preview Card & Direct Navigation CTA */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-medium)',
-          borderRadius: '18px',
-          padding: '18px 22px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(21, 136, 199, 0.1)',
-              color: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Trophy size={22} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'موقعك في دوري المتفوقين: المركز الثاني' : 'Your League Rank: #2'}
-                </span>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                  color: 'var(--primary)'
-                }}>
-                  دوري النخبة الماسي
-                </span>
-              </div>
-              <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                {lang === 'ar'
-                  ? `رصيدك الإجمالي أصبح ${studentTotalScore.toLocaleString()} نقطة • يفصلك عن المركز الأول (سارة خالد): ${gapToLead} نقطة`
-                  : `Total score: ${studentTotalScore.toLocaleString()} • ${gapToLead} pts to lead`}
-              </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              {isAr
+                ? `درجتك النهائية: ${score} من ${fullMark} (${scorePercent}%)`
+                : `Final Score: ${score} / ${fullMark} (${scorePercent}%)`}
             </div>
           </div>
 
           <button
-            onClick={() => navigate('/student/league')}
+            type="button"
+            onClick={onBackToCatalog}
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '11px 22px',
+              gap: '6px',
+              padding: '10px 18px',
               borderRadius: '12px',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13.5px',
-              fontWeight: '700',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              fontWeight: '800',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(21, 136, 199, 0.3)',
-              transition: 'opacity 0.15s ease'
             }}
           >
-            <Trophy size={16} />
-            <span>{lang === 'ar' ? 'عرض ترتيبي في الدوري' : 'View My Rank in League'}</span>
+            {isAr ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
+            <span>{isAr ? 'قائمة الامتحانات' : 'Exam Catalog'}</span>
           </button>
         </div>
-      </div>
 
-      {/* Question Review */}
-      <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '14px' }}>
-        {lang === 'ar' ? 'مراجعة الأسئلة:' : 'Question Review:'}
-      </h3>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {questions.map((q, idx) => {
-          const selectedOpt = selectedAnswers[idx];
-          const isCorrect = selectedOpt === q.correctIndex;
-
-          return (
-            <div
-              key={q.id}
-              style={{
-                backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid',
-                borderColor: isCorrect ? 'var(--success)' : 'var(--error)',
-                borderRadius: '16px',
-                padding: '20px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: isCorrect ? 'var(--success)' : 'var(--error)' }}>
-                  {isCorrect ? 'إجابة صحيحة' : 'إجابة خاطئة'}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  السؤال {idx + 1}
-                </span>
-              </div>
-
-              <h4 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 12px 0' }}>
-                {q.questionAr}
-              </h4>
-
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                <strong>{lang === 'ar' ? 'إجابتك:' : 'Your Answer:'}</strong>{' '}
-                <span style={{ color: isCorrect ? 'var(--success)' : 'var(--error)' }}>
-                  {selectedOpt !== undefined ? q.optionsAr[selectedOpt] : (lang === 'ar' ? 'لم تجب' : 'Unanswered')}
-                </span>
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--success)', marginBottom: '10px', fontWeight: '700' }}>
-                <strong>{lang === 'ar' ? 'الإجابة الصحيحة:' : 'Correct Answer:'}</strong> {q.optionsAr[q.correctIndex]}
-              </div>
-
-              <div style={{ backgroundColor: 'var(--bg-subtle)', padding: '10px 14px', borderRadius: '10px', fontSize: '12.5px', color: 'var(--text-primary)' }}>
-                <strong>{lang === 'ar' ? 'التوضيح:' : 'Explanation:'}</strong> {q.explanationAr}
+        {/* Real Metrics Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 155px), 1fr))',
+            gap: '10px',
+            marginBottom: result.teacherFeedback ? '18px' : 0,
+          }}
+        >
+          <div style={{ padding: '12px 14px', borderRadius: '14px', backgroundColor: 'var(--primary-surface)', textAlign: 'center' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--primary)' }}>{scorePercent}%</div>
+            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {score} / {fullMark} {isAr ? 'درجة' : 'pts'}
+            </div>
+          </div>
+          <div style={{ padding: '12px 14px', borderRadius: '14px', backgroundColor: 'rgba(5, 150, 105, 0.1)', textAlign: 'center' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#059669' }}>{correctCount}</div>
+            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {isAr ? 'إجابات صحيحة' : 'Correct'}
+            </div>
+          </div>
+          <div style={{ padding: '12px 14px', borderRadius: '14px', backgroundColor: 'rgba(220, 38, 38, 0.1)', textAlign: 'center' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#DC2626' }}>{wrongCount}</div>
+            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {isAr ? 'إجابات خاطئة' : 'Wrong'}
+            </div>
+          </div>
+          {unansweredCount > 0 && (
+            <div style={{ padding: '12px 14px', borderRadius: '14px', backgroundColor: 'var(--bg-subtle)', textAlign: 'center' }}>
+              <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-muted)' }}>{unansweredCount}</div>
+              <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                {isAr ? 'بدون إجابة' : 'Unanswered'}
               </div>
             </div>
-          );
-        })}
+          )}
+          <div style={{ padding: '12px 14px', borderRadius: '14px', backgroundColor: 'rgba(245, 158, 11, 0.12)', textAlign: 'center' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#D97706' }}>+{xpAwarded} XP</div>
+            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {isAr ? 'نقاط خبرة مكتسبة' : 'XP Awarded'}
+            </div>
+          </div>
+        </div>
+
+        {/* Teacher Feedback if available */}
+        {result.teacherFeedback && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '12px 14px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '13px',
+              color: 'var(--text-primary)',
+            }}
+          >
+            <MessageSquare size={16} color="var(--primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <strong>{isAr ? 'ملاحظة المعلم: ' : 'Teacher Feedback: '}</strong>
+              <span>{result.teacherFeedback}</span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Detailed Server-Graded Question Review (MCQ, True/False & Essay) */}
+      {reviewItems.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 14px 0' }}>
+            {isAr ? `مراجعة الأسئلة والإجابات النموذجية (${reviewItems.length}):` : `Question Review (${reviewItems.length}):`}
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {reviewItems.map((item, idx) => {
+              const isCorrect = item.isCorrect === true;
+              const isEssay = item.type === 'essay';
+              const isTrueFalse = item.type === 'true_false';
+
+              let studentAnswerLabel = isAr ? 'لم يتم الإجابة' : 'Unanswered';
+              if (isEssay) {
+                studentAnswerLabel = item.essayAnswerText || studentAnswerLabel;
+              } else if (isTrueFalse) {
+                if (item.selectedBool === true) studentAnswerLabel = isAr ? 'صواب (True)' : 'True';
+                else if (item.selectedBool === false) studentAnswerLabel = isAr ? 'خطأ (False)' : 'False';
+              } else if (item.selectedIndex !== null && item.selectedIndex !== undefined) {
+                studentAnswerLabel = item.optionsAr?.[item.selectedIndex] ?? `#${item.selectedIndex + 1}`;
+              }
+
+              let correctAnswerLabel = '';
+              if (isEssay) {
+                correctAnswerLabel = item.modelAnswerAr || '';
+              } else if (isTrueFalse) {
+                if (item.correctBool === true) correctAnswerLabel = isAr ? 'صواب (True)' : 'True';
+                else if (item.correctBool === false) correctAnswerLabel = isAr ? 'خطأ (False)' : 'False';
+              } else if (item.correctIndex !== null && item.correctIndex !== undefined) {
+                correctAnswerLabel = item.optionsAr?.[item.correctIndex] ?? '';
+              }
+
+              return (
+                <div
+                  key={item.id || idx}
+                  style={{
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: `1.5px solid ${isCorrect ? 'rgba(5, 150, 105, 0.45)' : 'rgba(220, 38, 38, 0.4)'}`,
+                    borderRadius: '16px',
+                    padding: '18px 20px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        color: isCorrect ? '#059669' : '#DC2626',
+                      }}
+                    >
+                      {isCorrect ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                      <span>
+                        {isCorrect
+                          ? isAr
+                            ? 'إجابة صحيحة'
+                            : 'Correct'
+                          : isAr
+                            ? 'إجابة خاطئة'
+                            : 'Incorrect'}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                      {isAr ? `السؤال ${item.questionNumber || idx + 1}` : `Q${item.questionNumber || idx + 1}`} •{' '}
+                      {item.pointsAwarded} / {item.points} {isAr ? 'درجة' : 'pts'}
+                    </span>
+                  </div>
+
+                  <h4
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: '800',
+                      color: 'var(--text-primary)',
+                      margin: '0 0 12px 0',
+                      lineHeight: 1.5,
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    {item.questionAr}
+                  </h4>
+
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '6px',
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    <strong>{isAr ? 'إجابتك: ' : 'Your Answer: '}</strong>
+                    <span style={{ color: isCorrect ? '#059669' : '#DC2626', fontWeight: '700' }}>
+                      {studentAnswerLabel}
+                    </span>
+                  </div>
+
+                  {correctAnswerLabel && (
+                    <div
+                      style={{
+                        fontSize: '13px',
+                        color: '#059669',
+                        marginBottom: item.explanationAr || item.teacherComment ? '10px' : 0,
+                        fontWeight: '700',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      <strong>{isAr ? 'الإجابة النموذجية: ' : 'Correct Answer: '}</strong>
+                      <span>{correctAnswerLabel}</span>
+                    </div>
+                  )}
+
+                  {item.explanationAr && (
+                    <div
+                      style={{
+                        backgroundColor: 'var(--bg-subtle)',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        fontSize: '12.5px',
+                        color: 'var(--text-primary)',
+                        lineHeight: 1.55,
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      <strong>{isAr ? 'التوضيح: ' : 'Explanation: '}</strong>
+                      <span>{item.explanationAr}</span>
+                    </div>
+                  )}
+
+                  {item.teacherComment && (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        backgroundColor: 'rgba(21, 136, 199, 0.08)',
+                        padding: '9px 13px',
+                        borderRadius: '10px',
+                        fontSize: '12.5px',
+                        color: 'var(--text-primary)',
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      <strong>{isAr ? 'تعليق المعلم: ' : 'Teacher Comment: '}</strong>
+                      <span>{item.teacherComment}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

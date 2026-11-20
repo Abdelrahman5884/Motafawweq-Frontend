@@ -1,347 +1,856 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
 import {
-  Clock, FileText, Award, RotateCcw, Play, Trophy,
-  AlertCircle, X, EyeOff
+  Clock,
+  FileText,
+  Award,
+  Play,
+  AlertCircle,
+  X,
+  EyeOff,
+  CheckCircle2,
+  Search,
+  RefreshCw,
+  Eye,
+  Lock,
 } from 'lucide-react';
+import { formatExamTimer } from './useExam';
 
 export const ExamCatalog = ({
   examsList = [],
+  filteredExams = [],
+  loadingExams = false,
+  examsError = null,
+  actionError = null,
+  onClearActionError,
+  onRetry,
+  tabCounts,
+  statusFilter,
+  setStatusFilter,
+  searchQuery,
+  setSearchQuery,
   handleRequestStartExam,
   pendingExam,
   setPendingExam,
+  isStartingExam = false,
+  loadingResultId = '',
   handleConfirmStart,
-  lang
+  lang = 'ar',
 }) => {
-  const navigate = useNavigate();
+  const isAr = lang === 'ar';
+
+  useEffect(() => {
+    if (!pendingExam) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !isStartingExam) setPendingExam(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [pendingExam, isStartingExam, setPendingExam]);
+
+  const filterTabs = [
+    { id: 'all', ar: 'الكل', en: 'All', count: tabCounts.totalCount },
+    { id: 'ready', ar: 'متاحة الآن', en: 'Available', count: tabCounts.readyCount },
+    { id: 'in_progress', ar: 'قيد الحل', en: 'In Progress', count: tabCounts.inProgressCount },
+    { id: 'completed', ar: 'مكتملة', en: 'Completed', count: tabCounts.completedCount },
+    { id: 'closed', ar: 'مغلقة / قادمة', en: 'Closed / Upcoming', count: tabCounts.closedCount },
+  ];
+
+  const hasFilters = statusFilter !== 'all' || searchQuery.trim().length > 0;
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
-        gap: '16px',
-        marginBottom: '28px',
-        paddingBottom: '20px',
-        borderBottom: '1px solid var(--border-subtle)',
-        flexWrap: 'wrap'
-      }}>
-        <div>
-          <h1 style={{
+      <div
+        style={{
+          paddingBottom: '16px',
+          borderBottom: '1px solid var(--border-subtle)',
+        }}
+      >
+        <h1
+          style={{
             fontSize: '24px',
-            fontWeight: '800',
+            fontWeight: '900',
             color: 'var(--text-primary)',
             margin: '0 0 6px 0',
-            letterSpacing: '-0.01em'
-          }}>
-            {lang === 'ar' ? 'الامتحانات والاختبارات' : 'Exams & Assessments'}
-          </h1>
-          <p style={{
-            fontSize: '13.5px',
-            color: 'var(--text-secondary)',
-            margin: 0,
-            lineHeight: 1.5
-          }}>
-            {lang === 'ar' 
-              ? 'امتحانات بنظام البابل شيت مع توقيت زمني دقيق وتصحيح تفصيلي فوري' 
-              : 'Official timed bubble sheet exams with automated grading'}
-          </p>
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {isAr ? 'الامتحانات والاختبارات' : 'Exams & Assessments'}
+        </h1>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+          {isAr
+            ? 'اختر الامتحان المتاح للبدء، أو استكمل محاولتك الحالية، أو راجع نتائجك وإجاباتك النموذجية'
+            : 'Start available exams, resume active attempts, or review your graded answers'}
+        </p>
+      </div>
+
+      {/* Error Alerts */}
+      {(examsError || actionError) && (
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+            padding: '12px 16px',
+            borderRadius: '14px',
+            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+            border: '1px solid rgba(220, 38, 38, 0.3)',
+            color: '#DC2626',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <AlertCircle size={17} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', fontWeight: '700', overflowWrap: 'anywhere' }}>
+              {actionError || examsError}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {examsError && (
+              <button
+                type="button"
+                onClick={onRetry}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(220, 38, 38, 0.35)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: '#DC2626',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                }}
+              >
+                <RefreshCw size={13} />
+                <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+              </button>
+            )}
+            {actionError && (
+              <button
+                type="button"
+                onClick={onClearActionError}
+                aria-label="Dismiss"
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: '#DC2626',
+                  cursor: 'pointer',
+                  padding: '2px',
+                }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Filter Tabs + Search Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div
+          role="tablist"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '4px',
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '4px',
+            borderRadius: '13px',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          {filterTabs.map((t) => {
+            const active = statusFilter === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setStatusFilter(t.id)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 12px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  backgroundColor: active ? 'var(--bg-surface-elevated)' : 'transparent',
+                  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontWeight: active ? '800' : '600',
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                }}
+              >
+                <span>{isAr ? t.ar : t.en}</span>
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    fontWeight: '800',
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    backgroundColor: active ? 'var(--primary-surface)' : 'var(--bg-hover)',
+                    color: active ? 'var(--primary)' : 'var(--text-muted)',
+                  }}
+                >
+                  {t.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 14px',
-            borderRadius: '12px',
-            backgroundColor: 'var(--bg-subtle)',
-            border: '1px solid var(--border-subtle)',
-            fontSize: '12.5px',
-            fontWeight: '700',
-            color: 'var(--text-secondary)'
-          }}>
-            <span>{examsList.filter(e => e.status === 'ready').length} {lang === 'ar' ? 'امتحانات متاحة الآن' : 'exams available'}</span>
-          </div>
-
-          <button
-            onClick={() => navigate('/student/league')}
+        <div style={{ position: 'relative', width: '100%', maxWidth: '280px' }}>
+          <Search
+            size={15}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--warning-light)',
-              border: '1.5px solid var(--warning)',
-              color: 'var(--warning)',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: 'pointer'
+              position: 'absolute',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              insetInlineStart: '11px',
+              color: 'var(--text-muted)',
             }}
-          >
-            <Trophy size={15} color="var(--primary)" />
-            <span>{lang === 'ar' ? 'عرض ترتيبي في الدوري' : 'League Rank'}</span>
-          </button>
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={isAr ? 'بحث في الامتحانات أو المعلم...' : 'Search exams or teacher...'}
+            style={{
+              width: '100%',
+              height: '38px',
+              paddingInlineStart: '34px',
+              paddingInlineEnd: searchQuery ? '30px' : '12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              color: 'var(--text-primary)',
+              fontSize: '12.5px',
+              fontFamily: 'inherit',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label={isAr ? 'مسح البحث' : 'Clear search'}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                insetInlineEnd: '8px',
+                border: 'none',
+                background: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Clean Exam Cards Grid */}
-      {examsList.length === 0 ? (
-        <div style={{
-          padding: '48px 24px',
-          textAlign: 'center',
-          borderRadius: '20px',
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px dashed var(--border-subtle)',
-          color: 'var(--text-secondary)'
-        }}>
-          <FileText size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
-          <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'لا توجد امتحانات متاحة حالياً' : 'No Exams Available'}
-          </div>
-          <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
-            {lang === 'ar'
-              ? 'ستظهر هنا الامتحانات والاختبارات المقررة لك من معلميك بمجرد نشرها.'
-              : 'Exams assigned by your teachers will appear here once published.'}
-          </div>
-        </div>
-      ) : (
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-        gap: '20px'
-      }}>
-        {examsList.map((exam) => {
-          const isReady = exam.status === 'ready';
-
-          return (
+      {/* Loading Skeletons / Empty States / Exam Cards Grid */}
+      {loadingExams ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+            gap: '20px',
+          }}
+        >
+          {[1, 2, 3].map((n) => (
             <div
-              key={exam.id}
-              className="clean-exam-card"
+              key={n}
               style={{
                 backgroundColor: 'var(--bg-surface-elevated)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '20px',
                 padding: '22px',
+                minHeight: '240px',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
-                boxShadow: 'var(--shadow-xs)'
+                gap: '12px',
               }}
             >
-              <div>
-                {/* Top Row: Subject & Status */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '14px'
-                }}>
-                  <span style={{
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    padding: '3px 10px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-subtle)'
-                  }}>
-                    {exam.subjectAr}
-                  </span>
+              <div style={{ height: '20px', width: '42%', borderRadius: '7px', backgroundColor: 'var(--bg-subtle)' }} />
+              <div style={{ height: '26px', width: '85%', borderRadius: '8px', backgroundColor: 'var(--bg-subtle)' }} />
+              <div style={{ height: '74px', width: '100%', borderRadius: '12px', backgroundColor: 'var(--bg-subtle)' }} />
+              <div style={{ height: '42px', width: '100%', borderRadius: '12px', backgroundColor: 'var(--bg-subtle)', marginTop: 'auto' }} />
+            </div>
+          ))}
+        </div>
+      ) : filteredExams.length === 0 ? (
+        <div
+          style={{
+            padding: '48px 24px',
+            textAlign: 'center',
+            borderRadius: '20px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <FileText size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+          <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+            {examsList.length === 0
+              ? isAr
+                ? 'لا توجد امتحانات منشورة حالياً'
+                : 'No Exams Available Yet'
+              : isAr
+                ? 'لا توجد امتحانات مطابقة للبحث أو الفلتر'
+                : 'No Matching Exams Found'}
+          </div>
+          <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)', marginBottom: hasFilters ? '16px' : 0 }}>
+            {examsList.length === 0
+              ? isAr
+                ? 'ستظهر هنا الامتحانات والاختبارات المقررة لك من معلميك بمجرد نشرها.'
+                : 'Exams assigned by your teachers will appear here once published.'
+              : isAr
+                ? 'جرّب تغيير البحث أو عرض جميع الامتحانات.'
+                : 'Try adjusting your search or resetting filters.'}
+          </div>
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('all');
+                setSearchQuery('');
+              }}
+              style={{
+                padding: '8px 18px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--primary)',
+                fontSize: '12.5px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              {isAr ? 'عرض جميع الامتحانات' : 'Reset Filters'}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+            gap: '20px',
+          }}
+        >
+          {filteredExams.map((exam) => {
+            const isReady = exam.status === 'ready';
+            const isInProgress = exam.status === 'in_progress';
+            const isGraded = exam.status === 'graded';
+            const isSubmitted = exam.status === 'submitted';
+            const isUpcoming = exam.status === 'upcoming';
+            const isLoadingThisResult = loadingResultId === exam.id;
 
-                  {isReady ? (
-                    <span style={{
-                      fontSize: '11.5px',
-                      fontWeight: '700',
-                      color: 'var(--success)',
-                      backgroundColor: 'var(--success-light)',
-                      padding: '3px 9px',
-                      borderRadius: '8px',
-                      display: 'inline-flex',
+            return (
+              <div
+                key={exam.id}
+                className="clean-exam-card"
+                style={{
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: isInProgress
+                    ? '1.5px solid #D97706'
+                    : isGraded
+                      ? '1px solid rgba(5, 150, 105, 0.35)'
+                      : '1px solid var(--border-subtle)',
+                  borderRadius: '20px',
+                  padding: '22px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: 'var(--shadow-xs)',
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  {/* Top Row: Subject & Explicit Status Pill */}
+                  <div
+                    style={{
+                      display: 'flex',
                       alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      <span style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--success)',
-                        animation: 'softPulse 2s infinite ease-in-out'
-                      }} />
-                      <span>{lang === 'ar' ? 'متاح الآن' : 'Available'}</span>
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        padding: '3px 10px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        maxWidth: '58%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {exam.subjectAr}
                     </span>
-                  ) : (
-                    <span style={{
-                      fontSize: '11.5px',
-                      fontWeight: '600',
-                      color: 'var(--text-muted)',
+
+                    {isReady && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          color: '#059669',
+                          backgroundColor: 'rgba(5, 150, 105, 0.12)',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: '#059669',
+                            animation: 'softPulse 2s infinite ease-in-out',
+                          }}
+                        />
+                        <span>{isAr ? 'متاح الآن' : 'Available'}</span>
+                      </span>
+                    )}
+
+                    {isInProgress && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          color: '#D97706',
+                          backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                        }}
+                      >
+                        {isAr ? 'قيد الحل الآن' : 'In Progress'}
+                      </span>
+                    )}
+
+                    {isGraded && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          color: exam.showResults ? (exam.isPassed ? '#059669' : '#DC2626') : 'var(--primary)',
+                          backgroundColor: exam.showResults
+                            ? exam.isPassed
+                              ? 'rgba(5, 150, 105, 0.12)'
+                              : 'rgba(220, 38, 38, 0.12)'
+                            : 'var(--primary-surface)',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <CheckCircle2 size={12} />
+                        <span>
+                          {exam.showResults && exam.percentage !== null
+                            ? `${Math.round(exam.percentage)}%`
+                            : isAr
+                              ? 'تم التسليم'
+                              : 'Submitted'}
+                        </span>
+                      </span>
+                    )}
+
+                    {isSubmitted && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          color: '#7C3AED',
+                          backgroundColor: 'rgba(124, 58, 237, 0.12)',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                        }}
+                      >
+                        {isAr ? 'قيد تصحيح المعلم' : 'Pending Grading'}
+                      </span>
+                    )}
+
+                    {(isUpcoming || exam.status === 'closed') && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: 'var(--text-muted)',
+                          backgroundColor: 'var(--bg-subtle)',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                        }}
+                      >
+                        {isUpcoming
+                          ? isAr
+                            ? 'قادم قريباً'
+                            : 'Upcoming'
+                          : isAr
+                            ? 'مغلق'
+                            : 'Closed'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Title */}
+                  <h3
+                    title={exam.titleAr}
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: '800',
+                      color: 'var(--text-primary)',
+                      margin: '0 0 6px 0',
+                      lineHeight: 1.45,
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'break-word',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {isAr ? exam.titleAr : exam.titleEn || exam.titleAr}
+                  </h3>
+
+                  {/* Teacher & Exam Type */}
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                    {exam.teacherNameAr || (isAr ? 'معلم المادة' : 'Instructor')} •{' '}
+                    {exam.isBubbleSheet
+                      ? isAr
+                        ? 'بابل شيت رسمي'
+                        : 'Bubble Sheet'
+                      : isAr
+                        ? 'امتحان إلكتروني'
+                        : 'Online Exam'}
+                  </div>
+
+                  {/* Specs Grid */}
+                  <div
+                    style={{
                       backgroundColor: 'var(--bg-subtle)',
-                      padding: '3px 9px',
-                      borderRadius: '8px'
-                    }}>
-                      {exam.date}
-                    </span>
+                      padding: '12px 14px',
+                      borderRadius: '14px',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '8px',
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '14px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={14} color="var(--primary)" />
+                      <span>
+                        {exam.durationMinutes} {isAr ? 'دقيقة' : 'min'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <FileText size={14} color="var(--text-muted)" />
+                      <span>
+                        {exam.questionsCount} {isAr ? 'سؤال' : 'Q'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Award size={14} color="var(--text-muted)" />
+                      <span>
+                        {exam.maxScore} {isAr ? 'درجة' : 'pts'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={14} color="var(--text-muted)" />
+                      <span>
+                        {isAr ? `النجاح: ${exam.passScore}` : `Pass: ${exam.passScore}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Score bar if graded & visible */}
+                  {isGraded && exam.showResults && exam.score !== null && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        backgroundColor: exam.isPassed ? 'rgba(5, 150, 105, 0.08)' : 'rgba(220, 38, 38, 0.08)',
+                        border: `1px solid ${exam.isPassed ? 'rgba(5, 150, 105, 0.25)' : 'rgba(220, 38, 38, 0.25)'}`,
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        color: exam.isPassed ? '#059669' : '#DC2626',
+                        marginBottom: '14px',
+                      }}
+                    >
+                      <span>{isAr ? 'درجتك:' : 'Your Score:'}</span>
+                      <span>
+                        {exam.score} / {exam.maxScore} ({Math.round(exam.percentage || 0)}%)
+                      </span>
+                    </div>
+                  )}
+
+                  {isInProgress && exam.remainingSeconds !== null && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '7px 12px',
+                        borderRadius: '10px',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        color: '#D97706',
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        marginBottom: '14px',
+                      }}
+                    >
+                      <span>{isAr ? 'الوقت المتبقي:' : 'Time Remaining:'}</span>
+                      <span dir="ltr">{formatExamTimer(exam.remainingSeconds)}</span>
+                    </div>
+                  )}
+
+                  {!exam.showResults && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        color: 'var(--text-muted)',
+                        backgroundColor: 'var(--bg-subtle)',
+                        padding: '6px 10px',
+                        borderRadius: '10px',
+                        marginBottom: '14px',
+                        border: '1px dashed var(--border-subtle)',
+                      }}
+                    >
+                      <EyeOff size={13} color="var(--text-muted)" />
+                      <span>
+                        {isAr ? 'النتيجة محجوبة مؤقتاً بقرار المعلم' : 'Results hidden by teacher'}
+                      </span>
+                    </div>
                   )}
                 </div>
 
-                {/* Title */}
-                <h3 style={{
-                  fontSize: '16.5px',
-                  fontWeight: '800',
-                  color: 'var(--text-primary)',
-                  margin: '0 0 8px 0',
-                  lineHeight: 1.45,
-                  minHeight: '44px'
-                }}>
-                  {exam.titleAr}
-                </h3>
-
-                {/* Subtitle / Teacher */}
-                <div style={{
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '16px'
-                }}>
-                  {exam.teacherNameAr || 'معلم المادة'} • {exam.typeAr || 'بابل شيت رسمي'}
+                {/* Action Button */}
+                <div>
+                  {isReady ? (
+                    <button
+                      type="button"
+                      onClick={() => handleRequestStartExam(exam)}
+                      className="clean-btn"
+                      style={{
+                        width: '100%',
+                        padding: '11px 16px',
+                        borderRadius: '12px',
+                        backgroundColor: 'var(--primary)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '13.5px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 2px 10px rgba(21, 136, 199, 0.25)',
+                      }}
+                    >
+                      <Play size={14} fill="#FFFFFF" />
+                      <span>{isAr ? 'بدء الامتحان الآن' : 'Start Exam'}</span>
+                    </button>
+                  ) : isInProgress ? (
+                    <button
+                      type="button"
+                      disabled={isStartingExam}
+                      onClick={() => handleRequestStartExam(exam)}
+                      className="clean-btn"
+                      style={{
+                        width: '100%',
+                        padding: '11px 16px',
+                        borderRadius: '12px',
+                        backgroundColor: '#D97706',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '13.5px',
+                        fontWeight: '800',
+                        cursor: isStartingExam ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <Play size={14} fill="#FFFFFF" />
+                      <span>
+                        {isStartingExam
+                          ? isAr
+                            ? 'جاري استئناف الامتحان...'
+                            : 'Resuming...'
+                          : isAr
+                            ? 'استكمال الامتحان الآن'
+                            : 'Resume Exam'}
+                      </span>
+                    </button>
+                  ) : isGraded || isSubmitted ? (
+                    <button
+                      type="button"
+                      disabled={isLoadingThisResult}
+                      onClick={() => handleRequestStartExam(exam)}
+                      className="clean-btn"
+                      style={{
+                        width: '100%',
+                        padding: '11px 16px',
+                        borderRadius: '12px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--primary)',
+                        border: '1px solid rgba(21, 136, 199, 0.35)',
+                        fontSize: '13px',
+                        fontWeight: '800',
+                        cursor: isLoadingThisResult ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '7px',
+                      }}
+                    >
+                      <Eye size={14} />
+                      <span>
+                        {isLoadingThisResult
+                          ? isAr
+                            ? 'جاري تحميل النتيجة...'
+                            : 'Loading...'
+                          : isGraded && exam.showResults
+                            ? isAr
+                              ? 'عرض النتيجة والمراجعة'
+                              : 'View Result & Review'
+                            : isAr
+                              ? 'عرض حالة التسليم'
+                              : 'View Submission Status'}
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      style={{
+                        width: '100%',
+                        padding: '11px 16px',
+                        borderRadius: '12px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-muted)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                        cursor: 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <Lock size={13} />
+                      <span>
+                        {isUpcoming
+                          ? isAr
+                            ? `يبدأ في موعده${exam.date ? ` (${exam.date})` : ''}`
+                            : `Scheduled${exam.date ? ` (${exam.date})` : ''}`
+                          : isAr
+                            ? 'الامتحان مغلق حالياً'
+                            : 'Exam Closed'}
+                      </span>
+                    </button>
+                  )}
                 </div>
-
-                {/* Clean Specs Grid */}
-                <div style={{
-                  backgroundColor: 'var(--bg-subtle)',
-                  padding: '12px 14px',
-                  borderRadius: '14px',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '8px',
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '18px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={14} color="var(--text-muted)" />
-                    <span>{exam.durationMinutes} دقيقة</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={14} color="var(--text-muted)" />
-                    <span>{exam.questionsCount || 10} سؤالاً</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Award size={14} color="var(--text-muted)" />
-                    <span>{exam.maxScore} درجة</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <RotateCcw size={14} color="var(--text-muted)" />
-                    <span>المحاولات: {exam.attemptsAllowed}</span>
-                  </div>
-                </div>
-
-                {exam.showResults === false && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '11.5px',
-                    fontWeight: '700',
-                    color: 'var(--text-muted)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    padding: '6px 10px',
-                    borderRadius: '10px',
-                    marginBottom: '14px',
-                    border: '1px dashed var(--border-subtle)'
-                  }}>
-                    <EyeOff size={13} color="var(--text-muted)" />
-                    <span>{lang === 'ar' ? 'النتيجة محجوبة حالياً بقرار المعلم' : 'Results withheld by teacher'}</span>
-                  </div>
-                )}
               </div>
-
-              {/* Action Button */}
-              <div>
-                {isReady ? (
-                  <button
-                    onClick={() => handleRequestStartExam(exam)}
-                    className="clean-btn"
-                    style={{
-                      width: '100%',
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      fontSize: '13.5px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: '0 2px 10px rgba(21, 136, 199, 0.25)'
-                    }}
-                  >
-                    <Play size={14} fill="#FFFFFF" />
-                    <span>{lang === 'ar' ? 'بدء الامتحان' : 'Start Exam'}</span>
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    style={{
-                      width: '100%',
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      backgroundColor: 'var(--bg-subtle)',
-                      color: 'var(--text-muted)',
-                      border: '1px solid var(--border-subtle)',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: 'not-allowed'
-                    }}
-                  >
-                    {lang === 'ar' ? `متاح في موعده (${exam.date})` : 'Upcoming'}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Pre-Exam Instructions & Confirmation Modal */}
       {pendingExam && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(6, 37, 78, 0.45)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-medium)',
-            borderRadius: '24px',
-            maxWidth: '480px',
-            width: '100%',
-            padding: '28px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.12)',
-            animation: 'modalFadeIn 0.2s ease'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !isStartingExam && setPendingExam(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(6, 37, 78, 0.55)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-medium)',
+              borderRadius: '24px',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '26px',
+              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.2)',
+              animation: 'modalFadeIn 0.2s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
                 <AlertCircle size={20} />
                 <span style={{ fontSize: '12.5px', fontWeight: '800' }}>
-                  {lang === 'ar' ? 'تعليمات ما قبل البدء' : 'Exam Guidelines'}
+                  {isAr ? 'تعليمات ما قبل البدء' : 'Exam Guidelines'}
                 </span>
               </div>
               <button
+                type="button"
+                disabled={isStartingExam}
                 onClick={() => setPendingExam(null)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                aria-label={isAr ? 'إغلاق' : 'Close'}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
               >
                 <X size={18} />
               </button>
@@ -350,33 +859,41 @@ export const ExamCatalog = ({
             <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
               {pendingExam.titleAr}
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-              {lang === 'ar'
-                ? 'بمجرد الضغط على بدء الامتحان، سيبدأ العداد التنازلي فوراً ولن يمكنك إيقافه مؤقتاً.'
-                : 'Once started, the timer will begin immediately and cannot be paused.'}
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: 1.6 }}>
+              {isAr
+                ? `مدة الامتحان ${pendingExam.durationMinutes} دقيقة وعدد أسئلته ${pendingExam.questionsCount} سؤال. بمجرد البدء يعمل العداد الزمني على السيرفر ولا يمكن إيقافه، ويُرجى عدم مغادرة نافذة الامتحان.`
+                : `Duration is ${pendingExam.durationMinutes} min with ${pendingExam.questionsCount} questions. Once started, the server timer cannot be paused.`}
             </p>
 
-            {pendingExam.showResults === false && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--warning-light)',
-                border: '1px solid var(--warning)',
-                color: 'var(--warning)',
-                fontSize: '12px',
-                fontWeight: '700',
-                marginBottom: '18px'
-              }}>
-                <EyeOff size={16} />
-                <span>{lang === 'ar' ? 'تنبيه: نتيجة هذا الاختبار محجوبة مؤقتاً بقرار المعلم وسيتم إعلانها لاحقاً.' : 'Notice: Results will be announced later by the teacher.'}</span>
+            {!pendingExam.showResults && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#D97706',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  marginBottom: '16px',
+                }}
+              >
+                <EyeOff size={16} style={{ flexShrink: 0 }} />
+                <span>
+                  {isAr
+                    ? 'تنبيه: نتيجة هذا الاختبار محجوبة مؤقتاً بقرار المعلم وسيتم إعلانها لاحقاً.'
+                    : 'Notice: Results will be released later by the teacher.'}
+                </span>
               </div>
             )}
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
+                type="button"
+                disabled={isStartingExam}
                 onClick={() => setPendingExam(null)}
                 style={{
                   flex: 1,
@@ -386,14 +903,16 @@ export const ExamCatalog = ({
                   border: '1px solid var(--border-subtle)',
                   color: 'var(--text-secondary)',
                   fontWeight: '700',
-                  fontSize: '13.5px',
-                  cursor: 'pointer'
+                  fontSize: '13px',
+                  cursor: 'pointer',
                 }}
               >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                {isAr ? 'إلغاء' : 'Cancel'}
               </button>
 
               <button
+                type="button"
+                disabled={isStartingExam}
                 onClick={handleConfirmStart}
                 style={{
                   flex: 2,
@@ -404,16 +923,25 @@ export const ExamCatalog = ({
                   border: 'none',
                   fontWeight: '800',
                   fontSize: '13.5px',
-                  cursor: 'pointer',
+                  cursor: isStartingExam ? 'wait' : 'pointer',
+                  opacity: isStartingExam ? 0.7 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 2px 10px rgba(21, 136, 199, 0.25)'
+                  boxShadow: '0 2px 10px rgba(21, 136, 199, 0.25)',
                 }}
               >
                 <Play size={14} fill="#FFFFFF" />
-                <span>{lang === 'ar' ? 'تأكيد وبدء الامتحان' : 'Confirm & Begin'}</span>
+                <span>
+                  {isStartingExam
+                    ? isAr
+                      ? 'جاري تجهيز الامتحان...'
+                      : 'Starting...'
+                    : isAr
+                      ? 'تأكيد وبدء الامتحان'
+                      : 'Confirm & Begin'}
+                </span>
               </button>
             </div>
           </div>

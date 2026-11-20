@@ -78,6 +78,7 @@ export const studentApi = {
   // Phase 5: Exams, Timed Attempts & Mistake Bank
   exams: {
     list: () => apiGet('/student/exams'),
+    getResult: (examUuid) => apiGet(`/student/exams/${examUuid}/result`),
     start: (examUuid) =>
       apiRequest(`/student/exams/${examUuid}/start`, {
         method: 'POST',

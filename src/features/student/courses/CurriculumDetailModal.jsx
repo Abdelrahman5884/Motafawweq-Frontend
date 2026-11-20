@@ -1,35 +1,54 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 export const CurriculumDetailModal = ({ item, isRtl, onClose, onStartLesson }) => {
+  useEffect(() => {
+    if (!item) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [item, onClose]);
+
   if (!item) return null;
 
+  const topics = Array.isArray(item.topics) ? item.topics : [];
+
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      backdropFilter: 'blur(5px)',
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px'
-    }}>
-      <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1px solid var(--border-medium)',
-        borderRadius: '20px',
-        maxWidth: '480px',
-        width: '100%',
-        padding: '26px',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)',
-        position: 'relative',
-        animation: 'modalFadeIn 0.2s ease-out'
-      }}>
-        {/* Close */}
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.55)',
+        backdropFilter: 'blur(5px)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-medium)',
+          borderRadius: '20px',
+          maxWidth: '480px',
+          width: '100%',
+          padding: '26px',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)',
+          position: 'relative',
+        }}
+      >
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Close"
           style={{
             position: 'absolute',
             top: '18px',
@@ -44,59 +63,77 @@ export const CurriculumDetailModal = ({ item, isRtl, onClose, onStartLesson }) =
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           <X size={15} />
         </button>
 
-        <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', marginBottom: '4px' }}>
-          {item.sourceAr}
-        </div>
+        {item.sourceAr && (
+          <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', marginBottom: '4px' }}>
+            {item.sourceAr}
+          </div>
+        )}
         <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
           {item.titleAr}
         </h3>
-        <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
-          {item.gradeAr}
-        </p>
+        {item.gradeAr && (
+          <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
+            {item.gradeAr}
+          </p>
+        )}
 
-        {/* Topics List */}
-        <div style={{
-          backgroundColor: 'var(--bg-subtle)',
-          borderRadius: '14px',
-          padding: '14px',
-          marginBottom: '18px'
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px' }}>
-            الأبواب والوحدات المقررة رسمياً:
+        {topics.length > 0 && (
+          <div
+            style={{
+              backgroundColor: 'var(--bg-subtle)',
+              borderRadius: '14px',
+              padding: '14px',
+              marginBottom: '18px',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px' }}>
+              الأبواب والوحدات المقررة رسمياً:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {topics.map((t, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '12.5px',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--bg-surface)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: 'var(--primary)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {idx + 1}
+                  </span>
+                  <span>{t}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {item.topics.map((t, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                <span style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--bg-surface)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  color: 'var(--primary)',
-                  flexShrink: 0
-                }}>
-                  {idx + 1}
-                </span>
-                <span>{t}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
 
-        {/* Action Buttons */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
           <button
+            type="button"
             onClick={onClose}
             style={{
               padding: '9px 16px',
@@ -106,15 +143,16 @@ export const CurriculumDetailModal = ({ item, isRtl, onClose, onStartLesson }) =
               color: 'var(--text-secondary)',
               fontWeight: '700',
               fontSize: '13px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             إغلاق
           </button>
           <button
+            type="button"
             onClick={() => {
               onClose();
-              onStartLesson();
+              onStartLesson?.();
             }}
             style={{
               padding: '9px 20px',
@@ -125,7 +163,7 @@ export const CurriculumDetailModal = ({ item, isRtl, onClose, onStartLesson }) =
               fontWeight: '800',
               fontSize: '13px',
               cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(21, 136, 199, 0.28)'
+              boxShadow: '0 2px 8px rgba(21, 136, 199, 0.28)',
             }}
           >
             بدء مذاكرة المنهج
