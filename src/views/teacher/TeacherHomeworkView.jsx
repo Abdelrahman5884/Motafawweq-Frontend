@@ -325,15 +325,33 @@ export const TeacherHomeworkView = () => {
   };
 
   // Reject Submission Button
-  const handleRejectSubmission = () => {
+  const handleRejectSubmission = async () => {
     if (!activeSubmission || !selectedHw) return;
+    const rejectFeedback =
+      feedbackInput.trim() ||
+      'تم رفض الواجب لعدم استيفاء الشروط أو نقص الحل. يرجى مراجعة المعلم وإعادة المحاولة.';
+
+    try {
+      await teacherApi.homeworks.gradeSubmission(
+        selectedHw.uuid || selectedHw.id,
+        activeSubmission.uuid || activeSubmission.id,
+        {
+          status: 'rejected',
+          score: 0,
+          feedbackAr: rejectFeedback,
+        }
+      );
+    } catch (err) {
+      console.warn('Backend reject homework submission error:', err);
+    }
+
     const updatedSubmissions = selectedHw.submissions.map(sub => {
       if (sub.id === activeSubmission.id) {
         return {
           ...sub,
           status: 'rejected',
           score: 0,
-          feedbackAr: feedbackInput.trim() || 'تم رفض الواجب لعدم استيفاء الشروط أو نقص الحل. يرجى مراجعة المعلم وإعادة المحاولة.'
+          feedbackAr: rejectFeedback
         };
       }
       return sub;
@@ -363,7 +381,8 @@ export const TeacherHomeworkView = () => {
         selectedHw.uuid || selectedHw.id,
         activeSubmission.uuid || activeSubmission.id,
         {
-          gradeScore: numericScore,
+          status: 'graded',
+          score: numericScore,
           feedbackAr: feedbackInput,
         }
       );
@@ -437,34 +456,42 @@ export const TeacherHomeworkView = () => {
       lesson_title_ar: createForm.lesson,
       target_location_id: createForm.targetLocationId,
       type: createForm.type,
-      text_content: createForm.type === 'text' ? createForm.textContent : undefined,
+      text_content: createForm.textContent?.trim() || undefined,
       due_date: createForm.dueDate,
       due_time: createForm.dueTime,
       max_grade: Number(createForm.maxGrade) || 20,
     };
 
     try {
-      const fileToUpload = createForm.rawFiles?.[0] || null;
+      const fileToUpload = createForm.files?.[0]?.file || null;
       const res = await teacherApi.homeworks.create(payload, fileToUpload);
-      const createdObj = res?.data || {
-        id: `hw-${Date.now()}`,
-        ...payload,
-        titleAr: payload.title_ar,
-        courseTitleAr: payload.course_title_ar,
-        lessonAr: payload.lesson_title_ar,
-        maxGrade: payload.max_grade,
-        submissions: []
-      };
+      const createdObj = res?.data;
+      if (!createdObj) {
+        setFileUploadError(isAr ? 'تعذر حفظ الواجب على الخادم، يرجى المحاولة مجدداً.' : 'Failed to save homework.');
+        return;
+      }
 
       setHomeworks([createdObj, ...homeworks]);
       setSelectedHwId(createdObj.id);
+      setCreateForm({
+        title: '',
+        courseTitle: '',
+        lesson: '',
+        targetLocationId: 'all',
+        type: 'file',
+        files: [],
+        textContent: '',
+        maxGrade: '20',
+        dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        dueTime: '23:59'
+      });
+      setFileUploadError('');
+      setShowCreateModal(false);
+      setViewMode('detail');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      console.warn('Backend homework create error:', err);
+      setFileUploadError(err?.message || (isAr ? 'فشل رفع وإنشاء الواجب، تأكد من نوع وحجم الملف.' : 'Failed to upload homework.'));
     }
-
-    setShowCreateModal(false);
-    setViewMode('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Delete Homework Prompt & Confirm

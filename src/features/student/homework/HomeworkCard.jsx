@@ -236,6 +236,29 @@ export const HomeworkCard = ({ hw, handleOpenHw, lang = 'ar' }) => {
           </span>
         </div>
 
+        {/* Teacher Text Question Preview */}
+        {hw.textContent && (
+          <div
+            style={{
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              padding: '8px 11px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.55,
+              marginBottom: '12px',
+              overflowWrap: 'anywhere',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {hw.textContent}
+          </div>
+        )}
+
         {/* Real Teacher Attachment Chip */}
         {hw.attachmentName && (
           <div

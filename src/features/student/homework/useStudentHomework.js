@@ -148,7 +148,7 @@ export const useStudentHomework = (lang = 'ar') => {
       setAnswerText(hw.solutionText || '');
       setSelectedFile(null);
       setRemoveExistingAttachment(false);
-      setShowAttachmentPreview(false);
+      setShowAttachmentPreview(Boolean(hw.attachmentUrl));
       setSubmitError(null);
     },
     [revokePreviewUrl]

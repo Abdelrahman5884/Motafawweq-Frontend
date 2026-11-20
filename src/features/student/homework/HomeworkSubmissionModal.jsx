@@ -180,28 +180,52 @@ export const HomeworkSubmissionModal = ({
           </div>
         </div>
 
-        {/* Teacher Text Instructions */}
-        {selectedHw.textContent && (
+        {/* Teacher Question / Instructions */}
+        {selectedHw.textContent ? (
           <div
             style={{
-              backgroundColor: 'var(--bg-subtle)',
-              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--primary-surface)',
+              border: '1px solid rgba(21, 136, 199, 0.28)',
               borderRadius: '14px',
               padding: '14px 16px',
               marginBottom: '16px',
-              fontSize: '13px',
+              fontSize: '14px',
               color: 'var(--text-primary)',
-              lineHeight: 1.7,
+              lineHeight: 1.75,
               whiteSpace: 'pre-wrap',
               overflowWrap: 'anywhere',
             }}
           >
-            <div style={{ color: 'var(--primary)', fontSize: '11.5px', marginBottom: '6px', fontWeight: '800' }}>
-              {isAr ? 'تفاصيل وأسئلة الواجب من المعلم:' : 'Assignment Instructions:'}
+            <div style={{ color: 'var(--primary)', fontSize: '12px', marginBottom: '6px', fontWeight: '800' }}>
+              {isAr ? 'سؤال وتفاصيل الواجب المطلوب حله:' : 'Assignment Question & Instructions:'}
             </div>
             {selectedHw.textContent}
           </div>
-        )}
+        ) : !selectedHw.attachmentUrl ? (
+          <div
+            style={{
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              border: '1px dashed rgba(245, 158, 11, 0.45)',
+              borderRadius: '14px',
+              padding: '12px 15px',
+              marginBottom: '16px',
+              fontSize: '12.5px',
+              color: '#B45309',
+              lineHeight: 1.6,
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+            }}
+          >
+            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span>
+              {isAr
+                ? 'لم يتم إرفاق نص سؤال أو ملف أسئلة مع هذا الواجب من قِبل المعلم. إذا كان هذا الواجب يحتوي على ملف، اطلب من المعلم إعادة رفعه.'
+                : 'No question text or attachment file is attached to this homework yet.'}
+            </span>
+          </div>
+        ) : null}
 
         {/* Teacher Attachment (Real Signed Preview & Download) */}
         {selectedHw.attachmentUrl && (

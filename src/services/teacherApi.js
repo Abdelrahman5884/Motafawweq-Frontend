@@ -323,10 +323,11 @@ export const teacherApi = {
     },
     getSubmission: (uuid, submissionUuid) =>
       apiGet(`/teacher/homeworks/${uuid}/submissions/${submissionUuid}`),
-    gradeSubmission: (uuid, submissionUuid, { gradeScore, feedbackAr = '' }) =>
+    gradeSubmission: (uuid, submissionUuid, { status = 'graded', score, gradeScore, feedbackAr = '' }) =>
       apiPatch(`/teacher/homeworks/${uuid}/submissions/${submissionUuid}/grade`, {
-        grade_score: gradeScore,
-        teacher_feedback_ar: feedbackAr,
+        status,
+        score: score !== undefined ? score : gradeScore,
+        feedback_ar: feedbackAr,
       }),
     downloadAttachmentUrl: (uuid) => `${API_BASE_URL}/teacher/homeworks/${uuid}/attachment`,
     downloadSubmissionAttachmentUrl: (submissionUuid) =>
