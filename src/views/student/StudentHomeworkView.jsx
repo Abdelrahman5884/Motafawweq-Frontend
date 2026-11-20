@@ -1,344 +1,387 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { CheckCircle2, Search, X, AlertCircle, RefreshCw, FileText } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { studentApi } from '../../services/studentApi';
-import confetti from 'canvas-confetti';
-import { CheckCircle2 } from 'lucide-react';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { SPage } from '../../components/student/ui';
-import { HomeworkCard, HomeworkSubmissionModal } from '../../features/student/homework';
+import '../../features/student/homework/homework.css';
+import {
+  HomeworkCard,
+  HomeworkSubmissionModal,
+  useStudentHomework,
+} from '../../features/student/homework';
 
 export const StudentHomeworkView = () => {
-  const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
-  const deepLinkHandledRef = useRef(false);
+  const isAr = lang === 'ar';
+  const hw = useStudentHomework(lang);
 
-  const [homeworksList, setHomeworksList] = useState([]);
-  const [filterTab, setFilterTab] = useState('all');
-  const [selectedHw, setSelectedHw] = useState(null);
-  const [answerText, setAnswerText] = useState('');
-  const [uploadedFileName, setUploadedFileName] = useState('');
-  const [selectedFileObj, setSelectedFileObj] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [confirmationToast, setConfirmationToast] = useState(null);
-  const [showPdfPreview, setShowPdfPreview] = useState(true);
+  const breadcrumbs = useMemo(
+    () => [
+      {
+        labelAr: 'الواجبات والتكليفات',
+        labelEn: 'Homework & Assignments',
+      },
+    ],
+    []
+  );
+  useSetBreadcrumbs(breadcrumbs);
 
-  const loadHomeworks = useCallback(async () => {
-    try {
-      const res = await studentApi.homeworks.list();
-      const raw = Array.isArray(res?.data) ? res.data : [];
-      const mapped = raw.map((h) => ({
-        id: h.id || h.uuid,
-        titleAr: h.titleAr,
-        subjectAr: h.courseTitleAr || h.lessonTitleAr || 'واجب دراسي',
-        teacherNameAr: h.teacherName || '',
-        deadlineTextAr: h.dueDate ? `${h.dueDate} ${h.dueTime || ''}`.trim() : 'متاح للتسليم',
-        status: h.submissionStatus === 'not_submitted' ? 'pending' : (h.submissionStatus === 'graded' ? 'graded' : 'submitted'),
-        maxScore: Number(h.maxGrade || 20),
-        earnedScore: h.score !== null && h.score !== undefined ? Number(h.score) : 0,
-        questionsCount: 1,
-        feedbackAr: h.feedbackAr || ''
-      }));
-      setHomeworksList(mapped);
-
-      if (!deepLinkHandledRef.current && typeof window !== 'undefined') {
-        const requestedHwId = new URLSearchParams(window.location.search).get('homeworkId');
-        if (requestedHwId) {
-          deepLinkHandledRef.current = true;
-          const targetHw = mapped.find((item) => item.id === requestedHwId);
-          if (targetHw) {
-            setSelectedHw(targetHw);
-            setAnswerText('');
-            setUploadedFileName('');
-            setSelectedFileObj(null);
-            setShowPdfPreview(true);
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    loadHomeworks();
-  }, [loadHomeworks]);
-
-  const filteredList = homeworksList.filter(hw => {
-    if (filterTab === 'all') return true;
-    return hw.status === filterTab;
-  });
-
-  const handleOpenHw = (hw) => {
-    setSelectedHw(hw);
-    setAnswerText(hw.submissionText || '');
-    setUploadedFileName(hw.submittedFileUrl || '');
-    setSelectedFileObj(null);
-    setShowPdfPreview(true);
-  };
-
-  const handleSimulateFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFileObj(file);
-      setUploadedFileName(file.name);
-    }
-  };
-
-  const handleSubmitHomework = async (e) => {
-    e.preventDefault();
-    if (!answerText.trim() && !selectedFileObj && !uploadedFileName) {
-      alert(lang === 'ar' ? 'يرجى كتابة الحل أو إرفاق ملف الحل أولاً.' : 'Please enter an answer or upload a file.');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      let body;
-      if (selectedFileObj) {
-        body = new FormData();
-        body.append('file', selectedFileObj);
-        if (answerText.trim()) body.append('solution_text', answerText.trim());
-      } else {
-        body = { solution_text: answerText.trim() };
-      }
-      await studentApi.homeworks.submit(selectedHw.id, body);
-      await loadHomeworks();
-      try {
-        confetti({ particleCount: 70, spread: 60, origin: { y: 0.65 } });
-      } catch {}
-      setConfirmationToast(selectedHw.titleAr);
-      setSelectedHw(null);
-      setTimeout(() => setConfirmationToast(null), 3500);
-    } catch (err) {
-      alert(err?.message || (lang === 'ar' ? 'فشل تسليم الواجب.' : 'Failed to submit homework.'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const pendingCount = homeworksList.filter(h => h.status === 'pending').length;
+  const tabs = useMemo(
+    () => [
+      { id: 'all', labelAr: 'الكل', labelEn: 'All', count: hw.tabCounts.all },
+      { id: 'pending', labelAr: 'مطلوب تسليمه', labelEn: 'Due', count: hw.tabCounts.pending },
+      { id: 'submitted', labelAr: 'قيد المراجعة', labelEn: 'In Review', count: hw.tabCounts.submitted },
+      { id: 'graded', labelAr: 'تم التصحيح', labelEn: 'Graded', count: hw.tabCounts.graded },
+    ],
+    [hw.tabCounts.all, hw.tabCounts.pending, hw.tabCounts.submitted, hw.tabCounts.graded]
+  );
 
   return (
-    <SPage maxWidth={1060}>
-      <style>{`
-        @keyframes modalFadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.96) translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-        @keyframes tabFadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(6px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .clean-hw-card {
-          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-        }
-        .clean-hw-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
-          border-color: var(--border-medium);
-        }
-        .clean-btn {
-          transition: all 0.15s ease;
-        }
-        .clean-btn:hover {
-          opacity: 0.92;
-          transform: translateY(-1px);
-        }
-        .clean-btn:active {
-          transform: translateY(0);
-        }
-      `}</style>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'var(--font-arabic, sans-serif)' }}>
+    <SPage maxWidth={1080}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          fontFamily: 'var(--font-arabic, sans-serif)',
+          minWidth: 0,
+        }}
+      >
         {/* Toast Notification */}
-        {confirmationToast && (
-          <div style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'var(--success)',
-            color: '#FFFFFF',
-            padding: '12px 22px',
-            borderRadius: '12px',
-            boxShadow: '0 10px 30px rgba(22, 163, 74, 0.35)',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            fontSize: '13.5px',
-            fontWeight: '700',
-            animation: 'modalFadeIn 0.2s ease'
-          }}>
-            <CheckCircle2 size={18} />
-            <span>تم تسليم الواجب بنجاح: {confirmationToast}</span>
+        {hw.toast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              maxWidth: 'min(92vw, 480px)',
+              backgroundColor: '#059669',
+              color: '#FFFFFF',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              boxShadow: '0 10px 30px rgba(5, 150, 105, 0.35)',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '13px',
+              fontWeight: '700',
+              animation: 'hwModalFadeIn 0.2s ease',
+            }}
+          >
+            <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+            <span>{hw.toast}</span>
           </div>
         )}
 
-        {/* Clean Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          paddingBottom: '20px',
-          borderBottom: '1px solid var(--border-subtle)',
-          width: '100%',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{ maxWidth: '100%', minWidth: 0, flex: 1 }}>
-            <h1 style={{
-              fontSize: 'clamp(20px, 4vw, 24px)',
-              fontWeight: '800',
+        {/* Header */}
+        <div
+          style={{
+            paddingBottom: '16px',
+            borderBottom: '1px solid var(--border-subtle)',
+          }}
+        >
+          <h1
+            style={{
+              fontSize: '24px',
+              fontWeight: '900',
               color: 'var(--text-primary)',
               margin: '0 0 6px 0',
               letterSpacing: '-0.01em',
-              wordBreak: 'break-word'
-            }}>
-              {lang === 'ar' ? 'الواجبات والتكليفات' : 'Homework & Assignments'}
-            </h1>
-            <p style={{
-              fontSize: '13.5px',
-              color: 'var(--text-secondary)',
-              margin: 0,
-              lineHeight: 1.5,
-              wordBreak: 'break-word'
-            }}>
-              {lang === 'ar'
-                ? 'استعراض شيتات وملفات الواجبات المرفقة من المعلمين وتسليم الحلول ومتابعة التقييم'
-                : 'Review assignment sheets, attached PDFs, submit solutions, and track grades'}
-            </p>
-          </div>
-
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 14px',
-            borderRadius: '12px',
-            backgroundColor: 'var(--bg-subtle)',
-            border: '1px solid var(--border-subtle)',
-            fontSize: '12.5px',
-            fontWeight: '700',
-            color: 'var(--text-secondary)'
-          }}>
-            <span>{pendingCount} واجبات تنتظر تسليمك</span>
-          </div>
+            }}
+          >
+            {isAr ? 'الواجبات والتكليفات' : 'Homework & Assignments'}
+          </h1>
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            {isAr
+              ? 'استعرض واجباتك وملفات المعلمين، سلّم حلك نصاً أو ملف PDF/صورة، وتابع التقييم والملاحظات'
+              : 'Review assigned homework sheets, submit text or PDF/image solutions, and track grading feedback'}
+          </p>
         </div>
 
-        {/* Clean Filter Tabs Strip */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          overflowX: 'auto',
-          paddingBottom: '4px',
-          maxWidth: '100%',
-          boxSizing: 'border-box'
-        }}>
-          {[
-            { id: 'all', labelAr: 'جميع التكليفات', labelEn: 'All', count: homeworksList.length },
-            { id: 'pending', labelAr: 'مطلوب تسليمه', labelEn: 'Pending', count: pendingCount },
-            { id: 'submitted', labelAr: 'قيد المراجعة', labelEn: 'In Review', count: homeworksList.filter(h => h.status === 'submitted').length },
-            { id: 'graded', labelAr: 'تم التصحيح', labelEn: 'Graded', count: homeworksList.filter(h => h.status === 'graded').length }
-          ].map(tab => (
+        {/* Error Banner with Retry */}
+        {hw.loadError && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px',
+              padding: '12px 16px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(220, 38, 38, 0.08)',
+              border: '1px solid rgba(220, 38, 38, 0.3)',
+              color: '#DC2626',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <AlertCircle size={17} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: '13px', fontWeight: '700' }}>{hw.loadError}</span>
+            </div>
             <button
-              key={tab.id}
-              onClick={() => setFilterTab(tab.id)}
+              type="button"
+              onClick={hw.refreshHomeworks}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                backgroundColor: filterTab === tab.id ? 'var(--primary)' : 'var(--bg-subtle)',
-                color: filterTab === tab.id ? '#FFFFFF' : 'var(--text-secondary)',
-                border: '1px solid',
-                borderColor: filterTab === tab.id ? 'var(--primary)' : 'var(--border-subtle)',
-                fontSize: '13px',
-                fontWeight: filterTab === tab.id ? '800' : '600',
+                gap: '5px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(220, 38, 38, 0.35)',
+                backgroundColor: 'var(--bg-surface)',
+                color: '#DC2626',
+                fontSize: '12px',
+                fontWeight: '800',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
               }}
             >
-              <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
-              <span style={{
-                fontSize: '11px',
-                padding: '1px 6px',
-                borderRadius: '6px',
-                backgroundColor: filterTab === tab.id ? 'rgba(255,255,255,0.25)' : 'var(--border-subtle)',
-                color: filterTab === tab.id ? '#FFFFFF' : 'var(--text-muted)',
-                fontWeight: '700'
-              }}>
-                {tab.count}
-              </span>
+              <RefreshCw size={13} />
+              <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
             </button>
-          ))}
+          </div>
+        )}
+
+        {/* Filter Tabs + Search Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div
+            role="tablist"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '4px',
+              backgroundColor: 'var(--bg-subtle)',
+              padding: '4px',
+              borderRadius: '13px',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            {tabs.map((tab) => {
+              const active = hw.filterTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => hw.setFilterTab(tab.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 13px',
+                    borderRadius: '9px',
+                    border: 'none',
+                    backgroundColor: active ? 'var(--bg-surface-elevated)' : 'transparent',
+                    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontSize: '12.5px',
+                    fontWeight: active ? '800' : '600',
+                    cursor: 'pointer',
+                    boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                  }}
+                >
+                  <span>{isAr ? tab.labelAr : tab.labelEn}</span>
+                  <span
+                    style={{
+                      fontSize: '10.5px',
+                      fontWeight: '800',
+                      padding: '1px 6px',
+                      borderRadius: '999px',
+                      backgroundColor: active ? 'var(--primary-surface)' : 'var(--bg-hover)',
+                      color: active ? 'var(--primary)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ position: 'relative', width: '100%', maxWidth: '280px' }}>
+            <Search
+              size={15}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                insetInlineStart: '11px',
+                color: 'var(--text-muted)',
+              }}
+            />
+            <input
+              type="text"
+              value={hw.searchQuery}
+              onChange={(e) => hw.setSearchQuery(e.target.value)}
+              placeholder={isAr ? 'بحث في الواجبات أو المعلم...' : 'Search homework or teacher...'}
+              style={{
+                width: '100%',
+                height: '38px',
+                paddingInlineStart: '34px',
+                paddingInlineEnd: hw.searchQuery ? '30px' : '12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+                fontSize: '12.5px',
+                fontFamily: 'inherit',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {hw.searchQuery && (
+              <button
+                type="button"
+                onClick={() => hw.setSearchQuery('')}
+                aria-label={isAr ? 'مسح البحث' : 'Clear search'}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  insetInlineEnd: '8px',
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Homework Grid */}
-        {filteredList.length === 0 ? (
-          <div style={{
-            padding: '48px 24px',
-            textAlign: 'center',
-            borderRadius: '20px',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px dashed var(--border-subtle)',
-            color: 'var(--text-secondary)'
-          }}>
+        {/* Loading Skeletons / Empty State / Homework Grid */}
+        {hw.loading ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+              gap: '20px',
+            }}
+          >
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                style={{
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  minHeight: '220px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ height: '20px', width: '44%', borderRadius: '7px', backgroundColor: 'var(--bg-subtle)' }} />
+                <div style={{ height: '24px', width: '85%', borderRadius: '8px', backgroundColor: 'var(--bg-subtle)' }} />
+                <div style={{ height: '38px', width: '100%', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)' }} />
+                <div style={{ height: '40px', width: '100%', borderRadius: '12px', backgroundColor: 'var(--bg-subtle)', marginTop: 'auto' }} />
+              </div>
+            ))}
+          </div>
+        ) : hw.filteredList.length === 0 ? (
+          <div
+            style={{
+              padding: '48px 24px',
+              textAlign: 'center',
+              borderRadius: '20px',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px dashed var(--border-subtle)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <FileText size={34} color="var(--text-muted)" style={{ marginBottom: '10px' }} />
             <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
-              {lang === 'ar' ? 'لا توجد واجبات في هذا القسم حالياً' : 'No Homework Found'}
+              {hw.homeworksList.length === 0
+                ? isAr
+                  ? 'لا توجد واجبات منشورة حالياً'
+                  : 'No Homework Posted Yet'
+                : isAr
+                  ? 'لا توجد واجبات مطابقة للبحث أو الفلتر'
+                  : 'No Matching Homework Found'}
             </div>
-            <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
-              {lang === 'ar'
-                ? 'لم يتم تكليفك بأي واجبات دراسية حتى الآن.'
-                : 'No homework assignments have been posted yet.'}
+            <div style={{ fontSize: '13px', marginBottom: hw.hasFilters ? '14px' : 0 }}>
+              {hw.homeworksList.length === 0
+                ? isAr
+                  ? 'ستظهر هنا جميع الواجبات والتكليفات التي يضيفها معلموك بمجرد نشرها.'
+                  : 'Assignments posted by your teachers will appear here.'
+                : isAr
+                  ? 'جرّب تعديل كلمات البحث أو عرض جميع الواجبات.'
+                  : 'Try adjusting your search or resetting filters.'}
             </div>
+            {hw.hasFilters && (
+              <button
+                type="button"
+                onClick={hw.resetFilters}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--primary)',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                }}
+              >
+                {isAr ? 'عرض جميع الواجبات' : 'Reset Filters'}
+              </button>
+            )}
           </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '20px',
-            animation: 'tabFadeIn 0.25s ease'
-          }}>
-            {filteredList.map((hw) => (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+              gap: '20px',
+              animation: 'hwTabFadeIn 0.2s ease',
+            }}
+          >
+            {hw.filteredList.map((item) => (
               <HomeworkCard
-                key={hw.id}
-                hw={hw}
-                handleOpenHw={handleOpenHw}
+                key={item.id}
+                hw={item}
+                handleOpenHw={hw.openHomework}
                 lang={lang}
               />
             ))}
           </div>
         )}
 
-        {/* Submission / Grade Modal */}
+        {/* Homework Details, Preview, Submission & Evaluation Modal */}
         <HomeworkSubmissionModal
-          selectedHw={selectedHw}
-          setSelectedHw={setSelectedHw}
-          showPdfPreview={showPdfPreview}
-          setShowPdfPreview={setShowPdfPreview}
-          answerText={answerText}
-          setAnswerText={setAnswerText}
-          uploadedFileName={uploadedFileName}
-          handleSimulateFileUpload={handleSimulateFileUpload}
-          handleSubmitHomework={handleSubmitHomework}
-          isSubmitting={isSubmitting}
+          selectedHw={hw.selectedHw}
+          onClose={hw.closeHomework}
+          showAttachmentPreview={hw.showAttachmentPreview}
+          setShowAttachmentPreview={hw.setShowAttachmentPreview}
+          answerText={hw.answerText}
+          setAnswerText={hw.setAnswerText}
+          selectedFile={hw.selectedFile}
+          selectedFilePreviewUrl={hw.selectedFilePreviewUrl}
+          removeExistingAttachment={hw.removeExistingAttachment}
+          setRemoveExistingAttachment={hw.setRemoveExistingAttachment}
+          handleSelectFile={hw.handleSelectFile}
+          handleClearSelectedFile={hw.handleClearSelectedFile}
+          handleSubmitHomework={hw.handleSubmitHomework}
+          isSubmitting={hw.isSubmitting}
+          submitError={hw.submitError}
+          onClearError={() => hw.setSubmitError(null)}
           lang={lang}
           isRtl={isRtl}
         />
