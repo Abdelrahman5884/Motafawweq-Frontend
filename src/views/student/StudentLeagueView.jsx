@@ -9,6 +9,7 @@ import {
   X,
   AlertCircle,
   RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
@@ -183,6 +184,20 @@ export const StudentLeagueView = () => {
             >
               <GraduationCap size={16} />
               <span>{isAr ? 'دوري الجمهورية العام' : 'General Republic League'}</span>
+              {lg.generalLeague && !lg.generalLeague.hasStarted && (
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    padding: '1px 7px',
+                    borderRadius: '999px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                    color: '#D97706',
+                    fontWeight: '800',
+                  }}
+                >
+                  {isAr ? 'لم يبدأ بعد' : 'Not Started'}
+                </span>
+              )}
             </button>
 
             <button
@@ -370,8 +385,8 @@ export const StudentLeagueView = () => {
                 })}
               </div>
 
-              {/* Search (only in leaderboard tab) */}
-              {lg.activeTab === 'leaderboard' && (
+              {/* Search (only in started leaderboard tab) */}
+              {lg.activeTab === 'leaderboard' && lg.activeDetail.hasStarted !== false && (
                 <div style={{ position: 'relative', width: '100%', maxWidth: '260px' }}>
                   <Search
                     size={15}
@@ -427,8 +442,8 @@ export const StudentLeagueView = () => {
               )}
             </div>
 
-            {/* Dynamic Tier Filter Pills (only on leaderboard tab) */}
-            {lg.activeTab === 'leaderboard' && tiers.length > 0 && (
+            {/* Dynamic Tier Filter Pills (only on started leaderboard tab) */}
+            {lg.activeTab === 'leaderboard' && lg.activeDetail.hasStarted !== false && tiers.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 {[
                   { id: 'all', nameAr: 'جميع المستويات', nameEn: 'All Tiers', count: lg.tierCounts.all },
@@ -479,13 +494,36 @@ export const StudentLeagueView = () => {
 
             {/* Tab Contents */}
             {lg.activeTab === 'leaderboard' && (
-              <LeagueLeaderboardTable
-                students={lg.filteredStudents}
-                totalInLeague={lg.leaderboard.length}
-                lang={lang}
-                isRtl={isRtl}
-                onSelectStudent={lg.setSelectedStudent}
-              />
+              lg.activeDetail.hasStarted === false ? (
+                <div
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px dashed rgba(245, 158, 11, 0.45)',
+                    borderRadius: '18px',
+                    padding: '44px 24px',
+                    textAlign: 'center',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <Clock size={34} color="#D97706" style={{ marginBottom: '10px' }} />
+                  <div style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                    {isAr ? 'دوري الجمهورية العام لم يبدأ بعد' : 'General Republic League Has Not Started Yet'}
+                  </div>
+                  <div style={{ fontSize: '13.5px', maxWidth: '460px', margin: '0 auto', lineHeight: 1.65 }}>
+                    {isAr
+                      ? 'يتم إطلاق دوري الجمهورية العام من قِبل إدارة المنصة (الأدمن). فور البدء ستُحتسب نقاط جميع الطلاب من الصفر وفق قواعد الدوري المعتمدة.'
+                      : 'The General Republic League is launched by the platform admin. Once started, all students begin fresh from 0 points under the official rules.'}
+                  </div>
+                </div>
+              ) : (
+                <LeagueLeaderboardTable
+                  students={lg.filteredStudents}
+                  totalInLeague={lg.leaderboard.length}
+                  lang={lang}
+                  isRtl={isRtl}
+                  onSelectStudent={lg.setSelectedStudent}
+                />
+              )
             )}
 
             {lg.activeTab === 'rules' && (

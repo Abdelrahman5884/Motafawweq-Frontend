@@ -7,24 +7,29 @@ export const LeagueHeroBanner = ({ activeDetail, top1, lang = 'ar' }) => {
   if (!activeDetail) return null;
 
   const standing = activeDetail.myStanding;
+  const hasStarted = activeDetail.hasStarted !== false;
   const isActive = activeDetail.isActive !== false;
   const daysRemaining = Number(activeDetail.daysRemaining || 0);
 
-  const countdownLabel = !isActive
+  const countdownLabel = !hasStarted
     ? isAr
-      ? 'انتهت الجولة'
-      : 'Round Finished'
-    : daysRemaining > 0
+      ? 'لم يبدأ بعد'
+      : 'Not Started Yet'
+    : !isActive
       ? isAr
-        ? `متبقي ${daysRemaining} ${daysRemaining === 1 ? 'يوم' : 'أيام'}`
-        : `${daysRemaining}d left`
-      : activeDetail.endsAt
+        ? 'انتهت الجولة'
+        : 'Round Finished'
+      : daysRemaining > 0
         ? isAr
-          ? `ينتهي ${activeDetail.endsAt}`
-          : `Ends ${activeDetail.endsAt}`
-        : isAr
-          ? 'جولة نشطة'
-          : 'Active Round';
+          ? `متبقي ${daysRemaining} ${daysRemaining === 1 ? 'يوم' : 'أيام'}`
+          : `${daysRemaining}d left`
+        : activeDetail.endsAt
+          ? isAr
+            ? `ينتهي ${activeDetail.endsAt}`
+            : `Ends ${activeDetail.endsAt}`
+          : isAr
+            ? 'جولة نشطة'
+            : 'Active Round';
 
   return (
     <div
