@@ -1,18 +1,25 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Search, X, Play } from 'lucide-react';
 
 export const LessonTranscriptTab = ({
-  transcriptSegments,
+  transcriptSegments = [],
   transcriptSearch,
   setTranscriptSearch,
   currentTime,
   seekTo,
   fmt,
-  lang
+  lang,
 }) => {
-  const filtered = transcriptSegments.filter(
-    seg => !transcriptSearch || seg.text.toLowerCase().includes(transcriptSearch.toLowerCase())
-  );
+  const isAr = lang === 'ar';
+  const trimmedQuery = transcriptSearch.trim().toLowerCase();
+
+  const filtered = useMemo(() => {
+    if (!trimmedQuery) return transcriptSegments;
+    return transcriptSegments.filter((seg) => {
+      const hay = `${seg.text || ''} ${seg.textEn || ''} ${seg.speaker || ''}`.toLowerCase();
+      return hay.includes(trimmedQuery);
+    });
+  }, [transcriptSegments, trimmedQuery]);
 
   return (
     <div className="lv-transcript">
@@ -21,13 +28,32 @@ export const LessonTranscriptTab = ({
         <Search size={15} />
         <input
           type="text"
-          placeholder={lang === 'ar' ? 'ابحث في كلمات وشرح الحصة...' : 'Search in lecture transcript...'}
+          placeholder={
+            isAr ? 'ابحث في كلمات وشرح الحصة...' : 'Search in lecture transcript...'
+          }
           value={transcriptSearch}
-          onChange={e => setTranscriptSearch(e.target.value)}
+          onChange={(e) => setTranscriptSearch(e.target.value)}
           className="lv-transcript__search-input"
         />
+        {trimmedQuery && (
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: '800',
+              color: 'var(--primary)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {filtered.length} {isAr ? 'نتيجة' : 'matches'}
+          </span>
+        )}
         {transcriptSearch && (
-          <button onClick={() => setTranscriptSearch('')} className="lv-transcript__search-clear">
+          <button
+            type="button"
+            onClick={() => setTranscriptSearch('')}
+            className="lv-transcript__search-clear"
+            aria-label={isAr ? 'مسح البحث' : 'Clear search'}
+          >
             <X size={14} />
           </button>
         )}
@@ -35,30 +61,72 @@ export const LessonTranscriptTab = ({
 
       {/* Segments List */}
       <div className="lv-transcript__list">
-        {filtered.length === 0 && (
-          <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
-            {lang === 'ar' ? 'لا يوجد تفريغ نصي متاح لهذا الدرس حالياً.' : 'No transcript available for this lesson.'}
+        {transcriptSegments.length === 0 ? (
+          <div
+            style={{
+              padding: '28px 16px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              fontSize: '13.5px',
+              fontWeight: '700',
+            }}
+          >
+            {isAr
+              ? 'لا يوجد تفريغ نصي متاح لهذا الدرس حالياً.'
+              : 'No transcript available for this lesson yet.'}
           </div>
-        )}
-        {filtered.map(seg => {
-          const isCurrent = currentTime >= seg.startSec && currentTime < seg.endSec;
-          return (
-            <div
-              key={seg.id}
-              className={`lv-transcript__item ${isCurrent ? 'active' : ''}`}
-              onClick={() => seekTo(seg.startSec)}
-            >
-              <button className="lv-transcript__time-btn" title="تشغيل من هذه النقطة">
-                <Play size={11} fill="currentColor" />
-                <span>{fmt(seg.startSec)}</span>
-              </button>
-              <div className="lv-transcript__content">
-                <div className="lv-transcript__speaker">{seg.speaker}</div>
-                <p className="lv-transcript__p">{seg.text}</p>
+        ) : filtered.length === 0 ? (
+          <div
+            style={{
+              padding: '28px 16px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              fontSize: '13px',
+              fontWeight: '700',
+            }}
+          >
+            {isAr
+              ? `لا توجد فقرات مطابقة للبحث «${transcriptSearch}».`
+              : `No transcript lines match "${transcriptSearch}".`}
+          </div>
+        ) : (
+          filtered.map((seg) => {
+            const isCurrent =
+              currentTime >= seg.startSec && currentTime < seg.endSec;
+            const segText = isAr ? seg.text : seg.textEn || seg.text;
+
+            return (
+              <div
+                key={seg.id}
+                className={`lv-transcript__item ${isCurrent ? 'active' : ''}`}
+                onClick={() => seekTo(seg.startSec)}
+              >
+                <button
+                  type="button"
+                  className="lv-transcript__time-btn"
+                  title={isAr ? 'تشغيل من هذه النقطة' : 'Play from here'}
+                >
+                  <Play size={11} fill="currentColor" />
+                  <span>{fmt(seg.startSec)}</span>
+                </button>
+                <div className="lv-transcript__content" style={{ minWidth: 0 }}>
+                  {seg.speaker && (
+                    <div className="lv-transcript__speaker">{seg.speaker}</div>
+                  )}
+                  <p
+                    className="lv-transcript__p"
+                    style={{
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {segText}
+                  </p>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );

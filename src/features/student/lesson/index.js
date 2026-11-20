@@ -10,3 +10,4 @@ export { LessonModals } from './LessonModals';
 export { LessonTodayCard } from './LessonTodayCard';
 export { useLesson } from './useLesson';
 export * from './lessonData';
+export * from './lessonUtils';

@@ -14,6 +14,7 @@ export const LessonPlaylistSidebar = ({
   isCompleted,
   progress,
   currentTime,
+  durationSec,
   durationFmt,
   fmt,
   lessonChecklist,
@@ -31,6 +32,7 @@ export const LessonPlaylistSidebar = ({
         progress={progress}
         isCompleted={isCompleted}
         currentTime={currentTime}
+        durationSec={durationSec}
         durationFmt={durationFmt}
         fmt={fmt}
         lang={lang}

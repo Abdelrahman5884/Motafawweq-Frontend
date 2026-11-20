@@ -1,253 +1,95 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { studentApi } from '../../../services/studentApi';
+import { useAuth } from '../../../context/AuthContext';
+import { COURSE_INFO } from './lessonData';
 import {
-  COURSE_INFO,
-  LESSONS_DATABASE,
-  GRAPH_NODES,
-  GRAPH_EDGES,
-  INITIAL_NOTES,
-  QUESTIONS_LIST,
-  ATTACHMENTS_LIST,
-  WHITEBOARD_IMAGES_LIST,
-  TRANSCRIPT_SEGMENTS
-} from './lessonData';
+  formatSeconds,
+  readScopedJson,
+  writeScopedJson,
+} from './lessonUtils';
+
+const DEFAULT_CHECKLIST = {
+  watchVideo: false,
+  reviewNotes: false,
+  solveQuestions: false,
+  completeMaterials: false,
+};
 
 export const useLesson = (lang) => {
+  const { currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const userScope = currentUser?.id ? String(currentUser.id) : 'guest';
+
   const playerRef = useRef(null);
   const mediaElRef = useRef(null);
   const kmRef = useRef(null);
-  const [liveCourseInfo, setLiveCourseInfo] = useState(COURSE_INFO);
-  const [liveLessonsMap, setLiveLessonsMap] = useState(LESSONS_DATABASE);
-  const [liveTranscript, setLiveTranscript] = useState(TRANSCRIPT_SEGMENTS);
-  const [liveGraphNodes, setLiveGraphNodes] = useState(GRAPH_NODES);
-  const [liveGraphEdges, setLiveGraphEdges] = useState(GRAPH_EDGES);
-  const [liveAttachments, setLiveAttachments] = useState(ATTACHMENTS_LIST);
-  const [liveWhiteboardImages, setLiveWhiteboardImages] = useState(WHITEBOARD_IMAGES_LIST);
+  const toastTimerRef = useRef(null);
 
-  // Active Lesson State
+  // Refs for stable 15-second heartbeat & throttled localStorage writes (zero interval thrashing!)
+  const currentTimeRef = useRef(0);
+  const durationRef = useRef(1800);
+  const lastStorageSaveRef = useRef(0);
+  const pendingResumeSecRef = useRef(null);
+  const activeCourseIdRef = useRef('');
+  const loadedCourseIdRef = useRef('');
+
+  const [loadingLesson, setLoadingLesson] = useState(true);
+  const [switchingLesson, setSwitchingLesson] = useState(false);
+  const [lessonError, setLessonError] = useState(null);
+
+  const [liveCourseInfo, setLiveCourseInfo] = useState(COURSE_INFO);
+  const [liveLessonsMap, setLiveLessonsMap] = useState({});
+  const [lessonOrder, setLessonOrder] = useState([]);
+  const [lessonStatuses, setLessonStatuses] = useState({});
+
+  const [liveTranscript, setLiveTranscript] = useState([]);
+  const [liveGraphNodes, setLiveGraphNodes] = useState([]);
+  const [liveGraphEdges, setLiveGraphEdges] = useState([]);
+  const [graphCanvas, setGraphCanvas] = useState({ width: 1120, height: 360 });
+  const [liveAttachments, setLiveAttachments] = useState([]);
+  const [liveWhiteboardImages, setLiveWhiteboardImages] = useState([]);
+  const [liveRelatedExams, setLiveRelatedExams] = useState([]);
+  const [liveQuestions, setLiveQuestions] = useState([]);
+
   const [activeLessonId, setActiveLessonId] = useState(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      const urlId = params.get('id') || params.get('lessonId');
-      if (urlId) return urlId;
       const stored = sessionStorage.getItem('mtfq_target_lesson');
       if (stored) {
         sessionStorage.removeItem('mtfq_target_lesson');
         return stored;
       }
-    } catch {}
-    return '';
-  });
-  const [lessonStatuses, setLessonStatuses] = useState({});
-  const [loadingLesson, setLoadingLesson] = useState(true);
-
-  const lesson = liveLessonsMap[activeLessonId] || LESSONS_DATABASE[activeLessonId] || {
-    id: activeLessonId || '',
-    titleAr: '',
-    descAr: '',
-    durationSec: 0,
-    durationFmt: '00:00',
-    time: '',
-    videoUrl: '',
-    completed: false,
-    chapters: []
-  };
-
-  const loadLessonDetails = async (targetId, fallbackTeacherName = '') => {
-    if (!targetId || targetId.length <= 8) return;
-    try {
-      const lessonRes = await studentApi.lessons.get(targetId);
-      const ld = lessonRes?.data || {};
-
-      setLiveLessonsMap((prev) => ({
-        ...prev,
-        [targetId]: {
-          ...(prev[targetId] || {}),
-          id: targetId,
-          titleAr: ld.titleAr || prev[targetId]?.titleAr || '',
-          descAr: ld.descAr || '',
-          durationSec: Number(ld.durationSeconds || 1800),
-          durationFmt: ld.durationLabel || '30:00',
-          time: ld.durationLabel || '30:00',
-          videoUrl: ld.mediaUrl || ld.embedUrl || '',
-          embedUrl: ld.embedUrl || '',
-          isYoutube: Boolean(ld.isYoutube),
-          mediaMode: ld.mediaMode || 'video',
-          chapters: (ld.chapters || []).map((c, idx) => ({
-            id: c.id || idx + 1,
-            titleAr: c.titleAr,
-            startSec: 0,
-            endSec: 300,
-            keyTerms: [],
-            descAr: ''
-          }))
-        }
-      }));
-
-      setLiveAttachments(Array.isArray(ld.attachments) ? ld.attachments : []);
-      setLiveWhiteboardImages(Array.isArray(ld.whiteboardImages) ? ld.whiteboardImages : []);
-      setMediaMode(ld.mediaMode === 'audio' ? 'audio' : 'video');
-
-      setLiveTranscript(
-        Array.isArray(ld.transcript)
-          ? ld.transcript.map((t, i) => ({
-              id: t.id || `seg-${i}`,
-              startSec: Number(t.startSeconds || 0),
-              endSec: Number(t.endSeconds || 60),
-              speaker: fallbackTeacherName || '',
-              text: t.textAr || ''
-            }))
-          : []
-      );
-
-      if (ld.conceptGraph) {
-        setLiveGraphNodes(ld.conceptGraph.nodes || []);
-        setLiveGraphEdges(ld.conceptGraph.edges || []);
-      } else {
-        setLiveGraphNodes([]);
-        setLiveGraphEdges([]);
-      }
-
-      if (ld.progress) {
-        setCurrentTime(Number(ld.progress.maxPositionSeconds || ld.progress.watchedSeconds || 0));
-        setIsBookmarked(Boolean(ld.progress.isBookmarked));
-        setLessonStatuses((prev) => ({ ...prev, [targetId]: Boolean(ld.progress.isCompleted) }));
-      }
-
-      setNotes(
-        Array.isArray(ld.notes)
-          ? ld.notes.map((n) => ({
-              id: n.id,
-              ts: fmt(Number(n.timestampSeconds || 0)),
-              sec: Number(n.timestampSeconds || 0),
-              text: n.content,
-              date: (n.createdAt || '').slice(0, 10)
-            }))
-          : []
-      );
     } catch {
       // ignore
     }
-  };
+    return '';
+  });
 
-  useEffect(() => {
-    let mounted = true;
-    const loadFromApi = async () => {
-      setLoadingLesson(true);
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const requestedCourseId = params.get('courseId');
-        const requestedLessonId = params.get('id') || params.get('lessonId');
-
-        const coursesRes = await studentApi.courses.list();
-        const courses = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
-        if (!mounted || courses.length === 0) {
-          setLoadingLesson(false);
-          return;
-        }
-
-        const chosenCourse =
-          (requestedCourseId && courses.find((c) => c.id === requestedCourseId)) ||
-          courses.find((c) => c.isEnrolled) ||
-          courses[0];
-        const courseDetailRes = await studentApi.courses.get(chosenCourse.id);
-        const courseData = courseDetailRes?.data || {};
-        if (!mounted) return;
-
-        setLiveCourseInfo({
-          titleAr: courseData.titleAr || '',
-          subjectAr: courseData.subjectAr || courseData.titleAr || courseData.gradeAr || '',
-          gradeAr: courseData.gradeAr || '',
-          teacherAr: courseData.teacherName || '',
-          teacherImg: courseData.teacherAvatar || '',
-          summaryPdf: ''
-        });
-
-        const rawLessons = Array.isArray(courseData.lessons) ? courseData.lessons : [];
-        if (rawLessons.length === 0) {
-          setLoadingLesson(false);
-          return;
-        }
-
-        const map = {};
-        const statusMap = {};
-        rawLessons.forEach((l) => {
-          map[l.id] = {
-            id: l.id,
-            titleAr: l.titleAr,
-            descAr: '',
-            durationSec: 1800,
-            durationFmt: l.durationLabel || '30:00',
-            time: l.durationLabel || '30:00',
-            videoUrl: '',
-            mediaMode: l.mediaMode || 'video',
-            hasMedia: Boolean(l.hasMedia),
-            completed: Boolean(l.isCompleted),
-            chapters: []
-          };
-          statusMap[l.id] = Boolean(l.isCompleted);
-        });
-
-        setLiveLessonsMap(map);
-        setLessonStatuses(statusMap);
-
-        const firstPlayable = rawLessons.find((l) => l.hasMedia) || rawLessons[0];
-        const targetId = (requestedLessonId && map[requestedLessonId]) ? requestedLessonId : firstPlayable.id;
-        setActiveLessonId(targetId);
-
-        await loadLessonDetails(targetId, courseData.teacherName || '');
-      } catch {
-        // ignore
-      } finally {
-        if (mounted) setLoadingLesson(false);
-      }
-    };
-    loadFromApi();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Mobile drawer state
+  // UI & Media State
   const [mobilePlaylistOpen, setMobilePlaylistOpen] = useState(false);
-
-  // Media State
   const [mediaMode, setMediaMode] = useState('video');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(() => {
-    const s = activeLessonId ? localStorage.getItem(`mtfq_pos_${activeLessonId}`) : null;
-    return s ? parseInt(s, 10) : 0;
-  });
+  const [currentTime, setCurrentTime] = useState(0);
+  const [embedSeekSec, setEmbedSeekSec] = useState(0);
+  const [embedSeekNonce, setEmbedSeekNonce] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayerFS, setIsPlayerFS] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
 
-  // Statuses
-  const isCompleted = !!lessonStatuses[activeLessonId];
-  const [isBookmarked, setIsBookmarked] = useState(() =>
-    localStorage.getItem(`mtfq_bm_${activeLessonId}`) === 'true'
-  );
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isTogglingComplete, setIsTogglingComplete] = useState(false);
+  const [isTogglingBookmark, setIsTogglingBookmark] = useState(false);
   const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [lastEarnedXp, setLastEarnedXp] = useState(0);
 
-  // Checklist State ("درس اليوم" Card)
-  const [lessonChecklist, setLessonChecklist] = useState({
-    watchVideo: false,
-    reviewNotes: false,
-    solveQuestions: false,
-    completeMaterials: false
-  });
+  const [lessonChecklist, setLessonChecklist] = useState(DEFAULT_CHECKLIST);
+  const [masteredConcepts, setMasteredConcepts] = useState({});
+  const [savedQ, setSavedQ] = useState({});
+  const [revealedA, setRevealedA] = useState({});
 
-  const toggleChecklistItem = (key) => {
-    setLessonChecklist(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  // Universal Confirmation Modal State
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
     title: '',
@@ -255,341 +97,1014 @@ export const useLesson = (lang) => {
     confirmText: '',
     cancelText: '',
     confirmColor: 'emerald',
-    action: null
+    action: null,
   });
 
-  const triggerConfirm = ({ title, message, confirmText, cancelText, confirmColor, onConfirm }) => {
-    setConfirmDialog({
-      open: true,
-      title,
-      message,
-      confirmText: confirmText || (lang === 'ar' ? 'تأكيد' : 'Confirm'),
-      cancelText: cancelText || (lang === 'ar' ? 'إلغاء' : 'Cancel'),
-      confirmColor: confirmColor || 'emerald',
-      action: onConfirm
-    });
-  };
+  const [activeTab, setActiveTab] = useState('notes');
+  const [mobileSubpage, setMobileSubpage] = useState(null);
+  const [roadmapViewMode, setRoadmapViewMode] = useState('cards');
+  const [isKMFS, setIsKMFS] = useState(false);
+  const [expandedConcept, setExpandedConcept] = useState(null);
+  const [selectedGraphNode, setSelectedGraphNode] = useState('');
+  const [transcriptSearch, setTranscriptSearch] = useState('');
 
-  const handleConfirmAction = () => {
+  // Notes state
+  const [notes, setNotes] = useState([]);
+  const [noteInput, setNoteInput] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // Download & Feedback Toast
+  const [dlId, setDlId] = useState(null);
+  const [dlToast, setDlToast] = useState(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const showToast = useCallback((message, durationMs = 3000) => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    setDlToast(message);
+    toastTimerRef.current = window.setTimeout(() => {
+      setDlToast(null);
+      toastTimerRef.current = null;
+    }, durationMs);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Derived active lesson object
+  const lesson = useMemo(() => {
+    return (
+      liveLessonsMap[activeLessonId] || {
+        id: activeLessonId || '',
+        titleAr: '',
+        titleEn: '',
+        descAr: '',
+        durationSec: 0,
+        durationFmt: '00:00',
+        time: '',
+        videoUrl: '',
+        embedUrl: '',
+        isYoutube: false,
+        mediaMode: 'video',
+        completed: false,
+        chapters: [],
+        watermark: null,
+      }
+    );
+  }, [liveLessonsMap, activeLessonId]);
+
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  useEffect(() => {
+    if (lesson.durationSec > 0) {
+      durationRef.current = lesson.durationSec;
+    }
+  }, [lesson.durationSec]);
+
+  // Helper to hydrate per-lesson persisted checklist / mastered concepts / saved questions
+  const hydrateScopedPreferences = useCallback(
+    (lessonId) => {
+      if (!lessonId) return;
+      setLessonChecklist(
+        readScopedJson(`mtfq_chk_${userScope}_${lessonId}`, { ...DEFAULT_CHECKLIST })
+      );
+      setMasteredConcepts(
+        readScopedJson(`mtfq_mastered_${userScope}_${lessonId}`, {})
+      );
+      setSavedQ(
+        readScopedJson(`mtfq_savedq_${userScope}_${lessonId}`, {})
+      );
+      setRevealedA({});
+      setTranscriptSearch('');
+    },
+    [userScope]
+  );
+
+  // Apply server lesson payload cleanly into state
+  const applyLessonPayload = useCallback(
+    (targetId, ld, fallbackTeacherName = '') => {
+      const durationSec = Math.max(10, Number(ld.durationSeconds || 1800));
+      durationRef.current = durationSec;
+
+      const normalizedChapters = Array.isArray(ld.chapters)
+        ? ld.chapters.map((c, idx) => ({
+            id: c.id || `ch-${idx + 1}`,
+            order: Number(c.order || idx + 1),
+            titleAr: c.titleAr || '',
+            titleEn: c.titleEn || c.titleAr || '',
+            startSec: Math.max(0, Number(c.startSeconds ?? 0)),
+            endSec: Math.max(1, Number(c.endSeconds ?? durationSec)),
+            startTime: c.startTime || formatSeconds(Number(c.startSeconds ?? 0)),
+            duration: c.duration || '',
+            keyTerms: Array.isArray(c.keyTerms) ? c.keyTerms : [],
+            descAr: c.descAr || '',
+          }))
+        : [];
+
+      setLiveLessonsMap((prev) => ({
+        ...prev,
+        [targetId]: {
+          ...(prev[targetId] || {}),
+          id: targetId,
+          titleAr: ld.titleAr || prev[targetId]?.titleAr || '',
+          titleEn: ld.titleEn || ld.titleAr || prev[targetId]?.titleEn || '',
+          descAr: ld.descAr || '',
+          durationSec,
+          durationFmt: ld.durationLabel || formatSeconds(durationSec),
+          time: ld.durationLabel || formatSeconds(durationSec),
+          videoUrl: ld.mediaUrl || ld.embedUrl || '',
+          embedUrl: ld.embedUrl || '',
+          isYoutube: Boolean(ld.isYoutube),
+          mediaMode: ld.mediaMode || 'video',
+          hasMedia: Boolean(ld.mediaUrl || ld.embedUrl),
+          chapters: normalizedChapters,
+          watermark: ld.watermark || null,
+        },
+      }));
+
+      setExpandedConcept(normalizedChapters[0]?.id ?? null);
+      setLiveAttachments(Array.isArray(ld.attachments) ? ld.attachments : []);
+      setLiveWhiteboardImages(
+        Array.isArray(ld.whiteboardImages) ? ld.whiteboardImages : []
+      );
+      setMediaMode(ld.mediaMode === 'audio' ? 'audio' : 'video');
+
+      const teacherName = ld.course?.teacherName || fallbackTeacherName || '';
+      setLiveTranscript(
+        Array.isArray(ld.transcript)
+          ? ld.transcript.map((t, i) => ({
+              id: t.id || `seg-${i}`,
+              startSec: Math.max(0, Number(t.startSeconds ?? 0)),
+              endSec: Math.max(1, Number(t.endSeconds ?? durationSec)),
+              speaker: t.speaker || teacherName,
+              text: t.textAr || '',
+              textEn: t.textEn || t.textAr || '',
+            }))
+          : []
+      );
+
+      if (ld.conceptGraph && Array.isArray(ld.conceptGraph.nodes)) {
+        setLiveGraphNodes(ld.conceptGraph.nodes);
+        setLiveGraphEdges(
+          Array.isArray(ld.conceptGraph.edges) ? ld.conceptGraph.edges : []
+        );
+        setGraphCanvas({
+          width: Number(ld.conceptGraph.canvasWidth || 1120),
+          height: Number(ld.conceptGraph.canvasHeight || 360),
+        });
+        setSelectedGraphNode(ld.conceptGraph.nodes[0]?.id || '');
+      } else {
+        setLiveGraphNodes([]);
+        setLiveGraphEdges([]);
+        setSelectedGraphNode('');
+      }
+
+      setLiveRelatedExams(Array.isArray(ld.relatedExams) ? ld.relatedExams : []);
+      setLiveQuestions(
+        Array.isArray(ld.practiceQuestions) ? ld.practiceQuestions : []
+      );
+
+      if (ld.course) {
+        setLiveCourseInfo((prev) => ({
+          ...prev,
+          id: ld.course.id || prev.id,
+          titleAr: ld.course.titleAr || prev.titleAr,
+          titleEn: ld.course.titleEn || ld.course.titleAr || prev.titleEn,
+          subjectAr: ld.course.subjectAr || ld.course.titleAr || prev.subjectAr,
+          gradeAr: ld.course.gradeAr || prev.gradeAr,
+          teacherAr: ld.course.teacherName || prev.teacherAr,
+          teacherImg: ld.course.teacherAvatar || prev.teacherImg,
+        }));
+      }
+
+      const serverNotes = Array.isArray(ld.notes)
+        ? ld.notes.map((n) => ({
+            id: n.id,
+            ts: formatSeconds(Number(n.timestampSeconds || 0)),
+            sec: Number(n.timestampSeconds || 0),
+            text: n.content,
+            date: (n.createdAt || '').slice(0, 10),
+          }))
+        : [];
+      setNotes(serverNotes);
+
+      const savedPos = readScopedJson(`mtfq_pos_${userScope}_${targetId}`, 0);
+      const serverPos = Number(
+        ld.progress?.maxPositionSeconds || ld.progress?.watchedSeconds || 0
+      );
+      const resumePos = Math.min(
+        Math.max(0, durationSec - 5),
+        Math.max(Number(savedPos) || 0, serverPos)
+      );
+
+      currentTimeRef.current = resumePos;
+      pendingResumeSecRef.current = resumePos;
+      setCurrentTime(resumePos);
+      setEmbedSeekSec(0);
+
+      const serverCompleted = Boolean(ld.progress?.isCompleted);
+      setIsBookmarked(Boolean(ld.progress?.isBookmarked));
+      setLessonStatuses((prev) => ({ ...prev, [targetId]: serverCompleted }));
+
+      hydrateScopedPreferences(targetId);
+
+      // Auto-sync watchVideo / reviewNotes milestones with authoritative DB state
+      if (serverCompleted || (ld.progress?.progressPercent ?? 0) >= 90 || serverNotes.length > 0) {
+        setLessonChecklist((prev) => {
+          const next = {
+            ...prev,
+            watchVideo: prev.watchVideo || serverCompleted || (ld.progress?.progressPercent ?? 0) >= 90,
+            reviewNotes: prev.reviewNotes || serverNotes.length > 0,
+          };
+          writeScopedJson(`mtfq_chk_${userScope}_${targetId}`, next);
+          return next;
+        });
+      }
+    },
+    [userScope, hydrateScopedPreferences]
+  );
+
+  // Hydrate course playlist from API
+  const applyCourseData = useCallback((courseData) => {
+    const cid = courseData.id || '';
+    activeCourseIdRef.current = cid;
+    loadedCourseIdRef.current = cid;
+
+    setLiveCourseInfo({
+      id: cid,
+      titleAr: courseData.titleAr || '',
+      titleEn: courseData.titleEn || courseData.titleAr || '',
+      subjectAr: courseData.subjectAr || courseData.titleAr || courseData.gradeAr || '',
+      subjectEn: courseData.titleEn || courseData.subjectAr || '',
+      gradeAr: courseData.gradeAr || '',
+      teacherAr: courseData.teacherName || '',
+      teacherImg: courseData.teacherAvatar || '',
+      summaryPdf: '',
+    });
+
+    const rawLessons = Array.isArray(courseData.lessons) ? courseData.lessons : [];
+    const map = {};
+    const statusMap = {};
+    const orderedIds = [];
+
+    rawLessons.forEach((l) => {
+      const dur = Math.max(10, Number(l.durationSeconds || 1800));
+      orderedIds.push(l.id);
+      map[l.id] = {
+        id: l.id,
+        titleAr: l.titleAr,
+        titleEn: l.titleEn || l.titleAr,
+        descAr: l.descAr || '',
+        durationSec: dur,
+        durationFmt: l.durationLabel || formatSeconds(dur),
+        time: l.durationLabel || formatSeconds(dur),
+        videoUrl: '',
+        embedUrl: '',
+        isYoutube: false,
+        mediaMode: l.mediaMode || 'video',
+        hasMedia: Boolean(l.hasMedia),
+        completed: Boolean(l.isCompleted),
+        chapters: [],
+        watermark: null,
+      };
+      statusMap[l.id] = Boolean(l.isCompleted);
+    });
+
+    setLiveLessonsMap(map);
+    setLessonOrder(orderedIds);
+    setLessonStatuses(statusMap);
+
+    return { rawLessons, map };
+  }, []);
+
+  // Load lesson workspace when URL params (?id=... & ?courseId=...) change
+  const paramLessonId = searchParams.get('id') || searchParams.get('lessonId') || '';
+  const paramCourseId = searchParams.get('courseId') || '';
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadWorkspace = async () => {
+      setLessonError(null);
+      const isSameLoadedCourse =
+        Boolean(loadedCourseIdRef.current) &&
+        (!paramCourseId || paramCourseId === loadedCourseIdRef.current);
+
+      if (isSameLoadedCourse && paramLessonId && liveLessonsMap[paramLessonId]) {
+        // Fast lesson switch within already-loaded course
+        setSwitchingLesson(true);
+        setActiveLessonId(paramLessonId);
+        setIsPlaying(false);
+        try {
+          const res = await studentApi.lessons.get(paramLessonId);
+          if (mounted && res?.data) {
+            applyLessonPayload(paramLessonId, res.data, liveCourseInfo.teacherAr || '');
+          }
+        } catch (err) {
+          if (mounted) {
+            setLessonError(
+              err?.message ||
+                (lang === 'ar' ? 'تعذر تحميل بيانات الحصة.' : 'Failed to load lesson.')
+            );
+          }
+        } finally {
+          if (mounted) setSwitchingLesson(false);
+        }
+        return;
+      }
+
+      setLoadingLesson(true);
+      try {
+        const directTargetId = paramLessonId || activeLessonId;
+
+        // 1. If opened directly with a lesson UUID (even without courseId), fetch that lesson FIRST
+        if (directTargetId && directTargetId.length > 8) {
+          try {
+            const lessonRes = await studentApi.lessons.get(directTargetId);
+            const ld = lessonRes?.data;
+            if (!mounted) return;
+            if (ld) {
+              const ownerCourseId = ld.courseId || paramCourseId;
+              if (ownerCourseId) {
+                try {
+                  const courseRes = await studentApi.courses.get(ownerCourseId);
+                  if (mounted && courseRes?.data) {
+                    applyCourseData(courseRes.data);
+                  }
+                } catch {
+                  // Still render the single lesson cleanly if playlist fetch fails
+                  setLessonOrder([directTargetId]);
+                }
+              } else {
+                setLessonOrder([directTargetId]);
+              }
+              setActiveLessonId(directTargetId);
+              applyLessonPayload(directTargetId, ld, ld.course?.teacherName || '');
+              return;
+            }
+          } catch {
+            // Fall back to course catalog discovery if target lesson id is invalid
+          }
+        }
+
+        // 2. Otherwise discover the student's accessible course & first playable lesson
+        const coursesRes = await studentApi.courses.list();
+        const courses = Array.isArray(coursesRes?.data) ? coursesRes.data : [];
+        if (!mounted || courses.length === 0) {
+          return;
+        }
+
+        const chosenCourse =
+          (paramCourseId && courses.find((c) => c.id === paramCourseId)) ||
+          courses.find((c) => c.isEnrolled) ||
+          courses[0];
+
+        const courseDetailRes = await studentApi.courses.get(chosenCourse.id);
+        const courseData = courseDetailRes?.data || {};
+        if (!mounted) return;
+
+        const { rawLessons, map } = applyCourseData(courseData);
+        if (rawLessons.length === 0) return;
+
+        const firstPlayable = rawLessons.find((l) => l.hasMedia) || rawLessons[0];
+        const targetId =
+          directTargetId && map[directTargetId] ? directTargetId : firstPlayable.id;
+
+        setActiveLessonId(targetId);
+        const lessonRes = await studentApi.lessons.get(targetId);
+        if (mounted && lessonRes?.data) {
+          applyLessonPayload(targetId, lessonRes.data, courseData.teacherName || '');
+        }
+      } catch (err) {
+        if (mounted) {
+          setLessonError(
+            err?.message ||
+              (lang === 'ar'
+                ? 'تعذر تحميل محتوى الحصة، يرجى المحاولة مرة أخرى.'
+                : 'Failed to load lesson workspace.')
+          );
+        }
+      } finally {
+        if (mounted) {
+          setLoadingLesson(false);
+          setSwitchingLesson(false);
+        }
+      }
+    };
+
+    loadWorkspace();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramLessonId, paramCourseId, reloadNonce]);
+
+  // Sync playbackRate, volume, mute, and audio play/pause state on owned mediaElRef
+  useEffect(() => {
+    const el = mediaElRef.current;
+    if (!el) return;
+    el.playbackRate = speed || 1;
+    el.volume = isMuted ? 0 : (volume ?? 0.85);
+    el.muted = Boolean(isMuted);
+    if (el.tagName === 'AUDIO') {
+      if (isPlaying && el.paused) {
+        el.play().catch(() => {});
+      } else if (!isPlaying && !el.paused) {
+        el.pause();
+      }
+    }
+  }, [isPlaying, speed, volume, isMuted, mediaMode, activeLessonId]);
+
+  // Body scroll lock for mobile subpage
+  useEffect(() => {
+    if (!mobileSubpage) return undefined;
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
+  }, [mobileSubpage]);
+
+  // Flush playback progress heartbeat reliably (every 15s while playing + on pause)
+  const sendProgressHeartbeat = useCallback(
+    (deltaSeconds = 15) => {
+      if (!activeLessonId || activeLessonId.length <= 8) return;
+      const pos = Math.max(0, Math.floor(currentTimeRef.current));
+      const dur = Math.max(10, Math.round(durationRef.current || 1800));
+      studentApi.lessons
+        .recordProgress(activeLessonId, {
+          position_seconds: pos,
+          watched_delta_seconds: Math.max(1, Math.min(60, Math.round(deltaSeconds))),
+          duration_seconds: dur,
+        })
+        .then((res) => {
+          const data = res?.data;
+          if (!data) return;
+          if (data.isCompleted) {
+            setLessonStatuses((prev) =>
+              prev[activeLessonId] ? prev : { ...prev, [activeLessonId]: true }
+            );
+            setLessonChecklist((prev) => {
+              if (prev.watchVideo) return prev;
+              const next = { ...prev, watchVideo: true };
+              writeScopedJson(`mtfq_chk_${userScope}_${activeLessonId}`, next);
+              return next;
+            });
+          }
+        })
+        .catch(() => {});
+    },
+    [activeLessonId, userScope]
+  );
+
+  // FIXED 15s Heartbeat — NO currentTime in dependency array, so it actually fires every 15s!
+  useEffect(() => {
+    if (!isPlaying || !activeLessonId || activeLessonId.length <= 8) return undefined;
+    const hb = window.setInterval(() => {
+      sendProgressHeartbeat(15);
+    }, 15000);
+    return () => {
+      window.clearInterval(hb);
+    };
+  }, [isPlaying, activeLessonId, sendProgressHeartbeat]);
+
+  const isCompleted = Boolean(lessonStatuses[activeLessonId]);
+
+  const toggleChecklistItem = useCallback(
+    (key) => {
+      setLessonChecklist((prev) => {
+        const next = { ...prev, [key]: !prev[key] };
+        if (activeLessonId) {
+          writeScopedJson(`mtfq_chk_${userScope}_${activeLessonId}`, next);
+        }
+        return next;
+      });
+    },
+    [activeLessonId, userScope]
+  );
+
+  const toggleConceptMastered = useCallback(
+    (cid) => {
+      setMasteredConcepts((prev) => {
+        const next = { ...prev, [cid]: !prev[cid] };
+        if (activeLessonId) {
+          writeScopedJson(`mtfq_mastered_${userScope}_${activeLessonId}`, next);
+        }
+        return next;
+      });
+    },
+    [activeLessonId, userScope]
+  );
+
+  const toggleSavedQuestion = useCallback(
+    (qid) => {
+      setSavedQ((prev) => {
+        const next = { ...prev, [qid]: !prev[qid] };
+        if (activeLessonId) {
+          writeScopedJson(`mtfq_savedq_${userScope}_${activeLessonId}`, next);
+        }
+        return next;
+      });
+    },
+    [activeLessonId, userScope]
+  );
+
+  const triggerConfirm = useCallback(
+    ({ title, message, confirmText, cancelText, confirmColor, onConfirm }) => {
+      setConfirmDialog({
+        open: true,
+        title,
+        message,
+        confirmText: confirmText || (lang === 'ar' ? 'تأكيد' : 'Confirm'),
+        cancelText: cancelText || (lang === 'ar' ? 'إلغاء' : 'Cancel'),
+        confirmColor: confirmColor || 'emerald',
+        action: onConfirm,
+      });
+    },
+    [lang]
+  );
+
+  const handleConfirmAction = useCallback(() => {
     if (confirmDialog.action) {
       confirmDialog.action();
     }
-    setConfirmDialog(p => ({ ...p, open: false }));
-  };
+    setConfirmDialog((p) => ({ ...p, open: false }));
+  }, [confirmDialog]);
 
-  // 5 Tabs State
-  const [activeTab, setActiveTab] = useState('notes');
-  const [mobileSubpage, setMobileSubpage] = useState(null);
+  // Memoized ordered playlist + Prev / Next helpers
+  const playlist = useMemo(() => {
+    const keys = lessonOrder.length > 0 ? lessonOrder : Object.keys(liveLessonsMap);
+    return keys
+      .filter((key) => Boolean(liveLessonsMap[key]))
+      .map((key) => ({
+        id: key,
+        titleAr: liveLessonsMap[key].titleAr,
+        titleEn: liveLessonsMap[key].titleEn || liveLessonsMap[key].titleAr,
+        time: liveLessonsMap[key].time,
+        mediaMode: liveLessonsMap[key].mediaMode || 'video',
+        hasMedia: Boolean(liveLessonsMap[key].hasMedia),
+        completed: Boolean(lessonStatuses[key]),
+        active: key === activeLessonId,
+      }));
+  }, [lessonOrder, liveLessonsMap, lessonStatuses, activeLessonId]);
 
-  useEffect(() => {
-    if (mobileSubpage) {
-      const origOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = origOverflow;
-      };
-    }
-  }, [mobileSubpage]);
+  const activePlaylistIdx = useMemo(
+    () => playlist.findIndex((item) => item.id === activeLessonId),
+    [playlist, activeLessonId]
+  );
+  const prevLesson = activePlaylistIdx > 0 ? playlist[activePlaylistIdx - 1] : null;
+  const nextLesson =
+    activePlaylistIdx >= 0 && activePlaylistIdx < playlist.length - 1
+      ? playlist[activePlaylistIdx + 1]
+      : null;
 
-  // Knowledge Map & Graph Sub-Mode
-  const [roadmapViewMode, setRoadmapViewMode] = useState('cards');
-  const [isKMFS, setIsKMFS] = useState(false);
-  const [expandedConcept, setExpandedConcept] = useState(2);
-  const [masteredConcepts, setMasteredConcepts] = useState({ 1: true });
-  const [selectedGraphNode, setSelectedGraphNode] = useState('gn4');
+  const completedCount = useMemo(
+    () => playlist.filter((l) => l.completed).length,
+    [playlist]
+  );
+  const courseCompletionPct =
+    playlist.length > 0 ? Math.round((completedCount / playlist.length) * 100) : 0;
 
-  // Transcript Search State
-  const [transcriptSearch, setTranscriptSearch] = useState('');
+  const currentCh = useMemo(() => {
+    const list = lesson.chapters || [];
+    if (list.length === 0) return null;
+    return (
+      list.find((c) => currentTime >= c.startSec && currentTime < c.endSec) || list[0]
+    );
+  }, [lesson.chapters, currentTime]);
 
-  // Notes State
-  const [notes, setNotes] = useState(INITIAL_NOTES);
-  const [noteInput, setNoteInput] = useState('');
+  const progress = useMemo(() => {
+    if (lesson.durationSec <= 0) return '0.0';
+    return Math.min(100, Math.max(0, (currentTime / lesson.durationSec) * 100)).toFixed(1);
+  }, [currentTime, lesson.durationSec]);
 
-  // Questions State
-  const [savedQ, setSavedQ] = useState({ q1: true, q2: false, q3: true });
-  const [revealedA, setRevealedA] = useState({ q1: true });
-
-  // Attachments State
-  const [dlId, setDlId] = useState(null);
-  const [dlToast, setDlToast] = useState(null);
-
-  // Playlist Array
-  const playlist = Object.keys(liveLessonsMap).map(key => ({
-    id: key,
-    titleAr: liveLessonsMap[key].titleAr,
-    time: liveLessonsMap[key].time,
-    mediaMode: liveLessonsMap[key].mediaMode || 'video',
-    hasMedia: Boolean(liveLessonsMap[key].hasMedia),
-    completed: !!lessonStatuses[key],
-    active: key === activeLessonId
-  }));
-
-  const completedCount = playlist.filter(l => l.completed).length;
-  const courseCompletionPct = playlist.length > 0 ? Math.round((completedCount / playlist.length) * 100) : 0;
-  const currentCh = (lesson.chapters || []).find(c => currentTime >= c.startSec && currentTime < c.endSec) || (lesson.chapters || [])[0] || null;
-  const progress = lesson.durationSec > 0
-    ? Math.min(100, Math.max(0, ((currentTime / lesson.durationSec) * 100))).toFixed(1)
-    : '0.0';
   const remainingSec = Math.max(0, (lesson.durationSec || 0) - currentTime);
 
-  // Lesson Switching with Confirmation
-  const switchLesson = (lid) => {
-    setActiveLessonId(lid);
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setMobilePlaylistOpen(false);
-    loadLessonDetails(lid, liveCourseInfo?.teacherAr || '');
-  };
+  // Switch lesson cleanly and sync URL search params
+  const switchLesson = useCallback(
+    (lid) => {
+      if (!lid || lid === activeLessonId) return;
+      if (isPlaying) {
+        sendProgressHeartbeat(5);
+      }
+      setIsPlaying(false);
+      setMobilePlaylistOpen(false);
+      setMobileSubpage(null);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('id', lid);
+      if (activeCourseIdRef.current) {
+        nextParams.set('courseId', activeCourseIdRef.current);
+      }
+      setSearchParams(nextParams, { replace: false });
+    },
+    [activeLessonId, isPlaying, sendProgressHeartbeat, searchParams, setSearchParams]
+  );
 
-  const handlePlaylistLessonClick = (targetLesson) => {
-    if (targetLesson.id === activeLessonId) return;
-    if (isPlaying || currentTime > 60) {
-      triggerConfirm({
-        title: lang === 'ar' ? 'الانتقال إلى درس آخر' : 'Switch Lesson',
-        message: lang === 'ar'
-          ? `أنت تذاكر حالياً "${lesson.titleAr}". هل تريد الانتقال إلى "${targetLesson.titleAr}" وحفظ موضع توقفك الحالي؟`
-          : `Switch to "${targetLesson.titleAr}"? Your current progress will be preserved.`,
-        confirmText: lang === 'ar' ? 'نعم، انتقل للدرس' : 'Yes, Switch',
-        cancelText: lang === 'ar' ? 'البقاء في الدرس' : 'Stay Here',
-        confirmColor: 'primary',
-        onConfirm: () => switchLesson(targetLesson.id)
-      });
-    } else {
-      switchLesson(targetLesson.id);
-    }
-  };
+  const handlePlaylistLessonClick = useCallback(
+    (targetLesson) => {
+      if (!targetLesson || targetLesson.id === activeLessonId) return;
+      if (isPlaying) {
+        triggerConfirm({
+          title: lang === 'ar' ? 'الانتقال إلى درس آخر' : 'Switch Lesson',
+          message:
+            lang === 'ar'
+              ? `أنت تذاكر حالياً "${lesson.titleAr}". هل تريد الانتقال إلى "${targetLesson.titleAr}" وحفظ موضع توقفك الحالي؟`
+              : `Switch to "${targetLesson.titleAr}"? Your current progress will be preserved.`,
+          confirmText: lang === 'ar' ? 'نعم، انتقل للدرس' : 'Yes, Switch',
+          cancelText: lang === 'ar' ? 'البقاء في الدرس' : 'Stay Here',
+          confirmColor: 'primary',
+          onConfirm: () => switchLesson(targetLesson.id),
+        });
+      } else {
+        switchLesson(targetLesson.id);
+      }
+    },
+    [activeLessonId, isPlaying, lesson.titleAr, lang, triggerConfirm, switchLesson]
+  );
 
-  const fmt = (sec) => {
-    const safeSec = Number.isFinite(sec) && sec > 0 ? sec : 0;
-    const m = Math.floor(safeSec / 60);
-    const s = Math.floor(safeSec % 60);
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  // Media time update (throttled localStorage writes every 5 seconds)
+  const onMediaTimeUpdate = useCallback(
+    (sec) => {
+      const next = Math.max(0, Math.floor(sec));
+      currentTimeRef.current = next;
+      setCurrentTime((prev) => (prev === next ? prev : next));
 
-  const onMediaTimeUpdate = (sec) => {
-    const next = Math.max(0, Math.floor(sec));
-    setCurrentTime(next);
-    if (activeLessonId) {
-      localStorage.setItem(`mtfq_pos_${activeLessonId}`, next.toString());
-    }
-  };
+      const now = Date.now();
+      if (activeLessonId && now - lastStorageSaveRef.current >= 5000) {
+        lastStorageSaveRef.current = now;
+        writeScopedJson(`mtfq_pos_${userScope}_${activeLessonId}`, next);
+      }
+    },
+    [activeLessonId, userScope]
+  );
 
-  const onMediaLoadedMetadata = (durationSec) => {
-    if (!Number.isFinite(durationSec) || durationSec <= 0 || !activeLessonId) return;
-    const rounded = Math.round(durationSec);
-    setLiveLessonsMap((prev) => {
-      const existing = prev[activeLessonId];
-      if (!existing) return prev;
-      return {
-        ...prev,
-        [activeLessonId]: {
-          ...existing,
-          durationSec: rounded,
-          durationFmt: fmt(rounded),
-        },
-      };
-    });
-  };
+  // Restore saved resume timestamp when <video> / <audio> loads metadata
+  const onMediaLoadedMetadata = useCallback(
+    (durationSec) => {
+      if (Number.isFinite(durationSec) && durationSec > 0 && activeLessonId) {
+        const rounded = Math.round(durationSec);
+        durationRef.current = rounded;
+        setLiveLessonsMap((prev) => {
+          const existing = prev[activeLessonId];
+          if (!existing || existing.durationSec === rounded) return prev;
+          return {
+            ...prev,
+            [activeLessonId]: {
+              ...existing,
+              durationSec: rounded,
+              durationFmt: formatSeconds(rounded),
+            },
+          };
+        });
+      }
 
-  const seekTo = (sec) => {
-    const maxDur = lesson.durationSec > 0 ? lesson.durationSec : sec;
-    const target = Math.max(0, Math.min(maxDur, sec));
-    setCurrentTime(target);
-    if (mediaElRef.current && Number.isFinite(target)) {
-      try {
-        mediaElRef.current.currentTime = target;
-      } catch {}
-    }
-    if (activeLessonId) {
-      localStorage.setItem(`mtfq_pos_${activeLessonId}`, target.toString());
-    }
-  };
+      const resumeTarget = pendingResumeSecRef.current;
+      if (
+        resumeTarget !== null &&
+        resumeTarget > 2 &&
+        mediaElRef.current &&
+        Number.isFinite(durationSec) &&
+        resumeTarget < durationSec - 3
+      ) {
+        try {
+          mediaElRef.current.currentTime = resumeTarget;
+        } catch {
+          // ignore
+        }
+      }
+      pendingResumeSecRef.current = null;
+    },
+    [activeLessonId]
+  );
 
-  const seekBy = (sec) => seekTo(currentTime + sec);
+  // Preserve exact position when toggling between Video and Audio modes
+  const handleSetMediaMode = useCallback((nextMode) => {
+    pendingResumeSecRef.current = currentTimeRef.current;
+    setMediaMode(nextMode);
+  }, []);
 
-  // Complete / Uncomplete
-  const handleCompleteButtonClick = () => {
+  const seekTo = useCallback(
+    (sec) => {
+      const maxDur = durationRef.current > 0 ? durationRef.current : sec;
+      const target = Math.max(0, Math.min(maxDur, Math.floor(sec)));
+      currentTimeRef.current = target;
+      setCurrentTime(target);
+      if (mediaElRef.current && Number.isFinite(target)) {
+        try {
+          mediaElRef.current.currentTime = target;
+        } catch {
+          // ignore
+        }
+      } else {
+        // Jump embedded YouTube / Vimeo player cleanly
+        setEmbedSeekSec(target);
+        setEmbedSeekNonce((n) => n + 1);
+      }
+      if (activeLessonId) {
+        writeScopedJson(`mtfq_pos_${userScope}_${activeLessonId}`, target);
+      }
+    },
+    [activeLessonId, userScope]
+  );
+
+  const seekBy = useCallback((delta) => {
+    seekTo(currentTimeRef.current + delta);
+  }, [seekTo]);
+
+  // Complete / Uncomplete (Real backend persistence via /toggle-complete!)
+  const handleCompleteButtonClick = useCallback(() => {
+    if (!activeLessonId || isTogglingComplete) return;
     if (!isCompleted) {
       triggerConfirm({
         title: lang === 'ar' ? 'تأكيد إكمال الحصة' : 'Confirm Lesson Completion',
-        message: lang === 'ar'
-          ? 'هل أنت متأكد من تحديد هذه الحصة كمكتملة؟ سيتم منحك +50 XP وتحديث نسبة تقدمك العامة في المنهج.'
-          : 'Are you sure you want to mark this lesson as completed? You will receive +50 XP.',
+        message:
+          lang === 'ar'
+            ? 'هل أنت متأكد من تحديد هذه الحصة كمكتملة؟ سيتم حفظ تقدمك ومنحك +25 XP عند الإتمام لأول مرة.'
+            : 'Mark this lesson as completed? You will earn +25 XP on first completion.',
         confirmText: lang === 'ar' ? 'نعم، أتممت الحصة' : 'Yes, Complete',
         confirmColor: 'emerald',
         onConfirm: async () => {
-          const nextStatuses = { ...lessonStatuses, [activeLessonId]: true };
-          setLessonStatuses(nextStatuses);
-          localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
-          if (activeLessonId && activeLessonId.length > 8) {
-            try {
-              await studentApi.lessons.recordProgress(activeLessonId, {
-                watched_seconds: Math.max(currentTime, lesson.durationSec || 60),
-                is_completed: true,
-              });
-            } catch {}
-          }
+          setIsTogglingComplete(true);
           try {
-            confetti({
-              particleCount: 85,
-              spread: 75,
-              origin: { y: 0.6 }
+            const res = await studentApi.lessons.toggleComplete(activeLessonId, true);
+            const data = res?.data;
+            const xp = Number(data?.xpAwarded ?? 0);
+            setLastEarnedXp(xp);
+            setLessonStatuses((prev) => ({ ...prev, [activeLessonId]: true }));
+            setLessonChecklist((prev) => {
+              const next = { ...prev, watchVideo: true };
+              writeScopedJson(`mtfq_chk_${userScope}_${activeLessonId}`, next);
+              return next;
             });
-          } catch (e) {}
-          setShowCelebrationModal(true);
-        }
+            try {
+              confetti({ particleCount: 85, spread: 75, origin: { y: 0.6 } });
+            } catch {
+              // ignore
+            }
+            setShowCelebrationModal(true);
+          } catch (err) {
+            showToast(
+              err?.message ||
+                (lang === 'ar' ? 'تعذر تسجيل إتمام الحصة.' : 'Failed to complete lesson.')
+            );
+          } finally {
+            setIsTogglingComplete(false);
+          }
+        },
       });
     } else {
       triggerConfirm({
         title: lang === 'ar' ? 'إلغاء إتمام الحصة' : 'Revert Completion',
-        message: lang === 'ar'
-          ? 'هل تريد إرجاع حالة الحصة إلى "قيد المذاكرة"؟ لن يتم حذف أي من ملاحظاتك أو إجاباتك.'
-          : 'Do you want to revert this lesson status to in-progress?',
+        message:
+          lang === 'ar'
+            ? 'هل تريد إرجاع حالة الحصة إلى "قيد المذاكرة"؟ لن يتم حذف أي من ملاحظاتك.'
+            : 'Revert this lesson status back to in-progress?',
         confirmText: lang === 'ar' ? 'نعم، إلغاء الإتمام' : 'Yes, Revert',
         confirmColor: 'amber',
         onConfirm: async () => {
-          const nextStatuses = { ...lessonStatuses, [activeLessonId]: false };
-          setLessonStatuses(nextStatuses);
-          localStorage.setItem('mtfq_lesson_statuses', JSON.stringify(nextStatuses));
-          if (activeLessonId && activeLessonId.length > 8) {
-            try {
-              await studentApi.lessons.recordProgress(activeLessonId, {
-                watched_seconds: currentTime,
-                is_completed: false,
-              });
-            } catch {}
+          setIsTogglingComplete(true);
+          try {
+            await studentApi.lessons.toggleComplete(activeLessonId, false);
+            setLessonStatuses((prev) => ({ ...prev, [activeLessonId]: false }));
+            showToast(
+              lang === 'ar'
+                ? 'تم إرجاع الحصة إلى قيد المذاكرة.'
+                : 'Lesson reverted to in-progress.'
+            );
+          } catch (err) {
+            showToast(
+              err?.message ||
+                (lang === 'ar' ? 'تعذر تحديث حالة الحصة.' : 'Failed to update lesson status.')
+            );
+          } finally {
+            setIsTogglingComplete(false);
           }
-        }
+        },
       });
     }
-  };
+  }, [activeLessonId, isCompleted, isTogglingComplete, lang, triggerConfirm, userScope, showToast]);
 
-  // Bookmark
-  const handleBookmarkClick = () => {
+  // Bookmark (Real backend sync with optimistic rollback!)
+  const handleBookmarkClick = useCallback(() => {
+    if (!activeLessonId || isTogglingBookmark) return;
     triggerConfirm({
       title: isBookmarked
-        ? (lang === 'ar' ? 'إلغاء حفظ الحصة' : 'Remove Bookmark')
-        : (lang === 'ar' ? 'تأكيد حفظ الحصة' : 'Bookmark Lesson'),
+        ? lang === 'ar'
+          ? 'إلغاء حفظ الحصة'
+          : 'Remove Bookmark'
+        : lang === 'ar'
+          ? 'تأكيد حفظ الحصة'
+          : 'Bookmark Lesson',
       message: isBookmarked
-        ? (lang === 'ar' ? 'هل تريد إزالة هذه الحصة من قائمة المحفوظات للمراجعة السريعة؟' : 'Remove from bookmarked lessons?')
-        : (lang === 'ar' ? 'هل تريد إضافة هذه الحصة إلى قائمة المحفوظات للرجوع إليها قبل الامتحانات؟' : 'Bookmark this lesson for quick revision?'),
-      confirmText: isBookmarked ? (lang === 'ar' ? 'نعم، إزالة' : 'Remove') : (lang === 'ar' ? 'نعم، حفظ الحصة' : 'Bookmark'),
+        ? lang === 'ar'
+          ? 'هل تريد إزالة هذه الحصة من قائمة المحفوظات للمراجعة السريعة؟'
+          : 'Remove from bookmarked lessons?'
+        : lang === 'ar'
+          ? 'هل تريد إضافة هذه الحصة إلى قائمة المحفوظات للرجوع إليها قبل الامتحانات؟'
+          : 'Bookmark this lesson for quick revision?',
+      confirmText: isBookmarked
+        ? lang === 'ar'
+          ? 'نعم، إزالة'
+          : 'Remove'
+        : lang === 'ar'
+          ? 'نعم، حفظ الحصة'
+          : 'Bookmark',
       confirmColor: isBookmarked ? 'amber' : 'emerald',
       onConfirm: async () => {
-        const next = !isBookmarked;
-        setIsBookmarked(next);
-        localStorage.setItem(`mtfq_bm_${activeLessonId}`, next.toString());
-        if (activeLessonId && activeLessonId.length > 8) {
-          try {
-            await studentApi.lessons.toggleBookmark(activeLessonId);
-          } catch {}
+        const previous = isBookmarked;
+        setIsTogglingBookmark(true);
+        setIsBookmarked(!previous);
+        try {
+          const res = await studentApi.lessons.toggleBookmark(activeLessonId);
+          const nextState = Boolean(res?.data?.isBookmarked ?? !previous);
+          setIsBookmarked(nextState);
+          showToast(
+            nextState
+              ? lang === 'ar'
+                ? 'تمت إضافة الحصة إلى المحفوظات بنجاح.'
+                : 'Lesson bookmarked.'
+              : lang === 'ar'
+                ? 'تمت إزالة الحصة من المحفوظات.'
+                : 'Bookmark removed.'
+          );
+        } catch (err) {
+          setIsBookmarked(previous);
+          showToast(
+            err?.message ||
+              (lang === 'ar' ? 'تعذر تحديث المفضلة.' : 'Failed to update bookmark.')
+          );
+        } finally {
+          setIsTogglingBookmark(false);
         }
-      }
+      },
     });
-  };
+  }, [activeLessonId, isBookmarked, isTogglingBookmark, lang, triggerConfirm, showToast]);
 
-  // Real file download / open
-  const handleDL = (item) => {
-    if (!item) return;
-    setDlId(item.id);
-    if (item.url) {
-      try {
-        const a = document.createElement('a');
-        a.href = item.url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        if (item.titleAr) a.download = item.titleAr;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } catch {
-        window.open(item.url, '_blank', 'noopener,noreferrer');
-      }
-    }
-    setTimeout(() => {
-      setDlId(null);
-      setDlToast(lang === 'ar' ? `تم فتح تحميل "${item.titleAr || 'الملف'}"` : `Opened "${item.titleAr || 'File'}"`);
-      setTimeout(() => setDlToast(null), 3000);
-    }, 500);
-  };
-
-  // Notes
-  const handleAddNote = async () => {
-    if (!noteInput.trim()) return;
-    const text = noteInput.trim();
-    setNoteInput('');
-    if (activeLessonId && activeLessonId.length > 8) {
-      try {
-        const res = await studentApi.lessons.createNote(activeLessonId, {
-          timestamp_seconds: currentTime,
-          content: text,
-        });
-        const created = res?.data;
-        if (created) {
-          setNotes(prev => [{
-            id: created.id,
-            ts: fmt(created.timestampSeconds || currentTime),
-            sec: Number(created.timestampSeconds || currentTime),
-            text: created.content || text,
-            date: lang === 'ar' ? 'الآن' : 'Just now'
-          }, ...prev]);
-          return;
+  // Real file download using dedicated signed downloadUrl (Content-Disposition: attachment)
+  const handleDL = useCallback(
+    (item) => {
+      if (!item) return;
+      const targetUrl = item.downloadUrl || item.url;
+      setDlId(item.id);
+      if (targetUrl) {
+        try {
+          const a = document.createElement('a');
+          a.href = targetUrl;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          if (item.titleAr) a.download = item.titleAr;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } catch {
+          window.open(targetUrl, '_blank', 'noopener,noreferrer');
         }
-      } catch {}
-    }
-    const newN = {
-      id: `n_${Date.now()}`,
-      ts: fmt(currentTime),
-      sec: currentTime,
-      text,
-      date: lang === 'ar' ? 'الآن' : 'Just now'
-    };
-    setNotes(prev => [newN, ...prev]);
-  };
+      }
+      if (activeLessonId) {
+        setLessonChecklist((prev) => {
+          if (prev.completeMaterials) return prev;
+          const next = { ...prev, completeMaterials: true };
+          writeScopedJson(`mtfq_chk_${userScope}_${activeLessonId}`, next);
+          return next;
+        });
+      }
+      window.setTimeout(() => {
+        setDlId(null);
+        showToast(
+          lang === 'ar'
+            ? `تم بدء تحميل "${item.titleAr || 'الملف'}"`
+            : `Downloading "${item.titleAr || 'File'}"`
+        );
+      }, 400);
+    },
+    [activeLessonId, userScope, lang, showToast]
+  );
 
-  const handleDeleteNote = (note) => {
-    triggerConfirm({
-      title: lang === 'ar' ? 'تأكيد حذف الملاحظة' : 'Delete Note',
-      message: lang === 'ar' ? `هل أنت متأكد من حذف هذه الملاحظة المسجلة عند [${note.ts}]؟` : 'Are you sure you want to delete this note?',
-      confirmText: lang === 'ar' ? 'نعم، احذفها' : 'Delete',
-      confirmColor: 'red',
-      onConfirm: async () => {
-        if (note.id && String(note.id).length > 8) {
+  // Notes full CRUD (Create, Update, Delete — strictly backend-backed!)
+  const handleAddNote = useCallback(async () => {
+    const text = noteInput.trim();
+    if (!text || !activeLessonId || isSavingNote) return;
+    setIsSavingNote(true);
+    try {
+      const tsSec = Math.floor(currentTimeRef.current);
+      const res = await studentApi.lessons.createNote(activeLessonId, {
+        timestamp_seconds: tsSec,
+        content: text,
+      });
+      const created = res?.data;
+      if (created) {
+        setNotes((prev) => [
+          {
+            id: created.id,
+            ts: formatSeconds(Number(created.timestampSeconds ?? tsSec)),
+            sec: Number(created.timestampSeconds ?? tsSec),
+            text: created.content || text,
+            date: (created.createdAt || '').slice(0, 10) || (lang === 'ar' ? 'الآن' : 'Just now'),
+          },
+          ...prev,
+        ]);
+        setNoteInput('');
+        setLessonChecklist((prev) => {
+          if (prev.reviewNotes) return prev;
+          const next = { ...prev, reviewNotes: true };
+          writeScopedJson(`mtfq_chk_${userScope}_${activeLessonId}`, next);
+          return next;
+        });
+        showToast(lang === 'ar' ? 'تم حفظ الملاحظة بنجاح.' : 'Note saved.');
+      }
+    } catch (err) {
+      showToast(
+        err?.message ||
+          (lang === 'ar' ? 'تعذر حفظ الملاحظة.' : 'Failed to save note.')
+      );
+    } finally {
+      setIsSavingNote(false);
+    }
+  }, [noteInput, activeLessonId, isSavingNote, lang, userScope, showToast]);
+
+  const handleUpdateNote = useCallback(
+    async (noteId, newContent) => {
+      const text = String(newContent || '').trim();
+      if (!text || !noteId) return false;
+      try {
+        const res = await studentApi.lessons.updateNote(noteId, { content: text });
+        const updated = res?.data;
+        setNotes((prev) =>
+          prev.map((n) =>
+            n.id === noteId
+              ? {
+                  ...n,
+                  text: updated?.content || text,
+                  ts: formatSeconds(Number(updated?.timestampSeconds ?? n.sec)),
+                  sec: Number(updated?.timestampSeconds ?? n.sec),
+                }
+              : n
+          )
+        );
+        showToast(lang === 'ar' ? 'تم تحديث الملاحظة بنجاح.' : 'Note updated.');
+        return true;
+      } catch (err) {
+        showToast(
+          err?.message ||
+            (lang === 'ar' ? 'تعذر تحديث الملاحظة.' : 'Failed to update note.')
+        );
+        return false;
+      }
+    },
+    [lang, showToast]
+  );
+
+  const handleDeleteNote = useCallback(
+    (note) => {
+      triggerConfirm({
+        title: lang === 'ar' ? 'تأكيد حذف الملاحظة' : 'Delete Note',
+        message:
+          lang === 'ar'
+            ? `هل أنت متأكد من حذف هذه الملاحظة المسجلة عند [${note.ts}]؟`
+            : 'Are you sure you want to delete this note?',
+        confirmText: lang === 'ar' ? 'نعم، احذفها' : 'Delete',
+        confirmColor: 'red',
+        onConfirm: async () => {
           try {
             await studentApi.lessons.deleteNote(note.id);
-          } catch {}
-        }
-        setNotes(prev => prev.filter(n => n.id !== note.id));
-      }
-    });
-  };
+            setNotes((prev) => prev.filter((n) => n.id !== note.id));
+            showToast(lang === 'ar' ? 'تم حذف الملاحظة.' : 'Note deleted.');
+          } catch (err) {
+            showToast(
+              err?.message ||
+                (lang === 'ar' ? 'تعذر حذف الملاحظة.' : 'Failed to delete note.')
+            );
+          }
+        },
+      });
+    },
+    [lang, triggerConfirm, showToast]
+  );
 
-  // Toggle concept mastered
-  const toggleConceptMastered = (cid) => {
-    setMasteredConcepts(prev => ({
-      ...prev,
-      [cid]: !prev[cid]
-    }));
-  };
-
-  // Heartbeat progress sync to backend every 15s while playing
-  useEffect(() => {
-    if (!isPlaying || !activeLessonId || activeLessonId.length <= 8) return;
-    const hb = setInterval(() => {
-      studentApi.lessons.recordProgress(activeLessonId, {
-        position_seconds: Math.floor(currentTime),
-        watched_delta_seconds: 15,
-        duration_seconds: Math.max(60, lesson.durationSec || 1800),
-      }).catch(() => {});
-    }, 15000);
-    return () => clearInterval(hb);
-  }, [isPlaying, activeLessonId, currentTime, lesson.durationSec]);
+  const retryLoad = useCallback(() => {
+    loadedCourseIdRef.current = '';
+    setReloadNonce((n) => n + 1);
+  }, []);
 
   return {
     loadingLesson,
+    switchingLesson,
+    lessonError,
+    retryLoad,
     courseInfo: liveCourseInfo,
     lesson,
     playlist,
+    prevLesson,
+    nextLesson,
+    switchLesson,
     completedCount,
     courseCompletionPct,
     currentCh,
@@ -599,10 +1114,12 @@ export const useLesson = (lang) => {
     mobilePlaylistOpen,
     setMobilePlaylistOpen,
     mediaMode,
-    setMediaMode,
+    setMediaMode: handleSetMediaMode,
     isPlaying,
     setIsPlaying,
     currentTime,
+    embedSeekSec,
+    embedSeekNonce,
     seekTo,
     seekBy,
     speed,
@@ -616,9 +1133,12 @@ export const useLesson = (lang) => {
     isLandscape,
     setIsLandscape,
     isCompleted,
+    isTogglingComplete,
     isBookmarked,
+    isTogglingBookmark,
     showCelebrationModal,
     setShowCelebrationModal,
+    lastEarnedXp,
     lessonChecklist,
     toggleChecklistItem,
     confirmDialog,
@@ -641,17 +1161,21 @@ export const useLesson = (lang) => {
     setSelectedGraphNode,
     graphNodes: liveGraphNodes,
     graphEdges: liveGraphEdges,
+    graphCanvas,
     transcriptSearch,
     setTranscriptSearch,
     transcriptSegments: liveTranscript,
     notes,
     noteInput,
     setNoteInput,
+    isSavingNote,
     handleAddNote,
+    handleUpdateNote,
     handleDeleteNote,
-    questions: QUESTIONS_LIST,
+    relatedExams: liveRelatedExams,
+    questions: liveQuestions,
     savedQ,
-    setSavedQ,
+    toggleSavedQuestion,
     revealedA,
     setRevealedA,
     attachments: liveAttachments,
@@ -662,11 +1186,11 @@ export const useLesson = (lang) => {
     handlePlaylistLessonClick,
     handleCompleteButtonClick,
     handleBookmarkClick,
-    fmt,
+    fmt: formatSeconds,
     playerRef,
     mediaElRef,
     onMediaTimeUpdate,
     onMediaLoadedMetadata,
-    kmRef
+    kmRef,
   };
 };

@@ -61,10 +61,17 @@ export const studentApi = {
     get: (lessonUuid) => apiGet(`/student/lessons/${lessonUuid}`),
     recordProgress: (lessonUuid, data) =>
       apiPost(`/student/lessons/${lessonUuid}/progress`, data),
+    toggleComplete: (lessonUuid, isCompleted = null) =>
+      apiPost(
+        `/student/lessons/${lessonUuid}/toggle-complete`,
+        isCompleted === null ? {} : { is_completed: Boolean(isCompleted) }
+      ),
     toggleBookmark: (lessonUuid) =>
       apiPost(`/student/lessons/${lessonUuid}/bookmark`),
     createNote: (lessonUuid, data) =>
       apiPost(`/student/lessons/${lessonUuid}/notes`, data),
+    updateNote: (noteUuid, data) =>
+      apiPut(`/student/lessons/notes/${noteUuid}`, data),
     deleteNote: (noteUuid) => apiDelete(`/student/lessons/notes/${noteUuid}`),
   },
 
