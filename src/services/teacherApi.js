@@ -276,10 +276,24 @@ export const teacherApi = {
     },
     getSubmission: (uuid, submissionUuid) =>
       apiGet(`/teacher/exams/${uuid}/submissions/${submissionUuid}`),
-    gradeEssayAnswer: (uuid, submissionUuid, { answerId, pointsAwarded, teacherFeedback = '' }) =>
+    gradeSubmission: (uuid, submissionUuid, { answers = [], teacherFeedback = '' }) =>
       apiPatch(`/teacher/exams/${uuid}/submissions/${submissionUuid}/grade-essay`, {
-        answer_id: answerId,
-        points_awarded: pointsAwarded,
+        answers: answers.map((a) => ({
+          question_uuid: a.questionUuid || a.question_uuid || a.answerId,
+          points_awarded: Number(a.pointsAwarded ?? a.points_awarded ?? 0),
+          teacher_feedback: a.teacherFeedback ?? a.teacher_feedback ?? '',
+        })),
+        teacher_feedback: teacherFeedback,
+      }),
+    gradeEssayAnswer: (uuid, submissionUuid, { questionUuid, answerId, pointsAwarded, teacherFeedback = '' }) =>
+      apiPatch(`/teacher/exams/${uuid}/submissions/${submissionUuid}/grade-essay`, {
+        answers: [
+          {
+            question_uuid: questionUuid || answerId,
+            points_awarded: Number(pointsAwarded ?? 0),
+            teacher_feedback: teacherFeedback,
+          },
+        ],
         teacher_feedback: teacherFeedback,
       }),
   },
