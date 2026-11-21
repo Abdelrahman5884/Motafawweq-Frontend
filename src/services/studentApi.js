@@ -162,9 +162,15 @@ export const studentApi = {
     delete: (uuid) => apiDelete(`/student/converted-lectures/${uuid}`),
   },
 
-  // Phase 9: Billing, Coupons & Direct Payments
+  // Phase 9: Billing, Student Subscriptions, Coupons & Direct Payments
   billing: {
     overview: () => apiGet('/student/billing'),
+    subscribe: (data) =>
+      apiRequest('/student/billing/subscribe', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('std-sub') },
+        body: data,
+      }),
     validateCoupon: (code, amountEgp = 0) =>
       apiPost('/student/billing/coupons/validate', { code, amount_egp: amountEgp }),
     createPayment: (data) =>

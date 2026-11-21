@@ -1,351 +1,359 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useMemo } from 'react';
+import { RefreshCw, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { studentApi } from '../../services/studentApi';
-import { SUBSCRIPTION_PLANS } from '../../data/studentData';
-import confetti from 'canvas-confetti';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import { SPage } from '../../components/student/ui';
 import {
   ActiveSubscriptionBanner,
   SubscriptionPlanCard,
   BillingInvoicesList,
-  CheckoutModal
+  CheckoutModal,
+  useStudentBilling,
 } from '../../features/student/billing';
+
+const PERIODS = [
+  { id: 'monthly', labelAr: 'شهرياً', labelEn: 'Monthly', badgeAr: null, badgeEn: null },
+  { id: 'term', labelAr: 'نصف سنة (5 شهور)', labelEn: 'Semester (5 Mo)', badgeAr: 'وفر 20%', badgeEn: 'Save 20%' },
+  { id: 'annual', labelAr: 'سنة دراسية كاملة', labelEn: 'Full Year', badgeAr: 'وفر 30%', badgeEn: 'Save 30%' },
+];
 
 export const StudentBillingView = () => {
   const { lang, isRtl } = useLanguage();
+  const isAr = lang === 'ar';
+  const vm = useStudentBilling(lang);
 
-  const [activeSub, setActiveSub] = useState(null);
-  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
-  const [couponCode, setCouponCode] = useState('');
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('vodafone');
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [invoices, setInvoices] = useState([]);
-
-  const loadBilling = useCallback(async () => {
-    try {
-      const res = await studentApi.billing.overview();
-      const payments = Array.isArray(res?.data?.payments) ? res.data.payments : [];
-      setInvoices(payments.map((p) => ({
-        id: p.referenceNum || p.id,
-        date: (p.paidAt || '').slice(0, 10),
-        descriptionAr: p.courseNameAr,
-        descriptionEn: p.courseNameAr,
-        amount: `${p.amountEgp} ج.م`,
-        amountEn: `${p.amountEgp} EGP`,
-        method: p.paymentMethod,
-        methodAr: p.paymentMethod,
-        methodEn: p.paymentMethod,
-        status: p.status === 'confirmed' ? 'مدفوع' : (p.status === 'rejected' ? 'مرفوض' : 'قيد المراجعة')
-      })));
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    loadBilling();
-  }, [loadBilling]);
-
-  const handleApplyCoupon = async (e) => {
-    e.preventDefault();
-    if (!couponCode.trim()) return;
-    try {
-      const res = await studentApi.billing.validateCoupon(
-        couponCode.trim(),
-        selectedPlanForCheckout?.priceEgp || 0
-      );
-      setCouponApplied(true);
-      setDiscountPercent(Number(res?.data?.discountPercent || 0));
-    } catch (err) {
-      alert(err?.message || (lang === 'ar' ? 'كود الخصم غير صالح.' : 'Invalid coupon code.'));
-    }
-  };
-
-  const handleCompletePayment = async () => {
-    if (!selectedPlanForCheckout) return;
-    setIsProcessingPayment(true);
-    try {
-      if (selectedPlanForCheckout.courseId || selectedPlanForCheckout.studyGroupId) {
-        await studentApi.billing.createPayment({
-          course_id: selectedPlanForCheckout.courseId || null,
-          study_group_id: selectedPlanForCheckout.studyGroupId || null,
-          amount_egp: selectedPlanForCheckout.priceEgp || 0,
-          payment_method: selectedPaymentMethod,
-          coupon_code: couponApplied ? couponCode.trim() : null,
-        });
-      }
-      await loadBilling();
-    } catch {
-      // ignore if plan is general tier
-    } finally {
-      setIsProcessingPayment(false);
-    }
-
-    setPaymentSuccess(true);
-    try {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-    } catch {
-      // ignore
-    }
-
-    const finalPrice = couponApplied
-      ? Math.round((selectedPlanForCheckout.priceEgp || 0) * (1 - (discountPercent || 25) / 100))
-      : (selectedPlanForCheckout.priceEgp || 0);
-
-    setActiveSub({
-      planNameAr: selectedPlanForCheckout.nameAr,
-      planNameEn: selectedPlanForCheckout.nameEn || selectedPlanForCheckout.nameAr,
-      status: 'active',
-      renewalDate: '2027-01-20',
-      daysRemaining: 120,
-      amountEgp: finalPrice
-    });
-
-    setTimeout(() => {
-      setPaymentSuccess(false);
-      setSelectedPlanForCheckout(null);
-    }, 3000);
-  };
+  const breadcrumbs = useMemo(
+    () => [
+      {
+        labelAr: 'الاشتراكات والمدفوعات',
+        labelEn: 'Subscriptions & Billing',
+      },
+    ],
+    []
+  );
+  useSetBreadcrumbs(breadcrumbs);
 
   return (
-    <div style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '28px 20px 80px',
-      direction: isRtl ? 'rtl' : 'ltr',
-      fontFamily: isRtl ? 'var(--font-arabic), "Cairo", system-ui, sans-serif' : 'var(--font-heading), "Outfit", sans-serif'
-    }}>
-      {/* Calm Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.3px' }}>
-          {lang === 'ar' ? 'الاشتراكات والباقات التعليمية والمدفوعات' : 'Subscriptions & Billing'}
-        </h1>
-        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '4px 0 0 0', lineHeight: 1.5 }}>
-          {lang === 'ar' ? 'إدارة باقتك الحالية، الاشتراك في باقات الفصل الدراسي، وتفعيل الحساب عبر بوابات الدفع الإلكتروني المصرية' : 'Manage active passes, explore semester packages, and Egyptian payment gateways'}
-        </p>
-      </div>
-
-      {/* Active Subscription Status Banner */}
-      <ActiveSubscriptionBanner
-        activeSub={activeSub}
-        lang={lang}
-        isRtl={isRtl}
-        onUpgrade={() => {
-          const proPlan = SUBSCRIPTION_PLANS.find(p => p.id === 'plan-pro');
-          if (proPlan) {
-            const pricing = proPlan.pricing?.annual || proPlan.pricing?.monthly;
-            setSelectedPlanForCheckout({ ...proPlan, ...pricing });
-          }
+    <SPage maxWidth={1160}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px',
+          direction: isRtl ? 'rtl' : 'ltr',
+          fontFamily: isRtl
+            ? 'var(--font-arabic), "Cairo", system-ui, sans-serif'
+            : 'var(--font-heading), "Outfit", sans-serif',
+          minWidth: 0,
         }}
-      />
-
-      {/* Subscription Plans Cards Section */}
-      <div style={{ marginBottom: '40px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <h3 style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.2px' }}>
-              {lang === 'ar' ? 'باقات الاشتراك المعتمدة لمنصة متفوّق' : 'Official Motafawweq Subscription Tiers'}
-            </h3>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.5 }}>
-              {lang === 'ar' 
-                ? 'اختر الباقة المناسبة لمستواك ومرحلتك الدراسية مع إمكانية الترقية أو تغيير المدة في أي لحظة' 
-                : 'Choose the ideal tier for your academic journey with instant upgrade support'}
-            </div>
-          </div>
-
-          {/* Duration Toggle (Monthly / Semester / Academic Year) */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              backgroundColor: 'var(--bg-app)',
-              border: '1.5px solid var(--border-subtle)',
-              borderRadius: '99px',
-              padding: '4px',
-              gap: '4px',
-              boxShadow: 'var(--shadow-sm)',
-              maxWidth: '100%',
-              overflowX: 'auto'
-            }}
-          >
-            {[
-              {
-                id: 'monthly',
-                labelAr: 'شهرياً',
-                labelEn: 'Monthly',
-                badgeAr: null,
-                badgeEn: null
-              },
-              {
-                id: 'term',
-                labelAr: 'نصف سنة (ترم)',
-                labelEn: 'Semester (5 Mo)',
-                badgeAr: 'وفر 20%',
-                badgeEn: 'Save 20%'
-              },
-              {
-                id: 'annual',
-                labelAr: 'سنة دراسية كاملة',
-                labelEn: 'Full Academic Year',
-                badgeAr: 'وفر 30%',
-                badgeEn: 'Save 30%'
-              }
-            ].map((dur) => {
-              const isSelected = selectedPeriod === dur.id;
-              return (
-                <button
-                  key={dur.id}
-                  onClick={() => setSelectedPeriod(dur.id)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '99px',
-                    border: 'none',
-                    backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
-                    color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
-                    fontWeight: isSelected ? '900' : '700',
-                    fontSize: '12.5px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: isSelected ? '0 4px 14px rgba(21, 136, 199, 0.35)' : 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = 'var(--border-subtle)';
-                      e.currentTarget.style.color = 'var(--text-primary)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
-                >
-                  <span>{lang === 'ar' ? dur.labelAr : dur.labelEn}</span>
-                  {dur.badgeAr && (
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: '900',
-                        padding: '1px 6px',
-                        borderRadius: '6px',
-                        backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.22)' : 'rgba(21, 136, 199, 0.12)',
-                        color: isSelected ? '#FFFFFF' : 'var(--primary)'
-                      }}
-                    >
-                      {lang === 'ar' ? dur.badgeAr : dur.badgeEn}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* AI Capabilities Notification Banner */}
+      >
+        {/* Header */}
         <div
           style={{
-            backgroundColor: 'rgba(21, 136, 199, 0.05)',
-            border: '1px solid rgba(21, 136, 199, 0.18)',
-            borderRadius: '16px',
-            padding: '12px 18px',
-            marginBottom: '24px',
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '12px',
-            fontSize: '12.5px'
+            paddingBottom: '16px',
+            borderBottom: '1px solid var(--border-subtle)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-            <span style={{ fontSize: '15px' }}>⚡</span>
-            <span style={{ fontWeight: '700' }}>
-              {lang === 'ar'
-                ? 'ميزة تحويل المحاضرات الذكي بالـ AI (تفريغ صوت وفيديو وPDF) وتوليد كويزات البابل شيت الفورية متاحة حصرياً في باقة برو.'
-                : 'AI Smart Lecture Transcription (Audio, Video & PDF) & instant Bubble Sheet quiz generation are exclusively unlocked in the Pro Plan.'}
-            </span>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0', letterSpacing: '-0.3px' }}>
+              {isAr ? 'الاشتراكات والباقات التعليمية والمدفوعات' : 'Subscriptions & Billing'}
+            </h1>
+            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+              {isAr
+                ? 'إدارة باقتك الحالية (الطالب المجاني، بلس، برو)، الترقية في أي لحظة، ومتابعة سجل الفواتير الرسمية'
+                : 'Manage your active plan (Free, Plus, Pro), upgrade anytime, and review verified payment invoices'}
+            </p>
           </div>
-          <div style={{ fontSize: '11.5px', color: 'var(--primary)', fontWeight: '800' }}>
-            {lang === 'ar' ? 'تصحيح لحظي وشرح لكل إجابة' : 'Instant auto-grading & reasoning'}
-          </div>
+
+          <button
+            type="button"
+            disabled={vm.loading || vm.refreshing}
+            onClick={vm.handleRefresh}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '12.5px',
+              fontWeight: '800',
+              cursor: vm.loading || vm.refreshing ? 'wait' : 'pointer',
+              opacity: vm.loading || vm.refreshing ? 0.7 : 1,
+            }}
+          >
+            <RefreshCw size={14} color="var(--primary)" />
+            <span>{isAr ? 'تحديث' : 'Refresh'}</span>
+          </button>
         </div>
 
-        {SUBSCRIPTION_PLANS.length === 0 ? (
-          <div style={{
-            padding: '36px 24px',
-            textAlign: 'center',
-            borderRadius: '20px',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px dashed var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            fontSize: '14px',
-            fontWeight: '700'
-          }}>
-            {lang === 'ar' ? 'لا توجد باقات اشتراك متاحة حالياً.' : 'No subscription plans available at the moment.'}
+        {/* Inline Notice Banner */}
+        {vm.notice && (
+          <div
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '13px 16px',
+              borderRadius: '14px',
+              backgroundColor:
+                vm.notice.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(21, 136, 199, 0.08)',
+              border: `1px solid ${
+                vm.notice.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(21, 136, 199, 0.28)'
+              }`,
+              color: vm.notice.type === 'success' ? 'var(--success, #059669)' : 'var(--primary)',
+              fontSize: '13px',
+              fontWeight: '800',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle2 size={16} />
+              <span>{vm.notice.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => vm.setNotice(null)}
+              style={{ background: 'none', border: 'none', color: 'inherit', fontWeight: '800', cursor: 'pointer', fontSize: '12px' }}
+            >
+              {isAr ? 'إخفاء' : 'Dismiss'}
+            </button>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {vm.error && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '14px 16px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.32)',
+              color: '#DC2626',
+              fontSize: '13px',
+              fontWeight: '700',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} />
+              <span>{vm.error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={vm.handleRefresh}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                color: '#DC2626',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              {isAr ? 'إعادة المحاولة' : 'Retry'}
+            </button>
+          </div>
+        )}
+
+        {vm.loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ height: '165px', borderRadius: '24px', backgroundColor: 'var(--bg-subtle)' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} style={{ height: '420px', borderRadius: '26px', backgroundColor: 'var(--bg-subtle)' }} />
+              ))}
+            </div>
           </div>
         ) : (
-        <div
-          className="billing-plans-grid"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 330px), 1fr))',
-            gap: '24px',
-            alignItems: 'stretch'
-          }}
-        >
-          {SUBSCRIPTION_PLANS.map((plan) => (
-            <SubscriptionPlanCard
-              key={plan.id}
-              plan={plan}
-              period={selectedPeriod}
+          <>
+            {/* 1. Active Subscription Banner */}
+            <ActiveSubscriptionBanner
+              activeSub={vm.activeSub}
               lang={lang}
               isRtl={isRtl}
-              isCurrentPlan={plan.id === 'plan-plus' && selectedPeriod === 'term'}
-              onSelectPlan={(p) => {
-                if (plan.id === 'plan-free') {
-                  alert(lang === 'ar' ? 'أنت مسجل بالفعل في الباقة المجانية، يمكنك متابعة مناهج الوزارة مباشرة!' : 'You are currently enjoying the Free Plan. Start exploring Ministry lectures!');
-                  return;
-                }
-                setSelectedPlanForCheckout(p);
-              }}
+              onUpgrade={vm.handleUpgradeFromBanner}
             />
-          ))}
-        </div>
+
+            {/* 2. Three Official Student Tiers (Free, Plus, Pro) */}
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '18px',
+                  flexWrap: 'wrap',
+                  gap: '14px',
+                }}
+              >
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
+                    {isAr ? 'باقات الاشتراك المعتمدة للطالب' : 'Official Student Subscription Plans'}
+                  </h3>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    {isAr
+                      ? 'اختر بين باقة الطالب المجانية أو بلس أو برو مع خصم يصل إلى 30% للاشتراك السنوي'
+                      : 'Choose between Student Free, Plus, or Pro with up to 30% annual savings'}
+                  </div>
+                </div>
+
+                {/* Duration Toggle */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1.5px solid var(--border-subtle)',
+                    borderRadius: '99px',
+                    padding: '4px',
+                    gap: '4px',
+                    maxWidth: '100%',
+                    overflowX: 'auto',
+                  }}
+                >
+                  {PERIODS.map((dur) => {
+                    const isSelected = vm.selectedPeriod === dur.id;
+                    return (
+                      <button
+                        key={dur.id}
+                        type="button"
+                        onClick={() => vm.setSelectedPeriod(dur.id)}
+                        style={{
+                          padding: '8px 15px',
+                          borderRadius: '99px',
+                          border: 'none',
+                          backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
+                          color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
+                          fontWeight: isSelected ? '900' : '700',
+                          fontSize: '12.5px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span>{isAr ? dur.labelAr : dur.labelEn}</span>
+                        {dur.badgeAr && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '900',
+                              padding: '1px 6px',
+                              borderRadius: '6px',
+                              backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.22)' : 'rgba(21, 136, 199, 0.12)',
+                              color: isSelected ? '#FFFFFF' : 'var(--primary)',
+                            }}
+                          >
+                            {isAr ? dur.badgeAr : dur.badgeEn}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* AI Note Strip */}
+              <div
+                style={{
+                  backgroundColor: 'rgba(21, 136, 199, 0.06)',
+                  border: '1px solid rgba(21, 136, 199, 0.18)',
+                  borderRadius: '14px',
+                  padding: '11px 16px',
+                  marginBottom: '22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '10px',
+                  fontSize: '12.5px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontWeight: '700' }}>
+                  <Sparkles size={15} color="var(--primary)" />
+                  <span>
+                    {isAr
+                      ? 'ميزة تحويل المحاضرات الذكي بالـ AI (صوت وفيديو وPDF) وتوليد كويزات البابل شيت الفورية متاحة حصرياً في باقة برو.'
+                      : 'AI Smart Lecture Converter (Audio, Video & PDF) & instant Bubble-Sheet quizzes are included exclusively in Student Pro.'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 3 Plans Grid */}
+              <div
+                className="billing-plans-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 310px), 1fr))',
+                  gap: '22px',
+                  alignItems: 'stretch',
+                }}
+              >
+                {vm.plans.map((plan) => {
+                  const isCurrent =
+                    vm.activeSub?.planTier === plan.tier &&
+                    (plan.tier === 'free' || vm.activeSub?.billingPeriod === vm.selectedPeriod);
+
+                  return (
+                    <SubscriptionPlanCard
+                      key={plan.id}
+                      plan={plan}
+                      period={vm.selectedPeriod}
+                      lang={lang}
+                      isRtl={isRtl}
+                      isCurrentPlan={isCurrent}
+                      onSelectPlan={vm.handleSelectPlan}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Payment History & Official Invoices */}
+            <BillingInvoicesList invoices={vm.invoices} lang={lang} isRtl={isRtl} />
+          </>
         )}
+
+        {/* 4. Checkout Modal */}
+        <CheckoutModal
+          selectedPlan={vm.selectedPlanForCheckout}
+          isRtl={isRtl}
+          lang={lang}
+          couponCode={vm.couponCode}
+          setCouponCode={vm.setCouponCode}
+          couponApplied={vm.couponApplied}
+          discountPercent={vm.discountPercent}
+          discountEgp={vm.discountEgp}
+          couponError={vm.couponError}
+          isApplyingCoupon={vm.isApplyingCoupon}
+          onClearCoupon={vm.handleClearCoupon}
+          selectedPaymentMethod={vm.selectedPaymentMethod}
+          setSelectedPaymentMethod={vm.setSelectedPaymentMethod}
+          isProcessingPayment={vm.isProcessingPayment}
+          paymentSuccess={vm.paymentSuccess}
+          checkoutError={vm.checkoutError}
+          onApplyCoupon={vm.handleApplyCoupon}
+          onCompletePayment={vm.handleCompletePayment}
+          onClose={vm.closeCheckout}
+        />
       </div>
-
-      {/* Payment History Invoices Table */}
-      <BillingInvoicesList invoices={invoices} lang={lang} isRtl={isRtl} />
-
-      {/* Electronic Checkout Modal */}
-      <CheckoutModal
-        selectedPlan={selectedPlanForCheckout}
-        isRtl={isRtl}
-        lang={lang}
-        couponCode={couponCode}
-        setCouponCode={setCouponCode}
-        couponApplied={couponApplied}
-        discountPercent={discountPercent}
-        selectedPaymentMethod={selectedPaymentMethod}
-        setSelectedPaymentMethod={setSelectedPaymentMethod}
-        isProcessingPayment={isProcessingPayment}
-        paymentSuccess={paymentSuccess}
-        onApplyCoupon={handleApplyCoupon}
-        onCompletePayment={handleCompletePayment}
-        onClose={() => setSelectedPlanForCheckout(null)}
-      />
-    </div>
+    </SPage>
   );
 };

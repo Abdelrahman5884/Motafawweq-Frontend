@@ -295,7 +295,9 @@ export const SubscriptionPlanCard = ({
 
       {/* Subscribe CTA Button (Platform Palette) */}
       <button
-        onClick={() => onSelectPlan?.({ ...plan, ...currentPricing })}
+        type="button"
+        disabled={isCurrentPlan}
+        onClick={() => !isCurrentPlan && onSelectPlan?.({ ...plan, ...currentPricing })}
         style={{
           width: '100%',
           padding: '14px 20px',
@@ -317,7 +319,8 @@ export const SubscriptionPlanCard = ({
             : 'none',
           fontSize: '14px',
           fontWeight: '900',
-          cursor: 'pointer',
+          cursor: isCurrentPlan ? 'default' : 'pointer',
+          opacity: isCurrentPlan ? 0.85 : 1,
           boxShadow: isCurrentPlan || isFree
             ? 'none'
             : isPro
@@ -329,27 +332,15 @@ export const SubscriptionPlanCard = ({
           gap: '8px',
           transition: 'all 0.2s ease'
         }}
-        onMouseEnter={(e) => {
-          if (!isCurrentPlan) {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.opacity = '0.95';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isCurrentPlan) {
-            e.currentTarget.style.transform = 'none';
-            e.currentTarget.style.opacity = '1';
-          }
-        }}
       >
         <span>
           {isCurrentPlan
             ? (isAr ? 'باقتك الحالية المفعّلة' : 'Current Active Plan')
             : isFree
-            ? (isAr ? 'البدء مجاناً الآن' : 'Start Free')
+            ? (isAr ? 'التبديل للباقة المجانية' : 'Switch to Free')
             : (isAr ? `الاشتراك في ${name}` : `Select ${name}`)}
         </span>
-        {isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}
+        {!isCurrentPlan && (isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />)}
       </button>
     </div>
   );
