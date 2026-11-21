@@ -61,6 +61,7 @@ import { StudentBillingView } from './views/student/StudentBillingView';
 import { WeakAreasHub } from './views/student/WeakAreasHub';
 import { StudentSettingsView } from './views/student/StudentSettingsView';
 import { StudentGroupsView } from './views/student/StudentGroupsView';
+import { StudentSubscriptionGate } from './components/student/StudentSubscriptionGate';
 
 // Parent Views
 import { ParentDashboard } from './views/parent/ParentDashboard';
@@ -425,18 +426,18 @@ export default function App() {
                     <Route path="/student/schedule" element={<StudentGroupsView defaultTab="schedule" />} />
                     <Route path="/student/courses" element={<StudentCoursesView />} />
                     <Route path="/student/lesson" element={<StudentLessonView />} />
-                    <Route path="/student/quiz" element={<StudentQuizView />} />
+                    <Route path="/student/quiz" element={<StudentSubscriptionGate feature="quiz"><StudentQuizView /></StudentSubscriptionGate>} />
                     <Route path="/student/homework" element={<StudentHomeworkView />} />
                     <Route path="/student/exam" element={<ExamTakingView />} />
-                    <Route path="/student/smart-lecture" element={<StudentSmartLectureView />} />
-                    <Route path="/student/converted-lectures" element={<StudentConvertedLecturesView />} />
-                    <Route path="/student/revision" element={<StudentRevisionView />} />
-                    <Route path="/student/league" element={<StudentLeagueView />} />
+                    <Route path="/student/smart-lecture" element={<StudentSubscriptionGate feature="smart-lecture"><StudentSmartLectureView /></StudentSubscriptionGate>} />
+                    <Route path="/student/converted-lectures" element={<StudentSubscriptionGate feature="converted-lectures"><StudentConvertedLecturesView /></StudentSubscriptionGate>} />
+                    <Route path="/student/revision" element={<StudentSubscriptionGate feature="revision"><StudentRevisionView /></StudentSubscriptionGate>} />
+                    <Route path="/student/league" element={<StudentSubscriptionGate feature="league"><StudentLeagueView /></StudentSubscriptionGate>} />
                     <Route path="/student/analytics" element={<Navigate to="/student/league" replace />} />
-                    <Route path="/student/gamification" element={<StudentGamificationView />} />
-                    <Route path="/student/certificates" element={<StudentCertificatesView />} />
+                    <Route path="/student/gamification" element={<StudentSubscriptionGate feature="gamification"><StudentGamificationView /></StudentSubscriptionGate>} />
+                    <Route path="/student/certificates" element={<StudentSubscriptionGate feature="certificates"><StudentCertificatesView /></StudentSubscriptionGate>} />
                     <Route path="/student/billing" element={<StudentBillingView />} />
-                    <Route path="/student/weak-areas" element={<WeakAreasHub />} />
+                    <Route path="/student/weak-areas" element={<StudentSubscriptionGate feature="weak-areas"><WeakAreasHub /></StudentSubscriptionGate>} />
                     <Route path="/student/settings" element={<StudentSettingsView />} />
 
                     {/* Parent Portal Route */}

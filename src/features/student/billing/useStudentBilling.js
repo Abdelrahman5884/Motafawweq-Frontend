@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { studentApi } from '../../../services/studentApi';
+import { useAuth } from '../../../context/AuthContext';
 
 export const useStudentBilling = (lang = 'ar') => {
   const isAr = lang === 'ar';
+  const { syncUserProfile } = useAuth();
   const requestSeqRef = useRef(0);
   const closeTimerRef = useRef(null);
 
@@ -50,6 +52,12 @@ export const useStudentBilling = (lang = 'ar') => {
         if (seq !== requestSeqRef.current) return null;
         const data = res?.data || {};
         setOverview(data);
+        if (data?.activeSub?.planTier && syncUserProfile) {
+          syncUserProfile({
+            plan_tier: data.activeSub.planTier,
+            unlocked_features: data.activeSub.unlockedFeatures || null,
+          });
+        }
         return data;
       } catch (err) {
         if (seq === requestSeqRef.current) {
@@ -68,7 +76,7 @@ export const useStudentBilling = (lang = 'ar') => {
         }
       }
     },
-    [isAr]
+    [isAr, syncUserProfile]
   );
 
   useEffect(() => {
@@ -79,7 +87,14 @@ export const useStudentBilling = (lang = 'ar') => {
       try {
         const res = await studentApi.billing.overview();
         if (!mounted || seq !== requestSeqRef.current) return;
-        setOverview(res?.data || {});
+        const data = res?.data || {};
+        setOverview(data);
+        if (data?.activeSub?.planTier && syncUserProfile) {
+          syncUserProfile({
+            plan_tier: data.activeSub.planTier,
+            unlocked_features: data.activeSub.unlockedFeatures || null,
+          });
+        }
         setError(null);
       } catch (err) {
         if (mounted && seq === requestSeqRef.current) {
@@ -101,7 +116,7 @@ export const useStudentBilling = (lang = 'ar') => {
     return () => {
       mounted = false;
     };
-  }, [isAr]);
+  }, [isAr, syncUserProfile]);
 
   const activeSub = useMemo(() => overview?.activeSub || null, [overview]);
   const plans = useMemo(() => (Array.isArray(overview?.plans) ? overview.plans : []), [overview]);

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
@@ -26,10 +27,11 @@ import {
   Loader2,
   Headphones,
   Edit3,
-  UploadCloud,
 } from 'lucide-react';
 
 export const LessonWorkspace = () => {
+  const [searchParams] = useSearchParams();
+  const requestedLessonId = searchParams.get('lesson') || '';
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
 
@@ -122,7 +124,6 @@ export const LessonWorkspace = () => {
   // Fetch real lessons, courses, and groups from backend
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
 
     Promise.allSettled([
       teacherApi.studio.listLessons(),
@@ -135,9 +136,12 @@ export const LessonWorkspace = () => {
           const raw = Array.isArray(lessonsRes.value?.data) ? lessonsRes.value.data : [];
           const mapped = mapLessons(raw);
           setLessonsList(mapped);
-          const savedUuid = sessionStorage.getItem('currentLessonUuid');
+          const savedUuid = requestedLessonId || sessionStorage.getItem('currentLessonUuid');
           if (savedUuid && mapped.some((m) => m.id === savedUuid)) {
             setSelectedLessonId(savedUuid);
+            try {
+              sessionStorage.setItem('currentLessonUuid', savedUuid);
+            } catch { /* ignore */ }
           } else if (mapped.length > 0) {
             setSelectedLessonId(mapped[0].id);
           }
@@ -159,7 +163,7 @@ export const LessonWorkspace = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [requestedLessonId]);
 
   const filteredLessons = useMemo(() => {
     const q = lessonSearch.trim().toLowerCase();
@@ -185,7 +189,7 @@ export const LessonWorkspace = () => {
     setActiveSection('media');
     try {
       sessionStorage.setItem('currentLessonUuid', lessonId);
-    } catch (e) {}
+    } catch { /* ignore */ }
   };
 
   const handleJumpToTimestamp = (seconds) => {

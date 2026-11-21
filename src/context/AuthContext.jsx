@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService, tokenStorage } from '../services/api';
+import { normalizeStudentPlanTier } from '../constants/studentPlanFeatures';
 
 export const ROLES = {
   teacher: {
@@ -26,6 +27,7 @@ export const ROLES = {
     student_code: 'OMAR-2026',
     studentCode: 'OMAR-2026',
     avatar: null,
+    plan_tier: 'free',
     center: 'Al-Rowad Center',
     grade: 'الصف الثالث الثانوي',
     defaultRoute: '/student/dashboard'
@@ -84,6 +86,10 @@ function buildFrontendUser(apiUser, extras = {}) {
   const resolvedAvatar = hasApiAvatarField
     ? (apiUser.avatar || null)
     : (Object.prototype.hasOwnProperty.call(extras, 'avatar') ? (extras.avatar || null) : (baseRole.avatar || null));
+  const hasApiPlanField = Boolean(apiUser && Object.prototype.hasOwnProperty.call(apiUser, 'plan_tier'));
+  const resolvedPlanTier = normalizeStudentPlanTier(
+    hasApiPlanField ? apiUser.plan_tier : (extras.plan_tier ?? baseRole.plan_tier ?? 'free')
+  );
 
   return {
     ...baseRole,
@@ -96,6 +102,8 @@ function buildFrontendUser(apiUser, extras = {}) {
       ? (apiUser.phone || '')
       : (extras.phone ?? baseRole.phone),
     avatar: resolvedAvatar,
+    plan_tier: resolvedPlanTier,
+    unlocked_features: apiUser?.unlocked_features || extras.unlocked_features || null,
     role: roleKey,
     roleLabel: extras.roleLabel || apiUser?.role_label || baseRole.roleLabel,
     roleLabelAr: extras.roleLabelAr || apiUser?.role_label || baseRole.roleLabelAr,
@@ -271,8 +279,25 @@ export const AuthProvider = ({ children }) => {
     const onExpired = () => {
       clearLocalSession();
     };
+    const onPlanUpdated = (event) => {
+      const nextTier = normalizeStudentPlanTier(event?.detail?.planTier);
+      setCurrentUser((prev) => {
+        if (!prev || prev.plan_tier === nextTier) return prev;
+        const next = { ...prev, plan_tier: nextTier };
+        try {
+          localStorage.setItem('motafawweq_custom_user', JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    };
     window.addEventListener('motafawweq:auth-expired', onExpired);
-    return () => window.removeEventListener('motafawweq:auth-expired', onExpired);
+    window.addEventListener('motafawweq:plan-updated', onPlanUpdated);
+    return () => {
+      window.removeEventListener('motafawweq:auth-expired', onExpired);
+      window.removeEventListener('motafawweq:plan-updated', onPlanUpdated);
+    };
   }, [clearLocalSession]);
 
   // Switch role (used by role switcher / quick demo)
@@ -544,6 +569,7 @@ export const AuthProvider = ({ children }) => {
         hasActiveToken: Boolean(tokenStorage.getAccessToken()),
         currentRole,
         currentUser,
+        studentPlanTier: normalizeStudentPlanTier(currentUser?.plan_tier),
         selectedLessonId,
         setSelectedLessonId,
         searchModalOpen,

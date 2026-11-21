@@ -211,6 +211,9 @@ export const teacherApi = {
     update: (uuid, data) => apiPut(`/teacher/groups/${uuid}`, data),
     delete: (uuid) => apiDelete(`/teacher/groups/${uuid}`),
     regenerateCode: (uuid) => apiPost(`/teacher/groups/${uuid}/regenerate-code`),
+    listAnnouncements: (uuid) => apiGet(`/teacher/groups/${uuid}/announcements`),
+    sendAnnouncement: (uuid, { type = 'announcement', message }) =>
+      apiPost(`/teacher/groups/${uuid}/announcements`, { type, message }),
   },
 
   // ─── Stage 8: Student Roster & Invites ───────────────────────────────────────

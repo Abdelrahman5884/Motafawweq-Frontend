@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
-import { RefreshCw, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import React, { useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { RefreshCw, AlertCircle, CheckCircle2, Sparkles, Crown } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { SPage } from '../../components/student/ui';
+import { STUDENT_PLANS } from '../../constants/studentPlanFeatures';
 import {
   ActiveSubscriptionBanner,
   SubscriptionPlanCard,
@@ -21,6 +23,16 @@ export const StudentBillingView = () => {
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
   const vm = useStudentBilling(lang);
+  const [searchParams] = useSearchParams();
+  const plansGridRef = useRef(null);
+  const requestedTier = searchParams.get('plan');
+  const requestedPlanInfo = requestedTier === 'plus' || requestedTier === 'pro' ? STUDENT_PLANS[requestedTier] : null;
+
+  useEffect(() => {
+    if (!vm.loading && requestedPlanInfo && plansGridRef.current) {
+      plansGridRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [vm.loading, requestedPlanInfo]);
 
   const breadcrumbs = useMemo(
     () => [
@@ -93,6 +105,36 @@ export const StudentBillingView = () => {
             <span>{isAr ? 'تحديث' : 'Refresh'}</span>
           </button>
         </div>
+
+        {/* Highlight Banner when redirected from a locked feature */}
+        {requestedPlanInfo && vm.activeSub?.planTier !== requestedPlanInfo.tier && (
+          <div
+            role="status"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '14px 18px',
+              borderRadius: '14px',
+              backgroundColor: 'var(--primary-surface)',
+              border: '1.5px solid var(--primary)',
+              color: 'var(--primary)',
+              fontSize: '13.5px',
+              fontWeight: '800',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Crown size={18} />
+              <span>
+                {isAr
+                  ? `لفتح الميزة التي حاولت الوصول إليها، يرجى الاشتراك في ${requestedPlanInfo.nameAr}.`
+                  : `To unlock the feature you requested, please subscribe to ${requestedPlanInfo.nameEn}.`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Inline Notice Banner */}
         {vm.notice && (
@@ -298,6 +340,7 @@ export const StudentBillingView = () => {
 
               {/* 3 Plans Grid */}
               <div
+                ref={plansGridRef}
                 className="billing-plans-grid"
                 style={{
                   display: 'grid',

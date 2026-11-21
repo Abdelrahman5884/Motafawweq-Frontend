@@ -245,6 +245,14 @@ export async function apiRequest(path, { method = 'GET', body, headers: extraHea
       }
     }
 
+    if (res.status === 403 && payload?.error_code === 'SUBSCRIPTION_REQUIRED' && typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('motafawweq:plan-updated', {
+          detail: { planTier: payload?.current_plan || 'free' },
+        })
+      );
+    }
+
     // Extract first validation error if available for easy display
     let firstFieldError = null;
     if (payload?.errors && typeof payload.errors === 'object') {

@@ -36,12 +36,18 @@ import {
   Flame,
   Settings,
   Target,
-  Megaphone
+  Megaphone,
+  Lock
 } from 'lucide-react';
+import {
+  hasStudentFeatureAccess,
+  getStudentFeatureGate,
+  STUDENT_PLANS
+} from '../../constants/studentPlanFeatures';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { currentRole, currentUser } = useAuth();
+  const { currentRole, currentUser, studentPlanTier } = useAuth();
   const { streakDays: liveStreakDays } = useStudentActivity();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
@@ -111,16 +117,16 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
               { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات' : 'Exams', icon: ClipboardList },
               { id: 'homework', path: '/student/homework', label: lang === 'ar' ? 'الواجبات' : 'Homework', icon: FileText },
-              { id: 'league', path: '/student/league', label: lang === 'ar' ? 'الدوري' : 'League', icon: Trophy },
+              { id: 'league', path: '/student/league', label: lang === 'ar' ? 'الدوري' : 'League', icon: Trophy, featureKey: 'league' },
             ]
           },
           {
             group: lang === 'ar' ? 'أدوات التعلم الذكية' : 'Smart Learning Tools',
             items: [
-              { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic, badge: 'AI' },
-              { id: 'converted-lectures', path: '/student/converted-lectures', label: lang === 'ar' ? 'المحاضرات المحولة' : 'Converted Lectures', icon: FolderCheck },
-              { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal },
-              { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
+              { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic, badge: 'AI', featureKey: 'smart-lecture' },
+              { id: 'converted-lectures', path: '/student/converted-lectures', label: lang === 'ar' ? 'المحاضرات المحولة' : 'Converted Lectures', icon: FolderCheck, featureKey: 'converted-lectures' },
+              { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal, featureKey: 'gamification' },
+              { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award, featureKey: 'certificates' },
               { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription', icon: CreditCard },
               { id: 'student-settings', path: '/student/settings', label: lang === 'ar' ? 'الإعدادات والملف الشخصي' : 'Settings', icon: Settings },
             ]
@@ -187,20 +193,58 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       ? (currentFullPath === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.endsWith('?tab=overview')))
       : location.pathname === item.path;
 
+    const isLocked =
+      effectiveRole === 'student' &&
+      Boolean(item.featureKey) &&
+      !hasStudentFeatureAccess(studentPlanTier, item.featureKey);
+    const gate = isLocked ? getStudentFeatureGate(item.featureKey) : null;
+    const requiredPlan = gate ? STUDENT_PLANS[gate.requiredTier] : null;
+
     return (
       <div key={item.id} className="sidebar-item-wrapper">
         <Link
           to={item.path}
           onClick={handleLinkClick}
           className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+          title={
+            isLocked && requiredPlan
+              ? (lang === 'ar'
+                ? `مقفول — يتطلب ${requiredPlan.nameAr}`
+                : `Locked — Requires ${requiredPlan.nameEn}`)
+              : undefined
+          }
           style={{
             color: isActive ? accent : undefined,
+            opacity: isLocked && !isActive ? 0.72 : 1,
           }}
         >
-          <ItemIcon
-            size={18}
-            style={{ flexShrink: 0 }}
-          />
+          <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+            <ItemIcon
+              size={18}
+              style={{ flexShrink: 0 }}
+            />
+            {isCollapsed && isLocked && (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  insetInlineEnd: '-6px',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-medium)',
+                  color: 'var(--warning, #D97706)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Lock size={8} />
+              </span>
+            )}
+          </span>
           {!isCollapsed && (
             <span style={{
               whiteSpace: 'nowrap',
@@ -211,7 +255,35 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               {item.label}
             </span>
           )}
-          {!isCollapsed && item.badge && (
+          {!isCollapsed && isLocked && requiredPlan && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                padding: '2px 6px',
+                borderRadius: '999px',
+                fontSize: '9.5px',
+                fontWeight: '800',
+                backgroundColor: requiredPlan.tier === 'pro'
+                  ? 'rgba(21, 136, 199, 0.14)'
+                  : 'rgba(245, 158, 11, 0.14)',
+                color: requiredPlan.tier === 'pro'
+                  ? 'var(--primary)'
+                  : 'var(--warning, #D97706)',
+                border: `1px solid ${
+                  requiredPlan.tier === 'pro'
+                    ? 'rgba(21, 136, 199, 0.28)'
+                    : 'rgba(245, 158, 11, 0.3)'
+                }`,
+                flexShrink: 0,
+              }}
+            >
+              <Lock size={10} />
+              <span>{lang === 'ar' ? requiredPlan.shortAr : requiredPlan.shortEn}</span>
+            </span>
+          )}
+          {!isCollapsed && !isLocked && item.badge && (
             <span
               className="sidebar-badge-ai"
             >
@@ -224,10 +296,29 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         {isCollapsed && (
           <div className="sidebar-tooltip">
             <span>{item.label}</span>
-            {item.badge && (
-              <span className="sidebar-badge-ai" style={{ fontSize: '8.5px', padding: '1px 5px' }}>
-                {item.badge}
+            {isLocked && requiredPlan ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '9px',
+                  fontWeight: '800',
+                  padding: '1px 6px',
+                  borderRadius: '99px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                  color: '#F59E0B',
+                }}
+              >
+                <Lock size={9} />
+                <span>{lang === 'ar' ? requiredPlan.shortAr : requiredPlan.shortEn}</span>
               </span>
+            ) : (
+              item.badge && (
+                <span className="sidebar-badge-ai" style={{ fontSize: '8.5px', padding: '1px 5px' }}>
+                  {item.badge}
+                </span>
+              )
             )}
           </div>
         )}
