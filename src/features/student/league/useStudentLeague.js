@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { studentApi } from '../../../services/studentApi';
 
 function mapLeaderboardEntry(s) {
@@ -53,6 +54,8 @@ function mapLeagueDetail(raw) {
 
 export const useStudentLeague = (lang = 'ar') => {
   const isAr = lang === 'ar';
+  const [searchParams] = useSearchParams();
+  const initialLeagueParam = searchParams.get('league') || '';
   const fetchedCacheRef = useRef({});
   const requestSeqRef = useRef(0);
 
@@ -140,8 +143,11 @@ export const useStudentLeague = (lang = 'ar') => {
         setLeaguesList(mapped);
         setError(null);
 
+        const requested = initialLeagueParam
+          ? mapped.find((l) => String(l.id) === String(initialLeagueParam))
+          : null;
         const firstTeacher = mapped.find((l) => l.category === 'teachers');
-        const initialLeague = firstTeacher || mapped[0] || null;
+        const initialLeague = requested || firstTeacher || mapped[0] || null;
         if (initialLeague) {
           setLeagueCategory(initialLeague.category);
           setSelectedLeagueId(initialLeague.id);
@@ -168,7 +174,7 @@ export const useStudentLeague = (lang = 'ar') => {
     return () => {
       mounted = false;
     };
-  }, [isAr]);
+  }, [initialLeagueParam, isAr]);
 
   const teacherLeagues = useMemo(
     () => leaguesList.filter((l) => l.category === 'teachers'),

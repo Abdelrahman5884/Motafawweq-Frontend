@@ -106,9 +106,30 @@ export const studentApi = {
 
   // Phase 7 & 8: Gamification, Leagues, Leaderboard & Certificates
   gamification: {
-    summary: () => apiGet('/student/gamification'),
-    heatmap: () => apiGet('/student/gamification/heatmap'),
-    challenges: () => apiGet('/student/gamification/challenges'),
+    workspace: (timezone) =>
+      apiGet(
+        timezone
+          ? `/student/gamification/workspace?timezone=${encodeURIComponent(timezone)}`
+          : '/student/gamification/workspace'
+      ),
+    summary: (timezone) =>
+      apiGet(
+        timezone
+          ? `/student/gamification?timezone=${encodeURIComponent(timezone)}`
+          : '/student/gamification'
+      ),
+    heatmap: (timezone) =>
+      apiGet(
+        timezone
+          ? `/student/gamification/heatmap?timezone=${encodeURIComponent(timezone)}`
+          : '/student/gamification/heatmap'
+      ),
+    challenges: (timezone) =>
+      apiGet(
+        timezone
+          ? `/student/gamification/challenges?timezone=${encodeURIComponent(timezone)}`
+          : '/student/gamification/challenges'
+      ),
     leagues: () => apiGet('/student/leagues'),
     pastLeagues: () => apiGet('/student/leagues/history'),
     leaderboard: (leagueUuid) =>

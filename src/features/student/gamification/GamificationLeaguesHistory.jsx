@@ -1,393 +1,462 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Trophy, 
-  Medal, 
+import {
+  Trophy,
+  Medal,
   ChevronLeft,
+  ChevronRight,
   Award,
   Crown,
-  Sparkles,
   Flame,
   Shield,
-  Star
+  Clock,
+  Globe,
 } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-import { studentApi } from '../../../services/studentApi';
 
-export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
+function getTierPalette(tier) {
+  switch (tier) {
+    case 'Diamond':
+      return {
+        accent: '#0EA5E9',
+        border: 'rgba(14, 165, 233, 0.38)',
+        badgeBg: 'rgba(14, 165, 233, 0.14)',
+        glow: 'rgba(14, 165, 233, 0.16)',
+        cardLight: 'linear-gradient(160deg, #FFFFFF 0%, #F0F9FF 100%)',
+      };
+    case 'Gold':
+      return {
+        accent: '#F59E0B',
+        border: 'rgba(245, 158, 11, 0.38)',
+        badgeBg: 'rgba(245, 158, 11, 0.14)',
+        glow: 'rgba(245, 158, 11, 0.16)',
+        cardLight: 'linear-gradient(160deg, #FFFFFF 0%, #FFFBEB 100%)',
+      };
+    case 'Silver':
+      return {
+        accent: '#64748B',
+        border: 'rgba(100, 116, 139, 0.35)',
+        badgeBg: 'rgba(100, 116, 139, 0.14)',
+        glow: 'rgba(100, 116, 139, 0.14)',
+        cardLight: 'linear-gradient(160deg, #FFFFFF 0%, #F8FAFC 100%)',
+      };
+    default:
+      return {
+        accent: '#B45309',
+        border: 'rgba(180, 83, 9, 0.32)',
+        badgeBg: 'rgba(180, 83, 9, 0.12)',
+        glow: 'rgba(180, 83, 9, 0.12)',
+        cardLight: 'linear-gradient(160deg, #FFFFFF 0%, #FFF7ED 100%)',
+      };
+  }
+}
+
+function resolvePastRankLabel(item, isAr) {
+  if (!item.rank || item.rank <= 0) {
+    return isAr ? 'مشارك' : 'Participant';
+  }
+  if (item.rank === 1) {
+    if (item.isRepublicLeague) {
+      return isAr ? 'المركز #1 (بطل الجمهورية)' : 'Rank #1 (Republic Champion)';
+    }
+    return isAr ? 'المركز #1 (بطل الكورس)' : 'Rank #1 (Course Champion)';
+  }
+  return isAr ? `المركز #${item.rank}` : `Rank #${item.rank}`;
+}
+
+export const GamificationLeaguesHistory = ({
+  generalLeague = null,
+  activeTeacherLeagues = [],
+  pastLeagues = [],
+  lang = 'ar',
+}) => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  const isAr = lang === 'ar';
 
-  const [teacherLeagues, setTeacherLeagues] = useState([]);
-  const [pastLeagues, setPastLeagues] = useState([]);
+  const activeLeagues = [
+    ...(generalLeague && generalLeague.hasStarted ? [generalLeague] : []),
+    ...activeTeacherLeagues,
+  ];
 
-  useEffect(() => {
-    let mounted = true;
-    Promise.all([
-      studentApi.gamification.leagues().catch(() => null),
-      studentApi.gamification.pastLeagues().catch(() => null),
-    ]).then(([leaguesRes, pastRes]) => {
-      if (!mounted) return;
-      const list = Array.isArray(leaguesRes?.data) ? leaguesRes.data : [];
-      setTeacherLeagues(list.map((l, idx) => ({
-        id: l.id,
-        subject: l.courseTitleAr || 'دوري التفوق',
-        rank: l.myRank || (idx + 1),
-        medalTitle: l.myBadgeAr || (l.myRank === 1 ? 'المتصدر' : 'منافس نشط'),
-        teacherName: l.teacherName || l.titleAr || 'بطولة الكورس',
-        courseTitle: l.courseTitleAr || '',
-        statusAr: l.isActive ? 'موسم نشط الآن' : 'موسم مكتمل',
-        totalStudents: l.participantsCount || 0,
-        xp: l.myXp || 0,
-        accentColor: '#F59E0B',
-        borderColor: 'rgba(245, 158, 11, 0.35)',
-        badgeBg: 'rgba(245, 158, 11, 0.14)',
-        glowColor: 'rgba(245, 158, 11, 0.18)',
-        cardBgDark: 'linear-gradient(160deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
-        cardBgLight: 'linear-gradient(160deg, #FFFFFF 0%, #FFFBEB 100%)'
-      })));
-
-      const past = Array.isArray(pastRes?.data) ? pastRes.data : [];
-      setPastLeagues(past.map((p) => ({
-        ...p,
-        accentColor: '#F59E0B',
-        borderColor: 'rgba(245, 158, 11, 0.35)',
-        glowColor: 'rgba(245, 158, 11, 0.15)',
-        cardBgDark: 'linear-gradient(160deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
-        cardBgLight: 'linear-gradient(160deg, #FFFFFF 0%, #FFFBEB 100%)'
-      })));
-    });
-    return () => { mounted = false; };
-  }, []);
+  const cardBgDark = 'linear-gradient(160deg, rgba(30, 41, 59, 0.88) 0%, rgba(15, 23, 42, 0.96) 100%)';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', marginBottom: '32px' }}>
-      {/* ── 1. Teacher Course Leagues Ranking (Championship Arena Theme) ── */}
-      <div style={{
-        position: 'relative',
-        background: isDark 
-          ? 'radial-gradient(ellipse at 50% 0%, #152238 0%, #0A1120 75%, #060A13 100%)' 
-          : 'radial-gradient(ellipse at 50% 0%, #E0F2FE 0%, #F1F5F9 60%, #F8FAFC 100%)',
-        border: isDark ? '1px solid rgba(56, 189, 248, 0.22)' : '1px solid rgba(2, 132, 199, 0.22)',
-        borderRadius: '24px',
-        padding: '26px 28px',
-        boxShadow: isDark 
-          ? '0 16px 40px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08)' 
-          : '0 12px 30px -8px rgba(14, 165, 233, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-        overflow: 'hidden'
-      }}>
-        {/* Subtle Championship Trophy Watermark */}
-        <div style={{
-          position: 'absolute',
-          top: '-20px',
-          left: lang === 'ar' ? 'auto' : '-20px',
-          right: lang === 'ar' ? '-20px' : 'auto',
-          width: '260px',
-          height: '260px',
-          opacity: isDark ? 0.05 : 0.06,
-          pointerEvents: 'none',
-          zIndex: 0
-        }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '100%', height: '100%', color: '#F59E0B' }}>
-            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-            <path d="M4 22h16" />
-            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-          </svg>
-        </div>
-
-        {/* Stadium Light Beam Glow (Header Spotlights) */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: '20%',
-          right: '20%',
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, #38BDF8, #F59E0B, transparent)',
-          opacity: 0.8
-        }} />
-
-        {/* Section Header */}
-        <div style={{
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* ── 1. Active Leagues Arena ── */}
+      <div
+        style={{
           position: 'relative',
-          zIndex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '22px',
-          flexWrap: 'wrap',
-          gap: '14px'
-        }}>
+          background: isDark
+            ? 'radial-gradient(ellipse at 50% 0%, #152238 0%, #0A1120 75%, #060A13 100%)'
+            : 'radial-gradient(ellipse at 50% 0%, #E0F2FE 0%, #F1F5F9 60%, #F8FAFC 100%)',
+          border: isDark ? '1px solid rgba(56, 189, 248, 0.22)' : '1px solid rgba(2, 132, 199, 0.22)',
+          borderRadius: '22px',
+          padding: '24px 26px',
+          boxShadow: isDark
+            ? '0 14px 36px -10px rgba(0, 0, 0, 0.55)'
+            : '0 10px 26px -8px rgba(14, 165, 233, 0.14)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '3px 10px',
-                borderRadius: '8px',
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : 'rgba(245, 158, 11, 0.12)',
-                border: '1px solid rgba(245, 158, 11, 0.35)',
-                color: '#F59E0B',
-                fontSize: '11px',
-                fontWeight: '800'
-              }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#F59E0B',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                }}
+              >
                 <Trophy size={13} />
-                <span>{lang === 'ar' ? 'ساحة البطولات والتنافس الأكاديمي' : 'Championship Arena'}</span>
+                <span>{isAr ? 'ساحة البطولات الجارية' : 'Active Leagues Arena'}</span>
               </span>
 
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '3px 9px',
-                borderRadius: '8px',
-                backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.1)',
-                color: isDark ? '#38BDF8' : '#0284C7',
-                fontSize: '11px',
-                fontWeight: '700'
-              }}>
-                <Sparkles size={12} />
-                <span>{lang === 'ar' ? 'موسم 2026 الرسمي' : 'Official Season 2026'}</span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 9px',
+                  borderRadius: '8px',
+                  backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.1)',
+                  color: isDark ? '#38BDF8' : '#0284C7',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                }}
+              >
+                <span>
+                  {isAr ? `${activeLeagues.length} دوري نشط` : `${activeLeagues.length} Active`}
+                </span>
               </span>
             </div>
 
-            <h2 style={{
-              fontSize: '18px',
-              fontWeight: '900',
-              color: isDark ? '#FFFFFF' : '#0F172A',
-              margin: '6px 0 2px',
-              fontFamily: 'var(--font-arabic)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
+            <h2
+              style={{
+                fontSize: '18px',
+                fontWeight: '900',
+                color: isDark ? '#FFFFFF' : '#0F172A',
+                margin: '6px 0 2px',
+                fontFamily: 'var(--font-arabic)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
               <Crown size={20} color="#F59E0B" />
-              <span>{lang === 'ar' ? 'ترتيبي في دوريات كورسات المعلمين' : 'Rankings in Teacher Leagues'}</span>
+              <span>{isAr ? 'ترتيبي في الدوريات النشطة' : 'My Standings in Active Leagues'}</span>
             </h2>
-            <p style={{
-              fontSize: '12.5px',
-              color: isDark ? '#94A3B8' : '#64748B',
-              margin: 0,
-              fontFamily: 'var(--font-arabic)'
-            }}>
-              {lang === 'ar' ? 'مركزك التنافسي ونقاطك مع كل معلم في الكورسات المشترك بها ضمن دوريات التفوق' : 'Your live standing and tournament points with each instructor'}
+            <p
+              style={{
+                fontSize: '12.5px',
+                color: isDark ? '#94A3B8' : '#64748B',
+                margin: 0,
+                fontFamily: 'var(--font-arabic)',
+              }}
+            >
+              {isAr
+                ? 'مركزك الحالي وفئتك ونقاطك الرسمية في الدوريات المفتوحة الآن'
+                : 'Your live rank, tier, and official rule points across open leagues'}
             </p>
           </div>
 
           <button
+            type="button"
             onClick={() => navigate('/student/league')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '9px 18px',
+              gap: '7px',
+              padding: '9px 16px',
               borderRadius: '12px',
-              background: isDark 
-                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(2, 132, 199, 0.25) 100%)' 
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(2, 132, 199, 0.28) 100%)'
                 : 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
               border: isDark ? '1px solid rgba(245, 158, 11, 0.4)' : 'none',
               color: '#FFFFFF',
               fontSize: '12.5px',
               fontWeight: '800',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
-              transition: 'all 0.2s ease'
+              boxShadow: '0 4px 12px rgba(2, 132, 199, 0.22)',
             }}
           >
-            <Trophy size={14} color="#F59E0B" />
-            <span>{lang === 'ar' ? 'استعراض الدوري الكامل' : 'View Full League'}</span>
-            <ChevronLeft size={15} />
+            <Trophy size={14} color="#FDE68A" />
+            <span>{isAr ? 'استعراض الدوري الكامل' : 'Open Full Leagues'}</span>
+            {isAr ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
           </button>
         </div>
 
-        {/* Teachers Championship Cards Grid */}
-        <div style={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '16px'
-        }}>
-          {teacherLeagues.length === 0 && (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
-              {lang === 'ar' ? 'لا توجد دوريات معلمين مشترك بها حالياً.' : 'No enrolled teacher leagues found.'}
-            </div>
-          )}
-          {teacherLeagues.map((item) => (
+        {/* Active Leagues Grid */}
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
+            gap: '16px',
+          }}
+        >
+          {activeLeagues.length === 0 && (
             <div
-              key={item.id}
               style={{
-                position: 'relative',
-                background: isDark ? item.cardBgDark : item.cardBgLight,
-                border: `1.5px solid ${item.borderColor}`,
-                borderRadius: '18px',
-                padding: '18px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                boxShadow: isDark 
-                  ? `0 10px 25px -6px ${item.glowColor}, inset 0 1px 0 rgba(255, 255, 255, 0.08)` 
-                  : `0 8px 20px -6px ${item.glowColor}`,
-                overflow: 'hidden',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                padding: '24px',
+                textAlign: 'center',
+                borderRadius: '14px',
+                border: isDark ? '1px dashed rgba(148, 163, 184, 0.25)' : '1px dashed rgba(15, 23, 42, 0.14)',
+                color: isDark ? '#94A3B8' : '#64748B',
+                fontSize: '13.5px',
+                fontWeight: '700',
               }}
             >
-              {/* Corner Watermark Medal for Rank 1 */}
-              {item.rank === 1 && (
-                <div style={{
-                  position: 'absolute',
-                  top: '-15px',
-                  left: lang === 'ar' ? '-15px' : 'auto',
-                  right: lang === 'ar' ? 'auto' : '-15px',
-                  width: '90px',
-                  height: '90px',
-                  opacity: isDark ? 0.08 : 0.07,
-                  pointerEvents: 'none'
-                }}>
-                  <Crown size={90} color="#F59E0B" />
-                </div>
-              )}
+              {isAr
+                ? 'لا توجد دوريات نشطة حالياً. سيظهر ترتيبك هنا تلقائياً فور إطلاق معلمك أو الإدارة لدوري جديد.'
+                : 'No active leagues right now. Your standings will appear here once a league starts.'}
+            </div>
+          )}
 
-              <div>
-                {/* Top Row: Subject & Rank Badge */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    padding: '3px 10px',
-                    borderRadius: '8px',
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.05)',
-                    color: isDark ? '#E2E8F0' : '#334155',
-                    border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(15, 23, 42, 0.08)'
-                  }}>
-                    {item.subject}
-                  </span>
+          {activeLeagues.map((item) => {
+            const palette = getTierPalette(item.tier);
+            const hasRank = Number(item.myRank) > 0;
+            const isRep = Boolean(item.isRepublicLeague || item.category === 'general');
 
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '3px 10px',
-                    borderRadius: '8px',
-                    backgroundColor: item.badgeBg,
-                    color: item.accentColor,
-                    border: `1px solid ${item.borderColor}`,
-                    fontSize: '11.5px',
-                    fontWeight: '900'
-                  }}>
-                    {item.rank === 1 ? <Crown size={13} color="#F59E0B" /> : <Medal size={13} color={item.accentColor} />}
-                    <span>{item.medalTitle}</span>
+            return (
+              <div
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/student/league?league=${encodeURIComponent(item.id)}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/student/league?league=${encodeURIComponent(item.id)}`);
+                  }
+                }}
+                style={{
+                  position: 'relative',
+                  background: isDark ? cardBgDark : palette.cardLight,
+                  border: `1.5px solid ${palette.border}`,
+                  borderRadius: '18px',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: isDark
+                    ? `0 8px 22px -6px ${palette.glow}`
+                    : `0 6px 18px -6px ${palette.glow}`,
+                  cursor: 'pointer',
+                  textAlign: 'start',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      marginBottom: '12px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        padding: '3px 10px',
+                        borderRadius: '8px',
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.05)',
+                        color: isDark ? '#E2E8F0' : '#334155',
+                      }}
+                    >
+                      {isRep && <Globe size={12} color="#F59E0B" />}
+                      <span>{item.courseTitleAr || item.titleAr}</span>
+                    </span>
+
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '3px 10px',
+                        borderRadius: '8px',
+                        backgroundColor: palette.badgeBg,
+                        color: palette.accent,
+                        border: `1px solid ${palette.border}`,
+                        fontSize: '11px',
+                        fontWeight: '900',
+                      }}
+                    >
+                      {item.myRank === 1 ? (
+                        <Crown size={12} color={palette.accent} />
+                      ) : (
+                        <Medal size={12} color={palette.accent} />
+                      )}
+                      <span>{item.tierLabelAr || (isAr ? 'دوري برونزي' : 'Bronze')}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: '900',
+                      color: isDark ? '#FFFFFF' : '#0F172A',
+                      marginBottom: '3px',
+                    }}
+                  >
+                    {item.titleAr}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: isDark ? '#94A3B8' : '#64748B',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    {isRep
+                      ? isAr
+                        ? 'دوري الجمهورية العام على مستوى المنصة'
+                        : 'Platform-wide General Republic League'
+                      : item.teacherName || item.groupNameAr || ''}
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      color: palette.accent,
+                      marginBottom: '14px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={12} />
+                      <span>
+                        {isAr ? `متبقي ${item.daysRemaining ?? 0} يوم` : `${item.daysRemaining ?? 0}d left`}
+                      </span>
+                    </span>
+                    {Number(item.myStreak) > 0 && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Flame size={12} />
+                        <span>
+                          {isAr ? `استريك ${item.myStreak} يوم` : `${item.myStreak}d streak`}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Teacher Name & Course */}
-                <div style={{
-                  fontSize: '15px',
-                  fontWeight: '900',
-                  color: isDark ? '#FFFFFF' : '#0F172A',
-                  marginBottom: '3px',
-                  fontFamily: 'var(--font-heading)'
-                }}>
-                  {item.teacherName}
-                </div>
-                <div style={{
-                  fontSize: '12px',
-                  color: isDark ? '#94A3B8' : '#64748B',
-                  marginBottom: '14px',
-                  lineHeight: 1.4
-                }}>
-                  {item.courseTitle}
-                </div>
+                {/* Footer: Rank & Points */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '12px',
+                    borderTop: isDark
+                      ? '1px solid rgba(255, 255, 255, 0.08)'
+                      : '1px solid rgba(15, 23, 42, 0.08)',
+                    fontSize: '12.5px',
+                  }}
+                >
+                  <div>
+                    <span style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '11.5px' }}>
+                      {isAr ? 'المركز: ' : 'Rank: '}
+                    </span>
+                    {hasRank ? (
+                      <>
+                        <strong style={{ color: palette.accent, fontSize: '15px', fontWeight: '900' }}>
+                          #{item.myRank}
+                        </strong>
+                        <span style={{ fontSize: '11px', color: isDark ? '#94A3B8' : '#64748B' }}>
+                          {' '}
+                          / {item.participantsCount || 0}
+                        </span>
+                      </>
+                    ) : (
+                      <strong style={{ color: isDark ? '#CBD5E1' : '#475569', fontSize: '12.5px' }}>
+                        {isAr ? 'غير مصنف بعد' : 'Unranked'}
+                      </strong>
+                    )}
+                  </div>
 
-                {/* Status Pill */}
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  color: item.accentColor,
-                  marginBottom: '16px'
-                }}>
-                  <Flame size={13} color={item.accentColor} />
-                  <span>{item.statusAr}</span>
+                  <div>
+                    <strong style={{ color: isDark ? '#FFFFFF' : '#0F172A', fontSize: '14.5px', fontWeight: '900' }}>
+                      {Number(item.myXp || 0).toLocaleString()}
+                    </strong>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: isDark ? '#94A3B8' : '#64748B',
+                        marginInlineStart: '4px',
+                      }}
+                    >
+                      {isAr ? 'نقطة' : 'pts'}
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              {/* Bottom Footer: Rank Standings + Points */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '12px',
-                borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
-                fontSize: '12.5px'
-              }}>
-                <div>
-                  <span style={{ color: isDark ? '#64748B' : '#94A3B8', fontSize: '11.5px' }}>{lang === 'ar' ? 'المركز: ' : 'Rank: '}</span>
-                  <strong style={{ color: item.accentColor, fontSize: '15px', fontWeight: '900' }}>#{item.rank}</strong>
-                  <span style={{ fontSize: '11px', color: isDark ? '#64748B' : '#94A3B8' }}> / {item.totalStudents}</span>
-                </div>
-                <div style={{ textAlign: lang === 'ar' ? 'left' : 'right' }}>
-                  <strong style={{ color: isDark ? '#FFFFFF' : '#0F172A', fontSize: '14px', fontWeight: '900' }}>
-                    {item.xp.toLocaleString()}
-                  </strong>
-                  <span style={{ fontSize: '11px', color: isDark ? '#64748B' : '#94A3B8', marginInlineStart: '3px' }}>
-                    {lang === 'ar' ? 'نقطة XP' : 'XP'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* ── 2. Past Leagues & Seasons Hall of Fame (Championship Archive) ── */}
-      <div style={{
-        position: 'relative',
-        background: isDark 
-          ? 'radial-gradient(ellipse at 50% 0%, #171E31 0%, #0A101D 70%, #060911 100%)' 
-          : 'radial-gradient(ellipse at 50% 0%, #FEF3C7 0%, #F8FAFC 60%, #F1F5F9 100%)',
-        border: isDark ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(245, 158, 11, 0.3)',
-        borderRadius: '24px',
-        padding: '26px 28px',
-        boxShadow: isDark 
-          ? '0 16px 40px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08)' 
-          : '0 12px 30px -8px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-        overflow: 'hidden'
-      }}>
-        {/* Subtle Championship Shield Watermark */}
-        <div style={{
-          position: 'absolute',
-          top: '-15px',
-          left: lang === 'ar' ? 'auto' : '-15px',
-          right: lang === 'ar' ? '-15px' : 'auto',
-          width: '240px',
-          height: '240px',
-          opacity: isDark ? 0.05 : 0.06,
-          pointerEvents: 'none',
-          zIndex: 0
-        }}>
-          <Shield size={240} color="#F59E0B" />
-        </div>
-
-        {/* Section Header */}
-        <div style={{
+      {/* ── 2. Past Leagues & Seasons Archive (Hall of Fame) ── */}
+      <div
+        style={{
           position: 'relative',
-          zIndex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}>
+          background: isDark
+            ? 'radial-gradient(ellipse at 50% 0%, #171E31 0%, #0A101D 70%, #060911 100%)'
+            : 'radial-gradient(ellipse at 50% 0%, #FEF3C7 0%, #F8FAFC 60%, #F1F5F9 100%)',
+          border: isDark ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: '22px',
+          padding: '24px 26px',
+          boxShadow: isDark
+            ? '0 14px 36px -10px rgba(0, 0, 0, 0.55)'
+            : '0 10px 26px -8px rgba(245, 158, 11, 0.12)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '18px',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{
+            <span
+              style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
@@ -397,154 +466,195 @@ export const GamificationLeaguesHistory = ({ lang = 'ar' }) => {
                 border: '1px solid rgba(245, 158, 11, 0.35)',
                 color: '#F59E0B',
                 fontSize: '11px',
-                fontWeight: '800'
-              }}>
-                <Award size={13} />
-                <span>{lang === 'ar' ? 'قاعة المشاهير والتتويج' : 'Hall of Fame & Trophies'}</span>
-              </span>
-            </div>
+                fontWeight: '800',
+              }}
+            >
+              <Shield size={13} />
+              <span>{isAr ? 'قاعة المشاهير والأرشيف' : 'Hall of Fame & Archive'}</span>
+            </span>
 
-            <h2 style={{
-              fontSize: '18px',
-              fontWeight: '900',
-              color: isDark ? '#FFFFFF' : '#0F172A',
-              margin: '6px 0 2px',
-              fontFamily: 'var(--font-arabic)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
+            <h2
+              style={{
+                fontSize: '18px',
+                fontWeight: '900',
+                color: isDark ? '#FFFFFF' : '#0F172A',
+                margin: '6px 0 2px',
+                fontFamily: 'var(--font-arabic)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
               <Trophy size={20} color="#F59E0B" />
-              <span>{lang === 'ar' ? 'سجل ترتيبي في كل الدوريات السابقة' : 'Past Leagues & Seasons Archive'}</span>
+              <span>{isAr ? 'سجل ترتيبي في الدوريات المنتهية' : 'Finished Leagues Archive'}</span>
             </h2>
-            <p style={{
-              fontSize: '12.5px',
-              color: isDark ? '#94A3B8' : '#64748B',
-              margin: 0,
-              fontFamily: 'var(--font-arabic)'
-            }}>
-              {lang === 'ar' ? 'أرشيف نتائجك والمراكز المحققة في جولات الدوري السابقة وبطولات الجمهورية' : 'Your final standings and badges achieved in previous league rounds'}
+            <p
+              style={{
+                fontSize: '12.5px',
+                color: isDark ? '#94A3B8' : '#64748B',
+                margin: 0,
+              }}
+            >
+              {isAr
+                ? 'أرشيف المراكز النهائية والنقاط التي حققتها في الجولات المكتملة'
+                : 'Your final standings and points from completed league rounds'}
             </p>
           </div>
         </div>
 
-        {/* Past Leagues Championship Grid */}
-        <div style={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '16px'
-        }}>
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '16px',
+          }}
+        >
           {pastLeagues.length === 0 && (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
-              {lang === 'ar' ? 'لا توجد جولات سابقة مسجلة في الأرشيف حتى الآن.' : 'No past league rounds recorded yet.'}
-            </div>
-          )}
-          {pastLeagues.map((item) => (
             <div
-              key={item.id}
               style={{
-                position: 'relative',
-                background: isDark ? item.cardBgDark : item.cardBgLight,
-                border: `1.5px solid ${item.borderColor}`,
-                borderRadius: '18px',
-                padding: '18px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                boxShadow: isDark 
-                  ? `0 10px 25px -6px ${item.glowColor}, inset 0 1px 0 rgba(255, 255, 255, 0.08)` 
-                  : `0 8px 20px -6px ${item.glowColor}`,
-                overflow: 'hidden',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                padding: '22px',
+                textAlign: 'center',
+                borderRadius: '14px',
+                border: isDark ? '1px dashed rgba(148, 163, 184, 0.25)' : '1px dashed rgba(15, 23, 42, 0.14)',
+                color: isDark ? '#94A3B8' : '#64748B',
+                fontSize: '13.5px',
+                fontWeight: '700',
               }}
             >
-              <div>
-                {/* Top Badge: Rank & Date */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '3px 10px',
-                    borderRadius: '8px',
-                    backgroundColor: item.rank === 1 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(56, 189, 248, 0.15)',
-                    color: item.accentColor,
-                    border: `1px solid ${item.borderColor}`,
-                    fontSize: '11px',
-                    fontWeight: '900'
-                  }}>
-                    {item.rank === 1 ? <Crown size={12} color="#F59E0B" /> : <Award size={12} color={item.accentColor} />}
-                    <span>{item.rank === 1 ? 'المركز #1 (بطل الجمهورية)' : `المركز #${item.rank}`}</span>
+              {isAr ? 'لا توجد جولات سابقة مسجلة في الأرشيف حتى الآن.' : 'No completed league rounds in your archive yet.'}
+            </div>
+          )}
+
+          {pastLeagues.map((item) => {
+            const palette = getTierPalette(item.tier);
+            return (
+              <div
+                key={item.id}
+                style={{
+                  background: isDark ? cardBgDark : palette.cardLight,
+                  border: `1.5px solid ${palette.border}`,
+                  borderRadius: '18px',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: isDark
+                    ? `0 8px 22px -6px ${palette.glow}`
+                    : `0 6px 18px -6px ${palette.glow}`,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      marginBottom: '10px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '3px 10px',
+                        borderRadius: '8px',
+                        backgroundColor: palette.badgeBg,
+                        color: palette.accent,
+                        border: `1px solid ${palette.border}`,
+                        fontSize: '11px',
+                        fontWeight: '900',
+                      }}
+                    >
+                      {item.rank === 1 ? (
+                        <Crown size={12} color={palette.accent} />
+                      ) : (
+                        <Award size={12} color={palette.accent} />
+                      )}
+                      <span>{resolvePastRankLabel(item, isAr)}</span>
+                    </div>
+
+                    {item.dateAr && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: isDark ? '#94A3B8' : '#64748B',
+                        }}
+                      >
+                        {item.dateAr}
+                      </span>
+                    )}
                   </div>
 
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: isDark ? '#94A3B8' : '#64748B'
-                  }}>
-                    {item.dateAr}
+                  <div
+                    style={{
+                      fontSize: '14.5px',
+                      fontWeight: '900',
+                      color: isDark ? '#FFFFFF' : '#0F172A',
+                      marginBottom: '4px',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {item.titleAr}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '11.5px',
+                      color: isDark ? '#94A3B8' : '#64748B',
+                      marginBottom: '14px',
+                    }}
+                  >
+                    {[item.courseTitleAr || item.seasonAr, item.teacherName].filter(Boolean).join(' • ')}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '12px',
+                    borderTop: isDark
+                      ? '1px solid rgba(255, 255, 255, 0.08)'
+                      : '1px solid rgba(15, 23, 42, 0.08)',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      color: palette.accent,
+                      backgroundColor: palette.badgeBg,
+                      padding: '3px 10px',
+                      borderRadius: '8px',
+                      border: `1px solid ${palette.border}`,
+                    }}
+                  >
+                    {item.tierAr}
                   </span>
-                </div>
 
-                {/* Tournament Title */}
-                <div style={{
-                  fontSize: '14.5px',
-                  fontWeight: '900',
-                  color: isDark ? '#FFFFFF' : '#0F172A',
-                  marginBottom: '4px',
-                  lineHeight: 1.4,
-                  fontFamily: 'var(--font-heading)'
-                }}>
-                  {item.titleAr}
-                </div>
-
-                <div style={{
-                  fontSize: '11.5px',
-                  color: isDark ? '#94A3B8' : '#64748B',
-                  marginBottom: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  <Star size={12} color="#F59E0B" />
-                  <span>{item.seasonAr}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {item.rank > 0 && (
+                      <strong style={{ color: isDark ? '#FFFFFF' : '#0F172A', fontSize: '13.5px', fontWeight: '900' }}>
+                        #{item.rank}
+                        {item.totalCompetitors > 0 ? ` / ${item.totalCompetitors}` : ''}
+                      </strong>
+                    )}
+                    <span style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '11.5px', fontWeight: '700' }}>
+                      ({Number(item.points || 0).toLocaleString()} {isAr ? 'نقطة' : 'pts'})
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              {/* Bottom Footer: Tier Badge + Total Points */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '12px',
-                borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
-                fontSize: '12px'
-              }}>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  color: item.accentColor,
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.05)',
-                  padding: '3px 10px',
-                  borderRadius: '8px',
-                  border: `1px solid ${item.borderColor}`
-                }}>
-                  {item.tierAr}
-                </span>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <strong style={{ color: isDark ? '#FFFFFF' : '#0F172A', fontSize: '13.5px', fontWeight: '900' }}>
-                    #{item.rank}
-                  </strong>
-                  <span style={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '11.5px' }}>
-                    ({item.points} نقطة)
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
