@@ -102,7 +102,9 @@ export const TeacherCertificatesView = () => {
   // Format cert for OfficialCertificateDocument standard
   const formatCertForOfficial = (cert) => {
     if (!cert) return null;
-    const serial = cert.certNumber || cert.serialId || cert.certificate_number || 'MTF-BIO-2026-0891';
+    const serial = cert.certNumber || cert.serialId || cert.certificate_number || '';
+    const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+    const liveVerifyUrl = serial && origin ? `${origin}/verify/${encodeURIComponent(serial)}` : (cert.verificationUrl || '');
     return {
       ...cert,
       id: cert.id,
@@ -110,23 +112,24 @@ export const TeacherCertificatesView = () => {
       certNumber: serial,
       issuerType: 'teacher',
       category: 'teacher',
-      issuerNameAr: 'د. سلمى السيد',
-      issuerNameEn: 'Dr. Salma El-Sayed',
-      instructorAr: 'د. سلمى السيد',
-      instructorEn: 'Dr. Salma El-Sayed',
-      instructorTitleAr: 'كبير معلمي الأحياء ومؤلف سلسلة التفوق',
-      instructorTitleEn: 'Senior Biology Lecturer',
-      titleAr: cert.honorsTitleAr || 'شهادة تميز وتفوق بالدرجة النهائية (Full Mark)',
-      titleEn: 'Certificate of Academic Excellence & Course Completion',
+      issuerNameAr: cert.issuerNameAr || cert.instructorAr || 'معلم معتمد',
+      issuerNameEn: cert.issuerNameEn || cert.instructorEn || cert.issuerNameAr || 'Certified Educator',
+      instructorAr: cert.instructorAr || cert.issuerNameAr || 'معلم معتمد',
+      instructorEn: cert.instructorEn || cert.issuerNameEn || cert.instructorAr || 'Certified Educator',
+      instructorTitleAr: cert.instructorTitleAr || 'معلم معتمد على منصة متفوّق',
+      instructorTitleEn: cert.instructorTitleEn || 'Certified Motafawweq Educator',
+      titleAr: cert.honorsTitleAr || 'شهادة تميز وتفوق معتمدة',
+      titleEn: cert.honorsTitleEn || 'Certificate of Academic Excellence & Course Completion',
       courseNameAr: cert.courseNameAr,
-      courseNameEn: cert.courseNameAr,
+      courseNameEn: cert.courseNameEn || cert.courseNameAr,
       studentNameAr: cert.studentNameAr,
       studentNameEn: cert.studentNameEn || cert.studentNameAr,
-      gradeAr: cert.gradeAr || 'الصف الثالث الثانوي 2026',
-      completionDate: cert.issueDate || cert.completionDate || '27 سبتمبر 2026',
+      gradeAr: cert.gradeAr || 'الصف الثالث الثانوي',
+      completionDate: cert.issueDate || cert.completionDate || '',
       score: cert.score || `${cert.gradePercent}%`,
-      scoreEn: `${cert.gradePercent}%`,
-      verificationUrl: cert.verificationUrl || `https://motafawweq.me/verify/${serial}`,
+      scoreEn: cert.scoreEn || `${cert.gradePercent}%`,
+      verifyPath: serial ? `/verify/${encodeURIComponent(serial)}` : '/verify',
+      verificationUrl: liveVerifyUrl,
       status: cert.status || 'verified'
     };
   };
@@ -184,8 +187,13 @@ export const TeacherCertificatesView = () => {
     e.preventDefault();
     if (!newCert.studentNameAr.trim()) return;
 
+    const matchedCourse = coursesList.find(
+      (c) => (c.titleAr || c.title_ar || c.title) === newCert.courseNameAr.trim()
+    );
+
     const payload = {
-      student_id: newCert.studentId ? (isNaN(newCert.studentId) ? null : Number(newCert.studentId)) : null,
+      student_id: newCert.studentId ? String(newCert.studentId) : null,
+      course_id: matchedCourse?.id ? String(matchedCourse.id) : undefined,
       student_name_ar: newCert.studentNameAr.trim(),
       student_name_en: newCert.studentNameEn ? newCert.studentNameEn.trim() : newCert.studentNameAr.trim(),
       student_email: newCert.studentEmail ? newCert.studentEmail.trim() : undefined,

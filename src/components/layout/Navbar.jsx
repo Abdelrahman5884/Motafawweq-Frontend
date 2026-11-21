@@ -39,7 +39,10 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
   const { theme, isDark, toggleTheme } = useTheme();
 
   const currentPath = location.pathname;
-  const isPublicPage = ['/', '/features', '/pricing', '/marketplace'].includes(currentPath);
+  const isPublicPage =
+    ['/', '/features', '/pricing', '/marketplace'].includes(currentPath) ||
+    currentPath === '/verify' ||
+    currentPath.startsWith('/verify/');
   const isDashboardLayout = hasSidebar && !isFullPage;
 
   useEffect(() => {

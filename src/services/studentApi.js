@@ -138,6 +138,15 @@ export const studentApi = {
         : apiGet(`/student/leagues/${leagueUuid}/leaderboard`),
     certificates: () => apiGet('/student/certificates'),
     certificateEligibility: () => apiGet('/student/certificates/eligibility'),
+    certificatesWorkspace: () => apiGet('/student/certificates/workspace'),
+    claimCertificate: (courseId) =>
+      apiRequest('/student/certificates/claim', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('cert-claim') },
+        body: { course_id: courseId },
+      }),
+    verifyCertificate: (serialNumber) =>
+      apiGet(`/verify-certificate/${encodeURIComponent(String(serialNumber || '').trim())}`),
   },
 
   // Phase 12: Converted Lectures Archive

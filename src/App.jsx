@@ -23,6 +23,7 @@ import { LandingPage } from './views/public/LandingPage';
 import { FeaturesPage } from './views/public/FeaturesPage';
 import { PricingPage } from './views/public/PricingPage';
 import { MarketplacePage } from './views/public/MarketplacePage';
+import { CertificateVerifyView } from './views/public/CertificateVerifyView';
 
 // Teacher Views
 import { TeacherDashboard } from './views/teacher/TeacherDashboard';
@@ -187,7 +188,8 @@ function AppShell({ children }) {
 
   const authRoutes = ['/login', '/register', '/forgot-password'];
   const isAuthRoute = authRoutes.includes(location.pathname);
-  const isFullPage = fullPageRoutes.includes(location.pathname);
+  const isVerifyRoute = location.pathname === '/verify' || location.pathname.startsWith('/verify/');
+  const isFullPage = fullPageRoutes.includes(location.pathname) || isVerifyRoute;
   const hasSidebar = !isFullPage && !isAuthRoute;
 
   // Sidebar pixel width (used for margin offset)
@@ -387,6 +389,8 @@ export default function App() {
                     <Route path="/features" element={<FeaturesPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/marketplace" element={<MarketplacePage />} />
+                    <Route path="/verify" element={<CertificateVerifyView />} />
+                    <Route path="/verify/:serialNumber" element={<CertificateVerifyView />} />
 
                     {/* Authentication Routes */}
                     <Route path="/login" element={<LoginPage />} />
