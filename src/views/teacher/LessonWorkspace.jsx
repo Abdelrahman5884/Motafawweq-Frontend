@@ -32,6 +32,7 @@ import {
 export const LessonWorkspace = () => {
   const [searchParams] = useSearchParams();
   const requestedLessonId = searchParams.get('lesson') || '';
+  const requestedCourseId = searchParams.get('courseId') || '';
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
 
@@ -136,7 +137,10 @@ export const LessonWorkspace = () => {
           const raw = Array.isArray(lessonsRes.value?.data) ? lessonsRes.value.data : [];
           const mapped = mapLessons(raw);
           setLessonsList(mapped);
-          const savedUuid = requestedLessonId || sessionStorage.getItem('currentLessonUuid');
+          const courseMatch = requestedCourseId
+            ? mapped.find((m) => String(m.courseId) === String(requestedCourseId))
+            : null;
+          const savedUuid = requestedLessonId || courseMatch?.id || sessionStorage.getItem('currentLessonUuid');
           if (savedUuid && mapped.some((m) => m.id === savedUuid)) {
             setSelectedLessonId(savedUuid);
             try {
@@ -163,7 +167,7 @@ export const LessonWorkspace = () => {
     return () => {
       mounted = false;
     };
-  }, [requestedLessonId]);
+  }, [requestedLessonId, requestedCourseId]);
 
   const filteredLessons = useMemo(() => {
     const q = lessonSearch.trim().toLowerCase();
