@@ -22,6 +22,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { Breadcrumbs } from './Breadcrumbs';
+import { Avatar } from '../common/Avatar';
 
 export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, hasSidebar }) => {
   const navigate = useNavigate();
@@ -398,7 +399,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                   width: '36px',
                   height: '36px',
                   borderRadius: '50%',
-                  backgroundColor: 'var(--bg-subtle)',
+                  backgroundColor: 'transparent',
                   border: '1.5px solid var(--border-subtle)',
                   padding: 0,
                   cursor: 'pointer',
@@ -406,14 +407,10 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                   transition: 'all 0.18s ease'
                 }}
               >
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
+                <Avatar
+                  src={currentUser?.avatar}
+                  name={currentUser?.nameAr || currentUser?.name || ''}
+                  size={34}
                 />
               </button>
 
@@ -620,10 +617,10 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                     borderRadius: 'var(--radius-md)'
                   }}
                 >
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                  <Avatar
+                    src={currentUser?.avatar}
+                    name={currentUser?.nameAr || currentUser?.name || ''}
+                    size={36}
                   />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>

@@ -1,447 +1,447 @@
-import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
-import { studentApi } from '../../services/studentApi';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   User,
-  Shield,
-  Palette,
   Target,
-  Bell,
+  Palette,
+  Shield,
   RotateCcw,
   Sparkles,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
+import { studentApi } from '../../services/studentApi';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useStudentActivity } from '../../context/StudentActivityContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
-import { SPage, SPageHeader, SButton } from '../../components/student/ui';
+import { SPage, SPageHeader, SButton, SSkeleton } from '../../components/student/ui';
 import {
   ProfileSettingsSection,
-  SecuritySettingsSection,
+  StudyGoalsPrivacySection,
   PreferencesSettingsSection,
-  StudyGoalsSection,
-  NotificationsPrivacySection
+  SecuritySettingsSection,
+  buildFormStateFromProfile,
+  getTracksForGrade,
+  getStageForGrade,
+  isFormDirty,
+  PLAYBACK_SPEED_STORAGE_KEY,
 } from '../../features/student/settings';
 
+const VALID_TABS = ['profile', 'study', 'preferences', 'security'];
+
 export const StudentSettingsView = () => {
-  const { currentUser, updateUserProfile, changePassword, fetchSessions, revokeSession } = useAuth();
+  const { currentUser, syncUserProfile } = useAuth();
   const { lang, isRtl } = useLanguage();
+  const { updateDailyGoalMinutes } = useStudentActivity();
+  const isAr = lang === 'ar';
 
-  // Active Tab: 'profile' | 'security' | 'preferences' | 'goals' | 'notifications'
-  const [activeTab, setActiveTab] = useState('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get('tab');
+  const activeTab = VALID_TABS.includes(rawTab) ? rawTab : 'profile';
 
-  // Form State initialized from currentUser
-  const [formData, setFormData] = useState({
-    name: currentUser?.name || '',
-    nameAr: currentUser?.nameAr || currentUser?.name || '',
-    nickname: currentUser?.nickname || '',
-    targetGoal: currentUser?.targetGoal || '',
-    grade: currentUser?.grade || '',
-    track: currentUser?.track || '',
-    school: currentUser?.school || '',
-    center: currentUser?.center || '',
-    governorate: currentUser?.governorate || '',
-    avatar: currentUser?.avatar || '',
-    email: currentUser?.email || '',
-    phone: currentUser?.phone || '',
-    parentPhone: currentUser?.parentPhone || '',
-    studentCode: currentUser?.student_code || currentUser?.studentCode || '',
-    playbackSpeed: currentUser?.playbackSpeed || '1.25x',
-    autoCornell: currentUser?.autoCornell !== false,
-    soundEffects: currentUser?.soundEffects !== false,
-    dailyGoalMinutes: currentUser?.dailyGoalMinutes || 60,
-    pomodoroReminder: currentUser?.pomodoroReminder !== false,
-    weeklyLessonsTarget: currentUser?.weeklyLessonsTarget || 8,
-    preferredStudyTime: currentUser?.preferredStudyTime || 'evening',
-    notifyWhatsapp: currentUser?.notifyWhatsapp !== false,
-    notifyStreak: currentUser?.notifyStreak !== false,
-    notifyHomework: currentUser?.notifyHomework !== false,
-    leaderboardVisible: currentUser?.leaderboardVisible !== false,
-    parentReportSync: currentUser?.parentReportSync !== false
-  });
-
-  // Track if changes were made
-  const [isDirty, setIsDirty] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // Security separate password state
-  const [securityState, setSecurityState] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [securityFeedback, setSecurityFeedback] = useState(null);
-
-  // Handle generic input change
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setIsDirty(true);
-  };
-
-  // Handle select / buttons change
-  const handleSelectChange = (name, value) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setIsDirty(true);
-  };
-
-  // Handle preference toggle
-  const handlePreferenceToggle = (name, value) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setIsDirty(true);
-  };
-
-  // Handle avatar select from presets
-  const handleAvatarChange = (avatarUrl) => {
-    setFormData((prev) => ({ ...prev, avatar: avatarUrl }));
-    setIsDirty(true);
-  };
-
-  // Handle avatar upload data URL
-  const handleAvatarUpload = (dataUrl) => {
-    setFormData((prev) => ({ ...prev, avatar: dataUrl }));
-    setIsDirty(true);
-  };
-
-  // Security state handler
-  const handleSecurityChange = (e) => {
-    const { name, value } = e.target;
-    setSecurityState((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Save changes handler
-  const handleSaveChanges = async (e) => {
-    if (e) e.preventDefault();
-
-    try {
-      await studentApi.profile.update({
-        name: formData.nameAr || formData.name,
-        phone: formData.phone,
-        avatar: formData.avatar && String(formData.avatar).length <= 2048 ? formData.avatar : undefined,
-        grade_ar: formData.grade,
-        track_ar: formData.track,
-        governorate: formData.governorate,
-        school_name: formData.school,
-        center_name: formData.center,
-        parent_phone: formData.parentPhone,
-        daily_study_goal_minutes: Number(formData.dailyGoalMinutes) || 60,
-        show_on_leaderboard: Boolean(formData.leaderboardVisible),
-        nickname: formData.nickname,
-        target_goal: formData.targetGoal,
-        preferences: {
-          playbackSpeed: formData.playbackSpeed,
-          autoCornell: Boolean(formData.autoCornell),
-          soundEffects: Boolean(formData.soundEffects),
-          pomodoroReminder: Boolean(formData.pomodoroReminder),
-          weeklyLessonsTarget: Number(formData.weeklyLessonsTarget) || 8,
-          preferredStudyTime: formData.preferredStudyTime || 'evening',
-        },
-        notifications: {
-          notifyWhatsapp: Boolean(formData.notifyWhatsapp),
-          notifyStreak: Boolean(formData.notifyStreak),
-          notifyHomework: Boolean(formData.notifyHomework),
-          parentReportSync: Boolean(formData.parentReportSync),
-        },
-      });
-
-      if (updateUserProfile) {
-        await updateUserProfile(formData);
+  const setActiveTab = useCallback(
+    (tabId) => {
+      if (tabId === 'profile') {
+        const next = new URLSearchParams(searchParams);
+        next.delete('tab');
+        setSearchParams(next, { replace: true });
+      } else {
+        setSearchParams({ tab: tabId }, { replace: true });
       }
+    },
+    [searchParams, setSearchParams]
+  );
 
-      setIsDirty(false);
-      setSaveSuccess(true);
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  const [formData, setFormData] = useState(() => buildFormStateFromProfile({}, currentUser));
+  const [savedSnapshot, setSavedSnapshot] = useState(() => buildFormStateFromProfile({}, currentUser));
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveBanner, setSaveBanner] = useState(null); // { type: 'success' | 'error', text: string }
+  const [fieldErrors, setFieldErrors] = useState({});
+  const successTimerRef = useRef(null);
+
+  const dirty = useMemo(() => isFormDirty(formData, savedSnapshot), [formData, savedSnapshot]);
+
+  const applyProfileResponse = useCallback(
+    (profileData, { syncContext = true } = {}) => {
+      if (!profileData) return;
+      const mapped = buildFormStateFromProfile(profileData, currentUserRef.current);
+      setFormData(mapped);
+      setSavedSnapshot(mapped);
 
       try {
-        confetti({
-          particleCount: 35,
-          spread: 50,
-          origin: { y: 0.8 }
-        });
+        localStorage.setItem(PLAYBACK_SPEED_STORAGE_KEY, mapped.playbackSpeed);
       } catch {
-        // ignore
+        // ignore storage errors
       }
 
-      setTimeout(() => {
-        setSaveSuccess(false);
-      }, 3500);
-    } catch (err) {
-      setSecurityFeedback({
-        type: 'error',
-        text: err?.message || (lang === 'ar' ? 'تعذر حفظ التعديلات.' : 'Could not save changes.')
-      });
-    }
-  };
+      if (updateDailyGoalMinutes) {
+        updateDailyGoalMinutes(mapped.dailyStudyGoalMinutes);
+      }
 
-  // Reset changes
+      if (syncContext && syncUserProfile) {
+        syncUserProfile({
+          name: mapped.name,
+          nameAr: mapped.name,
+          phone: mapped.phone,
+          avatar: mapped.avatar,
+          grade: mapped.gradeAr,
+          track: mapped.trackAr,
+          school: mapped.schoolName,
+          center: mapped.centerName,
+          governorate: mapped.governorate,
+          parentPhone: mapped.parentPhone,
+          studentCode: mapped.studentCode,
+          student_code: mapped.studentCode,
+          email_verified: mapped.emailVerified,
+        });
+      }
+    },
+    [syncUserProfile, updateDailyGoalMinutes]
+  );
+
   useEffect(() => {
-    let mounted = true;
-    studentApi.profile.get()
+    let active = true;
+    studentApi.profile
+      .get()
       .then((res) => {
-        if (!mounted || !res?.data) return;
-        const p = res.data;
-        const prefs = p.preferences || {};
-        const notifs = p.notifications || {};
-        setFormData((prev) => ({
-          ...prev,
-          name: p.name || prev.name,
-          nameAr: p.name || prev.nameAr,
-          avatar: p.avatar || prev.avatar,
-          nickname: p.nickname || prev.nickname,
-          targetGoal: p.targetGoal || prev.targetGoal,
-          grade: p.gradeAr || prev.grade,
-          track: p.trackAr || prev.track,
-          school: p.schoolName || prev.school,
-          center: p.centerName || prev.center,
-          governorate: p.governorate || prev.governorate,
-          email: p.email || prev.email,
-          phone: p.phone || prev.phone,
-          parentPhone: p.parentPhone || prev.parentPhone,
-          studentCode: p.studentCode || prev.studentCode,
-          dailyGoalMinutes: Number(p.dailyStudyGoalMinutes || prev.dailyGoalMinutes),
-          leaderboardVisible: p.showOnLeaderboard !== undefined ? Boolean(p.showOnLeaderboard) : prev.leaderboardVisible,
-          playbackSpeed: prefs.playbackSpeed || prev.playbackSpeed,
-          autoCornell: prefs.autoCornell !== undefined ? Boolean(prefs.autoCornell) : prev.autoCornell,
-          soundEffects: prefs.soundEffects !== undefined ? Boolean(prefs.soundEffects) : prev.soundEffects,
-          pomodoroReminder: prefs.pomodoroReminder !== undefined ? Boolean(prefs.pomodoroReminder) : prev.pomodoroReminder,
-          weeklyLessonsTarget: prefs.weeklyLessonsTarget !== undefined ? Number(prefs.weeklyLessonsTarget) : prev.weeklyLessonsTarget,
-          preferredStudyTime: prefs.preferredStudyTime || prev.preferredStudyTime,
-          notifyWhatsapp: notifs.notifyWhatsapp !== undefined ? Boolean(notifs.notifyWhatsapp) : prev.notifyWhatsapp,
-          notifyStreak: notifs.notifyStreak !== undefined ? Boolean(notifs.notifyStreak) : prev.notifyStreak,
-          notifyHomework: notifs.notifyHomework !== undefined ? Boolean(notifs.notifyHomework) : prev.notifyHomework,
-          parentReportSync: notifs.parentReportSync !== undefined ? Boolean(notifs.parentReportSync) : prev.parentReportSync,
-        }));
+        if (!active) return;
+        if (res?.data) {
+          applyProfileResponse(res.data, { syncContext: true });
+        }
+        setLoadError(null);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!active) return;
+        setLoadError(err?.message || '__LOAD_FAILED__');
+      })
+      .finally(() => {
+        if (active) setLoadingProfile(false);
+      });
+
     return () => {
-      mounted = false;
+      active = false;
+    };
+  }, [applyProfileResponse, reloadNonce]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
     };
   }, []);
 
-  const handleResetChanges = () => {
-    if (currentUser) {
-      setFormData({
-        name: currentUser?.name || '',
-        nameAr: currentUser?.nameAr || currentUser?.name || '',
-        nickname: currentUser?.nickname || '',
-        targetGoal: currentUser?.targetGoal || '',
-        grade: currentUser?.grade || '',
-        track: currentUser?.track || '',
-        school: currentUser?.school || '',
-        center: currentUser?.center || '',
-        governorate: currentUser?.governorate || '',
-        avatar: currentUser?.avatar || '',
-        email: currentUser?.email || '',
-        phone: currentUser?.phone || '',
-        parentPhone: currentUser?.parentPhone || '',
-        playbackSpeed: currentUser?.playbackSpeed || '1.25x',
-        autoCornell: currentUser?.autoCornell !== false,
-        soundEffects: currentUser?.soundEffects !== false,
-        dailyGoalMinutes: currentUser?.dailyGoalMinutes || 60,
-        pomodoroReminder: currentUser?.pomodoroReminder !== false,
-        weeklyLessonsTarget: currentUser?.weeklyLessonsTarget || 8,
-        preferredStudyTime: currentUser?.preferredStudyTime || 'evening',
-        notifyWhatsapp: currentUser?.notifyWhatsapp !== false,
-        notifyStreak: currentUser?.notifyStreak !== false,
-        notifyHomework: currentUser?.notifyHomework !== false,
-        leaderboardVisible: currentUser?.leaderboardVisible !== false,
-        parentReportSync: currentUser?.parentReportSync !== false
-      });
-    }
-    setIsDirty(false);
-  };
+  const handleRetryLoad = useCallback(() => {
+    setLoadingProfile(true);
+    setLoadError(null);
+    setReloadNonce((n) => n + 1);
+  }, []);
 
-  // Handle password change submit
-  const handlePasswordSave = async () => {
-    setSecurityFeedback(null);
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => (prev[name] ? { ...prev, [name]: undefined } : prev));
+    setSaveBanner(null);
+  }, []);
+
+  const handleSelectChange = useCallback((name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setSaveBanner(null);
+  }, []);
+
+  // Atomically update gradeAr and keep trackAr valid for the newly selected grade
+  const handleGradeChange = useCallback((nextGradeAr) => {
+    setFormData((prev) => {
+      const allowedTracks = getTracksForGrade(nextGradeAr);
+      const nextTrack = allowedTracks.some((t) => t.value === prev.trackAr)
+        ? prev.trackAr
+        : allowedTracks[0].value;
+      return { ...prev, gradeAr: nextGradeAr, trackAr: nextTrack };
+    });
+    setSaveBanner(null);
+  }, []);
+
+  const handleResetChanges = useCallback(() => {
+    setFormData(savedSnapshot);
+    setFieldErrors({});
+    setSaveBanner(null);
+  }, [savedSnapshot]);
+
+  const handleSaveChanges = async (e) => {
+    if (e) e.preventDefault();
+    if (!dirty || isSaving) return;
+
+    const trimmedName = String(formData.name || '').trim();
+    if (trimmedName.length < 2) {
+      setFieldErrors({
+        name: isAr ? 'يرجى إدخال اسم لا يقل عن حرفين.' : 'Please enter a name of at least 2 characters.',
+      });
+      setActiveTab('profile');
+      return;
+    }
+
+    setIsSaving(true);
+    setFieldErrors({});
+    setSaveBanner(null);
+
     try {
-      await changePassword({
-        currentPassword: securityState.currentPassword,
-        newPassword: securityState.newPassword,
-        confirmPassword: securityState.confirmPassword
+      const res = await studentApi.profile.update({
+        name: trimmedName,
+        phone: String(formData.phone || '').trim() || null,
+        parent_phone: String(formData.parentPhone || '').trim() || null,
+        stage: getStageForGrade(formData.gradeAr),
+        grade_ar: formData.gradeAr,
+        track_ar: formData.trackAr,
+        governorate: String(formData.governorate || '').trim() || null,
+        school_name: String(formData.schoolName || '').trim() || null,
+        center_name: String(formData.centerName || '').trim() || null,
+        daily_study_goal_minutes: Number(formData.dailyStudyGoalMinutes) || 120,
+        weekly_exams_goal: Number(formData.weeklyExamsGoal) || 3,
+        target_score_percent: Number(formData.targetScorePercent) || 90,
+        show_on_leaderboard: Boolean(formData.showOnLeaderboard),
+        display_name_mode: formData.displayNameMode || 'full',
+        nickname: String(formData.nickname || '').trim() || null,
+        preferences: {
+          playbackSpeed: formData.playbackSpeed || '1.0x',
+        },
       });
-      setSecurityFeedback({
+
+      if (res?.data) {
+        applyProfileResponse(res.data, { syncContext: true });
+      } else {
+        setSavedSnapshot(formData);
+      }
+
+      setSaveBanner({
         type: 'success',
-        text: lang === 'ar'
-          ? 'تم تحديث كلمة المرور بنجاح وتسجيل الخروج من الأجهزة الأخرى 🔒'
-          : 'Password updated and other devices signed out 🔒'
+        text: res?.message || (isAr ? 'تم حفظ التعديلات وتحديث ملفك الشخصي بنجاح.' : 'All changes saved successfully.'),
       });
-      setSecurityState({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
+
+      if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
+      successTimerRef.current = window.setTimeout(() => {
+        setSaveBanner((prev) => (prev?.type === 'success' ? null : prev));
+      }, 4000);
     } catch (err) {
-      setSecurityFeedback({
+      const apiFieldErrors = err?.getFieldErrors ? err.getFieldErrors() : {};
+      setFieldErrors(apiFieldErrors);
+      setSaveBanner({
         type: 'error',
-        text: err?.message || (lang === 'ar' ? 'تعذر تحديث كلمة المرور.' : 'Failed to update password.')
+        text: err?.message || (isAr ? 'تعذر حفظ التعديلات. يرجى مراجعة البيانات.' : 'Could not save changes. Please review your input.'),
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Terminate other sessions
-  const handleTerminateOtherSessions = async () => {
-    setSecurityFeedback(null);
-    try {
-      const list = await fetchSessions();
-      const others = list.filter((s) => !s.is_current);
-      await Promise.all(others.map((s) => revokeSession(s.id)));
-      setSecurityFeedback({
-        type: 'success',
-        text: lang === 'ar' ? 'تم تسجيل الخروج بنجاح من جميع الأجهزة الأخرى.' : 'All other devices logged out.'
-      });
-    } catch (err) {
-      setSecurityFeedback({
-        type: 'error',
-        text: err?.message || (lang === 'ar' ? 'تعذر إنهاء الجلسات الأخرى.' : 'Could not revoke other sessions.')
-      });
-    }
-  };
-
-  // Export student data
-  const handleExportData = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(formData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `motafawweq_student_data_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
-  // Tab definitions
-  const tabs = [
-    { id: 'profile', label: lang === 'ar' ? 'الملف الشخصي والبيانات' : 'Profile & Info', icon: <User size={15} /> },
-    { id: 'security', label: lang === 'ar' ? 'الأمان وكلمة المرور' : 'Security & Password', icon: <Shield size={15} /> },
-    { id: 'preferences', label: lang === 'ar' ? 'المظهر واللغة' : 'Theme & Language', icon: <Palette size={15} /> },
-    { id: 'goals', label: lang === 'ar' ? 'أهداف المذاكرة' : 'Study Goals', icon: <Target size={15} /> },
-    { id: 'notifications', label: lang === 'ar' ? 'الإشعارات والخصوصية' : 'Alerts & Privacy', icon: <Bell size={15} /> },
-  ];
-
-  const currentTab = tabs.find(t => t.id === activeTab);
-  useSetBreadcrumbs(
-    activeTab !== 'profile' && currentTab
-      ? [
-          {
-            label: currentTab.label,
-            onClick: () => setActiveTab('profile')
-          }
-        ]
-      : []
+  // Immediate Avatar Upload -> syncs form, snapshot, and AuthContext without marking form dirty
+  const handleUploadAvatar = useCallback(
+    async (croppedFile) => {
+      const res = await studentApi.profile.uploadAvatar(croppedFile);
+      const nextAvatar = res?.data?.avatar || null;
+      setFormData((prev) => ({ ...prev, avatar: nextAvatar }));
+      setSavedSnapshot((prev) => ({ ...prev, avatar: nextAvatar }));
+      if (syncUserProfile) {
+        syncUserProfile({ avatar: nextAvatar });
+      }
+    },
+    [syncUserProfile]
   );
 
+  // Immediate Avatar Removal -> deletes from backend and reverts to 2-letter WhatsApp-style initials
+  const handleDeleteAvatar = useCallback(async () => {
+    await studentApi.profile.deleteAvatar();
+    setFormData((prev) => ({ ...prev, avatar: null }));
+    setSavedSnapshot((prev) => ({ ...prev, avatar: null }));
+    if (syncUserProfile) {
+      syncUserProfile({ avatar: null });
+    }
+  }, [syncUserProfile]);
+
+  // Background sync for instant Theme / Language preferences without dirtying the form
+  const handleSyncInstantPreference = useCallback((partialPrefs) => {
+    studentApi.profile.update({ preferences: partialPrefs }).catch(() => {});
+  }, []);
+
+  const tabs = useMemo(
+    () => [
+      { id: 'profile', label: isAr ? 'الملف الشخصي والبيانات' : 'Profile & Info', icon: <User size={15} /> },
+      { id: 'study', label: isAr ? 'أهداف المذاكرة والخصوصية' : 'Study Goals & Privacy', icon: <Target size={15} /> },
+      { id: 'preferences', label: isAr ? 'المظهر واللغة والمشغل' : 'Theme, Language & Player', icon: <Palette size={15} /> },
+      { id: 'security', label: isAr ? 'الأمان وكلمة المرور' : 'Security & Sessions', icon: <Shield size={15} /> },
+    ],
+    [isAr]
+  );
+
+  const currentTab = tabs.find((t) => t.id === activeTab);
+  const breadcrumbs = useMemo(
+    () =>
+      activeTab !== 'profile' && currentTab
+        ? [{ label: currentTab.label, onClick: () => setActiveTab('profile') }]
+        : [],
+    [activeTab, currentTab, setActiveTab]
+  );
+  useSetBreadcrumbs(breadcrumbs);
+
   return (
-    <SPage maxWidth={1080}>
+    <SPage maxWidth={1040}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* ── عنوان الصفحة وزر الحفظ ── */}
+        {/* ── عنوان الصفحة وأزرار الحفظ ── */}
         <SPageHeader
-          title={lang === 'ar' ? 'إعدادات الحساب والملف الشخصي' : 'Account & Student Settings'}
+          title={isAr ? 'إعدادات الحساب والملف الشخصي' : 'Account & Student Settings'}
           subtitle={
-            lang === 'ar'
-              ? 'خصص ملفك الدراسي، تحكم بأمان حسابك، واضبط بيئة المذاكرة والمظهر حسب رغبتك.'
-              : 'Customize your academic profile, manage security, and adjust your study preferences.'
+            isAr
+              ? 'إدارة بياناتك الدراسية، أهدافك، خصوصية الدوري، المظهر، وأمان حسابك.'
+              : 'Manage your academic profile, study goals, leaderboard privacy, appearance, and security.'
           }
           action={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {isDirty && (
+            activeTab !== 'security' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {dirty && (
+                  <SButton
+                    variant="ghost"
+                    size="sm"
+                    icon={<RotateCcw />}
+                    onClick={handleResetChanges}
+                    disabled={isSaving}
+                  >
+                    {isAr ? 'إلغاء' : 'Discard'}
+                  </SButton>
+                )}
                 <SButton
-                  variant="ghost"
+                  variant="primary"
                   size="sm"
-                  icon={<RotateCcw />}
-                  onClick={handleResetChanges}
+                  icon={<Save />}
+                  onClick={handleSaveChanges}
+                  disabled={!dirty || isSaving || loadingProfile}
                 >
-                  {lang === 'ar' ? 'إلغاء التعديلات' : 'Cancel'}
+                  {isSaving
+                    ? (isAr ? 'جاري الحفظ...' : 'Saving...')
+                    : (isAr ? 'حفظ التغييرات' : 'Save Changes')}
                 </SButton>
-              )}
-              <SButton
-                variant="primary"
-                size="sm"
-                icon={<Save />}
-                onClick={handleSaveChanges}
-                disabled={!isDirty}
-              >
-                {lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes'}
-              </SButton>
-            </div>
+              </div>
+            )
           }
         />
 
-        {/* ── شريط نجاح الحفظ الناعم (Toast / Alert) ── */}
-        {saveSuccess && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 18px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--success-light)',
-            border: '1px solid rgba(22, 163, 74, 0.3)',
-            color: 'var(--success)',
-            fontSize: '13.5px',
-            fontWeight: '600',
-            animation: 'fadeIn 0.3s ease'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle2 size={18} />
-              <span>{lang === 'ar' ? 'تم حفظ كافة التعديلات وتحديث ملفك الشخصي بنجاح 🎉' : 'All changes saved successfully 🎉'}</span>
-            </div>
+        {/* ── رسالة خطأ تحميل الصفحة ── */}
+        {loadError && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+              padding: '12px 18px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--error-light)',
+              border: '1px solid rgba(220, 38, 38, 0.3)',
+              color: 'var(--danger, #DC2626)',
+              fontSize: '13px',
+              fontWeight: '600',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} />
+              {loadError === '__LOAD_FAILED__'
+                ? (isAr ? 'تعذر تحميل بيانات الملف الشخصي.' : 'Failed to load profile settings.')
+                : loadError}
+            </span>
+            <SButton variant="ghost" size="sm" icon={<RefreshCw />} onClick={handleRetryLoad}>
+              {isAr ? 'إعادة المحاولة' : 'Retry'}
+            </SButton>
           </div>
         )}
 
-        {/* ── شريط التنبيه عند وجود تعديلات غير محفوظة ── */}
-        {isDirty && !saveSuccess && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 18px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--primary-surface)',
-            border: '1px solid var(--primary-light)',
-            fontSize: '13px',
-            fontWeight: '600',
-            color: 'var(--primary)',
-            gap: '12px',
-            flexWrap: 'wrap'
-          }}>
+        {/* ── شريط نتيجة الحفظ (نجاح أو خطأ — ظاهر على جميع التبويبات) ── */}
+        {saveBanner && (
+          <div
+            role={saveBanner.type === 'error' ? 'alert' : 'status'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px 18px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: saveBanner.type === 'success' ? 'var(--success-light)' : 'var(--error-light)',
+              border:
+                saveBanner.type === 'success'
+                  ? '1px solid rgba(22, 163, 74, 0.3)'
+                  : '1px solid rgba(220, 38, 38, 0.3)',
+              color: saveBanner.type === 'success' ? 'var(--success)' : 'var(--danger, #DC2626)',
+              fontSize: '13.5px',
+              fontWeight: '600',
+            }}
+          >
+            {saveBanner.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span>{saveBanner.text}</span>
+          </div>
+        )}
+
+        {/* ── تنبيه التعديلات غير المحفوظة ── */}
+        {dirty && activeTab !== 'security' && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 18px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--primary-surface)',
+              border: '1px solid var(--primary-light)',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: 'var(--primary)',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={16} />
-              <span>{lang === 'ar' ? 'لديك تعديلات غير محفوظة، لا تنسَ النقر على حفظ.' : 'You have unsaved changes.'}</span>
+              <span>{isAr ? 'لديك تعديلات غير محفوظة.' : 'You have unsaved changes.'}</span>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <SButton
-                variant="ghost"
-                size="sm"
-                onClick={handleResetChanges}
-              >
-                {lang === 'ar' ? 'تراجع' : 'Discard'}
+              <SButton variant="ghost" size="sm" onClick={handleResetChanges} disabled={isSaving}>
+                {isAr ? 'تراجع' : 'Discard'}
               </SButton>
-              <SButton
-                variant="primary"
-                size="sm"
-                onClick={handleSaveChanges}
-              >
-                {lang === 'ar' ? 'حفظ الآن' : 'Save Now'}
+              <SButton variant="primary" size="sm" onClick={handleSaveChanges} disabled={isSaving}>
+                {isSaving ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ الآن' : 'Save Now')}
               </SButton>
             </div>
           </div>
         )}
 
-        {/* ── التبويبات العلوية ── */}
-        <div style={{
-          display: 'flex',
-          gap: '6px',
-          borderBottom: '1px solid var(--border-subtle)',
-          overflowX: 'auto',
-          paddingBottom: '2px',
-          scrollbarWidth: 'none'
-        }}>
+        {/* ── شريط التبويبات ── */}
+        <div
+          role="tablist"
+          style={{
+            display: 'flex',
+            gap: '6px',
+            borderBottom: '1px solid var(--border-subtle)',
+            overflowX: 'auto',
+            paddingBottom: '2px',
+            scrollbarWidth: 'none',
+          }}
+        >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 type="button"
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
                 style={{
                   display: 'flex',
@@ -458,7 +458,7 @@ export const StudentSettingsView = () => {
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.15s ease',
-                  fontFamily: 'var(--font-arabic)'
+                  fontFamily: 'var(--font-arabic)',
                 }}
               >
                 {tab.icon}
@@ -468,61 +468,49 @@ export const StudentSettingsView = () => {
           })}
         </div>
 
-        {/* ── المحتوى حسب التبويب النشط ── */}
-        <div style={{ marginTop: '8px' }}>
-          {activeTab === 'profile' && (
-            <ProfileSettingsSection
-              formData={formData}
-              handleChange={handleChange}
-              handleAvatarChange={handleAvatarChange}
-              handleAvatarUpload={handleAvatarUpload}
-              lang={lang}
-              isRtl={isRtl}
-            />
-          )}
+        {/* ── محتوى التبويب النشط ── */}
+        <div style={{ marginTop: '4px' }}>
+          {loadingProfile && activeTab !== 'security' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <SSkeleton height={150} radius={14} />
+              <SSkeleton height={210} radius={14} />
+            </div>
+          ) : (
+            <>
+              {activeTab === 'profile' && (
+                <ProfileSettingsSection
+                  formData={formData}
+                  fieldErrors={fieldErrors}
+                  handleChange={handleChange}
+                  handleGradeChange={handleGradeChange}
+                  onUploadAvatar={handleUploadAvatar}
+                  onDeleteAvatar={handleDeleteAvatar}
+                  lang={lang}
+                  isRtl={isRtl}
+                />
+              )}
 
-          {activeTab === 'security' && (
-            <SecuritySettingsSection
-              formData={formData}
-              handleChange={handleChange}
-              securityState={securityState}
-              handleSecurityChange={handleSecurityChange}
-              handlePasswordSave={handlePasswordSave}
-              handleTerminateOtherSessions={handleTerminateOtherSessions}
-              securityFeedback={securityFeedback}
-              lang={lang}
-              isRtl={isRtl}
-            />
-          )}
+              {activeTab === 'study' && (
+                <StudyGoalsPrivacySection
+                  formData={formData}
+                  handleSelectChange={handleSelectChange}
+                  handleChange={handleChange}
+                  lang={lang}
+                  isRtl={isRtl}
+                />
+              )}
 
-          {activeTab === 'preferences' && (
-            <PreferencesSettingsSection
-              formData={formData}
-              handlePreferenceToggle={handlePreferenceToggle}
-              handleSelectChange={handleSelectChange}
-              lang={lang}
-              isRtl={isRtl}
-            />
-          )}
+              {activeTab === 'preferences' && (
+                <PreferencesSettingsSection
+                  formData={formData}
+                  handleSelectChange={handleSelectChange}
+                  onSyncInstantPreference={handleSyncInstantPreference}
+                  lang={lang}
+                />
+              )}
 
-          {activeTab === 'goals' && (
-            <StudyGoalsSection
-              formData={formData}
-              handleSelectChange={handleSelectChange}
-              handlePreferenceToggle={handlePreferenceToggle}
-              lang={lang}
-              isRtl={isRtl}
-            />
-          )}
-
-          {activeTab === 'notifications' && (
-            <NotificationsPrivacySection
-              formData={formData}
-              handlePreferenceToggle={handlePreferenceToggle}
-              handleExportData={handleExportData}
-              lang={lang}
-              isRtl={isRtl}
-            />
+              {activeTab === 'security' && <SecuritySettingsSection lang={lang} />}
+            </>
           )}
         </div>
       </div>

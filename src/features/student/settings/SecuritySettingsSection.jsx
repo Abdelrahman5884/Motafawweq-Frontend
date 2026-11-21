@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Lock,
   Eye,
   EyeOff,
-  Mail,
-  Phone,
   ShieldCheck,
   Smartphone,
   Laptop,
@@ -12,155 +9,263 @@ import {
   CheckCircle,
   AlertCircle,
   KeyRound,
-  Trash2
+  Trash2,
+  RefreshCw,
 } from 'lucide-react';
-import { SCard, SSection, SBadge, SButton, SCallout } from '../../../components/student/ui';
+import { SCard, SSection, SBadge, SButton, SSkeleton } from '../../../components/student/ui';
 import { useAuth } from '../../../context/AuthContext';
+import { parseUserAgent, formatDate } from '../../../utils';
 
-export const SecuritySettingsSection = ({
-  formData,
-  handleChange,
-  securityState,
-  handleSecurityChange,
-  handlePasswordSave,
-  handleTerminateOtherSessions,
-  securityFeedback,
-  lang,
-  isRtl
-}) => {
-  const { hasActiveToken, fetchSessions, revokeSession } = useAuth();
-  const [sessions, setSessions] = useState([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
+const passwordInputStyle = {
+  width: '100%',
+  paddingBlock: '10px',
+  paddingInlineStart: '14px',
+  paddingInlineEnd: '42px',
+  borderRadius: 'var(--radius-md)',
+  border: '1px solid var(--border-medium)',
+  backgroundColor: 'var(--bg-surface)',
+  color: 'var(--text-primary)',
+  fontSize: '13.5px',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
 
-  useEffect(() => {
-    let mounted = true;
-    if (hasActiveToken && fetchSessions) {
-      setLoadingSessions(true);
-      fetchSessions()
-        .then((data) => {
-          if (mounted && Array.isArray(data)) setSessions(data);
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (mounted) setLoadingSessions(false);
-        });
-    }
-    return () => {
-      mounted = false;
-    };
-  }, [hasActiveToken, fetchSessions, securityFeedback]);
+const eyeBtnStyle = {
+  position: 'absolute',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  insetInlineEnd: '10px',
+  background: 'none',
+  border: 'none',
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
+  padding: '4px',
+  display: 'flex',
+};
 
-  const handleRevokeSingleSession = async (sessionId) => {
-    try {
-      await revokeSession(sessionId);
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    } catch {
-      // ignore
-    }
-  };
-  // Eye toggles for passwords
+export const SecuritySettingsSection = ({ lang }) => {
+  const isAr = lang === 'ar';
+  const {
+    hasActiveToken,
+    changePassword,
+    fetchSessions,
+    revokeSession,
+    revokeOtherSessions,
+  } = useAuth();
+
+  // Password form state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState(null);
 
-  // Password strength calculation
-  const newPass = securityState.newPassword || '';
-  const calculateStrength = (pwd) => {
-    if (!pwd) return { score: 0, labelAr: 'فارغة', labelEn: 'Empty', color: 'var(--text-muted)' };
-    let score = 0;
-    if (pwd.length >= 8) score += 1;
-    if (pwd.length >= 12) score += 1;
-    if (/[A-Z]/.test(pwd) || /[\u0600-\u06FF]/.test(pwd)) score += 1;
-    if (/[0-9]/.test(pwd)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+  // Active sessions state
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(() => Boolean(hasActiveToken && fetchSessions));
+  const [sessionsError, setSessionsError] = useState(null);
+  const [sessionsFeedback, setSessionsFeedback] = useState(null);
+  const [revokingId, setRevokingId] = useState(null);
+  const [revokingAll, setRevokingAll] = useState(false);
+  const [sessionsNonce, setSessionsNonce] = useState(0);
 
-    if (score <= 2) return { score: 1, labelAr: 'ضعيفة', labelEn: 'Weak', color: 'var(--danger)' };
-    if (score <= 4) return { score: 2, labelAr: 'متوسطة وجيدة', labelEn: 'Medium', color: 'var(--warning)' };
-    return { score: 3, labelAr: 'قوية وآمنة جداً 🛡️', labelEn: 'Strong 🛡️', color: 'var(--success)' };
+  useEffect(() => {
+    if (!hasActiveToken || !fetchSessions) return undefined;
+    let active = true;
+    fetchSessions()
+      .then((list) => {
+        if (!active) return;
+        setSessions(Array.isArray(list) ? list : []);
+        setSessionsError(null);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setSessionsError(err?.message || '__SESSIONS_FAILED__');
+      })
+      .finally(() => {
+        if (active) setLoadingSessions(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [hasActiveToken, fetchSessions, sessionsNonce]);
+
+  const handleRefreshSessions = useCallback(() => {
+    if (!hasActiveToken || !fetchSessions) return;
+    setLoadingSessions(true);
+    setSessionsError(null);
+    setSessionsNonce((n) => n + 1);
+  }, [hasActiveToken, fetchSessions]);
+
+  // Real backend password policy checklist (AppServiceProvider::configurePasswordPolicy)
+  const newPass = passwordForm.newPassword;
+  const checks = {
+    minLen: newPass.length >= 10,
+    upper: /[A-Z]/.test(newPass),
+    lower: /[a-z]/.test(newPass),
+    number: /[0-9]/.test(newPass),
+    symbol: /[^A-Za-z0-9]/.test(newPass),
+    different: !passwordForm.currentPassword || newPass !== passwordForm.currentPassword,
+  };
+  const policySatisfied =
+    checks.minLen && checks.upper && checks.lower && checks.number && checks.symbol && checks.different;
+
+  const passwordsMatch =
+    newPass && passwordForm.confirmPassword
+      ? newPass === passwordForm.confirmPassword
+      : null;
+
+  const canSubmitPassword =
+    Boolean(passwordForm.currentPassword) &&
+    policySatisfied &&
+    passwordsMatch === true &&
+    !isUpdatingPassword;
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!canSubmitPassword) return;
+
+    setIsUpdatingPassword(true);
+    setPasswordFeedback(null);
+    try {
+      const res = await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      });
+      setPasswordFeedback({
+        type: 'success',
+        text:
+          res?.message ||
+          (isAr
+            ? 'تم تحديث كلمة المرور بنجاح وتسجيل الخروج من الأجهزة الأخرى.'
+            : 'Password updated and all other devices signed out.'),
+      });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      // Refresh sessions because backend revoked all other sessions
+      handleRefreshSessions();
+    } catch (err) {
+      setPasswordFeedback({
+        type: 'error',
+        text: err?.message || (isAr ? 'تعذر تحديث كلمة المرور.' : 'Failed to update password.'),
+      });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   };
 
-  const strength = calculateStrength(newPass);
+  const handleRevokeSingle = async (sessionId) => {
+    setRevokingId(sessionId);
+    setSessionsFeedback(null);
+    try {
+      await revokeSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      setSessionsFeedback({
+        type: 'success',
+        text: isAr ? 'تم إنهاء جلسة الجهاز بنجاح.' : 'Device session revoked.',
+      });
+    } catch (err) {
+      setSessionsFeedback({
+        type: 'error',
+        text: err?.message || (isAr ? 'تعذر إنهاء الجلسة.' : 'Failed to revoke session.'),
+      });
+    } finally {
+      setRevokingId(null);
+    }
+  };
 
-  const passwordsMatch = securityState.newPassword && securityState.confirmPassword
-    ? securityState.newPassword === securityState.confirmPassword
-    : null;
+  const handleRevokeOthers = async () => {
+    setRevokingAll(true);
+    setSessionsFeedback(null);
+    try {
+      const res = await revokeOtherSessions();
+      setSessions((prev) => prev.filter((s) => s.is_current));
+      setSessionsFeedback({
+        type: 'success',
+        text:
+          res?.message ||
+          (isAr ? 'تم تسجيل الخروج من كافة الأجهزة الأخرى.' : 'Signed out from all other devices.'),
+      });
+    } catch (err) {
+      setSessionsFeedback({
+        type: 'error',
+        text: err?.message || (isAr ? 'تعذر إنهاء الجلسات الأخرى.' : 'Could not revoke other sessions.'),
+      });
+    } finally {
+      setRevokingAll(false);
+    }
+  };
+
+  const otherSessionsCount = sessions.filter((s) => !s.is_current).length;
+
+  const ruleItems = [
+    { ok: checks.minLen, labelAr: '10 أحرف على الأقل', labelEn: 'At least 10 characters' },
+    { ok: checks.upper, labelAr: 'حرف إنجليزي كبير (A-Z)', labelEn: 'Uppercase letter (A-Z)' },
+    { ok: checks.lower, labelAr: 'حرف إنجليزي صغير (a-z)', labelEn: 'Lowercase letter (a-z)' },
+    { ok: checks.number, labelAr: 'رقم واحد على الأقل (0-9)', labelEn: 'At least one number (0-9)' },
+    { ok: checks.symbol, labelAr: 'رمز خاص مثل (!@#$)', labelEn: 'Special character (!@#$)' },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {securityFeedback && (
-        <div style={{
-          padding: '12px 16px',
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: securityFeedback.type === 'success' ? 'var(--success-light, rgba(22, 163, 74, 0.1))' : 'var(--error-light, rgba(220, 38, 38, 0.1))',
-          color: securityFeedback.type === 'success' ? 'var(--success, #16a34a)' : 'var(--error, #dc2626)',
-          fontSize: '13px',
-          fontWeight: '600',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          {securityFeedback.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-          <span>{securityFeedback.text}</span>
-        </div>
-      )}
-
       {/* ── 1. تغيير كلمة المرور ── */}
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
-          title={lang === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}
+          title={isAr ? 'تغيير كلمة المرور' : 'Change Password'}
           style={{ marginBottom: 0 }}
         >
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            maxWidth: '560px'
-          }}>
-            {/* كلمة المرور الحالية */}
-            <div>
-              <label style={{
-                display: 'block',
+          {passwordFeedback && (
+            <div
+              role="status"
+              style={{
+                padding: '12px 16px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: passwordFeedback.type === 'success' ? 'var(--success-light)' : 'var(--error-light)',
+                color: passwordFeedback.type === 'success' ? 'var(--success)' : 'var(--danger, #DC2626)',
                 fontSize: '13px',
                 fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'كلمة المرور الحالية' : 'Current Password'}
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '16px',
+              }}
+            >
+              {passwordFeedback.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+              <span>{passwordFeedback.text}</span>
+            </div>
+          )}
+
+          <form
+            onSubmit={handlePasswordSubmit}
+            style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '540px' }}
+          >
+            {/* كلمة المرور الحالية */}
+            <div>
+              <label htmlFor="sec-current-pw" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                {isAr ? 'كلمة المرور الحالية *' : 'Current Password *'}
               </label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="sec-current-pw"
                   type={showCurrent ? 'text' : 'password'}
                   name="currentPassword"
-                  value={securityState.currentPassword || ''}
-                  onChange={handleSecurityChange}
-                  placeholder="••••••••"
-                  style={{
-                    width: '100%',
-                    padding: '10px 40px 10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  autoComplete="current-password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                  placeholder="••••••••••"
+                  style={passwordInputStyle}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowCurrent(!showCurrent)}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    [isRtl ? 'left' : 'right']: '12px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex'
-                  }}
+                  onClick={() => setShowCurrent((v) => !v)}
+                  aria-label={isAr ? 'إظهار أو إخفاء كلمة المرور' : 'Toggle password visibility'}
+                  style={eyeBtnStyle}
                 >
                   {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -169,421 +274,307 @@ export const SecuritySettingsSection = ({
 
             {/* كلمة المرور الجديدة */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}
+              <label htmlFor="sec-new-pw" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                {isAr ? 'كلمة المرور الجديدة *' : 'New Password *'}
               </label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="sec-new-pw"
                   type={showNew ? 'text' : 'password'}
                   name="newPassword"
-                  value={securityState.newPassword || ''}
-                  onChange={handleSecurityChange}
-                  placeholder="••••••••"
-                  style={{
-                    width: '100%',
-                    padding: '10px 40px 10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
+                  autoComplete="new-password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+                  placeholder="••••••••••"
+                  style={passwordInputStyle}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowNew(!showNew)}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    [isRtl ? 'left' : 'right']: '12px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex'
-                  }}
+                  onClick={() => setShowNew((v) => !v)}
+                  aria-label={isAr ? 'إظهار أو إخفاء كلمة المرور' : 'Toggle password visibility'}
+                  style={eyeBtnStyle}
                 >
                   {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
 
-              {/* مؤشر قوة كلمة المرور */}
-              {newPass.length > 0 && (
-                <div style={{ marginTop: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                      {lang === 'ar' ? 'مستوى أمان الكلمة:' : 'Password strength:'}
-                    </span>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: strength.color }}>
-                      {lang === 'ar' ? strength.labelAr : strength.labelEn}
-                    </span>
+              {/* متطلبات قوة كلمة المرور المطابقة للباك إند */}
+              <div
+                style={{
+                  marginTop: '10px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(195px, 1fr))',
+                  gap: '6px 12px',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                {ruleItems.map((item) => (
+                  <div
+                    key={item.labelEn}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '11.5px',
+                      fontWeight: item.ok ? '700' : '500',
+                      color: item.ok ? 'var(--success)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    <CheckCircle size={13} style={{ opacity: item.ok ? 1 : 0.35, flexShrink: 0 }} />
+                    <span>{isAr ? item.labelAr : item.labelEn}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', height: '4px' }}>
-                    <div style={{
-                      flex: 1,
-                      borderRadius: '2px',
-                      backgroundColor: strength.score >= 1 ? strength.color : 'var(--border-subtle)',
-                      transition: 'background-color 0.2s'
-                    }} />
-                    <div style={{
-                      flex: 1,
-                      borderRadius: '2px',
-                      backgroundColor: strength.score >= 2 ? strength.color : 'var(--border-subtle)',
-                      transition: 'background-color 0.2s'
-                    }} />
-                    <div style={{
-                      flex: 1,
-                      borderRadius: '2px',
-                      backgroundColor: strength.score >= 3 ? strength.color : 'var(--border-subtle)',
-                      transition: 'background-color 0.2s'
-                    }} />
-                  </div>
+                ))}
+              </div>
+
+              {newPass && !checks.different && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px', color: 'var(--danger, #DC2626)', fontSize: '11.5px', fontWeight: '600' }}>
+                  <AlertCircle size={13} />
+                  <span>{isAr ? 'يجب أن تكون كلمة المرور الجديدة مختلفة عن الحالية.' : 'New password must be different from current password.'}</span>
                 </div>
               )}
             </div>
 
             {/* تأكيد كلمة المرور الجديدة */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'تأكيد كلمة المرور الجديدة' : 'Confirm New Password'}
+              <label htmlFor="sec-confirm-pw" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                {isAr ? 'تأكيد كلمة المرور الجديدة *' : 'Confirm New Password *'}
               </label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="sec-confirm-pw"
                   type={showConfirm ? 'text' : 'password'}
                   name="confirmPassword"
-                  value={securityState.confirmPassword || ''}
-                  onChange={handleSecurityChange}
-                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                  placeholder="••••••••••"
                   style={{
-                    width: '100%',
-                    padding: '10px 40px 10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: passwordsMatch === false
-                      ? '1px solid var(--danger)'
-                      : passwordsMatch === true
-                        ? '1px solid var(--success)'
-                        : '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
+                    ...passwordInputStyle,
+                    borderColor:
+                      passwordsMatch === false
+                        ? 'var(--danger, #DC2626)'
+                        : passwordsMatch === true
+                          ? 'var(--success)'
+                          : 'var(--border-medium)',
                   }}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    [isRtl ? 'left' : 'right']: '12px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex'
-                  }}
+                  onClick={() => setShowConfirm((v) => !v)}
+                  aria-label={isAr ? 'إظهار أو إخفاء كلمة المرور' : 'Toggle password visibility'}
+                  style={eyeBtnStyle}
                 >
                   {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
 
               {passwordsMatch === false && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px', color: 'var(--danger)', fontSize: '11.5px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px', color: 'var(--danger, #DC2626)', fontSize: '11.5px', fontWeight: '600' }}>
                   <AlertCircle size={13} />
-                  <span>{lang === 'ar' ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match'}</span>
+                  <span>{isAr ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match'}</span>
                 </div>
               )}
 
               {passwordsMatch === true && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px', color: 'var(--success)', fontSize: '11.5px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px', color: 'var(--success)', fontSize: '11.5px', fontWeight: '600' }}>
                   <CheckCircle size={13} />
-                  <span>{lang === 'ar' ? 'كلمتا المرور متطابقتان تماماً' : 'Passwords match successfully'}</span>
+                  <span>{isAr ? 'كلمتا المرور متطابقتان' : 'Passwords match'}</span>
                 </div>
               )}
             </div>
 
-            <div style={{ paddingTop: '8px' }}>
+            <div style={{ paddingTop: '4px' }}>
               <SButton
+                type="submit"
                 variant="primary"
                 size="sm"
                 icon={<KeyRound />}
-                onClick={handlePasswordSave}
-                disabled={!securityState.newPassword || passwordsMatch !== true}
+                disabled={!canSubmitPassword}
               >
-                {lang === 'ar' ? 'حفظ كلمة المرور الجديدة' : 'Update Password'}
+                {isUpdatingPassword
+                  ? (isAr ? 'جاري التحديث...' : 'Updating...')
+                  : (isAr ? 'تحديث كلمة المرور' : 'Update Password')}
               </SButton>
             </div>
-          </div>
+          </form>
         </SSection>
       </SCard>
 
-      {/* ── 2. البريد الإلكتروني وأرقام الهواتف ── */}
+      {/* ── 2. الأجهزة النشطة وجلسات الدخول ── */}
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
-          title={lang === 'ar' ? 'البريد الإلكتروني وأرقام الاتصال' : 'Email & Phone Contacts'}
+          title={isAr ? 'الأجهزة النشطة وجلسات الدخول' : 'Active Devices & Sessions'}
+          action={
+            <SButton
+              variant="ghost"
+              size="sm"
+              icon={<RefreshCw />}
+              onClick={handleRefreshSessions}
+              disabled={loadingSessions}
+            >
+              {isAr ? 'تحديث' : 'Refresh'}
+            </SButton>
+          }
           style={{ marginBottom: 0 }}
         >
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '16px'
-          }}>
-            {/* البريد الإلكتروني */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'البريد الإلكتروني *' : 'Email Address *'}
-                </label>
-                <SBadge variant="success" size="xs">
-                  {lang === 'ar' ? 'مؤكّد ✓' : 'Verified ✓'}
-                </SBadge>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email || ''}
-                  onChange={handleChange}
-                  placeholder="omar.tarek@motafawweq.me"
-                  dir="ltr"
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'يُستخدم لتسجيل الدخول واستعادة الحساب.' : 'Used for login and password resets.'}
-              </span>
+          {sessionsFeedback && (
+            <div
+              role="status"
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: sessionsFeedback.type === 'success' ? 'var(--success-light)' : 'var(--error-light)',
+                color: sessionsFeedback.type === 'success' ? 'var(--success)' : 'var(--danger, #DC2626)',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+              }}
+            >
+              {sessionsFeedback.type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
+              <span>{sessionsFeedback.text}</span>
             </div>
+          )}
 
-            {/* رقم هاتف الطالب */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'رقم هاتف الطالب (مصر)' : 'Student Phone (Egypt)'}
-                </label>
-                <SBadge variant="primary" size="xs">
-                  {lang === 'ar' ? 'واتساب مفعّل' : 'WhatsApp Active'}
-                </SBadge>
-              </div>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone || ''}
-                onChange={handleChange}
-                placeholder="01123456789"
-                dir="ltr"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'تصلك عليه تذكيرات مواعيد الحصص المباشرة والواجبات.' : 'Used for lesson reminders and live class alerts.'}
-              </span>
+          {loadingSessions ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <SSkeleton height={62} radius={10} />
+              <SSkeleton height={62} radius={10} />
             </div>
-
-            {/* رقم ولي الأمر */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'رقم هاتف ولي الأمر (للمتابعة الأبوية)' : 'Guardian / Parent Phone'}
-                </label>
-                <SBadge variant="warning" size="xs">
-                  {lang === 'ar' ? 'مرتبط بحساب ولي الأمر' : 'Linked to Parent Portal'}
-                </SBadge>
-              </div>
-              <input
-                type="tel"
-                name="parentPhone"
-                value={formData.parentPhone || ''}
-                onChange={handleChange}
-                placeholder="01223344556"
-                dir="ltr"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar'
-                  ? 'يستلم ولي الأمر عليه تقريراً أسبوعياً بدرجات الامتحانات ونسبة حضور الحصص.'
-                  : 'Weekly performance and attendance reports will be sent to this number.'}
+          ) : sessionsError ? (
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--error-light)',
+                color: 'var(--danger, #DC2626)',
+                fontSize: '13px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                {sessionsError === '__SESSIONS_FAILED__'
+                  ? (isAr ? 'تعذر تحميل الأجهزة النشطة.' : 'Could not load active sessions.')
+                  : sessionsError}
               </span>
+              <SButton variant="ghost" size="sm" onClick={handleRefreshSessions}>
+                {isAr ? 'إعادة المحاولة' : 'Retry'}
+              </SButton>
             </div>
-          </div>
-        </SSection>
-      </SCard>
+          ) : sessions.length === 0 ? (
+            <div style={{ padding: '16px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center' }}>
+              {isAr ? 'لا توجد جلسات نشطة مسجلة حالياً.' : 'No active sessions found.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {sessions.map((session) => {
+                const device = parseUserAgent(session.user_agent, lang);
+                const lastUsed = session.last_used_at || session.created_at;
+                return (
+                  <div
+                    key={session.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                      padding: '12px 16px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: session.is_current ? 'var(--bg-subtle)' : 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                      <div
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '10px',
+                          backgroundColor: session.is_current ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                          color: session.is_current ? 'var(--primary)' : 'var(--text-secondary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {device.isMobile ? <Smartphone size={19} /> : <Laptop size={19} />}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                            {device.label}
+                          </span>
+                          {session.is_current && (
+                            <SBadge variant="success" size="xs">
+                              {isAr ? 'هذا الجهاز الآن' : 'Current Device'}
+                            </SBadge>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span dir="ltr">IP: {session.ip_address || '—'}</span>
+                          {lastUsed && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                {isAr ? 'آخر نشاط:' : 'Last active:'} {formatDate(lastUsed, lang)}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-      {/* ── 3. الجلسات النشطة والأجهزة ── */}
-      <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
-        <SSection
-          title={lang === 'ar' ? 'الأجهزة النشطة وجلسات الدخول' : 'Active Devices & Sessions'}
-          style={{ marginBottom: 0 }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {sessions.length > 0 ? (
-              sessions.map((session) => (
-                <div
-                  key={session.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: session.is_current ? 'var(--bg-subtle)' : 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)'
-                  }}
+                    {session.is_current ? (
+                      <ShieldCheck size={18} color="var(--success)" />
+                    ) : (
+                      <SButton
+                        variant="danger"
+                        size="sm"
+                        icon={<Trash2 size={14} />}
+                        onClick={() => handleRevokeSingle(session.id)}
+                        disabled={revokingId === session.id || revokingAll}
+                      >
+                        {revokingId === session.id
+                          ? (isAr ? 'جاري الإخراج...' : 'Revoking...')
+                          : (isAr ? 'إخراج' : 'Revoke')}
+                      </SButton>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div style={{ marginTop: '6px' }}>
+                <SButton
+                  variant="danger"
+                  size="sm"
+                  icon={<LogOut />}
+                  onClick={handleRevokeOthers}
+                  disabled={otherSessionsCount === 0 || revokingAll}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '10px',
-                      backgroundColor: session.is_current ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                      color: session.is_current ? 'var(--primary)' : 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      {String(session.user_agent || '').toLowerCase().includes('mobile') ? (
-                        <Smartphone size={20} />
-                      ) : (
-                        <Laptop size={20} />
-                      )}
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                          {session.user_agent ? String(session.user_agent).slice(0, 55) : 'متصفح الويب'}
-                        </span>
-                        {session.is_current && (
-                          <SBadge variant="success" size="xs">
-                            {lang === 'ar' ? 'هذا الجهاز الآن' : 'Current Device'}
-                          </SBadge>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        IP: {session.ip_address || '127.0.0.1'}
-                      </div>
-                    </div>
-                  </div>
-                  {session.is_current ? (
-                    <ShieldCheck size={18} color="var(--success)" />
-                  ) : (
-                    <SButton
-                      variant="ghost"
-                      size="sm"
-                      icon={<Trash2 size={14} />}
-                      onClick={() => handleRevokeSingleSession(session.id)}
-                      style={{ color: 'var(--danger)' }}
-                    >
-                      {lang === 'ar' ? 'إخراج' : 'Revoke'}
-                    </SButton>
-                  )}
-                </div>
-              ))
-            ) : (
-              <>
-                {/* الجهاز الحالي */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  border: '1px solid var(--border-subtle)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '10px',
-                      backgroundColor: 'var(--primary-surface)',
-                      color: 'var(--primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <Laptop size={20} />
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                          Windows 11 • Google Chrome
-                        </span>
-                        <SBadge variant="success" size="xs">
-                          {lang === 'ar' ? 'هذا الجهاز الآن' : 'Current Device'}
-                        </SBadge>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        {loadingSessions
-                          ? (lang === 'ar' ? 'جاري تحميل الجلسات...' : 'Loading sessions...')
-                          : (lang === 'ar' ? 'القاهرة، مصر • نشط منذ قليل' : 'Cairo, Egypt • Active just now')}
-                      </div>
-                    </div>
-                  </div>
-                  <ShieldCheck size={18} color="var(--success)" />
-                </div>
-              </>
-            )}
-
-            {/* زر إنهاء كافة الجلسات */}
-            <div style={{ marginTop: '6px' }}>
-              <SButton
-                variant="ghost"
-                size="sm"
-                icon={<LogOut />}
-                onClick={handleTerminateOtherSessions}
-                style={{ color: 'var(--danger)', borderColor: 'rgba(220, 38, 38, 0.25)' }}
-              >
-                {lang === 'ar' ? 'تسجيل الخروج من كافة الأجهزة الأخرى' : 'Log out from all other devices'}
-              </SButton>
+                  {revokingAll
+                    ? (isAr ? 'جاري تسجيل الخروج...' : 'Signing out...')
+                    : otherSessionsCount > 0
+                      ? (isAr
+                        ? `تسجيل الخروج من باقي الأجهزة (${otherSessionsCount})`
+                        : `Sign out all other devices (${otherSessionsCount})`)
+                      : (isAr ? 'لا توجد أجهزة أخرى متصلة' : 'No other connected devices')}
+                </SButton>
+              </div>
             </div>
-          </div>
+          )}
         </SSection>
       </SCard>
     </div>

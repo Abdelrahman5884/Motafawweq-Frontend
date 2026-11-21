@@ -25,9 +25,9 @@ export const ROLES = {
     phone: '01123456789',
     student_code: 'OMAR-2026',
     studentCode: 'OMAR-2026',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+    avatar: null,
     center: 'Al-Rowad Center',
-    grade: '3rd Secondary (Thanawya Amma)',
+    grade: 'الصف الثالث الثانوي',
     defaultRoute: '/student/dashboard'
   },
   parent: {
@@ -77,19 +77,25 @@ function buildFrontendUser(apiUser, extras = {}) {
   const roleKey = ROLES[apiUser?.role] ? apiUser.role : (ROLES[extras?.role] ? extras.role : 'student');
   const baseRole = ROLES[roleKey] || ROLES.student;
 
-  const grade = extras.grade || baseRole.grade || '3rd Secondary (Thanawya Amma)';
+  const grade = extras.grade || baseRole.grade || 'الصف الثالث الثانوي';
   const track = extras.track || 'علمي علوم';
-  const displayName = apiUser?.name || extras.fullName || baseRole.name;
+  const displayName = apiUser?.name || extras.fullName || extras.name || baseRole.name;
+  const hasApiAvatarField = Boolean(apiUser && Object.prototype.hasOwnProperty.call(apiUser, 'avatar'));
+  const resolvedAvatar = hasApiAvatarField
+    ? (apiUser.avatar || null)
+    : (Object.prototype.hasOwnProperty.call(extras, 'avatar') ? (extras.avatar || null) : (baseRole.avatar || null));
 
   return {
     ...baseRole,
     ...extras,
     id: apiUser?.id ?? extras.id ?? baseRole.id,
     name: displayName,
-    nameAr: extras.nameAr || displayName || baseRole.nameAr,
+    nameAr: apiUser?.name || extras.nameAr || displayName || baseRole.nameAr,
     email: apiUser?.email || extras.email || baseRole.email,
-    phone: apiUser?.phone ?? extras.phone ?? baseRole.phone,
-    avatar: apiUser?.avatar || extras.avatar || baseRole.avatar,
+    phone: apiUser && Object.prototype.hasOwnProperty.call(apiUser, 'phone')
+      ? (apiUser.phone || '')
+      : (extras.phone ?? baseRole.phone),
+    avatar: resolvedAvatar,
     role: roleKey,
     roleLabel: extras.roleLabel || apiUser?.role_label || baseRole.roleLabel,
     roleLabelAr: extras.roleLabelAr || apiUser?.role_label || baseRole.roleLabelAr,
@@ -346,25 +352,11 @@ export const AuthProvider = ({ children }) => {
       role,
       grade,
       track,
-      governorate: userData.governorate || 'الجيزة',
+      governorate: userData.governorate || '',
       parentPhone: userData.parentPhone || '',
       subject: userData.subject || '',
-      center: userData.centerName || userData.center || 'Online Learning',
+      center: userData.centerName || userData.center || '',
       studentCode: userData.studentCode || '',
-      nickname: userData.fullName ? `العبقري ${userData.fullName.split(' ')[0]}` : 'طالب متفوق',
-      targetGoal: 'التميز الأكاديمي والتفوق في الامتحانات',
-      dailyGoalMinutes: 60,
-      pomodoroReminder: true,
-      weeklyLessonsTarget: 8,
-      preferredStudyTime: 'evening',
-      playbackSpeed: '1.25x',
-      autoCornell: true,
-      soundEffects: true,
-      notifyWhatsapp: true,
-      notifyStreak: true,
-      notifyHomework: true,
-      leaderboardVisible: true,
-      parentReportSync: true,
     };
 
     const user = applyAuthenticatedSession(response.data.user, response.data.tokens, true, extraMetadata);
@@ -452,6 +444,20 @@ export const AuthProvider = ({ children }) => {
     return true;
   };
 
+  // Synchronize already-saved profile fields into AuthContext & localStorage (no redundant API call)
+  const syncUserProfile = useCallback((updatedFields) => {
+    setCurrentUser((prevUser) => {
+      const resolved = typeof updatedFields === 'function' ? updatedFields(prevUser) : updatedFields;
+      const nextSnapshot = { ...prevUser, ...resolved };
+      try {
+        localStorage.setItem('motafawweq_custom_user', JSON.stringify(nextSnapshot));
+      } catch {
+        // ignore storage errors
+      }
+      return nextSnapshot;
+    });
+  }, []);
+
   // Update User Profile -> PUT /api/v1/auth/profile + local preferences
   const updateUserProfile = async (updatedFields) => {
     let nextSnapshot = null;
@@ -509,6 +515,10 @@ export const AuthProvider = ({ children }) => {
     return authService.revokeSession(sessionId);
   }, []);
 
+  const revokeOtherSessions = useCallback(async () => {
+    return authService.revokeOtherSessions();
+  }, []);
+
   const fetchLoginHistory = useCallback(async (perPage = 20) => {
     const res = await authService.getLoginHistory(perPage);
     return res?.data || [];
@@ -533,6 +543,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         logoutAllDevices,
         refreshUser,
+        syncUserProfile,
         updateUserProfile,
         changePassword,
         verifyEmailOtp,
@@ -542,6 +553,7 @@ export const AuthProvider = ({ children }) => {
         completePasswordReset,
         fetchSessions,
         revokeSession,
+        revokeOtherSessions,
         fetchLoginHistory,
         otpTargetEmail,
         navigate,

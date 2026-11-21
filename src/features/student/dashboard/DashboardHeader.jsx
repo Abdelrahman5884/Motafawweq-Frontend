@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, ChevronDown, Check } from 'lucide-react';
 import { AvatarLightboxModal } from '../../../components/common/AvatarCropperModal';
+import { getInitials, getAvatarColor } from '../../../utils';
 
 export const DashboardHeader = ({
   student,
@@ -81,12 +82,13 @@ export const DashboardHeader = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(2, 132, 199, 0.12)',
-              color: themeAccent,
+              backgroundColor: getAvatarColor(student.nameAr || student.name),
+              color: '#FFFFFF',
               fontWeight: '800',
-              fontSize: '18px'
+              fontSize: '18px',
+              userSelect: 'none'
             }}>
-              {(student.nameAr || student.name || 'ط').trim().charAt(0)}
+              {getInitials(student.nameAr || student.name)}
             </div>
           )}
           <span style={{

@@ -373,6 +373,15 @@ export const StudentActivityProvider = ({ children }) => {
     flushHeartbeat
   ]);
 
+  const updateDailyGoalMinutes = useCallback((minutes) => {
+    const parsed = Number(minutes);
+    if (!Number.isFinite(parsed) || parsed < 15) return;
+    setActivity((prev) => ({
+      ...prev,
+      dailyGoalMinutes: parsed,
+    }));
+  }, []);
+
   const value = useMemo(() => {
     const effectiveActivity = isStudentActive ? activity : createInitialState(timezone);
     return {
@@ -381,9 +390,10 @@ export const StudentActivityProvider = ({ children }) => {
       isTracking: isStudentActive && isTracking,
       dayRolloverCount: isStudentActive ? dayRolloverCount : 0,
       syncFromServerSnapshot: applyServerSnapshot,
+      updateDailyGoalMinutes,
       flushNow: () => flushHeartbeat({ isCheckIn: false }),
     };
-  }, [activity, timezone, isStudentActive, isTracking, dayRolloverCount, applyServerSnapshot, flushHeartbeat]);
+  }, [activity, timezone, isStudentActive, isTracking, dayRolloverCount, applyServerSnapshot, updateDailyGoalMinutes, flushHeartbeat]);
 
   return (
     <StudentActivityContext.Provider value={value}>
@@ -401,6 +411,7 @@ export const useStudentActivity = () => {
       isTracking: false,
       dayRolloverCount: 0,
       syncFromServerSnapshot: () => {},
+      updateDailyGoalMinutes: () => {},
       flushNow: async () => null,
     };
   }

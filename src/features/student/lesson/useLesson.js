@@ -73,7 +73,16 @@ export const useLesson = (lang) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [embedSeekSec, setEmbedSeekSec] = useState(0);
   const [embedSeekNonce, setEmbedSeekNonce] = useState(0);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('motafawweq_student_playback_speed');
+      const parsed = parseFloat(String(saved || '').replace(/x$/i, ''));
+      if ([0.75, 1, 1.25, 1.5, 1.75, 2].includes(parsed)) return parsed;
+    } catch {
+      // ignore storage errors
+    }
+    return 1;
+  });
   const [volume, setVolume] = useState(0.85);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayerFS, setIsPlayerFS] = useState(false);

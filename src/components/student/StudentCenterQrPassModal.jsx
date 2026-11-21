@@ -4,7 +4,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useGroups } from '../../context/GroupsContext';
 import { useAuth } from '../../context/AuthContext';
 import { studentApi } from '../../services/studentApi';
-import { copyTextToClipboard } from '../../utils';
+import { copyTextToClipboard, getInitials } from '../../utils';
 import { RealQRCode } from '../common/RealQRCode';
 import { RealBarcode } from '../common/RealBarcode';
 import { printStudentCenterPass } from './studentPassPrintTemplate';
@@ -435,7 +435,7 @@ export const StudentCenterQrPassModal = ({
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
-                  (student.name || 'ط').trim().charAt(0)
+                  getInitials(student.name)
                 )}
               </div>
 

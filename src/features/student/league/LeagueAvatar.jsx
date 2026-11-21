@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-
-function getInitials(name) {
-  const clean = String(name || '').trim();
-  if (!clean) return 'ط';
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2);
-  return `${parts[0][0] || ''}${parts[1][0] || ''}`;
-}
+import { getInitials, getAvatarColor } from '../../../utils';
 
 export const LeagueAvatar = ({
   src,
@@ -14,19 +7,20 @@ export const LeagueAvatar = ({
   size = 42,
   borderColor = 'var(--border-subtle)',
   borderWidth = 2,
-  accentBg = 'var(--primary-surface)',
-  accentColor = 'var(--primary)',
+  accentBg,
+  accentColor = '#FFFFFF',
   boxShadow = 'none',
 }) => {
   const [failedSrc, setFailedSrc] = useState('');
-  const showImage = Boolean(src && String(src).trim() && failedSrc !== src);
+  const cleanSrc = typeof src === 'string' ? src.trim() : '';
+  const showImage = Boolean(cleanSrc && failedSrc !== cleanSrc);
 
   if (showImage) {
     return (
       <img
-        src={src}
+        src={cleanSrc}
         alt={name || ''}
-        onError={() => setFailedSrc(src)}
+        onError={() => setFailedSrc(cleanSrc)}
         style={{
           width: `${size}px`,
           height: `${size}px`,
@@ -48,17 +42,18 @@ export const LeagueAvatar = ({
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: '50%',
-        backgroundColor: accentBg,
-        color: accentColor,
+        backgroundColor: accentBg || getAvatarColor(name),
+        color: accentBg ? accentColor : '#FFFFFF',
         border: `${borderWidth}px solid ${borderColor}`,
         boxShadow,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontWeight: '900',
-        fontSize: `${Math.max(12, Math.round(size * 0.36))}px`,
+        fontWeight: '800',
+        fontSize: `${Math.max(12, Math.round(size * 0.35))}px`,
         flexShrink: 0,
         userSelect: 'none',
+        whiteSpace: 'nowrap',
       }}
     >
       {getInitials(name)}

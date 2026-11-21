@@ -368,6 +368,9 @@ export const authService = {
   revokeSession: (sessionId) =>
     apiDelete(`/auth/sessions/${encodeURIComponent(sessionId)}`),
 
+  revokeOtherSessions: () =>
+    apiDelete('/auth/sessions'),
+
   getLoginHistory: (perPage = 20) =>
     apiGet(`/auth/login-history?per_page=${perPage}`),
 };

@@ -25,6 +25,7 @@ export const AvatarCropperModal = ({
   const dragStartRef = useRef({ x: 0, y: 0 });
   const offsetStartRef = useRef({ x: 0, y: 0 });
   const imgRef = useRef(null);
+  const viewportRef = useRef(null);
 
   // Reset state when a new image is opened
   useEffect(() => {
@@ -80,11 +81,18 @@ export const AvatarCropperModal = ({
     setIsDragging(false);
   };
 
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.1 : -0.1;
-    setZoom((z) => Math.min(3.5, Math.max(0.5, Number((z + delta).toFixed(2)))));
-  };
+  // Non-passive wheel listener for smooth zoom without console passive warnings
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!isOpen || !el) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.1 : -0.1;
+      setZoom((z) => Math.min(3.5, Math.max(0.5, Number((z + delta).toFixed(2)))));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [isOpen, imageSrc]);
 
   const handleConfirmCrop = () => {
     if (!imgRef.current || !imgDimensions.width) return;
@@ -222,6 +230,7 @@ export const AvatarCropperModal = ({
 
         {/* Crop Viewport */}
         <div
+          ref={viewportRef}
           style={{
             position: 'relative',
             width: '100%',
@@ -243,7 +252,6 @@ export const AvatarCropperModal = ({
           onTouchMove={(e) => {
             if (e.touches[0]) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
           }}
-          onWheel={handleWheel}
         >
           <img
             ref={imgRef}

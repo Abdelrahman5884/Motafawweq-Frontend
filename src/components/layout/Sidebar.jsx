@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useStudentActivity } from '../../context/StudentActivityContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { Avatar } from '../common/Avatar';
 import {
   LayoutDashboard,
   Calendar,
@@ -18,7 +19,6 @@ import {
   ChevronLeft,
   Award,
   X,
-  GraduationCap,
   QrCode,
   Layers,
   Activity,
@@ -385,31 +385,11 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             style={{ textDecoration: 'none', cursor: (currentRole === 'student' || currentRole === 'teacher') ? 'pointer' : 'default' }}
           >
             <div className="sidebar-avatar-wrapper">
-              {currentUser.avatar ? (
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }}
-                />
-              ) : (
-                <div style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '50%',
-                  backgroundColor: `${accent}20`,
-                  color: accent,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <GraduationCap size={16} />
-                </div>
-              )}
+              <Avatar
+                src={currentUser?.avatar}
+                name={currentUser?.nameAr || currentUser?.name || ''}
+                size={34}
+              />
               <span className="sidebar-online-dot" />
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -472,15 +452,10 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             style={{ margin: '10px auto 4px auto', display: 'flex', justifyContent: 'center', textDecoration: 'none' }}
           >
             <div className="sidebar-avatar-wrapper">
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
+              <Avatar
+                src={currentUser?.avatar}
+                name={currentUser?.nameAr || currentUser?.name || ''}
+                size={32}
               />
               <span className="sidebar-online-dot" />
             </div>

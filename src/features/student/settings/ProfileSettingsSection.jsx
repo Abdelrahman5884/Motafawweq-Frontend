@@ -1,138 +1,194 @@
 import React, { useRef, useState } from 'react';
-import { Camera, RefreshCw, Sparkles, User, School, MapPin, Building2, CheckCircle2, Copy, KeyRound } from 'lucide-react';
+import {
+  Camera,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
+  KeyRound,
+  Mail,
+} from 'lucide-react';
 import { SCard, SSection, SBadge, SButton } from '../../../components/student/ui';
+import { Avatar } from '../../../components/common/Avatar';
 import { AvatarCropperModal, AvatarLightboxModal } from '../../../components/common/AvatarCropperModal';
-import { studentApi } from '../../../services/studentApi';
+import { copyTextToClipboard } from '../../../utils';
+import {
+  GRADE_GROUPS,
+  EGYPT_GOVERNORATES,
+  getTracksForGrade,
+} from './studentSettingsConfig';
 
-// Curated avatars library for Egyptian high-school students
-export const PRESET_AVATARS = [
-  { id: 'av-1', url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&auto=format&fit=crop&q=80', labelAr: 'طالب متفوق' },
-  { id: 'av-2', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80', labelAr: 'طالبة متفوقة' },
-  { id: 'av-3', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80', labelAr: 'طالب علمي' },
-  { id: 'av-4', url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&auto=format&fit=crop&q=80', labelAr: 'طالبة علمي' },
-  { id: 'av-5', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&auto=format&fit=crop&q=80', labelAr: 'طالب رياضي' },
-  { id: 'av-6', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80', labelAr: 'طالبة لغات' },
-];
+const inputBaseStyle = {
+  width: '100%',
+  padding: '10px 14px',
+  borderRadius: 'var(--radius-md)',
+  border: '1px solid var(--border-medium)',
+  backgroundColor: 'var(--bg-surface)',
+  color: 'var(--text-primary)',
+  fontSize: '13.5px',
+  outline: 'none',
+  boxSizing: 'border-box',
+  fontFamily: 'var(--font-arabic)',
+};
 
-export const GOVERNORATES = [
-  'القاهرة',
-  'الجيزة',
-  'الإسكندرية',
-  'القليوبية',
-  'الدقهلية',
-  'الشرقية',
-  'المنوفية',
-  'الغربية',
-  'البحيرة',
-  'دمياط',
-  'كفر الشيخ',
-  'بورسعيد',
-  'الإسماعيلية',
-  'السويس',
-  'الفيوم',
-  'بني سويف',
-  'المنيا',
-  'أسيوط',
-  'سوهاج',
-  'قنا',
-  'الأقصر',
-  'أسوان'
-];
+const labelStyle = {
+  display: 'block',
+  fontSize: '13px',
+  fontWeight: '600',
+  color: 'var(--text-primary)',
+  marginBottom: '6px',
+};
+
+const fieldErrorStyle = {
+  fontSize: '11.5px',
+  color: 'var(--danger, #DC2626)',
+  fontWeight: '600',
+  marginTop: '4px',
+  display: 'block',
+};
 
 export const ProfileSettingsSection = ({
   formData,
+  fieldErrors = {},
   handleChange,
-  handleAvatarChange,
-  handleAvatarUpload,
+  handleGradeChange,
+  onUploadAvatar,
+  onDeleteAvatar,
   lang,
-  isRtl
+  isRtl,
 }) => {
+  const isAr = lang === 'ar';
   const fileInputRef = useRef(null);
+
   const [copiedCode, setCopiedCode] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState(null);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isDeletingAvatar, setIsDeletingAvatar] = useState(false);
   const [isAvatarLightboxOpen, setIsAvatarLightboxOpen] = useState(false);
+  const [avatarFeedback, setAvatarFeedback] = useState(null);
 
-  const isAr = lang === 'ar';
-  const studentLinkCode = formData.studentCode || formData.student_code || 'OMAR-2026';
+  const hasAvatar = Boolean(formData.avatar && String(formData.avatar).trim());
+  const availableTracks = getTracksForGrade(formData.gradeAr);
+  const displayName = formData.name?.trim() || (isAr ? 'طالب متفوق' : 'Motafawweq Student');
 
   const handleCopyStudentCode = async () => {
-    try {
-      await navigator.clipboard.writeText(studentLinkCode);
+    if (!formData.studentCode) return;
+    const ok = await copyTextToClipboard(formData.studentCode);
+    if (ok) {
       setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
-    } catch {
-      // ignore
+      window.setTimeout(() => setCopiedCode(false), 2000);
     }
   };
 
   const onFileInput = (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert(isAr ? 'حجم الصورة المختارة كبير جداً (الحد الأقصى 10 ميجابايت قبل القص).' : 'Selected image is too large (max 10 MB before cropping).');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setCropImageSrc(event.target.result);
-        setIsCropperOpen(true);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setAvatarFeedback(null);
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setAvatarFeedback({
+        type: 'error',
+        text: isAr
+          ? 'صيغة الصورة غير مدعومة. يرجى اختيار صورة JPG أو PNG أو WEBP.'
+          : 'Unsupported image format. Please select JPG, PNG, or WEBP.',
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setAvatarFeedback({
+        type: 'error',
+        text: isAr
+          ? 'حجم الصورة كبير جداً (الحد الأقصى 10 ميجابايت قبل القص).'
+          : 'Image is too large (max 10 MB before cropping).',
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCropImageSrc(event.target.result);
+      setIsCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirmCrop = async (croppedFile) => {
+    setIsUploadingAvatar(true);
+    setAvatarFeedback(null);
+    try {
+      await onUploadAvatar(croppedFile);
+      setIsCropperOpen(false);
+      setCropImageSrc(null);
+      setAvatarFeedback({
+        type: 'success',
+        text: isAr ? 'تم تحديث صورتك الشخصية بنجاح.' : 'Profile picture updated successfully.',
+      });
+    } catch (err) {
+      setAvatarFeedback({
+        type: 'error',
+        text: err?.message || (isAr ? 'تعذر رفع الصورة الشخصية.' : 'Failed to upload profile picture.'),
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!hasAvatar || isDeletingAvatar) return;
+    setIsDeletingAvatar(true);
+    setAvatarFeedback(null);
+    try {
+      await onDeleteAvatar();
+      setAvatarFeedback({
+        type: 'success',
+        text: isAr
+          ? 'تم حذف الصورة الشخصية وعرض أول حرفين من اسمك مكانها.'
+          : 'Profile picture removed. Showing your initials instead.',
+      });
+    } catch (err) {
+      setAvatarFeedback({
+        type: 'error',
+        text: err?.message || (isAr ? 'تعذر حذف الصورة الشخصية.' : 'Failed to remove profile picture.'),
+      });
+    } finally {
+      setIsDeletingAvatar(false);
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* ── 1. الصورة الشخصية والأفتار ── */}
+      {/* ── 1. الصورة الشخصية (مع أول حرفين من الاسم تلقائياً كواتساب عند عدم وجود صورة) ── */}
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
-          title={lang === 'ar' ? 'الصورة الشخصية والأيقونة الرمزية' : 'Profile Picture & Avatar'}
+          title={isAr ? 'الصورة الشخصية' : 'Profile Picture'}
           style={{ marginBottom: 0 }}
         >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '24px',
-            flexWrap: 'wrap'
-          }}>
-            {/* الصورة الرئيسية الكبيرة */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
-              <div style={{
-                width: '100px',
-                height: '100px',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                border: '3px solid var(--primary)',
-                boxShadow: '0 4px 16px rgba(21, 136, 199, 0.25)',
-                backgroundColor: 'var(--bg-subtle)',
-                position: 'relative'
-              }}>
-                <img
-                  src={formData.avatar || PRESET_AVATARS[0].url}
-                  alt={formData.name || 'Student Avatar'}
-                  onClick={() => setIsAvatarLightboxOpen(true)}
-                  title={isAr ? 'اضغط لتكبير الصورة' : 'Click to enlarge'}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    cursor: 'zoom-in',
-                    transition: 'transform 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.04)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-                />
-              </div>
+              <Avatar
+                src={formData.avatar}
+                name={displayName}
+                size={96}
+                border="3px solid var(--primary)"
+                boxShadow="0 4px 16px rgba(21, 136, 199, 0.22)"
+                onClick={() => (hasAvatar ? setIsAvatarLightboxOpen(true) : fileInputRef.current?.click())}
+                title={
+                  hasAvatar
+                    ? (isAr ? 'اضغط لتكبير الصورة' : 'Click to view full picture')
+                    : (isAr ? 'اضغط لرفع صورة شخصية' : 'Click to upload picture')
+                }
+              />
 
-              {/* زر الكاميرا السريع فوق الصورة */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                title={lang === 'ar' ? 'تغيير الصورة' : 'Change picture'}
-                aria-label={lang === 'ar' ? 'تغيير الصورة' : 'Change picture'}
+                disabled={isUploadingAvatar || isDeletingAvatar}
+                title={isAr ? 'رفع صورة جديدة' : 'Upload picture'}
+                aria-label={isAr ? 'رفع صورة جديدة' : 'Upload picture'}
                 style={{
                   position: 'absolute',
                   bottom: '2px',
@@ -148,33 +204,26 @@ export const ProfileSettingsSection = ({
                   justifyContent: 'center',
                   cursor: 'pointer',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                  transition: 'transform 0.15s ease'
                 }}
               >
                 <Camera size={15} />
               </button>
             </div>
 
-            {/* تفاصيل وخيارات الرفع */}
             <div style={{ flex: 1, minWidth: '220px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  {formData.nameAr || formData.name || (lang === 'ar' ? 'طالب متفوق' : 'Motafawweq Student')}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {displayName}
                 </span>
                 <SBadge variant="primary" size="xs">
-                  {lang === 'ar' ? 'طالب نشط' : 'Active Student'}
+                  {formData.gradeAr}
                 </SBadge>
               </div>
 
-              <p style={{
-                fontSize: '12.5px',
-                color: 'var(--text-secondary)',
-                margin: '0 0 14px 0',
-                lineHeight: 1.5
-              }}>
-                {lang === 'ar'
-                  ? 'الصورة تظهر في لوحة الدوري، شارات التميز، وعند تفاعلك في الحصص المباشرة. يُفضل استخدام صورة مربعة (JPG أو PNG أو WEBP).'
-                  : 'Your avatar appears on leaderboards, badges, and live classes. Recommended size: square JPG/PNG/WEBP under 5MB.'}
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: 1.55 }}>
+                {isAr
+                  ? 'يمكنك رفع صورة شخصية (JPG أو PNG أو WEBP بحد أقصى 5 ميجابايت). عند عدم وضع صورة، يظهر أول حرفين من اسمك تلقائياً في المنصة ولوحة الدوري.'
+                  : 'Upload a personal photo (JPG, PNG, or WEBP up to 5MB). Without a photo, your first two initials are displayed automatically.'}
               </p>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -190,575 +239,360 @@ export const ProfileSettingsSection = ({
                   size="sm"
                   icon={<Camera />}
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingAvatar || isDeletingAvatar}
                 >
-                  {lang === 'ar' ? 'رفع صورة من جهازك' : 'Upload New Picture'}
+                  {hasAvatar
+                    ? (isAr ? 'تغيير الصورة' : 'Change Picture')
+                    : (isAr ? 'رفع صورة من جهازك' : 'Upload Picture')}
                 </SButton>
 
-                <SButton
-                  variant="ghost"
-                  size="sm"
-                  icon={<RefreshCw />}
-                  onClick={() => handleAvatarChange(PRESET_AVATARS[0].url)}
-                >
-                  {lang === 'ar' ? 'استعادة الافتراضية' : 'Reset to Default'}
-                </SButton>
+                {hasAvatar && (
+                  <SButton
+                    variant="danger"
+                    size="sm"
+                    icon={<Trash2 />}
+                    onClick={handleRemoveAvatar}
+                    disabled={isDeletingAvatar || isUploadingAvatar}
+                  >
+                    {isDeletingAvatar
+                      ? (isAr ? 'جاري الحذف...' : 'Removing...')
+                      : (isAr ? 'حذف الصورة' : 'Remove Picture')}
+                  </SButton>
+                )}
               </div>
             </div>
           </div>
 
-          {/* أفتارات رمزية جاهزة */}
-          <div style={{
-            marginTop: '20px',
-            paddingTop: '16px',
-            borderTop: '1px solid var(--border-subtle)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: 'var(--text-primary)',
-              marginBottom: '10px'
-            }}>
-              <Sparkles size={14} color="var(--primary)" />
-              <span>{lang === 'ar' ? 'أو اختر شخصية رمزية جاهزة بنقرة واحدة:' : 'Or choose a preset avatar:'}</span>
+          {avatarFeedback && (
+            <div
+              role="status"
+              style={{
+                marginTop: '14px',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: avatarFeedback.type === 'success' ? 'var(--success-light)' : 'var(--error-light)',
+                color: avatarFeedback.type === 'success' ? 'var(--success)' : 'var(--danger, #DC2626)',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              {avatarFeedback.type === 'success' ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+              <span>{avatarFeedback.text}</span>
             </div>
-
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              {PRESET_AVATARS.map((av) => {
-                const isSelected = formData.avatar === av.url;
-                return (
-                  <button
-                    key={av.id}
-                    type="button"
-                    onClick={() => handleAvatarChange(av.url)}
-                    title={av.labelAr}
-                    style={{
-                      position: 'relative',
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '50%',
-                      padding: '2px',
-                      border: isSelected ? '2.5px solid var(--primary)' : '1.5px solid var(--border-medium)',
-                      backgroundColor: isSelected ? 'var(--primary-surface)' : 'transparent',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: isSelected ? '0 0 10px rgba(21, 136, 199, 0.35)' : 'none'
-                    }}
-                  >
-                    <img
-                      src={av.url}
-                      alt={av.labelAr}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                    {isSelected && (
-                      <span style={{
-                        position: 'absolute',
-                        bottom: '-2px',
-                        [isRtl ? 'left' : 'right']: '-2px',
-                        backgroundColor: 'var(--primary)',
-                        color: '#fff',
-                        borderRadius: '50%',
-                        width: '16px',
-                        height: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1.5px solid var(--bg-surface)'
-                      }}>
-                        <CheckCircle2 size={10} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
         </SSection>
       </SCard>
 
-      {/* ── كود الطالب لربط حساب ولي الأمر ── */}
-      <SCard
-        padding={20}
-        style={{
-          border: '1px solid var(--primary)',
-          background: 'linear-gradient(135deg, var(--primary-surface, rgba(21, 136, 199, 0.08)) 0%, var(--bg-surface) 100%)',
-          boxShadow: 'var(--shadow-xs)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--primary)',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <KeyRound size={20} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'كود الطالب الخاص بك (لربط حساب ولي الأمر)' : 'Your Unique Student Code (Parent Link)'}
-                </span>
-                <SBadge variant="primary" size="xs">
-                  {lang === 'ar' ? 'كود رسمي' : 'Official Code'}
-                </SBadge>
+      {/* ── 2. كود الطالب لربط حساب ولي الأمر ── */}
+      {formData.studentCode && (
+        <SCard
+          padding={20}
+          style={{
+            border: '1px solid var(--primary)',
+            background: 'linear-gradient(135deg, var(--primary-surface, rgba(21, 136, 199, 0.08)) 0%, var(--bg-surface) 100%)',
+            boxShadow: 'var(--shadow-xs)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--primary)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <KeyRound size={20} />
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                {lang === 'ar'
-                  ? 'شارك هذا الكود مع ولي أمرك ليستخدمه أثناء إنشاء حساب ولي الأمر على المنصة ومتابعة مستواك الدراسي.'
-                  : 'Share this code with your parent so they can enter it when registering a Parent Account.'}
-              </p>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                    {isAr ? 'كود الطالب الخاص بك (لربط حساب ولي الأمر)' : 'Your Student Code (Parent Link)'}
+                  </span>
+                  <SBadge variant="primary" size="xs">
+                    {isAr ? 'كود رسمي' : 'Official Code'}
+                  </SBadge>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                  {isAr
+                    ? 'شارك هذا الكود مع ولي أمرك لاستخدامه عند إنشاء حساب ولي الأمر على المنصة ومتابعة مستواك.'
+                    : 'Share this code with your parent to link their Parent Account to your progress.'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <code
+                dir="ltr"
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1.5px dashed var(--primary)',
+                  color: 'var(--primary)',
+                  fontSize: '15px',
+                  fontWeight: '800',
+                  letterSpacing: '1px',
+                }}
+              >
+                {formData.studentCode}
+              </code>
+              <SButton
+                variant={copiedCode ? 'success' : 'primary'}
+                size="sm"
+                icon={copiedCode ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+                onClick={handleCopyStudentCode}
+              >
+                {copiedCode
+                  ? (isAr ? 'تم النسخ!' : 'Copied!')
+                  : (isAr ? 'نسخ الكود' : 'Copy Code')}
+              </SButton>
             </div>
           </div>
+        </SCard>
+      )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <code
-              dir="ltr"
-              style={{
-                padding: '8px 14px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1.5px dashed var(--primary)',
-                color: 'var(--primary)',
-                fontSize: '15px',
-                fontWeight: '800',
-                letterSpacing: '1px'
-              }}
-            >
-              {studentLinkCode}
-            </code>
-            <SButton
-              variant={copiedCode ? 'success' : 'primary'}
-              size="sm"
-              icon={copiedCode ? <CheckCircle2 size={14} /> : <Copy size={14} />}
-              onClick={handleCopyStudentCode}
-            >
-              {copiedCode
-                ? (lang === 'ar' ? 'تم النسخ!' : 'Copied!')
-                : (lang === 'ar' ? 'نسخ الكود' : 'Copy Code')}
-            </SButton>
-          </div>
-        </div>
-      </SCard>
-
-      {/* ── 2. الاسم والبيانات الأساسية ── */}
+      {/* ── 3. البيانات الشخصية والتواصل ── */}
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
-          title={lang === 'ar' ? 'الاسم والبيانات التعريفية' : 'Basic Identification'}
+          title={isAr ? 'البيانات الشخصية ومعلومات التواصل' : 'Personal & Contact Details'}
           style={{ marginBottom: 0 }}
         >
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '16px'
-          }}>
-            {/* الاسم باللغة العربية */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            {/* الاسم بالكامل */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'الاسم بالكامل (باللغة العربية) *' : 'Full Name (Arabic) *'}
+              <label htmlFor="student-name" style={labelStyle}>
+                {isAr ? 'الاسم بالكامل *' : 'Full Name *'}
               </label>
+              <input
+                id="student-name"
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                maxLength={120}
+                placeholder={isAr ? 'مثال: عمر طارق القاضي' : 'e.g. Omar Tarek El-Kady'}
+                style={{
+                  ...inputBaseStyle,
+                  borderColor: fieldErrors.name ? 'var(--danger, #DC2626)' : 'var(--border-medium)',
+                }}
+              />
+              {fieldErrors.name ? (
+                <span style={fieldErrorStyle}>{fieldErrors.name}</span>
+              ) : (
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  {isAr ? 'يُستخدم في الشهادات المعتمدة، بطاقة السنتر، ولوحة الدوري.' : 'Used on official certificates, center pass, and leaderboards.'}
+                </span>
+              )}
+            </div>
+
+            {/* البريد الإلكتروني (للقراءة فقط) */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label htmlFor="student-email" style={{ ...labelStyle, marginBottom: 0 }}>
+                  {isAr ? 'البريد الإلكتروني للحساب' : 'Account Email'}
+                </label>
+                <SBadge variant={formData.emailVerified ? 'success' : 'warning'} size="xs">
+                  {formData.emailVerified
+                    ? (isAr ? 'مؤكّد ✓' : 'Verified ✓')
+                    : (isAr ? 'بانتظار التأكيد' : 'Unverified')}
+                </SBadge>
+              </div>
               <div style={{ position: 'relative' }}>
                 <input
-                  type="text"
-                  name="nameAr"
-                  value={formData.nameAr || ''}
-                  onChange={handleChange}
-                  placeholder={lang === 'ar' ? 'مثال: عمر طارق القاضي' : 'e.g. عمر طارق القاضي'}
-                  dir="rtl"
+                  id="student-email"
+                  type="email"
+                  value={formData.email}
+                  readOnly
+                  disabled
+                  dir="ltr"
                   style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    fontFamily: 'var(--font-arabic)'
+                    ...inputBaseStyle,
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'not-allowed',
+                    paddingInlineEnd: '36px',
+                  }}
+                />
+                <Mail
+                  size={15}
+                  color="var(--text-muted)"
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    insetInlineEnd: '12px',
+                    pointerEvents: 'none',
                   }}
                 />
               </div>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'يُستخدم هذا الاسم في شهادات التقدير الرسمية الصادرة من المنصة.' : 'Used on official certificates.'}
+                {isAr ? 'يُستخدم لتسجيل الدخول واستعادة كلمة المرور (للقراءة فقط).' : 'Used for login and password recovery (read-only).'}
               </span>
             </div>
 
-            {/* الاسم باللغة الإنجليزية */}
+            {/* رقم هاتف الطالب */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'الاسم باللغة الإنجليزية *' : 'Full Name (English) *'}
+              <label htmlFor="student-phone" style={labelStyle}>
+                {isAr ? 'رقم هاتف الطالب' : 'Student Phone Number'}
               </label>
               <input
-                type="text"
-                name="name"
-                value={formData.name || ''}
+                id="student-phone"
+                type="tel"
+                name="phone"
+                value={formData.phone}
                 onChange={handleChange}
-                placeholder="e.g. Omar Tarek El-Kady"
+                maxLength={20}
+                placeholder="01012345678"
                 dir="ltr"
                 style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  boxSizing: 'border-box'
+                  ...inputBaseStyle,
+                  borderColor: fieldErrors.phone ? 'var(--danger, #DC2626)' : 'var(--border-medium)',
                 }}
               />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'يُستخدم في الواجهة الإنجليزية وملفات التصدير.' : 'Used in English interface and exports.'}
-              </span>
+              {fieldErrors.phone && <span style={fieldErrorStyle}>{fieldErrors.phone}</span>}
             </div>
 
-            {/* اسم الشهرة / اللقب في الدوري */}
+            {/* رقم هاتف ولي الأمر */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'اسم الشهرة أو اللقب في الدوري' : 'Nickname / League Display Name'}
+              <label htmlFor="student-parent-phone" style={labelStyle}>
+                {isAr ? 'رقم هاتف ولي الأمر' : 'Parent / Guardian Phone'}
               </label>
               <input
-                type="text"
-                name="nickname"
-                value={formData.nickname || ''}
+                id="student-parent-phone"
+                type="tel"
+                name="parentPhone"
+                value={formData.parentPhone}
                 onChange={handleChange}
-                placeholder={lang === 'ar' ? 'مثال: د. عمر 🩺' : 'e.g. Dr. Omar 🩺'}
+                maxLength={20}
+                placeholder="01223344556"
+                dir="ltr"
                 style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  fontFamily: 'var(--font-arabic)'
+                  ...inputBaseStyle,
+                  borderColor: fieldErrors.parent_phone ? 'var(--danger, #DC2626)' : 'var(--border-medium)',
                 }}
               />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'اسم مستعار يظهر لزملائك في قائمة المتصدرين إن أردت.' : 'Optional nickname shown on the leaderboard.'}
-              </span>
-            </div>
-
-            {/* الطموح الجامعي / النبذة */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'الطموح والكلية المستهدفة' : 'Academic Dream / Target College'}
-              </label>
-              <input
-                type="text"
-                name="targetGoal"
-                value={formData.targetGoal || ''}
-                onChange={handleChange}
-                placeholder={lang === 'ar' ? 'مثال: كلية الطب البشري - جامعة القاهرة' : 'e.g. Faculty of Medicine, Cairo University'}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  fontFamily: 'var(--font-arabic)'
-                }}
-              />
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'يعرضه الذكاء الاصطناعي لتشجيعك أثناء المذاكرة.' : 'Used by AI to personalize your study encouragement.'}
-              </span>
+              {fieldErrors.parent_phone && <span style={fieldErrorStyle}>{fieldErrors.parent_phone}</span>}
             </div>
           </div>
         </SSection>
       </SCard>
 
-      {/* ── 3. المرحلة الدراسية والشعبة والسنتر ── */}
+      {/* ── 4. المرحلة الدراسية والبيانات الأكاديمية ── */}
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
-          title={lang === 'ar' ? 'المرحلة الدراسية والتخصص الأكاديمي' : 'Academic Stage & Curriculum'}
+          title={isAr ? 'المرحلة الدراسية والبيانات الأكاديمية' : 'Academic Stage & School Info'}
           style={{ marginBottom: 0 }}
         >
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '16px'
-          }}>
-            {/* المرحلة الدراسية */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            {/* المرحلة والصف الدراسي */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'المرحلة والصف الدراسي *' : 'Educational Stage & Grade *'}
+              <label htmlFor="student-grade" style={labelStyle}>
+                {isAr ? 'المرحلة والصف الدراسي *' : 'Educational Stage & Grade *'}
               </label>
               <select
-                name="grade"
-                value={formData.grade || '3rd Secondary (Thanawya Amma)'}
-                onChange={(e) => {
-                  const newGrade = e.target.value;
-                  handleChange(e);
-                  // Smart track adjustment based on selected educational stage
-                  if (newGrade.includes('Primary') || newGrade.includes('Preparatory') || newGrade === '1st Secondary') {
-                    if (formData.track !== 'عام' && formData.track !== 'لغات' && formData.track !== 'أزهر') {
-                      handleChange({ target: { name: 'track', value: 'عام' } });
-                    }
-                  } else if (newGrade === '2nd Secondary') {
-                    if (formData.track !== 'علمي' && formData.track !== 'أدبي' && !formData.track?.includes('لغات')) {
-                      handleChange({ target: { name: 'track', value: 'علمي' } });
-                    }
-                  } else if (newGrade.includes('3rd Secondary')) {
-                    if (formData.track !== 'علمي علوم' && formData.track !== 'علمي رياضة' && formData.track !== 'أدبي') {
-                      handleChange({ target: { name: 'track', value: 'علمي علوم' } });
-                    }
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-arabic)'
-                }}
+                id="student-grade"
+                name="gradeAr"
+                value={formData.gradeAr}
+                onChange={(e) => handleGradeChange(e.target.value)}
+                style={{ ...inputBaseStyle, cursor: 'pointer' }}
               >
-                {/* 1. المرحلة الابتدائية */}
-                <optgroup label={lang === 'ar' ? 'المرحلة الابتدائية (Primary School)' : 'Primary School'}>
-                  <option value="1st Primary">{lang === 'ar' ? 'الصف الأول الابتدائي' : '1st Primary'}</option>
-                  <option value="2nd Primary">{lang === 'ar' ? 'الصف الثاني الابتدائي' : '2nd Primary'}</option>
-                  <option value="3rd Primary">{lang === 'ar' ? 'الصف الثالث الابتدائي' : '3rd Primary'}</option>
-                  <option value="4th Primary">{lang === 'ar' ? 'الصف الرابع الابتدائي' : '4th Primary'}</option>
-                  <option value="5th Primary">{lang === 'ar' ? 'الصف الخامس الابتدائي' : '5th Primary'}</option>
-                  <option value="6th Primary">{lang === 'ar' ? 'الصف السادس الابتدائي' : '6th Primary'}</option>
-                </optgroup>
-
-                {/* 2. المرحلة الإعدادية */}
-                <optgroup label={lang === 'ar' ? 'المرحلة الإعدادية (Preparatory School)' : 'Preparatory / Middle School'}>
-                  <option value="1st Preparatory">{lang === 'ar' ? 'الصف الأول الإعدادي' : '1st Preparatory'}</option>
-                  <option value="2nd Preparatory">{lang === 'ar' ? 'الصف الثاني الإعدادي' : '2nd Preparatory'}</option>
-                  <option value="3rd Preparatory (Certificate)">{lang === 'ar' ? 'الصف الثالث الإعدادي (الشهادة الإعدادية)' : '3rd Preparatory (Middle School Cert)'}</option>
-                </optgroup>
-
-                {/* 3. المرحلة الثانوية */}
-                <optgroup label={lang === 'ar' ? 'المرحلة الثانوية (Secondary / High School)' : 'Secondary / High School'}>
-                  <option value="1st Secondary">{lang === 'ar' ? 'الصف الأول الثانوي' : '1st Secondary'}</option>
-                  <option value="2nd Secondary">{lang === 'ar' ? 'الصف الثاني الثانوي' : '2nd Secondary'}</option>
-                  <option value="3rd Secondary (Thanawya Amma)">{lang === 'ar' ? 'الصف الثالث الثانوي (الثانوية العامة)' : '3rd Secondary (Thanawya Amma)'}</option>
-                </optgroup>
+                {GRADE_GROUPS.map((group) => (
+                  <optgroup key={group.id} label={isAr ? group.labelAr : group.labelEn}>
+                    {group.grades.map((g) => (
+                      <option key={g.value} value={g.value}>
+                        {isAr ? g.labelAr : g.labelEn}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'يتم تخصيص بنك الأسئلة والمناهج ومصائد الامتحانات والملخصات وفقاً لمرحلتك وصفك.' : 'Curriculum and question banks adjust automatically to your stage.'}
-              </span>
             </div>
 
             {/* الشعبة والتخصص */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'الشعبة والتخصص *' : 'Track / Stream *'}
+              <label htmlFor="student-track" style={labelStyle}>
+                {isAr ? 'الشعبة / النظام التعليمي *' : 'Track / Stream *'}
               </label>
               <select
-                name="track"
-                value={formData.track || 'علمي علوم'}
+                id="student-track"
+                name="trackAr"
+                value={formData.trackAr}
                 onChange={handleChange}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-arabic)'
-                }}
+                style={{ ...inputBaseStyle, cursor: 'pointer' }}
               >
-                {/* خيارات المرحلة الابتدائية والإعدادية والأول الثانوي */}
-                {(formData.grade?.includes('Primary') || formData.grade?.includes('Preparatory') || formData.grade === '1st Secondary') && (
-                  <>
-                    <option value="عام">{lang === 'ar' ? 'شعبة عامة (المنهج المطور الموحد)' : 'General Unified Curriculum'}</option>
-                    <option value="لغات">{lang === 'ar' ? 'مدارس لغات ورسمية تجريبية' : 'Official Experimental / Languages'}</option>
-                    <option value="أزهر">{lang === 'ar' ? 'التعليم الأزهري النموذجي' : 'Al-Azhar Curriculum'}</option>
-                  </>
-                )}
-
-                {/* خيارات الصف الثاني الثانوي */}
-                {formData.grade === '2nd Secondary' && (
-                  <>
-                    <option value="علمي">{lang === 'ar' ? 'الشعبة العلمية (علمي)' : 'Scientific Track'}</option>
-                    <option value="أدبي">{lang === 'ar' ? 'الشعبة الأدبية (أدبي)' : 'Humanities / Literary Track'}</option>
-                    <option value="علمي لغات">{lang === 'ar' ? 'علمي لغات وتجريبي' : 'Scientific (Languages)'}</option>
-                    <option value="أدبي لغات">{lang === 'ar' ? 'أدبي لغات وتجريبي' : 'Literary (Languages)'}</option>
-                  </>
-                )}
-
-                {/* خيارات الصف الثالث الثانوي (الثانوية العامة) */}
-                {(!formData.grade || formData.grade.includes('3rd Secondary')) && (
-                  <>
-                    <option value="علمي علوم">{lang === 'ar' ? 'علمي علوم (الأحياء والجيولوجيا)' : 'Scientific - Biology'}</option>
-                    <option value="علمي رياضة">{lang === 'ar' ? 'علمي رياضة (الرياضيات والفيزياء)' : 'Scientific - Mathematics'}</option>
-                    <option value="أدبي">{lang === 'ar' ? 'الشعبة الأدبية (التاريخ والجغرافيا)' : 'Humanities / Literary'}</option>
-                    <option value="علمي علوم لغات">{lang === 'ar' ? 'علمي علوم (مدارس لغات)' : 'Biology Track (Languages)'}</option>
-                    <option value="علمي رياضة لغات">{lang === 'ar' ? 'علمي رياضة (مدارس لغات)' : 'Math Track (Languages)'}</option>
-                  </>
-                )}
+                {availableTracks.map((tr) => (
+                  <option key={tr.value} value={tr.value}>
+                    {isAr ? tr.labelAr : tr.labelEn}
+                  </option>
+                ))}
               </select>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'تحدد المواد الإجبارية والخرائط المفاهيمية المعروضة في حسابك.' : 'Determines the displayed subjects and concept maps.'}
-              </span>
-            </div>
-
-            {/* اسم المدرسة */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'اسم المدرسة' : 'School Name'}
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  name="school"
-                  value={formData.school || ''}
-                  onChange={handleChange}
-                  placeholder={lang === 'ar' ? 'مثال: مدرسة السعيدية الثانوية العسكرية' : 'e.g. El-Saidia Secondary School'}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    fontFamily: 'var(--font-arabic)'
-                  }}
-                />
-              </div>
             </div>
 
             {/* المحافظة */}
             <div>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'المحافظة / المدينة' : 'Governorate / City'}
+              <label htmlFor="student-governorate" style={labelStyle}>
+                {isAr ? 'المحافظة' : 'Governorate'}
               </label>
               <select
+                id="student-governorate"
                 name="governorate"
-                value={formData.governorate || 'الجيزة'}
+                value={formData.governorate}
                 onChange={handleChange}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-arabic)'
-                }}
+                style={{ ...inputBaseStyle, cursor: 'pointer' }}
               >
-                {GOVERNORATES.map(gov => (
+                <option value="">{isAr ? '— اختر المحافظة —' : '— Select Governorate —'}</option>
+                {EGYPT_GOVERNORATES.map((gov) => (
                   <option key={gov} value={gov}>{gov}</option>
                 ))}
               </select>
             </div>
 
-            {/* السنتر التعليمي أو طريقة الحضور */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                marginBottom: '6px'
-              }}>
-                {lang === 'ar' ? 'السنتر التعليمي أو الأكاديمية التابع لها' : 'Educational Center / Academy'}
+            {/* اسم المدرسة */}
+            <div>
+              <label htmlFor="student-school" style={labelStyle}>
+                {isAr ? 'اسم المدرسة' : 'School Name'}
               </label>
               <input
+                id="student-school"
                 type="text"
-                name="center"
-                value={formData.center || ''}
+                name="schoolName"
+                value={formData.schoolName}
                 onChange={handleChange}
-                placeholder={lang === 'ar' ? 'مثال: سنتر الرواد (فرع الدقي) أو أونلاين فقط' : 'e.g. Al-Rowad Academy (Dokki) or Online only'}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  fontFamily: 'var(--font-arabic)'
-                }}
+                maxLength={150}
+                placeholder={isAr ? 'مثال: مدرسة السعيدية الثانوية' : 'e.g. El-Saidia Secondary School'}
+                style={inputBaseStyle}
+              />
+            </div>
+
+            {/* السنتر التعليمي */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="student-center" style={labelStyle}>
+                {isAr ? 'السنتر التعليمي (اختياري)' : 'Educational Center (Optional)'}
+              </label>
+              <input
+                id="student-center"
+                type="text"
+                name="centerName"
+                value={formData.centerName}
+                onChange={handleChange}
+                maxLength={150}
+                placeholder={isAr ? 'مثال: سنتر الرواد — الدقي (أو أونلاين فقط)' : 'e.g. Al-Rowad Center — Dokki (or Online only)'}
+                style={inputBaseStyle}
               />
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {lang === 'ar' ? 'يساعد في مزامنة جداول الحصص الحضورية ومسح بطاقات الـ QR في قاعات السنتر.' : 'Helps sync attendance QR codes with your physical center.'}
+                {isAr
+                  ? 'يظهر كبيان افتراضي على بطاقة حضور السنتر الذكية في حال لم تكن مسجلاً في مجموعة حضورية.'
+                  : 'Shown as default center on your Smart Attendance Pass when not enrolled in an offline cohort.'}
               </span>
             </div>
           </div>
@@ -776,32 +610,18 @@ export const ProfileSettingsSection = ({
             setCropImageSrc(null);
           }
         }}
-        onConfirm={async (croppedFile, previewUrl) => {
-          setIsUploadingAvatar(true);
-          handleAvatarUpload(previewUrl);
-          try {
-            const uploadRes = await studentApi.profile.uploadAvatar(croppedFile);
-            const newAvatar = uploadRes?.data?.avatar;
-            if (newAvatar) {
-              handleAvatarUpload(newAvatar);
-            }
-            setIsCropperOpen(false);
-            setCropImageSrc(null);
-          } catch (err) {
-            alert(err?.message || (isAr ? 'فشل رفع الصورة الشخصية إلى السيرفر.' : 'Failed to upload profile picture.'));
-          } finally {
-            setIsUploadingAvatar(false);
-          }
-        }}
+        onConfirm={handleConfirmCrop}
       />
 
-      <AvatarLightboxModal
-        isOpen={isAvatarLightboxOpen}
-        imageSrc={formData.avatar || PRESET_AVATARS[0].url}
-        altText={formData.nameAr || formData.name || 'Student Avatar'}
-        isAr={isAr}
-        onClose={() => setIsAvatarLightboxOpen(false)}
-      />
+      {hasAvatar && (
+        <AvatarLightboxModal
+          isOpen={isAvatarLightboxOpen}
+          imageSrc={formData.avatar}
+          altText={displayName}
+          isAr={isAr}
+          onClose={() => setIsAvatarLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 };

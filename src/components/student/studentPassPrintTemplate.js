@@ -1,5 +1,6 @@
 import QRCode from 'qrcode';
 import { generateCode128SvgString } from '../../utils/barcodeEncoder';
+import { getInitials } from '../../utils';
 
 const escapeHtml = (value = '') =>
   String(value ?? '')
@@ -40,7 +41,7 @@ export async function printStudentCenterPass({
   });
 
   const logoUrl = `${window.location.origin}/logo-dark.png`;
-  const initials = (student.name || 'ط').trim().charAt(0).toUpperCase();
+  const initials = getInitials(student.name);
 
   const safeName = escapeHtml(student.name || (isAr ? 'طالب متفوّق' : 'Motafawweq Student'));
   const safeGrade = escapeHtml(student.grade || (isAr ? 'الصف الثالث الثانوي' : '3rd Secondary'));

@@ -21,6 +21,7 @@ export const studentApi = {
         body: formData,
       });
     },
+    deleteAvatar: () => apiDelete('/student/profile/avatar'),
   },
 
   // Phase 3: Study Groups, Schedule, Personal Study Sessions & Attendance
