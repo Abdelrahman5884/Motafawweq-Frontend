@@ -62,7 +62,8 @@ export const useStudentCertificates = (lang = 'ar') => {
   const [selectedCert, setSelectedCert] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [claimingCourseId, setClaimingCourseId] = useState(null);
+  const [claimingKey, setClaimingKey] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all');
   const [error, setError] = useState(null);
   const [claimMessage, setClaimMessage] = useState(null);
 
@@ -141,19 +142,30 @@ export const useStudentCertificates = (lang = 'ar') => {
 
   const eligibility = useMemo(() => workspace?.eligibility || null, [workspace]);
 
+  const filteredCertificates = useMemo(() => {
+    if (activeFilter === 'all') return certificates;
+    return certificates.filter((c) => (c.issuerType || c.category || 'teacher') === activeFilter);
+  }, [certificates, activeFilter]);
+
+  const availableTrackFilters = useMemo(() => {
+    const types = new Set(certificates.map((c) => c.issuerType || c.category || 'teacher'));
+    return types.size > 1 ? ['all', ...Array.from(types)] : [];
+  }, [certificates]);
+
   const handleRefresh = useCallback(() => {
     loadWorkspace({ silent: Boolean(workspace) });
   }, [loadWorkspace, workspace]);
 
-  const handleClaimCourse = useCallback(
-    async (courseId) => {
-      if (!courseId || claimingCourseId) return;
-      setClaimingCourseId(courseId);
+  const handleClaimItem = useCallback(
+    async (track, targetId) => {
+      const claimKey = `${track}:${targetId}`;
+      if (!targetId || claimingKey) return;
+      setClaimingKey(claimKey);
       setError(null);
       setClaimMessage(null);
 
       try {
-        const res = await studentApi.gamification.claimCertificate(courseId);
+        const res = await studentApi.gamification.claimCertificate(targetId, track);
         const issued = normalizeStudentCertificate(res?.data);
         await loadWorkspace({ silent: true });
         if (issued) {
@@ -161,35 +173,39 @@ export const useStudentCertificates = (lang = 'ar') => {
         }
         setClaimMessage(
           isAr
-            ? 'تم إصدار شهادة إتمام المقرر وتوثيقها بالرقم التسلسلي وكود QR بنجاح.'
-            : 'Your verified course completion certificate has been issued.'
+            ? 'تم إصدار الشهادة المعتمدة وتوثيقها بالرقم التسلسلي وكود QR بنجاح.'
+            : 'Your verified certificate has been issued with serial ID and QR verification.'
         );
       } catch (err) {
         setError(
           err?.message ||
             (isAr
-              ? 'تعذر إصدار الشهادة لهذا المقرر، تأكد من إتمام 100% من الحصص.'
-              : 'Unable to claim certificate. Ensure 100% of lessons are completed.')
+              ? 'تعذر إصدار الشهادة حالياً، تأكد من استيفاء كامل شروط المسار.'
+              : 'Unable to claim certificate. Please verify eligibility criteria.')
         );
       } finally {
-        setClaimingCourseId(null);
+        setClaimingKey(null);
       }
     },
-    [claimingCourseId, isAr, loadWorkspace]
+    [claimingKey, isAr, loadWorkspace]
   );
 
   return {
     certificates,
+    filteredCertificates,
+    availableTrackFilters,
+    activeFilter,
+    setActiveFilter,
     eligibility,
     selectedCert,
     setSelectedCert,
     loading,
     refreshing,
-    claimingCourseId,
+    claimingKey,
     error,
     claimMessage,
     setClaimMessage,
     handleRefresh,
-    handleClaimCourse,
+    handleClaimItem,
   };
 };

@@ -229,16 +229,50 @@ export const StudentCertificatesView = () => {
           </div>
         ) : (
           <>
-            {/* 1. Real 3-Track Eligibility & 1-Click Claim for 100%-Completed Courses */}
+            {/* 1. Real 3-Track Eligibility & 1-Click Claim Across All 3 Tracks */}
             <CertificateEligibilityCard
               lang={lang}
               eligibility={vm.eligibility}
-              claimingCourseId={vm.claimingCourseId}
-              onClaimCourse={vm.handleClaimCourse}
+              claimingKey={vm.claimingKey}
+              onClaimItem={vm.handleClaimItem}
             />
 
+            {/* Optional Track Filter Pills (only when certificates span 2+ tracks) */}
+            {vm.availableTrackFilters.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {vm.availableTrackFilters.map((fKey) => {
+                  const labels = {
+                    all: isAr ? 'جميع الشهادات' : 'All Certificates',
+                    teacher: isAr ? 'مقررات المعلمين' : 'Courses',
+                    ministry: isAr ? 'الاختبارات المعتمدة' : 'Exams',
+                    league: isAr ? 'دوريات المتفوقين' : 'Leagues',
+                  };
+                  const active = vm.activeFilter === fKey;
+                  return (
+                    <button
+                      key={fKey}
+                      type="button"
+                      onClick={() => vm.setActiveFilter(fKey)}
+                      style={{
+                        padding: '7px 14px',
+                        borderRadius: '10px',
+                        border: active ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
+                        backgroundColor: active ? 'var(--primary)' : 'var(--bg-surface)',
+                        color: active ? '#FFFFFF' : 'var(--text-secondary)',
+                        fontSize: '12.5px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {labels[fKey] || fKey}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* 2. Verified Certificates Gallery */}
-            {vm.certificates.length === 0 ? (
+            {vm.filteredCertificates.length === 0 ? (
               <div
                 style={{
                   padding: '48px 24px',
@@ -269,8 +303,8 @@ export const StudentCertificatesView = () => {
                 </div>
                 <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', lineHeight: 1.6 }}>
                   {isAr
-                    ? 'أتمم 100% من دروس أي مقرر مشترك به لتتمكن من إصدار شهادتك المعتمدة فوراً، أو ستظهر هنا تلقائياً فور إصدارها من معلمك.'
-                    : 'Complete 100% of an enrolled course to claim your verified certificate immediately, or view certificates issued by your instructors here.'}
+                    ? 'أتمم 100% من دروس أي مقرر، أو اجتز اختباراً مُصحّحاً بنسبة 80%+، أو نافس ضمن Top 10 في الدوري لإصدار شهادتك المعتمدة فوراً.'
+                    : 'Complete 100% of a course, pass a graded exam with 80%+, or rank Top 10 in a league to issue your verified certificate immediately.'}
                 </div>
               </div>
             ) : (
@@ -282,7 +316,7 @@ export const StudentCertificatesView = () => {
                   gap: '20px',
                 }}
               >
-                {vm.certificates.map((cert) => (
+                {vm.filteredCertificates.map((cert) => (
                   <CertificateCard
                     key={cert.id}
                     cert={cert}

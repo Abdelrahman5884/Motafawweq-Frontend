@@ -139,11 +139,11 @@ export const studentApi = {
     certificates: () => apiGet('/student/certificates'),
     certificateEligibility: () => apiGet('/student/certificates/eligibility'),
     certificatesWorkspace: () => apiGet('/student/certificates/workspace'),
-    claimCertificate: (courseId) =>
+    claimCertificate: (targetId, track = 'teacher') =>
       apiRequest('/student/certificates/claim', {
         method: 'POST',
         headers: { 'Idempotency-Key': makeIdempotencyKey('cert-claim') },
-        body: { course_id: courseId },
+        body: { track, target_id: targetId },
       }),
     verifyCertificate: (serialNumber) =>
       apiGet(`/verify-certificate/${encodeURIComponent(String(serialNumber || '').trim())}`),

@@ -85,6 +85,7 @@ export const TeacherCertificatesView = () => {
             studentId: sList[0].id,
             studentNameAr: sList[0].nameAr || sList[0].name,
             studentNameEn: sList[0].nameEn || sList[0].name,
+            studentEmail: sList[0].email || '',
             studentPhone: sList[0].phone || '',
           }));
         }
@@ -211,32 +212,20 @@ export const TeacherCertificatesView = () => {
       setCertificates([issued, ...certificates]);
       setShowIssueModal(false);
       setPreviewCert(issued);
+      setToastNotice(
+        lang === 'ar'
+          ? 'تم إصدار الشهادة وحفظها في قاعدة البيانات وتوثيقها للطالب بنجاح.'
+          : 'Certificate issued and saved successfully.'
+      );
+      setTimeout(() => setToastNotice(null), 4000);
     } catch (err) {
-      console.warn('Backend certificate issue error:', err);
-      const serialNum = `MTF-BIO-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-      const fallbackIssued = {
-        id: `cert-issue-${Date.now()}`,
-        certNumber: serialNum,
-        serialId: serialNum,
-        studentId: newCert.studentId,
-        studentNameAr: newCert.studentNameAr,
-        studentNameEn: newCert.studentNameEn,
-        studentEmail: newCert.studentEmail,
-        gradeAr: newCert.gradeAr,
-        courseNameAr: newCert.courseNameAr,
-        courseNameEn: newCert.courseNameAr,
-        gradePercent: Number(newCert.gradePercent),
-        score: `${newCert.gradePercent}%`,
-        scoreEn: `${newCert.gradePercent}%`,
-        honorsTitleAr: newCert.honorsTitleAr,
-        issueDate: new Date().toLocaleDateString('ar-EG'),
-        completionDate: new Date().toLocaleDateString('ar-EG'),
-        verificationUrl: `https://motafawweq.me/verify/${serialNum}`,
-        status: 'verified'
-      };
-      setCertificates([fallbackIssued, ...certificates]);
-      setShowIssueModal(false);
-      setPreviewCert(fallbackIssued);
+      setToastNotice(
+        err?.message ||
+          (lang === 'ar'
+            ? 'تعذر إصدار الشهادة، يرجى التحقق من البيانات والمحاولة مرة أخرى.'
+            : 'Failed to issue certificate. Please verify details and try again.')
+      );
+      setTimeout(() => setToastNotice(null), 5000);
     }
   };
 
