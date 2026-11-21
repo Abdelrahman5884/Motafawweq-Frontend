@@ -387,6 +387,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Permanently Delete Own Account -> DELETE /api/v1/auth/account
+  const deleteAccount = async (password) => {
+    const res = await authService.deleteAccount(password);
+    try {
+      localStorage.removeItem('motafawweq_student_playback_speed');
+    } catch {
+      // ignore storage errors
+    }
+    clearLocalSession();
+    return res;
+  };
+
   // Email OTP Verification -> POST /api/v1/auth/email/verify & /resend
   const verifyEmailOtp = async (code) => {
     const response = await authService.verifyEmail(code);
@@ -542,6 +554,7 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         logoutAllDevices,
+        deleteAccount,
         refreshUser,
         syncUserProfile,
         updateUserProfile,
