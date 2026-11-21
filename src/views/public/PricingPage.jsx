@@ -74,34 +74,64 @@ export const PricingPage = () => {
       nameAr: 'طالب بلس (Student Plus)',
       nameEn: 'Student Plus',
       tier: 'plus',
-      taglineAr: 'للطالب الراغب في الفهم العميق وأعلى الدرجات',
-      taglineEn: 'For ambitious students aiming for top marks',
-      price: Math.round(49 * discount),
+      taglineAr: 'الدوريات والتحديات والأوسمة والشهادات المعتمدة',
+      taglineEn: 'Honors Leagues, badges, challenges & verified certificates',
+      price: Math.round(50 * discount),
+      periodAr: 'جنيه مصري / شهرياً',
+      periodEn: 'EGP / month',
+      color: '#0284C7',
+      popular: false,
+      usersLimitAr: 'حساب طالب متميز',
+      usersLimitEn: 'Plus Student account',
+      featuresAr: [
+        'المنافسة الكاملة في دوري المعلمين ودوري أبطال الجمهورية ونظام النقاط',
+        'لوحة إنجازاتي الكاملة: التحديات الأسبوعية وشارات التميز وخريطة الالتزام',
+        'شهادات إتمام وتفوق رسمية موثّقة برقم تسلسلي وكود QR',
+        'اختبارات تدريبية وبنوك أسئلة غير محدودة مع تحليلات الأداء',
+        'تقارير أسبوعية منتظمة لولي الأمر بمتابعة الالتزام والدرجات'
+      ],
+      featuresEn: [
+        'Full access to Course Leagues, Republic League & official rankings',
+        'Achievements hub: weekly challenges, badges & study activity heatmap',
+        'Verified certificates with serial ID and QR verification',
+        'Unlimited practice exams & detailed subject analytics',
+        'Weekly parent progress & attendance reports'
+      ],
+      role: 'student',
+      ctaAr: 'اشترك كطالب بلس (50 ج.م)',
+      ctaEn: 'Upgrade to Student Plus (50 EGP)'
+    },
+    {
+      id: 'student-pro',
+      nameAr: 'طالب برو (Student Pro)',
+      nameEn: 'Student Pro',
+      tier: 'pro',
+      taglineAr: 'كل مزايا بلس والدوريات + كامل أدوات الذكاء الاصطناعي AI',
+      taglineEn: 'Everything in Plus & Leagues + full AI study suite',
+      price: Math.round(80 * discount),
       periodAr: 'جنيه مصري / شهرياً',
       periodEn: 'EGP / month',
       color: 'var(--primary, #1588C7)',
       popular: true,
-      usersLimitAr: 'حساب طالب VIP مميز',
-      usersLimitEn: 'VIP Student account',
+      usersLimitAr: 'حساب طالب VIP شامل AI',
+      usersLimitEn: 'VIP Student Pro + AI account',
       featuresAr: [
-        'الوصول الكامل لغرفة المذاكرة التفاعلية بالذكاء الاصطناعي',
-        'القفز اللحظي من النص لتسجيل الحصة (Hyperlinked Timestamps)',
-        'مركز تقوية نقاط الضعف الذكي والتدريب الموجه (Weak Areas Hub)',
-        'تصفح خرائط المفاهيم التفاعلية ثلاثية الأبعاد',
-        'امتحانات تدريبية تفاعلية غير محدودة مع شرح الإجابات',
-        'جمع نقاط الخبرة (XP) والتنافس في دوري المتفوقين'
+        'كل مزايا باقة طالب بلس (الدوريات والأوسمة والشهادات) بلا حدود',
+        'تحويل المحاضرات الذكي بالـ AI (تفريغ صوت وفيديو وPDF إلى ملخصات)',
+        'توليد كويزات البابل شيت الفورية من المحاضرات مع شرح كل إجابة',
+        'مركز تقوية نقاط الضعف الذكي وخرائط المفاهيم وخطة المراجعة الشخصية',
+        'أولوية كاملة في معسكرات المراجعة النهائية ودعم فني سريع'
       ],
       featuresEn: [
-        'Full AI interactive audio-linked study room',
-        'Click-to-jump audio seeker in lecture transcripts',
-        'AI Weak Areas Diagnostics & personalized drills',
-        'Interactive 3D knowledge concept maps',
-        'Unlimited practice smart quizzes with solution keys',
-        'XP leaderboards & weekly student challenge leagues'
+        'Everything in Student Plus (Leagues, Badges & Certificates) unlimited',
+        'AI Smart Lecture Converter (Audio, Video & PDF to smart summaries)',
+        'Instant Bubble-Sheet quizzes generated from lectures with explanations',
+        'AI Weak Areas Diagnostics, concept maps & personalized revision plan',
+        'Priority access to final revision bootcamps & fast support'
       ],
       role: 'student',
-      ctaAr: 'اشترك كطالب بلس',
-      ctaEn: 'Upgrade to Student Plus'
+      ctaAr: 'اشترك كطالب برو (80 ج.م)',
+      ctaEn: 'Upgrade to Student Pro (80 EGP)'
     }
   ];
 

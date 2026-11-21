@@ -49,8 +49,8 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
         ? 'تمتلك كامل صلاحيات باقة برو بما في ذلك تحويل المحاضرات الذكي بالـ AI وتوليد كويزات البابل شيت الفورية والشهادات المعتمدة.'
         : 'Full Student Pro access unlocked: AI Lecture Converter, instant Bubble-Sheet quizzes, and verified certificates.'
       : isAr
-        ? 'تمتلك صلاحيات باقة بلس: اختبارات تدريبية غير محدودة، تحليلات أداء تفصيلية، وشهادات إتمام رسمية بكود QR.'
-        : 'Student Plus active: unlimited practice exams, detailed performance analytics, and official QR certificates.';
+        ? 'تمتلك صلاحيات باقة بلس: المنافسة في دوريات المتفوقين والأوسمة والتحديات الأسبوعية والشهادات المعتمدة بكود QR.'
+        : 'Student Plus active: full Honors Leagues, badges, weekly challenges, analytics, and official QR certificates.';
 
   const upgradeLabel =
     tier === 'pro'
