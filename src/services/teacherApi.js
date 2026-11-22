@@ -305,33 +305,48 @@ export const teacherApi = {
       return apiGet(`/teacher/homeworks${qs ? `?${qs}` : ''}`);
     },
     get: (uuid) => apiGet(`/teacher/homeworks/${uuid}`),
-    create: async (data, file = null) => {
+    create: async (data, file = null, { onProgress = null } = {}) => {
       if (file instanceof File) {
         const formData = new FormData();
         Object.entries(data).forEach(([key, val]) => {
-          if (val !== undefined && val !== null) formData.append(key, val);
+          if (val !== undefined && val !== null && val !== '') {
+            formData.append(key, String(val));
+          }
         });
         formData.append('file', file);
-
-        const token = tokenStorage.getAccessToken();
-        const res = await fetch(`${API_BASE_URL}/teacher/homeworks`, {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: formData,
+        return uploadFormDataWithProgress('/teacher/homeworks', formData, {
+          onProgress,
+          fallbackError: 'فشل رفع الملف وإنشاء الواجب.',
         });
-
-        const payload = await res.json().catch(() => ({}));
-        if (!res.ok || payload?.success === false) {
-          throw new Error(payload?.message || 'فشل إنشاء الواجب.');
-        }
-        return payload;
       }
       return apiPost('/teacher/homeworks', data);
     },
-    update: (uuid, data) => apiPut(`/teacher/homeworks/${uuid}`, data),
+    update: async (uuid, data, file = null, { onProgress = null } = {}) => {
+      if (file instanceof File) {
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        Object.entries(data).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            formData.append(key, typeof val === 'boolean' ? (val ? '1' : '0') : String(val));
+          }
+        });
+        formData.append('file', file);
+        return uploadFormDataWithProgress(`/teacher/homeworks/${uuid}`, formData, {
+          onProgress,
+          fallbackError: 'فشل تحديث الواجب ورفع الملف.',
+        });
+      }
+      return apiPut(`/teacher/homeworks/${uuid}`, data);
+    },
+    uploadAttachmentDirect: async (uuid, file, { onProgress = null } = {}) => {
+      return storageService.uploadFile({
+        entityType: 'homework_attachment',
+        entityId: uuid,
+        file,
+        title: file.name,
+        onProgress,
+      });
+    },
     delete: (uuid) => apiDelete(`/teacher/homeworks/${uuid}`),
 
     listSubmissions: (uuid, params = {}) => {
@@ -428,6 +443,61 @@ export const teacherApi = {
   // Centralized Supabase Storage
   storage: storageService,
 };
+
+/**
+ * Multipart FormData upload helper with granular progress tracking and validation error extraction.
+ */
+function uploadFormDataWithProgress(path, formData, { onProgress = null, fallbackError = 'فشل رفع الملف.' } = {}) {
+  const token = tokenStorage.getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}${path}`, true);
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    if (onProgress && xhr.upload) {
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const pct = Math.min(99, Math.round((evt.loaded / evt.total) * 100));
+          onProgress(pct);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let payload = {};
+      try {
+        payload = JSON.parse(xhr.responseText || '{}');
+      } catch {
+        payload = {};
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && payload?.success !== false) {
+        if (onProgress) onProgress(100);
+        resolve(payload);
+      } else {
+        const firstFieldErr = payload?.errors && typeof payload.errors === 'object'
+          ? Object.values(payload.errors).flat().find(Boolean)
+          : null;
+        reject(new Error(firstFieldErr || payload?.message || fallbackError));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('تعذر الاتصال بالخادم أثناء رفع الملف. يرجى التحقق من الاتصال والمحاولة مرة أخرى.'));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error('انتهت مهلة رفع الملف. يرجى المحاولة مرة أخرى.'));
+    };
+
+    xhr.timeout = 120000;
+    xhr.send(formData);
+  });
+}
 
 /**
  * Convenience helper for PATCH requests using fetch.
