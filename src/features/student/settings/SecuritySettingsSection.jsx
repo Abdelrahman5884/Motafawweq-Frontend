@@ -46,7 +46,7 @@ const eyeBtnStyle = {
   display: 'flex',
 };
 
-export const SecuritySettingsSection = ({ lang }) => {
+export const SecuritySettingsSection = ({ lang, role = 'student' }) => {
   const isAr = lang === 'ar';
   const navigate = useNavigate();
   const { showAlert } = useDialog();
@@ -676,9 +676,13 @@ export const SecuritySettingsSection = ({ lang }) => {
                 {isAr ? 'حذف الحساب نهائياً' : 'Delete Account Permanently'}
               </h3>
               <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                {isAr
-                  ? 'سيتم حذف حسابك وجميع بياناتك الدراسية وإلغاء جميع جلسات الدخول بشكل نهائي، ولا يمكن التراجع عن هذا الإجراء.'
-                  : 'Your account, study progress, and all active sessions will be permanently removed. This action cannot be undone.'}
+                {role === 'teacher'
+                  ? (isAr
+                    ? 'سيتم حذف حسابك وجميع بياناتك وإلغاء جميع جلسات الدخول بشكل نهائي، ولا يمكن التراجع عن هذا الإجراء.'
+                    : 'Your teacher account and all active sessions will be permanently removed. This action cannot be undone.')
+                  : (isAr
+                    ? 'سيتم حذف حسابك وجميع بياناتك الدراسية وإلغاء جميع جلسات الدخول بشكل نهائي، ولا يمكن التراجع عن هذا الإجراء.'
+                    : 'Your account, study progress, and all active sessions will be permanently removed. This action cannot be undone.')}
               </p>
             </div>
           </div>

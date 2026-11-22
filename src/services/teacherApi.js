@@ -4,7 +4,7 @@
  * Strictly aligned with routes/api.php and backend controllers.
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, tokenStorage } from './api';
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, tokenStorage } from './api';
 import { API_BASE_URL } from '../constants';
 import storageService from './storageService';
 
@@ -33,10 +33,14 @@ export const teacherApi = {
 
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'فشل رفع الصورة الشخصية.');
+        const firstFieldErr = payload?.errors && typeof payload.errors === 'object'
+          ? Object.values(payload.errors).flat().find(Boolean)
+          : null;
+        throw new Error(firstFieldErr || payload?.message || 'فشل رفع الصورة الشخصية.');
       }
       return payload;
     },
+    deleteAvatar: () => apiDelete('/teacher/settings/avatar'),
   },
 
   // ─── Stage 3: Encrypted Payout Accounts ──────────────────────────────────────
@@ -483,29 +487,6 @@ function uploadFormDataWithProgress(path, formData, { onProgress = null, fallbac
 
     xhr.timeout = 120000;
     xhr.send(formData);
-  });
-}
-
-/**
- * Convenience helper for PATCH requests using fetch.
- */
-function apiPatch(path, body = {}, opts = {}) {
-  const token = tokenStorage.getAccessToken();
-  return fetch(`${API_BASE_URL}${path}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-    ...opts,
-  }).then(async (res) => {
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok || payload?.success === false) {
-      throw new Error(payload?.message || `HTTP ${res.status}`);
-    }
-    return payload;
   });
 }
 
