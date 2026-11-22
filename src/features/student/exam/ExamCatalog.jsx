@@ -12,6 +12,9 @@ import {
   RefreshCw,
   Eye,
   Lock,
+  Landmark,
+  GraduationCap,
+  RotateCcw,
 } from 'lucide-react';
 import { formatExamTimer } from './useExam';
 
@@ -23,14 +26,23 @@ export const ExamCatalog = ({
   actionError = null,
   onClearActionError,
   onRetry,
+  sourceFilter = 'all',
+  setSourceFilter,
+  sourceCounts = { all: 0, ministry: 0, teachers: 0 },
+  selectedMinistryGrade = '',
+  setSelectedMinistryGrade,
+  resolvedMinistryGrade = '',
+  availableMinistryGrades = [],
   tabCounts,
   statusFilter,
   setStatusFilter,
   searchQuery,
   setSearchQuery,
   handleRequestStartExam,
+  handleRetakeMinistryExam,
   pendingExam,
   setPendingExam,
+  pendingRetake = false,
   isStartingExam = false,
   loadingResultId = '',
   handleConfirmStart,
@@ -79,9 +91,124 @@ export const ExamCatalog = ({
         </h1>
         <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
           {isAr
-            ? 'اختر الامتحان المتاح للبدء، أو استكمل محاولتك الحالية، أو راجع نتائجك وإجاباتك النموذجية'
-            : 'Start available exams, resume active attempts, or review your graded answers'}
+            ? 'اختر امتحانات معلميك أو تدرّب على نماذج واختبارات وزارة التربية والتعليم الاسترشادية بالتصحيح الفوري'
+            : 'Take teacher exams or practice with official Egyptian Ministry of Education guided exams with instant grading'}
         </p>
+      </div>
+
+      {/* Source Switcher: All | Ministry of Education Guided Exams | Teacher Exams + Grade Filter */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div
+          role="tablist"
+          aria-label={isAr ? 'مصدر الامتحانات' : 'Exam source'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '6px',
+            backgroundColor: 'var(--bg-subtle)',
+            padding: '4px',
+            borderRadius: '14px',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          {[
+            { id: 'all', ar: 'جميع الاختبارات', en: 'All Exams', count: sourceCounts.all },
+            { id: 'ministry', ar: 'اختبارات وزارة التربية والتعليم', en: 'Ministry Guided Exams', count: sourceCounts.ministry, icon: Landmark, highlight: true },
+            { id: 'teachers', ar: 'امتحانات المعلمين', en: 'Teacher Exams', count: sourceCounts.teachers, icon: GraduationCap },
+          ].map((src) => {
+            const active = sourceFilter === src.id;
+            const SrcIcon = src.icon;
+            return (
+              <button
+                key={src.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSourceFilter?.(src.id)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: active ? 'var(--bg-surface-elevated)' : 'transparent',
+                  color: active
+                    ? src.highlight
+                      ? '#059669'
+                      : 'var(--text-primary)'
+                    : 'var(--text-secondary)',
+                  fontWeight: active ? '800' : '600',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                }}
+              >
+                {SrcIcon && <SrcIcon size={14} />}
+                <span>{isAr ? src.ar : src.en}</span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    padding: '1px 7px',
+                    borderRadius: '999px',
+                    backgroundColor: active
+                      ? src.highlight
+                        ? 'rgba(5, 150, 105, 0.14)'
+                        : 'var(--primary-surface)'
+                      : 'var(--bg-hover)',
+                    color: active
+                      ? src.highlight
+                        ? '#059669'
+                        : 'var(--primary)'
+                      : 'var(--text-muted)',
+                  }}
+                >
+                  {src.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {(sourceFilter === 'all' || sourceFilter === 'ministry') && availableMinistryGrades.length > 0 && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <Landmark size={14} color="#059669" />
+            <select
+              value={selectedMinistryGrade || resolvedMinistryGrade}
+              onChange={(e) => setSelectedMinistryGrade?.(e.target.value)}
+              aria-label={isAr ? 'الصف الدراسي لاختبارات الوزارة' : 'Ministry exams grade'}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                fontFamily: 'inherit',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">{isAr ? 'الوزارة: جميع الصفوف' : 'MOE: All Grades'}</option>
+              {availableMinistryGrades.map((g) => (
+                <option key={g} value={g}>
+                  {isAr ? `الوزارة: ${g}` : `MOE: ${g}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Error Alerts */}
@@ -378,6 +505,7 @@ export const ExamCatalog = ({
                     : isGraded
                       ? '1px solid rgba(5, 150, 105, 0.35)'
                       : '1px solid var(--border-subtle)',
+                  borderTop: exam.isMinistry ? '3px solid #059669' : undefined,
                   borderRadius: '20px',
                   padding: '22px',
                   display: 'flex',
@@ -399,23 +527,42 @@ export const ExamCatalog = ({
                       marginBottom: '12px',
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: '11.5px',
-                        fontWeight: '700',
-                        padding: '3px 10px',
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-subtle)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border-subtle)',
-                        maxWidth: '58%',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {exam.subjectAr}
-                    </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', maxWidth: '68%' }}>
+                      <span
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: '700',
+                          padding: '3px 10px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--bg-subtle)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border-subtle)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {isAr ? exam.subjectAr : exam.subjectEn || exam.subjectAr}
+                      </span>
+                      {exam.isMinistry && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '10.5px',
+                            fontWeight: '800',
+                            padding: '3px 8px',
+                            borderRadius: '999px',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            color: '#059669',
+                          }}
+                        >
+                          <Landmark size={11} />
+                          <span>{isAr ? 'الوزارة' : 'MOE'}</span>
+                        </span>
+                      )}
+                    </div>
 
                     {isReady && (
                       <span
@@ -545,16 +692,19 @@ export const ExamCatalog = ({
                     {isAr ? exam.titleAr : exam.titleEn || exam.titleAr}
                   </h3>
 
-                  {/* Teacher & Exam Type */}
+                  {/* Teacher / Ministry Source & Exam Type */}
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-                    {exam.teacherNameAr || (isAr ? 'معلم المادة' : 'Instructor')} •{' '}
-                    {exam.isBubbleSheet
-                      ? isAr
-                        ? 'بابل شيت رسمي'
-                        : 'Bubble Sheet'
-                      : isAr
-                        ? 'امتحان إلكتروني'
-                        : 'Online Exam'}
+                    {exam.isMinistry
+                      ? `${isAr ? exam.sourceAr : exam.sourceEn}${exam.gradeAr ? ` • ${exam.gradeAr}` : ''}`
+                      : `${exam.teacherNameAr || (isAr ? 'معلم المادة' : 'Instructor')} • ${
+                          exam.isBubbleSheet
+                            ? isAr
+                              ? 'بابل شيت رسمي'
+                              : 'Bubble Sheet'
+                            : isAr
+                              ? 'امتحان إلكتروني'
+                              : 'Online Exam'
+                        }`}
                   </div>
 
                   {/* Specs Grid */}
@@ -726,42 +876,71 @@ export const ExamCatalog = ({
                       </span>
                     </button>
                   ) : isGraded || isSubmitted ? (
-                    <button
-                      type="button"
-                      disabled={isLoadingThisResult}
-                      onClick={() => handleRequestStartExam(exam)}
-                      className="clean-btn"
-                      style={{
-                        width: '100%',
-                        padding: '11px 16px',
-                        borderRadius: '12px',
-                        backgroundColor: 'var(--bg-subtle)',
-                        color: 'var(--primary)',
-                        border: '1px solid rgba(21, 136, 199, 0.35)',
-                        fontSize: '13px',
-                        fontWeight: '800',
-                        cursor: isLoadingThisResult ? 'wait' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '7px',
-                      }}
-                    >
-                      <Eye size={14} />
-                      <span>
-                        {isLoadingThisResult
-                          ? isAr
-                            ? 'جاري تحميل النتيجة...'
-                            : 'Loading...'
-                          : isGraded && exam.showResults
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        disabled={isLoadingThisResult}
+                        onClick={() => handleRequestStartExam(exam)}
+                        className="clean-btn"
+                        style={{
+                          flex: 1,
+                          padding: '11px 14px',
+                          borderRadius: '12px',
+                          backgroundColor: 'var(--bg-subtle)',
+                          color: 'var(--primary)',
+                          border: '1px solid rgba(21, 136, 199, 0.35)',
+                          fontSize: '12.5px',
+                          fontWeight: '800',
+                          cursor: isLoadingThisResult ? 'wait' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Eye size={14} />
+                        <span>
+                          {isLoadingThisResult
                             ? isAr
-                              ? 'عرض النتيجة والمراجعة'
-                              : 'View Result & Review'
-                            : isAr
-                              ? 'عرض حالة التسليم'
-                              : 'View Submission Status'}
-                      </span>
-                    </button>
+                              ? 'جاري التحميل...'
+                              : 'Loading...'
+                            : isGraded && exam.showResults
+                              ? isAr
+                                ? 'عرض النتيجة والمراجعة'
+                                : 'View Result'
+                              : isAr
+                                ? 'عرض حالة التسليم'
+                                : 'View Status'}
+                        </span>
+                      </button>
+
+                      {exam.isMinistry && exam.canRetake && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetakeMinistryExam?.(exam)}
+                          className="clean-btn"
+                          title={isAr ? 'إعادة حل النموذج للتدريب' : 'Retake practice exam'}
+                          style={{
+                            padding: '11px 12px',
+                            borderRadius: '12px',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            color: '#059669',
+                            border: '1px solid rgba(5, 150, 105, 0.35)',
+                            fontSize: '12.5px',
+                            fontWeight: '800',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '5px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <RotateCcw size={13} />
+                          <span>{isAr ? 'إعادة التدريب' : 'Retake'}</span>
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <button
                       type="button"
@@ -833,10 +1012,20 @@ export const ExamCatalog = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
-                <AlertCircle size={20} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: pendingExam.isMinistry ? '#059669' : 'var(--primary)' }}>
+                {pendingExam.isMinistry ? <Landmark size={19} /> : <AlertCircle size={20} />}
                 <span style={{ fontSize: '12.5px', fontWeight: '800' }}>
-                  {isAr ? 'تعليمات ما قبل البدء' : 'Exam Guidelines'}
+                  {pendingExam.isMinistry
+                    ? pendingRetake
+                      ? isAr
+                        ? 'إعادة التدريب على نموذج الوزارة الاسترشادي'
+                        : 'Retake Official MOE Practice Exam'
+                      : isAr
+                        ? 'نموذج استرشادي — وزارة التربية والتعليم'
+                        : 'Official MOE Guided Practice Exam'
+                    : isAr
+                      ? 'تعليمات ما قبل البدء'
+                      : 'Exam Guidelines'}
                 </span>
               </div>
               <button

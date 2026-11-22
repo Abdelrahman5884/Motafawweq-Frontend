@@ -43,14 +43,23 @@ export const ExamTakingView = () => {
           actionError={exam.actionError}
           onClearActionError={() => exam.setActionError(null)}
           onRetry={exam.refreshExams}
+          sourceFilter={exam.sourceFilter}
+          setSourceFilter={exam.setSourceFilter}
+          sourceCounts={exam.sourceCounts}
+          selectedMinistryGrade={exam.selectedMinistryGrade}
+          setSelectedMinistryGrade={exam.setSelectedMinistryGrade}
+          resolvedMinistryGrade={exam.resolvedMinistryGrade}
+          availableMinistryGrades={exam.availableMinistryGrades}
           tabCounts={exam.tabCounts}
           statusFilter={exam.statusFilter}
           setStatusFilter={exam.setStatusFilter}
           searchQuery={exam.searchQuery}
           setSearchQuery={exam.setSearchQuery}
           handleRequestStartExam={exam.handleRequestStartExam}
+          handleRetakeMinistryExam={exam.handleRetakeMinistryExam}
           pendingExam={exam.pendingExam}
           setPendingExam={exam.setPendingExam}
+          pendingRetake={exam.pendingRetake}
           isStartingExam={exam.isStartingExam}
           loadingResultId={exam.loadingResultId}
           handleConfirmStart={exam.handleConfirmStart}

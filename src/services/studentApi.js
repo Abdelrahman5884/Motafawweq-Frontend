@@ -94,6 +94,38 @@ export const studentApi = {
     mistakeBank: () => apiGet('/student/mistake-bank'),
   },
 
+  // Official Egyptian Ministry of Education Curricula & Guided Practice Exams
+  ministry: {
+    listCurricula: (grade = '') =>
+      apiGet(
+        grade
+          ? `/student/ministry/curricula?grade=${encodeURIComponent(grade)}`
+          : '/student/ministry/curricula'
+      ),
+    toggleUnit: (code, unitIndex) =>
+      apiPost(`/student/ministry/curricula/${encodeURIComponent(code)}/units/${unitIndex}/toggle`, {}),
+    listExams: (grade = '') =>
+      apiGet(
+        grade
+          ? `/student/ministry/exams?grade=${encodeURIComponent(grade)}`
+          : '/student/ministry/exams'
+      ),
+    startExam: (code, { retake = false } = {}) =>
+      apiRequest(`/student/ministry/exams/${encodeURIComponent(code)}/start`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('moe-exam-start') },
+        body: { retake: Boolean(retake) },
+      }),
+    submitExam: (code, data) =>
+      apiRequest(`/student/ministry/exams/${encodeURIComponent(code)}/submit`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('moe-exam-sub') },
+        body: data,
+      }),
+    getExamResult: (code) =>
+      apiGet(`/student/ministry/exams/${encodeURIComponent(code)}/result`),
+  },
+
   // Phase 6: Homeworks
   homeworks: {
     list: () => apiGet('/student/homeworks'),

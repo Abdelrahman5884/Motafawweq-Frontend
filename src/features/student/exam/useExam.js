@@ -52,7 +52,12 @@ export const useExam = (lang = 'ar') => {
   const activeExamRef = useRef(null);
   const tabSwitchesRef = useRef(0);
 
-  const [examsList, setExamsList] = useState([]);
+  const [teacherExams, setTeacherExams] = useState([]);
+  const [ministryExams, setMinistryExams] = useState([]);
+  const [selectedMinistryGrade, setSelectedMinistryGrade] = useState('');
+  const [resolvedMinistryGrade, setResolvedMinistryGrade] = useState('');
+  const [availableMinistryGrades, setAvailableMinistryGrades] = useState([]);
+
   const [loadingExams, setLoadingExams] = useState(true);
   const [examsError, setExamsError] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -60,11 +65,16 @@ export const useExam = (lang = 'ar') => {
   const [examState, setExamState] = useState('catalog'); // 'catalog' | 'taking' | 'results'
   const [activeExam, setActiveExam] = useState(null);
   const [pendingExam, setPendingExam] = useState(null);
+  const [pendingRetake, setPendingRetake] = useState(false);
   const [isStartingExam, setIsStartingExam] = useState(false);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
   const [loadingResultId, setLoadingResultId] = useState('');
 
   // Catalog filter & search state
+  const [sourceFilter, setSourceFilter] = useState(() => {
+    const raw = searchParams.get('source');
+    return raw === 'ministry' || raw === 'teachers' ? raw : 'all';
+  });
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'ready' | 'in_progress' | 'completed' | 'closed'
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -119,20 +129,31 @@ export const useExam = (lang = 'ar') => {
   }, [examState, activeExam?.id, selectedAnswers, flaggedQuestions, draftStorageKey]);
 
   const mapExams = useCallback(
-    (raw) =>
+    (raw, { isMinistry = false } = {}) =>
       raw.map((e) => {
         const displayStatus = getExamDisplayStatus(e);
+        const ministryFlag = Boolean(isMinistry || e.isMinistry);
         return {
-          id: e.id || e.uuid,
+          id: e.id || e.uuid || e.code,
+          code: e.code || e.id || e.uuid,
+          isMinistry: ministryFlag,
+          sourceAr: e.sourceAr || (ministryFlag ? 'وزارة التربية والتعليم والتعليم الفني' : ''),
+          sourceEn: e.sourceEn || (ministryFlag ? 'Egyptian Ministry of Education' : ''),
+          gradeAr: e.gradeAr || '',
+          curriculumCode: e.curriculumCode || null,
           titleAr: e.titleAr || '',
           titleEn: e.titleEn || e.titleAr || '',
-          subjectAr: e.courseTitleAr || (isAr ? 'امتحان مقرر' : 'Course Exam'),
+          subjectAr: e.subjectAr || e.courseTitleAr || (isAr ? 'امتحان مقرر' : 'Course Exam'),
+          subjectEn: e.subjectEn || e.subjectAr || e.courseTitleAr || 'Exam',
           teacherNameAr: e.teacherName || '',
           durationMinutes: Math.max(1, Number(e.durationMinutes || 30)),
           questionsCount: Number(e.questionsCount || 0),
           maxScore: Number(e.fullMark || 50),
           passScore: Number(e.passScore || 25),
-          attemptsAllowed: 1,
+          attemptsAllowed: ministryFlag ? null : 1,
+          attemptsCount: Number(e.attemptsCount || 0),
+          bestPercentage: e.bestPercentage ?? null,
+          canRetake: Boolean(e.canRetake || ministryFlag),
           rawStatus: e.status,
           status: displayStatus, // 'ready' | 'in_progress' | 'submitted' | 'graded' | 'upcoming' | 'closed'
           submissionStatus: e.submissionStatus || 'not_started',
@@ -151,25 +172,52 @@ export const useExam = (lang = 'ar') => {
     [isAr]
   );
 
-  const loadExams = useCallback(async () => {
-    setLoadingExams(true);
-    setExamsError(null);
-    try {
-      const res = await studentApi.exams.list();
-      const raw = Array.isArray(res?.data) ? res.data : [];
-      const mapped = mapExams(raw);
-      setExamsList(mapped);
-      return mapped;
-    } catch (err) {
-      setExamsError(
-        err?.message ||
-          (isAr ? 'تعذر تحميل قائمة الامتحانات.' : 'Failed to load exams.')
-      );
-      return [];
-    } finally {
-      setLoadingExams(false);
-    }
-  }, [isAr, mapExams]);
+  const loadExams = useCallback(
+    async (gradeOverride = selectedMinistryGrade) => {
+      setLoadingExams(true);
+      setExamsError(null);
+      try {
+        const [teacherRes, ministryRes] = await Promise.allSettled([
+          studentApi.exams.list(),
+          studentApi.ministry.listExams(gradeOverride),
+        ]);
+
+        const mappedTeacher =
+          teacherRes.status === 'fulfilled' && Array.isArray(teacherRes.value?.data)
+            ? mapExams(teacherRes.value.data, { isMinistry: false })
+            : [];
+
+        const ministryPayload =
+          ministryRes.status === 'fulfilled' ? ministryRes.value?.data || {} : {};
+        const mappedMinistry = Array.isArray(ministryPayload.items)
+          ? mapExams(ministryPayload.items, { isMinistry: true })
+          : [];
+
+        setTeacherExams(mappedTeacher);
+        setMinistryExams(mappedMinistry);
+
+        if (ministryPayload.selectedGradeAr || ministryPayload.studentGradeAr) {
+          setResolvedMinistryGrade(ministryPayload.selectedGradeAr || ministryPayload.studentGradeAr);
+        }
+        if (Array.isArray(ministryPayload.availableGrades) && ministryPayload.availableGrades.length > 0) {
+          setAvailableMinistryGrades(ministryPayload.availableGrades);
+        }
+
+        if (teacherRes.status === 'rejected' && ministryRes.status === 'rejected') {
+          setExamsError(
+            teacherRes.reason?.message ||
+              ministryRes.reason?.message ||
+              (isAr ? 'تعذر تحميل قائمة الامتحانات.' : 'Failed to load exams.')
+          );
+        }
+
+        return [...mappedTeacher, ...mappedMinistry];
+      } finally {
+        setLoadingExams(false);
+      }
+    },
+    [isAr, mapExams, selectedMinistryGrade]
+  );
 
   // Open an existing submitted/graded exam result from backend
   const handleViewResult = useCallback(
@@ -179,7 +227,9 @@ export const useExam = (lang = 'ar') => {
       setLoadingResultId(exam.id);
       setActionError(null);
       try {
-        const res = await studentApi.exams.getResult(exam.id);
+        const res = exam.isMinistry
+          ? await studentApi.ministry.getExamResult(exam.code || exam.id)
+          : await studentApi.exams.getResult(exam.id);
         setActiveExam(exam);
         setServerResult(res?.data || null);
         setExamState('results');
@@ -196,15 +246,17 @@ export const useExam = (lang = 'ar') => {
     [isAr]
   );
 
-  // Start or resume an active exam attempt
+  // Start or resume an active exam attempt (teacher OR official Ministry guided exam)
   const handleStartExam = useCallback(
-    async (exam) => {
+    async (exam, { retake = false } = {}) => {
       if (!exam?.id || startingRef.current) return;
       startingRef.current = true;
       setIsStartingExam(true);
       setActionError(null);
       try {
-        const res = await studentApi.exams.start(exam.id);
+        const res = exam.isMinistry
+          ? await studentApi.ministry.startExam(exam.code || exam.id, { retake })
+          : await studentApi.exams.start(exam.id);
         const data = res?.data || {};
         const qs = (data.questions || []).map((q, i) => ({
           id: q.id || q.uuid,
@@ -218,22 +270,33 @@ export const useExam = (lang = 'ar') => {
           optionsAr: Array.isArray(q.optionsAr) ? q.optionsAr : [],
         }));
 
+        // Clear stale draft when explicitly retaking a Ministry exam
+        if (retake) {
+          try {
+            localStorage.removeItem(draftStorageKey(exam.id));
+          } catch {
+            // ignore
+          }
+        }
+
         // Restore saved draft answers if resuming the same exam attempt
         let restoredAnswers = {};
         let restoredFlags = {};
-        try {
-          const rawDraft = localStorage.getItem(draftStorageKey(exam.id));
-          if (rawDraft) {
-            const parsed = JSON.parse(rawDraft);
-            if (parsed?.answers && typeof parsed.answers === 'object') {
-              restoredAnswers = parsed.answers;
+        if (!retake) {
+          try {
+            const rawDraft = localStorage.getItem(draftStorageKey(exam.id));
+            if (rawDraft) {
+              const parsed = JSON.parse(rawDraft);
+              if (parsed?.answers && typeof parsed.answers === 'object') {
+                restoredAnswers = parsed.answers;
+              }
+              if (parsed?.flags && typeof parsed.flags === 'object') {
+                restoredFlags = parsed.flags;
+              }
             }
-            if (parsed?.flags && typeof parsed.flags === 'object') {
-              restoredFlags = parsed.flags;
-            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
         }
 
         const remaining =
@@ -257,6 +320,7 @@ export const useExam = (lang = 'ar') => {
         };
 
         setPendingExam(null);
+        setPendingRetake(false);
         setActiveExam(enrichedExam);
         setQuestions(qs);
         setSelectedAnswers(restoredAnswers);
@@ -273,7 +337,6 @@ export const useExam = (lang = 'ar') => {
             err?.message ||
             (isAr ? 'تعذر بدء الامتحان.' : 'Unable to start exam.')
         );
-        // Refresh catalog in case an expired attempt was just auto-finalized
         await loadExams();
       } finally {
         startingRef.current = false;
@@ -283,46 +346,41 @@ export const useExam = (lang = 'ar') => {
     [draftStorageKey, isAr, loadExams]
   );
 
-  // Initial fetch + deep-link (?id=... or ?examId=...) resolution after async response
+  // Initial fetch + grade filter refetch + deep-link (?id=... / ?examId=... / ?examCode=... / ?source=ministry)
   useEffect(() => {
     let mounted = true;
     const init = async () => {
-      try {
-        const res = await studentApi.exams.list();
-        if (!mounted) return;
-        const raw = Array.isArray(res?.data) ? res.data : [];
-        const mapped = mapExams(raw);
-        setExamsList(mapped);
-        setExamsError(null);
+      const combined = await loadExams(selectedMinistryGrade);
+      if (!mounted) return;
 
-        const params = searchParamsRef.current;
-        const deepLinkId = params.get('id') || params.get('examId') || '';
-        if (deepLinkId && deepLinkHandledRef.current !== deepLinkId) {
-          deepLinkHandledRef.current = deepLinkId;
-          const target = mapped.find((ex) => ex.id === deepLinkId);
-          if (target) {
-            if (target.status === 'ready') {
-              setPendingExam(target);
-            } else if (target.status === 'in_progress') {
-              handleStartExam(target);
-            } else if (target.status === 'graded' || target.status === 'submitted') {
-              handleViewResult(target);
-            }
+      const params = searchParamsRef.current;
+      const sourceParam = params.get('source');
+      if (sourceParam === 'ministry' || sourceParam === 'teachers') {
+        setSourceFilter(sourceParam);
+      }
+
+      const deepLinkId = params.get('examCode') || params.get('id') || params.get('examId') || '';
+      if (deepLinkId && deepLinkHandledRef.current !== deepLinkId) {
+        deepLinkHandledRef.current = deepLinkId;
+        const target = combined.find((ex) => ex.id === deepLinkId || ex.code === deepLinkId);
+        if (target) {
+          if (target.isMinistry) {
+            setSourceFilter('ministry');
           }
-          const next = new URLSearchParams(params);
-          next.delete('id');
-          next.delete('examId');
-          setSearchParams(next, { replace: true });
+          if (target.status === 'ready') {
+            setPendingRetake(false);
+            setPendingExam(target);
+          } else if (target.status === 'in_progress') {
+            handleStartExam(target);
+          } else if (target.status === 'graded' || target.status === 'submitted') {
+            handleViewResult(target);
+          }
         }
-      } catch (err) {
-        if (mounted) {
-          setExamsError(
-            err?.message ||
-              (isAr ? 'تعذر تحميل قائمة الامتحانات.' : 'Failed to load exams.')
-          );
-        }
-      } finally {
-        if (mounted) setLoadingExams(false);
+        const next = new URLSearchParams(params);
+        next.delete('id');
+        next.delete('examId');
+        next.delete('examCode');
+        setSearchParams(next, { replace: true });
       }
     };
 
@@ -330,7 +388,7 @@ export const useExam = (lang = 'ar') => {
     return () => {
       mounted = false;
     };
-  }, [mapExams, isAr, handleStartExam, handleViewResult, setSearchParams]);
+  }, [selectedMinistryGrade, loadExams, handleStartExam, handleViewResult, setSearchParams]);
 
   // Anti-cheat tab switch telemetry + accidental close warning during active exam
   useEffect(() => {
@@ -352,7 +410,7 @@ export const useExam = (lang = 'ar') => {
     };
   }, [examState]);
 
-  // Submit answers cleanly (supports MCQ, True/False, and Essay) with strict double-submit lock
+  // Submit answers cleanly (supports Teacher & Official Ministry exams)
   const handleSubmitExam = useCallback(
     async (isAutoSubmit = false) => {
       const currentExam = activeExamRef.current;
@@ -387,10 +445,14 @@ export const useExam = (lang = 'ar') => {
           };
         });
 
-        const res = await studentApi.exams.submit(currentExam.id, {
+        const submissionPayload = {
           tabSwitchesCount: tabSwitchesRef.current,
           answers: answersPayload,
-        });
+        };
+
+        const res = currentExam.isMinistry
+          ? await studentApi.ministry.submitExam(currentExam.code || currentExam.id, submissionPayload)
+          : await studentApi.exams.submit(currentExam.id, submissionPayload);
 
         try {
           localStorage.removeItem(draftStorageKey(currentExam.id));
@@ -427,7 +489,7 @@ export const useExam = (lang = 'ar') => {
     [draftStorageKey, loadExams, isAr]
   );
 
-  // Wall-clock accurate countdown interval (NEVER recreates on every tick, NEVER mutates inside updater)
+  // Wall-clock accurate countdown interval
   useEffect(() => {
     if (examState !== 'taking') return undefined;
 
@@ -448,6 +510,7 @@ export const useExam = (lang = 'ar') => {
     (exam) => {
       setActionError(null);
       if (exam.status === 'ready') {
+        setPendingRetake(false);
         setPendingExam(exam);
       } else if (exam.status === 'in_progress') {
         handleStartExam(exam);
@@ -458,10 +521,17 @@ export const useExam = (lang = 'ar') => {
     [handleStartExam, handleViewResult]
   );
 
+  const handleRetakeMinistryExam = useCallback((exam) => {
+    if (!exam?.isMinistry) return;
+    setActionError(null);
+    setPendingRetake(true);
+    setPendingExam(exam);
+  }, []);
+
   const handleConfirmStart = useCallback(() => {
     if (!pendingExam) return;
-    handleStartExam(pendingExam);
-  }, [pendingExam, handleStartExam]);
+    handleStartExam(pendingExam, { retake: pendingRetake });
+  }, [pendingExam, pendingRetake, handleStartExam]);
 
   const currentQ = questions[currentIdx] || questions[0] || {
     id: '',
@@ -493,14 +563,35 @@ export const useExam = (lang = 'ar') => {
     setExamState('catalog');
   }, []);
 
-  // Filter tab counts
+  // Combined exams list scoped by sourceFilter
+  const examsList = useMemo(
+    () => [...teacherExams, ...ministryExams],
+    [teacherExams, ministryExams]
+  );
+
+  const sourceScopedExams = useMemo(() => {
+    if (sourceFilter === 'ministry') return ministryExams;
+    if (sourceFilter === 'teachers') return teacherExams;
+    return examsList;
+  }, [sourceFilter, teacherExams, ministryExams, examsList]);
+
+  const sourceCounts = useMemo(
+    () => ({
+      all: examsList.length,
+      ministry: ministryExams.length,
+      teachers: teacherExams.length,
+    }),
+    [examsList.length, ministryExams.length, teacherExams.length]
+  );
+
+  // Status tab counts (within current source scope)
   const tabCounts = useMemo(() => {
     let readyCount = 0;
     let inProgressCount = 0;
     let completedCount = 0;
     let closedCount = 0;
 
-    examsList.forEach((e) => {
+    sourceScopedExams.forEach((e) => {
       if (e.status === 'ready') readyCount += 1;
       else if (e.status === 'in_progress') inProgressCount += 1;
       else if (e.status === 'graded' || e.status === 'submitted') completedCount += 1;
@@ -508,26 +599,26 @@ export const useExam = (lang = 'ar') => {
     });
 
     return {
-      totalCount: examsList.length,
+      totalCount: sourceScopedExams.length,
       readyCount,
       inProgressCount,
       completedCount,
       closedCount,
     };
-  }, [examsList]);
+  }, [sourceScopedExams]);
 
   const filteredExams = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return examsList.filter((e) => {
+    return sourceScopedExams.filter((e) => {
       if (statusFilter === 'ready' && e.status !== 'ready') return false;
       if (statusFilter === 'in_progress' && e.status !== 'in_progress') return false;
       if (statusFilter === 'completed' && e.status !== 'graded' && e.status !== 'submitted') return false;
       if (statusFilter === 'closed' && e.status !== 'closed' && e.status !== 'upcoming') return false;
       if (!q) return true;
-      const hay = `${e.titleAr} ${e.titleEn} ${e.subjectAr} ${e.teacherNameAr}`.toLowerCase();
+      const hay = `${e.titleAr} ${e.titleEn} ${e.subjectAr} ${e.teacherNameAr} ${e.gradeAr} ${e.sourceAr}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [examsList, statusFilter, searchQuery]);
+  }, [sourceScopedExams, statusFilter, searchQuery]);
 
   const answeredCount = useMemo(
     () => questions.filter((q) => isQuestionAnswered(q, selectedAnswers[q.id])).length,
@@ -546,7 +637,14 @@ export const useExam = (lang = 'ar') => {
     examsError,
     actionError,
     setActionError,
-    refreshExams: loadExams,
+    refreshExams: () => loadExams(selectedMinistryGrade),
+    sourceFilter,
+    setSourceFilter,
+    sourceCounts,
+    selectedMinistryGrade,
+    setSelectedMinistryGrade,
+    resolvedMinistryGrade,
+    availableMinistryGrades,
     tabCounts,
     statusFilter,
     setStatusFilter,
@@ -557,6 +655,7 @@ export const useExam = (lang = 'ar') => {
     activeExam,
     pendingExam,
     setPendingExam,
+    pendingRetake,
     isStartingExam,
     isSubmittingExam,
     loadingResultId,
@@ -574,6 +673,7 @@ export const useExam = (lang = 'ar') => {
     setShowReviewConfirm,
     formatTime: formatExamTimer,
     handleRequestStartExam,
+    handleRetakeMinistryExam,
     handleConfirmStart,
     handleStartExam,
     handleViewResult,

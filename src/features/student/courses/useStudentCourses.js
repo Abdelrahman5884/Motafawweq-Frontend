@@ -32,7 +32,16 @@ export const useStudentCourses = (lang = 'ar') => {
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'enrolled' | 'pending' | 'discover'
+  // Official Ministry of Education curricula state
+  const [ministryCurricula, setMinistryCurricula] = useState([]);
+  const [loadingMinistry, setLoadingMinistry] = useState(true);
+  const [ministryError, setMinistryError] = useState(null);
+  const [selectedMinistryGrade, setSelectedMinistryGrade] = useState(''); // '' = student's default grade
+  const [resolvedMinistryGrade, setResolvedMinistryGrade] = useState('');
+  const [availableMinistryGrades, setAvailableMinistryGrades] = useState([]);
+  const [togglingUnitKey, setTogglingUnitKey] = useState('');
+
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'ministry' | 'enrolled' | 'pending' | 'discover'
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [sortBy, setSortBy] = useState('smart'); // 'smart' | 'progress' | 'price_asc' | 'lessons'
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +69,7 @@ export const useStudentCourses = (lang = 'ar') => {
     };
   }, []);
 
+  // Fetch teacher courses catalog
   useEffect(() => {
     let mounted = true;
     const fetchCatalog = async () => {
@@ -118,9 +128,87 @@ export const useStudentCourses = (lang = 'ar') => {
     };
   }, [reloadNonce, isAr]);
 
+  // Fetch official Ministry of Education curricula
+  useEffect(() => {
+    let mounted = true;
+    const fetchMinistry = async () => {
+      setLoadingMinistry(true);
+      setMinistryError(null);
+      try {
+        const res = await studentApi.ministry.listCurricula(selectedMinistryGrade);
+        if (!mounted) return;
+        const data = res?.data || {};
+        setMinistryCurricula(Array.isArray(data.items) ? data.items : []);
+        setResolvedMinistryGrade(data.selectedGradeAr || data.studentGradeAr || '');
+        if (Array.isArray(data.availableGrades) && data.availableGrades.length > 0) {
+          setAvailableMinistryGrades(data.availableGrades);
+        }
+      } catch (err) {
+        if (mounted) {
+          setMinistryError(
+            err?.message ||
+              (isAr
+                ? 'تعذر تحميل مقررات وزارة التربية والتعليم.'
+                : 'Failed to load Ministry of Education curricula.')
+          );
+        }
+      } finally {
+        if (mounted) setLoadingMinistry(false);
+      }
+    };
+
+    fetchMinistry();
+    return () => {
+      mounted = false;
+    };
+  }, [selectedMinistryGrade, reloadNonce, isAr]);
+
   const refreshCourses = useCallback(() => {
     setReloadNonce((n) => n + 1);
   }, []);
+
+  // Persist Ministry curriculum unit completion toggle
+  const toggleMinistryUnit = useCallback(
+    async (curriculumCode, unitIndex) => {
+      const key = `${curriculumCode}:${unitIndex}`;
+      setTogglingUnitKey(key);
+      try {
+        const res = await studentApi.ministry.toggleUnit(curriculumCode, unitIndex);
+        const updated = res?.data;
+        if (updated) {
+          const completedSet = new Set(updated.completedUnitIndices || []);
+          setMinistryCurricula((prev) =>
+            prev.map((item) => {
+              if (item.code !== curriculumCode) return item;
+              return {
+                ...item,
+                completedUnitsCount: updated.completedUnitsCount,
+                completedUnitIndices: updated.completedUnitIndices,
+                progressPercent: updated.progressPercent,
+                activeUnitAr: updated.activeUnitAr || item.activeUnitAr,
+                activeUnitEn: updated.activeUnitEn || item.activeUnitEn,
+                units: (item.units || []).map((u) => ({
+                  ...u,
+                  isCompleted: completedSet.has(u.index),
+                })),
+              };
+            })
+          );
+        }
+        return updated;
+      } catch (err) {
+        showToast(
+          err?.message ||
+            (isAr ? 'تعذر تحديث تقدم الوحدة.' : 'Could not update unit progress.'),
+          'warning'
+        );
+        return null;
+      } finally {
+        setTogglingUnitKey('');
+      }
+    },
+    [isAr, showToast]
+  );
 
   // Filter tab counts
   const stats = useMemo(() => {
@@ -135,27 +223,37 @@ export const useStudentCourses = (lang = 'ar') => {
     });
 
     return {
-      totalCount: coursesCatalog.length,
+      totalCount: coursesCatalog.length + ministryCurricula.length,
+      teacherCoursesCount: coursesCatalog.length,
+      ministryCount: ministryCurricula.length,
       enrolledCount,
       pendingCount,
       discoverCount,
     };
-  }, [coursesCatalog]);
+  }, [coursesCatalog, ministryCurricula]);
 
-  // Unique real subjects for chip filtering
+  // Unique real subjects across teacher courses + Ministry curricula
   const subjectOptions = useMemo(() => {
     const map = new Map();
-    coursesCatalog.forEach((c) => {
+    const sourceList =
+      activeTab === 'ministry'
+        ? ministryCurricula
+        : activeTab === 'all'
+          ? [...coursesCatalog, ...ministryCurricula]
+          : coursesCatalog;
+
+    sourceList.forEach((c) => {
       const key = (c.subjectAr || '').trim();
       if (key && !map.has(key)) {
         map.set(key, { ar: key, en: c.subjectEn || key });
       }
     });
     return Array.from(map.values());
-  }, [coursesCatalog]);
+  }, [coursesCatalog, ministryCurricula, activeTab]);
 
-  // Filtered + sorted courses
+  // Filtered + sorted teacher courses
   const filteredCourses = useMemo(() => {
+    if (activeTab === 'ministry') return [];
     const q = searchQuery.trim().toLowerCase();
     const list = coursesCatalog.filter((c) => {
       if (activeTab === 'enrolled' && !c.isEnrolled) return false;
@@ -189,6 +287,35 @@ export const useStudentCourses = (lang = 'ar') => {
     }
     return list;
   }, [coursesCatalog, activeTab, selectedSubject, searchQuery, sortBy]);
+
+  // Filtered Ministry curricula
+  const filteredMinistryCurricula = useMemo(() => {
+    if (activeTab !== 'all' && activeTab !== 'ministry') return [];
+    const q = searchQuery.trim().toLowerCase();
+    const list = ministryCurricula.filter((item) => {
+      if (selectedSubject !== 'all' && item.subjectAr !== selectedSubject) return false;
+      if (!q) return true;
+      const hay = [
+        item.titleAr,
+        item.titleEn,
+        item.subjectAr,
+        item.subjectEn,
+        item.gradeAr,
+        item.gradeSubtitleAr,
+        item.activeUnitAr,
+        ...(item.topics || []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+
+    if (sortBy === 'progress') {
+      return [...list].sort((a, b) => b.progressPercent - a.progressPercent);
+    }
+    return list;
+  }, [ministryCurricula, activeTab, selectedSubject, searchQuery, sortBy]);
 
   const hasActiveFilters =
     activeTab !== 'all' || selectedSubject !== 'all' || searchQuery.trim().length > 0;
@@ -245,6 +372,16 @@ export const useStudentCourses = (lang = 'ar') => {
     filteredCourses,
     loadingCourses,
     coursesError,
+    ministryCurricula,
+    filteredMinistryCurricula,
+    loadingMinistry,
+    ministryError,
+    selectedMinistryGrade,
+    setSelectedMinistryGrade,
+    resolvedMinistryGrade,
+    availableMinistryGrades,
+    toggleMinistryUnit,
+    togglingUnitKey,
     refreshCourses,
     stats,
     subjectOptions,
