@@ -75,70 +75,39 @@ export const teacherApi = {
       const formData = new FormData();
       formData.append('media', file);
       if (options.mode) formData.append('mode', options.mode);
-      if (options.duration_seconds) formData.append('duration_seconds', options.duration_seconds);
-
-      const token = tokenStorage.getAccessToken();
-      const res = await fetch(`${API_BASE_URL}/teacher/lessons/${uuid}/media`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
-      });
-
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'فشل رفع ملف الوسائط.');
+      if (options.duration_seconds !== undefined && options.duration_seconds !== null) {
+        formData.append('duration_seconds', String(options.duration_seconds));
       }
-      return payload;
+
+      return uploadFormDataWithProgress(`/teacher/lessons/${uuid}/media`, formData, {
+        onProgress: options.onProgress || null,
+        fallbackError: 'فشل رفع ملف الوسائط.',
+      });
     },
 
-    uploadPdf: async (uuid, file, titleAr = '', pagesCount = null) => {
+    uploadPdf: async (uuid, file, titleAr = '', pagesCount = null, { onProgress = null } = {}) => {
       const formData = new FormData();
       formData.append('file', file);
       if (titleAr) formData.append('title', titleAr);
-      if (pagesCount) formData.append('pagesCount', pagesCount);
+      if (pagesCount) formData.append('pagesCount', String(pagesCount));
 
-      const token = tokenStorage.getAccessToken();
-      const res = await fetch(`${API_BASE_URL}/teacher/lessons/${uuid}/attachments/pdfs`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
+      return uploadFormDataWithProgress(`/teacher/lessons/${uuid}/attachments/pdfs`, formData, {
+        onProgress,
+        fallbackError: 'فشل رفع ملف الـ PDF.',
       });
-
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'فشل رفع ملف الـ PDF.');
-      }
-      return payload;
     },
 
-    uploadImage: async (uuid, file, { titleAr = '', captionAr = '', order = 1 } = {}) => {
+    uploadImage: async (uuid, file, { titleAr = '', captionAr = '', order = 1, onProgress = null } = {}) => {
       const formData = new FormData();
       formData.append('file', file);
       if (titleAr) formData.append('title', titleAr);
       if (captionAr) formData.append('caption', captionAr);
-      if (order !== undefined) formData.append('order', order);
+      if (order !== undefined && order !== null) formData.append('order', String(order));
 
-      const token = tokenStorage.getAccessToken();
-      const res = await fetch(`${API_BASE_URL}/teacher/lessons/${uuid}/attachments/images`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
+      return uploadFormDataWithProgress(`/teacher/lessons/${uuid}/attachments/images`, formData, {
+        onProgress,
+        fallbackError: 'فشل رفع الصورة.',
       });
-
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'فشل رفع الصورة.');
-      }
-      return payload;
     },
 
     uploadAttachment: async (uuid, file, type = 'pdf', options = {}) => {
@@ -146,7 +115,7 @@ export const teacherApi = {
         return teacherApi.studio.uploadMedia(uuid, file, options);
       }
       if (type === 'pdf') {
-        return teacherApi.studio.uploadPdf(uuid, file, options.titleAr || file.name);
+        return teacherApi.studio.uploadPdf(uuid, file, options.titleAr || file.name, options.pagesCount || null, options);
       }
       return teacherApi.studio.uploadImage(uuid, file, options);
     },
@@ -161,7 +130,7 @@ export const teacherApi = {
       });
     },
 
-    uploadAttachmentDirect: async (uuid, file, { type = 'pdf', titleAr = '', captionAr = '', onProgress = null } = {}) => {
+    uploadAttachmentDirect: async (uuid, file, { titleAr = '', captionAr = '', onProgress = null } = {}) => {
       return storageService.uploadFile({
         entityType: 'lesson_attachment',
         entityId: uuid,
@@ -172,9 +141,10 @@ export const teacherApi = {
       });
     },
 
-    reorderAttachments: (uuid, attachmentUuids) =>
+    reorderAttachments: (uuid, attachmentUuids, type = 'whiteboard_image') =>
       apiPut(`/teacher/lessons/${uuid}/attachments/reorder`, {
-        attachment_uuids: attachmentUuids,
+        ordered_ids: attachmentUuids,
+        type,
       }),
 
     deleteAttachment: (uuid, attachmentUuid) =>
