@@ -33,6 +33,16 @@ export const studentApi = {
         headers: { 'Idempotency-Key': makeIdempotencyKey('join') },
         body: { join_code: joinCode, ...extra },
       }),
+    acceptInvitation: (enrollmentUuid) =>
+      apiRequest(`/student/groups/invitations/${enrollmentUuid}/accept`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('inv-acc') },
+      }),
+    declineInvitation: (enrollmentUuid) =>
+      apiRequest(`/student/groups/invitations/${enrollmentUuid}/decline`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': makeIdempotencyKey('inv-dec') },
+      }),
     leave: (groupUuid) => apiDelete(`/student/groups/${groupUuid}/leave`),
   },
 

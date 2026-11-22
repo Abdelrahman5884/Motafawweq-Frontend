@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Clock, Smartphone, UserPlus, Copy, Loader2 } from 'lucide-react';
+import { Check, X, Clock, Smartphone, UserPlus, Copy, Loader2, Send } from 'lucide-react';
 import { Avatar } from '../../../components/common/Avatar';
 import { useGroups } from '../../../context/GroupsContext';
 
@@ -38,10 +38,10 @@ export const PendingStudentsTable = ({
     });
   };
 
-  const handleReject = async (enrollmentId) => {
+  const handleReject = async (enrollmentId, isTeacherInvite = false) => {
     if (busyMap[enrollmentId]) return;
     setBusyMap((prev) => ({ ...prev, [enrollmentId]: 'reject' }));
-    await rejectPendingStudent(groupId, enrollmentId);
+    await rejectPendingStudent(groupId, enrollmentId, '', { isInviteCancel: isTeacherInvite });
     setBusyMap((prev) => {
       const next = { ...prev };
       delete next[enrollmentId];
@@ -74,8 +74,8 @@ export const PendingStudentsTable = ({
           </span>
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             {isAr
-              ? '— بانتظار موافقتك لتوليد باركود وكود الحضور'
-              : '— Awaiting approval to generate attendance barcode & PIN'}
+              ? '— طلبات الطلاب بانتظار موافقتك، ودعواتك بانتظار قبول الطالب من حسابه'
+              : '— Student requests await your approval; sent invites await student acceptance'}
           </span>
         </div>
 
@@ -153,8 +153,8 @@ export const PendingStudentsTable = ({
           </h3>
           <p style={{ fontSize: '12.5px', margin: '0 auto 16px', maxWidth: '460px', lineHeight: 1.6 }}>
             {isAr
-              ? 'شارك كود أو رابط المجموعة مع طلابك، وعندما يرسل أي طالب طلب انضمام أو عند إرسال دعوة له سيظهر هنا فوراً للمراجعة والقبول.'
-              : 'Share your group code or invite link with students. Incoming requests and invitations will appear here for review.'}
+              ? 'شارك كود أو رابط المجموعة مع طلابك لمراجعة طلبات الانضمام، كما ستظهر الدعوات التي ترسلها هنا بانتظار قبول الطالب من حسابه.'
+              : 'Share your group code or invite link to review student requests. Invitations you send also appear here until accepted by the student.'}
           </p>
           <button
             type="button"
@@ -182,6 +182,7 @@ export const PendingStudentsTable = ({
           {pendingStudents.map((st) => {
             const busyAction = busyMap[st.id];
             const displayName = st.nameAr || st.name || 'طالب';
+            const isTeacherInvite = st.joinMethod === 'teacher_invite';
 
             return (
               <div
@@ -213,13 +214,13 @@ export const PendingStudentsTable = ({
                       gap: '4px',
                       padding: '3px 8px',
                       borderRadius: '6px',
-                      backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                      color: 'var(--primary)',
+                      backgroundColor: isTeacherInvite ? 'rgba(245, 158, 11, 0.12)' : 'rgba(21, 136, 199, 0.1)',
+                      color: isTeacherInvite ? '#D97706' : 'var(--primary)',
                       fontSize: '10.5px',
                       fontWeight: '800',
                     }}
                   >
-                    <Smartphone size={11} />
+                    {isTeacherInvite ? <Send size={11} /> : <Smartphone size={11} />}
                     <span>{st.method || (isAr ? 'كود الانضمام' : 'Join Code')}</span>
                   </span>
                 </div>
@@ -231,55 +232,102 @@ export const PendingStudentsTable = ({
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <button
-                    type="button"
-                    disabled={Boolean(busyAction)}
-                    onClick={() => handleAccept(st.id)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      padding: '8px',
-                      borderRadius: '9px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      fontSize: '12.5px',
-                      fontWeight: '800',
-                      cursor: busyAction ? 'wait' : 'pointer',
-                      opacity: busyAction ? 0.7 : 1,
-                    }}
-                  >
-                    {busyAction === 'accept' ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                    <span>{isAr ? 'قبول' : 'Accept'}</span>
-                  </button>
+                {isTeacherInvite ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '7px 10px',
+                        borderRadius: '9px',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        border: '1px solid rgba(245, 158, 11, 0.25)',
+                        color: '#D97706',
+                        fontSize: '12px',
+                        fontWeight: '800',
+                      }}
+                    >
+                      <Clock size={13} />
+                      <span>{isAr ? 'بانتظار قبول الطالب من حسابه' : 'Awaiting student acceptance'}</span>
+                    </div>
 
-                  <button
-                    type="button"
-                    disabled={Boolean(busyAction)}
-                    onClick={() => handleReject(st.id)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      padding: '8px',
-                      borderRadius: '9px',
-                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                      color: '#EF4444',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      fontSize: '12.5px',
-                      fontWeight: '800',
-                      cursor: busyAction ? 'wait' : 'pointer',
-                      opacity: busyAction ? 0.7 : 1,
-                    }}
-                  >
-                    {busyAction === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
-                    <span>{isAr ? 'رفض' : 'Reject'}</span>
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      disabled={Boolean(busyAction)}
+                      onClick={() => handleReject(st.id, true)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        padding: '8px',
+                        borderRadius: '9px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                        color: '#EF4444',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        fontSize: '12.5px',
+                        fontWeight: '800',
+                        cursor: busyAction ? 'wait' : 'pointer',
+                        opacity: busyAction ? 0.7 : 1,
+                      }}
+                    >
+                      {busyAction === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                      <span>{isAr ? 'إلغاء الدعوة' : 'Cancel Invite'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      type="button"
+                      disabled={Boolean(busyAction)}
+                      onClick={() => handleAccept(st.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        padding: '8px',
+                        borderRadius: '9px',
+                        backgroundColor: 'var(--primary)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '12.5px',
+                        fontWeight: '800',
+                        cursor: busyAction ? 'wait' : 'pointer',
+                        opacity: busyAction ? 0.7 : 1,
+                      }}
+                    >
+                      {busyAction === 'accept' ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      <span>{isAr ? 'قبول' : 'Accept'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={Boolean(busyAction)}
+                      onClick={() => handleReject(st.id, false)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        padding: '8px',
+                        borderRadius: '9px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                        color: '#EF4444',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        fontSize: '12.5px',
+                        fontWeight: '800',
+                        cursor: busyAction ? 'wait' : 'pointer',
+                        opacity: busyAction ? 0.7 : 1,
+                      }}
+                    >
+                      {busyAction === 'reject' ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                      <span>{isAr ? 'رفض' : 'Reject'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -323,6 +371,7 @@ export const PendingStudentsTable = ({
                 {pendingStudents.map((st) => {
                   const busyAction = busyMap[st.id];
                   const displayName = st.nameAr || st.name || 'طالب';
+                  const isTeacherInvite = st.joinMethod === 'teacher_invite';
 
                   return (
                     <tr key={st.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -367,13 +416,13 @@ export const PendingStudentsTable = ({
                             gap: '5px',
                             padding: '3px 8px',
                             borderRadius: '6px',
-                            backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                            color: 'var(--primary)',
+                            backgroundColor: isTeacherInvite ? 'rgba(245, 158, 11, 0.12)' : 'rgba(21, 136, 199, 0.1)',
+                            color: isTeacherInvite ? '#D97706' : 'var(--primary)',
                             fontSize: '11px',
                             fontWeight: '800',
                           }}
                         >
-                          <Smartphone size={12} />
+                          {isTeacherInvite ? <Send size={12} /> : <Smartphone size={12} />}
                           <span>{st.method || (isAr ? 'كود الانضمام' : 'Join Code')}</span>
                         </span>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
@@ -382,53 +431,98 @@ export const PendingStudentsTable = ({
                       </td>
 
                       <td style={{ padding: '14px 18px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            type="button"
-                            disabled={Boolean(busyAction)}
-                            onClick={() => handleAccept(st.id)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                              padding: '6px 14px',
-                              borderRadius: '8px',
-                              backgroundColor: 'var(--primary)',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              fontSize: '12px',
-                              fontWeight: '800',
-                              cursor: busyAction ? 'wait' : 'pointer',
-                              opacity: busyAction ? 0.7 : 1,
-                            }}
-                          >
-                            {busyAction === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
-                            <span>{isAr ? 'قبول' : 'Accept'}</span>
-                          </button>
+                        {isTeacherInvite ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '5px 10px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                border: '1px solid rgba(245, 158, 11, 0.25)',
+                                color: '#D97706',
+                                fontSize: '11.5px',
+                                fontWeight: '800',
+                              }}
+                            >
+                              <Clock size={12} />
+                              <span>{isAr ? 'بانتظار قبول الطالب' : 'Awaiting Student'}</span>
+                            </span>
 
-                          <button
-                            type="button"
-                            disabled={Boolean(busyAction)}
-                            onClick={() => handleReject(st.id)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                              color: '#EF4444',
-                              border: '1px solid rgba(239, 68, 68, 0.25)',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              cursor: busyAction ? 'wait' : 'pointer',
-                              opacity: busyAction ? 0.7 : 1,
-                            }}
-                          >
-                            {busyAction === 'reject' ? <Loader2 size={13} className="animate-spin" /> : <X size={14} />}
-                            <span>{isAr ? 'رفض' : 'Reject'}</span>
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              disabled={Boolean(busyAction)}
+                              onClick={() => handleReject(st.id, true)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                color: '#EF4444',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: busyAction ? 'wait' : 'pointer',
+                                opacity: busyAction ? 0.7 : 1,
+                              }}
+                            >
+                              {busyAction === 'reject' ? <Loader2 size={13} className="animate-spin" /> : <X size={14} />}
+                              <span>{isAr ? 'إلغاء الدعوة' : 'Cancel Invite'}</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              disabled={Boolean(busyAction)}
+                              onClick={() => handleAccept(st.id)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '6px 14px',
+                                borderRadius: '8px',
+                                backgroundColor: 'var(--primary)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                cursor: busyAction ? 'wait' : 'pointer',
+                                opacity: busyAction ? 0.7 : 1,
+                              }}
+                            >
+                              {busyAction === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                              <span>{isAr ? 'قبول' : 'Accept'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={Boolean(busyAction)}
+                              onClick={() => handleReject(st.id, false)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                color: '#EF4444',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: busyAction ? 'wait' : 'pointer',
+                                opacity: busyAction ? 0.7 : 1,
+                              }}
+                            >
+                              {busyAction === 'reject' ? <Loader2 size={13} className="animate-spin" /> : <X size={14} />}
+                              <span>{isAr ? 'رفض' : 'Reject'}</span>
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

@@ -226,6 +226,11 @@ export const GroupsProvider = ({ children }) => {
             teacherNameAr: g.teacherNameAr || g.teacherName || '',
             teacherNameEn: g.teacherNameEn || g.teacherName || '',
             enrollmentStatus: status,
+            joinMethod: g.joinMethod || g.join_method || 'join_code',
+            joinMethodLabelAr: g.joinMethodLabelAr || '',
+            isTeacherInvite: Boolean(
+              g.isTeacherInvite || (status === 'pending' && (g.joinMethod || g.join_method) === 'teacher_invite')
+            ),
             studentBarcode: g.studentBarcode || null,
             studentPasscode: g.studentPasscode || null,
             attendanceRate: Number(g.attendanceRate ?? 100),
@@ -621,21 +626,26 @@ export const GroupsProvider = ({ children }) => {
       showToast('تم قبول الطالب بنجاح وإضافته لقائمة المقيدين!');
       return { success: true };
     } catch (err) {
-      const msg = err?.message || 'فشل قبول الطالب.';
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const msg = firstErr || err?.message || 'فشل قبول الطالب.';
       showToast(msg, 'warning');
       return { success: false, error: msg };
     }
   };
 
-  // Reject pending student enrollment
-  const rejectPendingStudent = async (groupId, pendingId, reason = '') => {
+  // Reject pending student enrollment or cancel a teacher-sent invitation
+  const rejectPendingStudent = async (groupId, pendingId, reason = '', { isInviteCancel = false } = {}) => {
     try {
       await teacherApi.roster.reject(groupId, pendingId, reason);
       await fetchGroupRoster(groupId);
-      showToast('تم رفض طلب الانضمام.', 'warning');
+      showToast(
+        isInviteCancel ? 'تم إلغاء الدعوة المرسلة للطالب.' : 'تم رفض طلب الانضمام.',
+        'warning'
+      );
       return { success: true };
     } catch (err) {
-      const msg = err?.message || 'فشل رفض الطالب.';
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const msg = firstErr || err?.message || (isInviteCancel ? 'فشل إلغاء الدعوة.' : 'فشل رفض الطالب.');
       showToast(msg, 'warning');
       return { success: false, error: msg };
     }
@@ -675,7 +685,7 @@ export const GroupsProvider = ({ children }) => {
 
       await teacherApi.roster.invite(groupId, body);
       await fetchGroupRoster(groupId);
-      showToast('تم إرسال دعوة الانضمام للطالب بنجاح!');
+      showToast('تم إرسال دعوة الانضمام للطالب بنجاح! بانتظار قبول الطالب من حسابه.');
       return { success: true };
     } catch (err) {
       const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
@@ -706,6 +716,40 @@ export const GroupsProvider = ({ children }) => {
       const errMsg = err?.errors?.join_code?.[0] || err?.message || 'كود المجموعة غير صحيح أو انتهت صلاحيته';
       showToast(errMsg, 'warning');
       return { success: false, message: errMsg, error: errMsg };
+    }
+  };
+
+  // Student accepts a teacher-initiated group invitation
+  const studentAcceptInvitation = async (enrollmentUuid) => {
+    if (!enrollmentUuid) return { success: false, error: 'معرف الدعوة غير صالح.' };
+    try {
+      const res = await studentApi.groups.acceptInvitation(enrollmentUuid);
+      await Promise.all([fetchGroups(), fetchScheduleNotes()]);
+      const msg = res?.message || 'تم قبول دعوة الانضمام للمجموعة بنجاح!';
+      showToast(msg);
+      return { success: true, message: msg, data: res?.data };
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const errMsg = firstErr || err?.message || 'تعذر قبول الدعوة حالياً.';
+      showToast(errMsg, 'warning');
+      return { success: false, error: errMsg };
+    }
+  };
+
+  // Student declines a teacher-initiated group invitation
+  const studentDeclineInvitation = async (enrollmentUuid) => {
+    if (!enrollmentUuid) return { success: false, error: 'معرف الدعوة غير صالح.' };
+    try {
+      const res = await studentApi.groups.declineInvitation(enrollmentUuid);
+      await Promise.all([fetchGroups(), fetchScheduleNotes()]);
+      const msg = res?.message || 'تم رفض دعوة الانضمام للمجموعة.';
+      showToast(msg, 'warning');
+      return { success: true, message: msg, data: res?.data };
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const errMsg = firstErr || err?.message || 'تعذر رفض الدعوة حالياً.';
+      showToast(errMsg, 'warning');
+      return { success: false, error: errMsg };
     }
   };
 
@@ -1046,6 +1090,8 @@ export const GroupsProvider = ({ children }) => {
         removeStudentFromGroup,
         inviteStudentToGroup,
         studentJoinByCode,
+        studentAcceptInvitation,
+        studentDeclineInvitation,
         studentLeaveGroup,
         toggleStudentAttendance,
         recordStudentAttendanceByCode,

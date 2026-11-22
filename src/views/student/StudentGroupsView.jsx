@@ -24,7 +24,9 @@ import {
   RefreshCw,
   CreditCard,
   KeyRound,
-  X
+  X,
+  Mail,
+  Loader2
 } from 'lucide-react';
 import { ClassQrModal } from '../../features/teacher/classes/ClassQrModal';
 import { StudentWeeklySchedule } from '../../features/student/schedule';
@@ -43,6 +45,8 @@ export const StudentGroupsView = ({ defaultTab }) => {
     groupsError,
     refreshGroups,
     studentJoinByCode,
+    studentAcceptInvitation,
+    studentDeclineInvitation,
     studentLeaveGroup,
     studentStudySessions
   } = useGroups();
@@ -86,6 +90,7 @@ export const StudentGroupsView = ({ defaultTab }) => {
 
   const [leaveTargetGroup, setLeaveTargetGroup] = useState(null);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [respondingInv, setRespondingInv] = useState(null); // { id, action: 'accept' | 'decline' }
 
   useEffect(() => {
     if (joinCodeParam) {
@@ -104,10 +109,18 @@ export const StudentGroupsView = ({ defaultTab }) => {
       .map((g) => ({
         ...g,
         isEnrolled: g.enrollmentStatus === 'enrolled',
-        isPending: g.enrollmentStatus === 'pending'
+        isPending: g.enrollmentStatus === 'pending',
+        isTeacherInvite: Boolean(
+          g.isTeacherInvite || (g.enrollmentStatus === 'pending' && g.joinMethod === 'teacher_invite')
+        )
       }))
       .filter((g) => g.isEnrolled || g.isPending);
   }, [groups]);
+
+  const teacherInvitations = useMemo(
+    () => studentGroups.filter((g) => g.isPending && g.isTeacherInvite),
+    [studentGroups]
+  );
 
   const enrolledCount = useMemo(
     () => studentGroups.filter((g) => g.isEnrolled).length,
@@ -128,6 +141,7 @@ export const StudentGroupsView = ({ defaultTab }) => {
     const q = searchQuery.trim().toLowerCase();
     return studentGroups.filter((g) => {
       if (statusFilter === 'enrolled' && !g.isEnrolled) return false;
+      if (statusFilter === 'invitations' && !(g.isPending && g.isTeacherInvite)) return false;
       if (statusFilter === 'pending' && !g.isPending) return false;
       if (!q) return true;
       return (
@@ -218,6 +232,28 @@ export const StudentGroupsView = ({ defaultTab }) => {
       }
     } finally {
       setIsLeaving(false);
+    }
+  };
+
+  const handleAcceptInvitation = async (group) => {
+    const invId = group?.enrollmentId;
+    if (!invId || respondingInv) return;
+    setRespondingInv({ id: invId, action: 'accept' });
+    try {
+      await studentAcceptInvitation(invId);
+    } finally {
+      setRespondingInv(null);
+    }
+  };
+
+  const handleDeclineInvitation = async (group) => {
+    const invId = group?.enrollmentId;
+    if (!invId || respondingInv) return;
+    setRespondingInv({ id: invId, action: 'decline' });
+    try {
+      await studentDeclineInvitation(invId);
+    } finally {
+      setRespondingInv(null);
     }
   };
 
@@ -469,7 +505,9 @@ export const StudentGroupsView = ({ defaultTab }) => {
                 icon: UserCheck
               },
               {
-                label: isAr ? 'طلبات قيد المراجعة' : 'Pending Approval',
+                label: teacherInvitations.length > 0
+                  ? (isAr ? 'دعوات وطلبات معلقة' : 'Invites & Pending')
+                  : (isAr ? 'طلبات قيد المراجعة' : 'Pending Approval'),
                 value: pendingCount,
                 color: '#F59E0B',
                 bg: 'rgba(245, 158, 11, 0.12)',
@@ -530,6 +568,158 @@ export const StudentGroupsView = ({ defaultTab }) => {
               );
             })}
           </div>
+
+          {/* Incoming Teacher Invitations Banner */}
+          {teacherInvitations.length > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(21, 136, 199, 0.08) 0%, rgba(16, 185, 129, 0.07) 100%)',
+              borderRadius: '18px',
+              border: '1.5px solid rgba(21, 136, 199, 0.32)',
+              padding: '20px 22px',
+              marginBottom: '22px',
+              boxShadow: 'var(--shadow-xs)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '11px',
+                    backgroundColor: 'rgba(21, 136, 199, 0.14)',
+                    color: 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Mail size={19} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '15.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
+                      {isAr
+                        ? `دعوات انضمام جديدة من معلميك (${teacherInvitations.length})`
+                        : `New Group Invitations from Teachers (${teacherInvitations.length})`}
+                    </h2>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                      {isAr
+                        ? 'اقبل الدعوة للانضمام الفوري للمجموعة وإصدار بطاقة الحضور الخاصة بك تلقائياً.'
+                        : 'Accept an invitation to join the group immediately and generate your attendance pass.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {teacherInvitations.map((inv) => {
+                  const isBusy = respondingInv?.id === inv.enrollmentId;
+                  const busyAction = isBusy ? respondingInv.action : null;
+                  const priceLabel = Number(inv.priceEgp || 0) > 0
+                    ? `${inv.priceEgp} ${isAr ? 'ج.م / شهرياً' : 'EGP / mo'}`
+                    : (isAr ? 'مجانية' : 'Free');
+
+                  return (
+                    <div
+                      key={inv.enrollmentId || inv.id}
+                      style={{
+                        backgroundColor: 'var(--bg-surface)',
+                        borderRadius: '14px',
+                        border: '1px solid var(--border-subtle)',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0, flex: '1 1 260px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '14.5px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                            {isAr ? inv.nameAr : (inv.nameEn || inv.nameAr)}
+                          </span>
+                          {inv.subjectAr && (
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--primary-surface)',
+                              color: 'var(--primary)',
+                              fontSize: '11px',
+                              fontWeight: '800'
+                            }}>
+                              {isAr ? inv.subjectAr : (inv.subjectEn || inv.subjectAr)}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          {(inv.teacherNameAr || inv.teacherName) && (
+                            <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
+                              {isAr ? `المعلم: ${inv.teacherNameAr || inv.teacherName}` : `Teacher: ${inv.teacherNameEn || inv.teacherName}`}
+                            </span>
+                          )}
+                          {(inv.scheduleAr || inv.scheduleEn) && (
+                            <span>• {isAr ? inv.scheduleAr : (inv.scheduleEn || inv.scheduleAr)}</span>
+                          )}
+                          {inv.centerName && (
+                            <span>• {inv.centerName}{inv.hallName ? ` (${inv.hallName})` : ''}</span>
+                          )}
+                          <span>• {priceLabel}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          disabled={Boolean(respondingInv)}
+                          onClick={() => handleAcceptInvitation(inv)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            backgroundColor: '#10B981',
+                            color: '#FFFFFF',
+                            fontSize: '12.5px',
+                            fontWeight: '800',
+                            cursor: respondingInv ? 'wait' : 'pointer',
+                            opacity: respondingInv && !isBusy ? 0.65 : 1,
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                          }}
+                        >
+                          {busyAction === 'accept' ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                          <span>{isAr ? 'قبول الدعوة والانضمام' : 'Accept & Join'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={Boolean(respondingInv)}
+                          onClick={() => handleDeclineInvitation(inv)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '8px 14px',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            color: '#EF4444',
+                            fontSize: '12.5px',
+                            fontWeight: '800',
+                            cursor: respondingInv ? 'wait' : 'pointer',
+                            opacity: respondingInv && !isBusy ? 0.65 : 1
+                          }}
+                        >
+                          {busyAction === 'decline' ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+                          <span>{isAr ? 'رفض الدعوة' : 'Decline'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Join Group Input Card */}
           <div style={{
@@ -702,6 +892,9 @@ export const StudentGroupsView = ({ defaultTab }) => {
                   {[
                     { id: 'all', ar: 'الكل', en: 'All' },
                     { id: 'enrolled', ar: 'مقيد', en: 'Active' },
+                    ...(teacherInvitations.length > 0
+                      ? [{ id: 'invitations', ar: `دعوات (${teacherInvitations.length})`, en: `Invites (${teacherInvitations.length})` }]
+                      : []),
                     { id: 'pending', ar: 'انتظار', en: 'Pending' }
                   ].map((f) => (
                     <button
@@ -816,17 +1009,29 @@ export const StudentGroupsView = ({ defaultTab }) => {
                           gap: '5px',
                           padding: '4px 10px',
                           borderRadius: '8px',
-                          backgroundColor: g.isEnrolled ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                          color: g.isEnrolled ? '#10B981' : '#D97706',
-                          border: `1px solid ${g.isEnrolled ? 'rgba(16, 185, 129, 0.28)' : 'rgba(245, 158, 11, 0.28)'}`,
+                          backgroundColor: g.isEnrolled
+                            ? 'rgba(16, 185, 129, 0.12)'
+                            : g.isTeacherInvite
+                            ? 'rgba(21, 136, 199, 0.12)'
+                            : 'rgba(245, 158, 11, 0.12)',
+                          color: g.isEnrolled ? '#10B981' : g.isTeacherInvite ? 'var(--primary)' : '#D97706',
+                          border: `1px solid ${
+                            g.isEnrolled
+                              ? 'rgba(16, 185, 129, 0.28)'
+                              : g.isTeacherInvite
+                              ? 'rgba(21, 136, 199, 0.3)'
+                              : 'rgba(245, 158, 11, 0.28)'
+                          }`,
                           fontSize: '11px',
                           fontWeight: '800'
                         }}>
-                          {g.isEnrolled ? <UserCheck size={12} /> : <Clock size={12} />}
+                          {g.isEnrolled ? <UserCheck size={12} /> : g.isTeacherInvite ? <Mail size={12} /> : <Clock size={12} />}
                           <span>
                             {g.isEnrolled
                               ? (isAr ? 'مقيد ومعتمد في المجموعة' : 'Active Enrolled')
-                              : (isAr ? 'طلب انضمام قيد الانتظار' : 'Pending Approval')}
+                              : g.isTeacherInvite
+                              ? (isAr ? 'دعوة من المعلم — بانتظار قبولك' : 'Teacher Invite — Awaiting Your Reply')
+                              : (isAr ? 'طلب انضمام بانتظار موافقة المعلم' : 'Pending Teacher Approval')}
                           </span>
                         </span>
 
@@ -1019,30 +1224,84 @@ export const StudentGroupsView = ({ defaultTab }) => {
                         </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setLeaveTargetGroup(g)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '5px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(239, 68, 68, 0.25)',
-                          backgroundColor: 'rgba(239, 68, 68, 0.06)',
-                          color: '#EF4444',
-                          fontSize: '11.5px',
-                          fontWeight: '700',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <LogOut size={12} />
-                        <span>
-                          {g.isPending
-                            ? (isAr ? 'إلغاء الطلب' : 'Cancel Request')
-                            : (isAr ? 'مغادرة' : 'Leave')}
-                        </span>
-                      </button>
+                      {g.isPending && g.isTeacherInvite ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            disabled={Boolean(respondingInv)}
+                            onClick={() => handleAcceptInvitation(g)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '5px 11px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              backgroundColor: '#10B981',
+                              color: '#FFFFFF',
+                              fontSize: '11.5px',
+                              fontWeight: '800',
+                              cursor: respondingInv ? 'wait' : 'pointer',
+                              opacity: respondingInv && respondingInv.id !== g.enrollmentId ? 0.65 : 1
+                            }}
+                          >
+                            {respondingInv?.id === g.enrollmentId && respondingInv?.action === 'accept'
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : <Check size={12} />}
+                            <span>{isAr ? 'قبول الدعوة' : 'Accept'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={Boolean(respondingInv)}
+                            onClick={() => handleDeclineInvitation(g)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '5px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(239, 68, 68, 0.28)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                              color: '#EF4444',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              cursor: respondingInv ? 'wait' : 'pointer',
+                              opacity: respondingInv && respondingInv.id !== g.enrollmentId ? 0.65 : 1
+                            }}
+                          >
+                            {respondingInv?.id === g.enrollmentId && respondingInv?.action === 'decline'
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : <X size={12} />}
+                            <span>{isAr ? 'رفض' : 'Decline'}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setLeaveTargetGroup(g)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '5px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                            color: '#EF4444',
+                            fontSize: '11.5px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <LogOut size={12} />
+                          <span>
+                            {g.isPending
+                              ? (isAr ? 'إلغاء الطلب' : 'Cancel Request')
+                              : (isAr ? 'مغادرة' : 'Leave')}
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

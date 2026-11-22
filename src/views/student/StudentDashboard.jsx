@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Mail, Check, X, Loader2 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useGroups } from '../../context/GroupsContext';
 import { useStudentActivity } from '../../context/StudentActivityContext';
 import { studentApi } from '../../services/studentApi';
 import { getLocalDateKey, getClientTimezone } from '../../utils';
@@ -22,6 +23,47 @@ export const StudentDashboard = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
   const { currentUser, authLoading } = useAuth();
+  const {
+    groups: studentAllGroups,
+    studentAcceptInvitation,
+    studentDeclineInvitation
+  } = useGroups();
+  const [respondingInvite, setRespondingInvite] = useState(null);
+
+  const pendingTeacherInvites = useMemo(
+    () =>
+      (studentAllGroups || []).filter(
+        (g) =>
+          g.enrollmentStatus === 'pending' &&
+          (g.isTeacherInvite || g.joinMethod === 'teacher_invite')
+      ),
+    [studentAllGroups]
+  );
+
+  const handleAcceptDashInvite = async (invite) => {
+    const invId = invite?.enrollmentId;
+    if (!invId || respondingInvite) return;
+    setRespondingInvite({ id: invId, action: 'accept' });
+    try {
+      const res = await studentAcceptInvitation(invId);
+      if (res?.success) {
+        setReloadNonce((n) => n + 1);
+      }
+    } finally {
+      setRespondingInvite(null);
+    }
+  };
+
+  const handleDeclineDashInvite = async (invite) => {
+    const invId = invite?.enrollmentId;
+    if (!invId || respondingInvite) return;
+    setRespondingInvite({ id: invId, action: 'decline' });
+    try {
+      await studentDeclineInvitation(invId);
+    } finally {
+      setRespondingInvite(null);
+    }
+  };
   const {
     activeSecondsToday,
     activeMinutesToday,
@@ -516,6 +558,139 @@ export const StudentDashboard = () => {
               <RefreshCw size={14} />
               <span>{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</span>
             </button>
+          </div>
+        )}
+
+        {pendingTeacherInvites.length > 0 && (
+          <div
+            className="executive-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              borderColor: 'rgba(21, 136, 199, 0.35)',
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(21, 136, 199, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(21, 136, 199, 0.07) 0%, rgba(16, 185, 129, 0.06) 100%)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.14)',
+                  color: themeAccent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <Mail size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '14.5px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                  {lang === 'ar'
+                    ? `لديك ${pendingTeacherInvites.length === 1 ? 'دعوة انضمام جديدة' : `${pendingTeacherInvites.length} دعوات انضمام جديدة`} من معلميك`
+                    : `You have ${pendingTeacherInvites.length} new group invitation${pendingTeacherInvites.length > 1 ? 's' : ''}`}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {lang === 'ar'
+                    ? 'اقبل الدعوة للانضمام للمجموعة والبدء في متابعة المواعيد والمقررات.'
+                    : 'Accept to join the study group and access its schedule and courses.'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {pendingTeacherInvites.map((inv) => {
+                const isBusy = respondingInvite?.id === inv.enrollmentId;
+                const busyAction = isBusy ? respondingInvite.action : null;
+                return (
+                  <div
+                    key={inv.enrollmentId || inv.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '10px',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: '1 1 220px' }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        {lang === 'ar' ? inv.nameAr : (inv.nameEn || inv.nameAr)}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {(inv.teacherNameAr || inv.teacherName) && (
+                          <span>
+                            {lang === 'ar'
+                              ? `المعلم: ${inv.teacherNameAr || inv.teacherName}`
+                              : `Teacher: ${inv.teacherNameEn || inv.teacherName}`}
+                          </span>
+                        )}
+                        {inv.subjectAr && <span> • {lang === 'ar' ? inv.subjectAr : (inv.subjectEn || inv.subjectAr)}</span>}
+                        {inv.scheduleAr && <span> • {lang === 'ar' ? inv.scheduleAr : (inv.scheduleEn || inv.scheduleAr)}</span>}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        disabled={Boolean(respondingInvite)}
+                        onClick={() => handleAcceptDashInvite(inv)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '7px 14px',
+                          borderRadius: '9px',
+                          border: 'none',
+                          backgroundColor: '#10B981',
+                          color: '#FFFFFF',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                          cursor: respondingInvite ? 'wait' : 'pointer',
+                          opacity: respondingInvite && !isBusy ? 0.65 : 1
+                        }}
+                      >
+                        {busyAction === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                        <span>{lang === 'ar' ? 'قبول الدعوة' : 'Accept'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={Boolean(respondingInvite)}
+                        onClick={() => handleDeclineDashInvite(inv)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '7px 12px',
+                          borderRadius: '9px',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                          color: '#EF4444',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                          cursor: respondingInvite ? 'wait' : 'pointer',
+                          opacity: respondingInvite && !isBusy ? 0.65 : 1
+                        }}
+                      >
+                        {busyAction === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                        <span>{lang === 'ar' ? 'رفض' : 'Decline'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

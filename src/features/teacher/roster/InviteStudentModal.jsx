@@ -50,14 +50,15 @@ export const InviteStudentModal = ({
     return set;
   }, [currentEnrolled]);
 
-  const pendingLookup = useMemo(() => {
-    const set = new Set();
+  const pendingMethodLookup = useMemo(() => {
+    const map = new Map();
     currentPending.forEach((s) => {
-      if (s.studentId) set.add(`id:${s.studentId}`);
-      if (s.studentCode) set.add(`code:${String(s.studentCode).toLowerCase()}`);
-      if (s.phone) set.add(`phone:${String(s.phone).replace(/\D/g, '')}`);
+      const method = s.joinMethod || 'join_code';
+      if (s.studentId) map.set(`id:${s.studentId}`, method);
+      if (s.studentCode) map.set(`code:${String(s.studentCode).toLowerCase()}`, method);
+      if (s.phone) map.set(`phone:${String(s.phone).replace(/\D/g, '')}`, method);
     });
-    return set;
+    return map;
   }, [currentPending]);
 
   // Debounced live platform student search with stale-request guard
@@ -86,12 +87,14 @@ export const InviteStudentModal = ({
 
   if (!isOpen) return null;
 
-  const isInSet = (st, set) => {
-    if (st.id && set.has(`id:${st.id}`)) return true;
-    if (st.studentCode && set.has(`code:${String(st.studentCode).toLowerCase()}`)) return true;
+  const getPendingMethod = (st) => {
+    if (st.id && pendingMethodLookup.has(`id:${st.id}`)) return pendingMethodLookup.get(`id:${st.id}`);
+    if (st.studentCode && pendingMethodLookup.has(`code:${String(st.studentCode).toLowerCase()}`)) {
+      return pendingMethodLookup.get(`code:${String(st.studentCode).toLowerCase()}`);
+    }
     const digits = String(st.phone || '').replace(/\D/g, '');
-    if (digits && set.has(`phone:${digits}`)) return true;
-    return false;
+    if (digits && pendingMethodLookup.has(`phone:${digits}`)) return pendingMethodLookup.get(`phone:${digits}`);
+    return null;
   };
 
   const handleInviteRegistered = async (student) => {
@@ -378,8 +381,13 @@ export const InviteStudentModal = ({
                 </div>
               ) : (
                 results.map((st) => {
-                  const enrolled = isInSet(st, enrolledLookup);
-                  const pending = isInSet(st, pendingLookup);
+                  const enrolled = Boolean(
+                    (st.id && enrolledLookup.has(`id:${st.id}`)) ||
+                      (st.studentCode && enrolledLookup.has(`code:${String(st.studentCode).toLowerCase()}`)) ||
+                      (String(st.phone || '').replace(/\D/g, '') && enrolledLookup.has(`phone:${String(st.phone || '').replace(/\D/g, '')}`))
+                  );
+                  const pendingMethod = getPendingMethod(st);
+                  const pending = Boolean(pendingMethod);
                   const isBusy = invitingId === st.id;
                   const displayName = st.nameAr || st.name || 'طالب';
 
@@ -443,7 +451,15 @@ export const InviteStudentModal = ({
                               fontWeight: '800',
                             }}
                           >
-                            <span>{isAr ? 'دعوة معلقة' : 'Pending'}</span>
+                            <span>
+                              {pendingMethod === 'teacher_invite'
+                                ? isAr
+                                  ? 'بانتظار قبول الطالب'
+                                  : 'Awaiting Student'
+                                : isAr
+                                  ? 'طلب انضمام معلق'
+                                  : 'Pending Request'}
+                            </span>
                           </span>
                         ) : (
                           <button
@@ -595,8 +611,8 @@ export const InviteStudentModal = ({
               }}
             >
               {isAr
-                ? 'سيُضاف الطالب لقائمة «طلبات الانضمام والدعوات» ويمكنك قبوله فوراً لتوليد باركود وكود الحضور الخاص به.'
-                : 'The student will be added to Pending & Invites where you can immediately approve them to generate their attendance pass.'}
+                ? 'سيتم إرسال دعوة للطالب وتظهر لديه في حسابه؛ وبمجرد قبوله للدعوة ينضم للمجموعة تلقائياً ويُصدر له باركود وكود الحضور.'
+                : 'An invitation will be sent to the student account. Once the student accepts it, they join automatically with their attendance pass.'}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
@@ -635,7 +651,7 @@ export const InviteStudentModal = ({
                 }}
               >
                 {isSubmittingManual ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                <span>{isSubmittingManual ? (isAr ? 'جاري الإضافة...' : 'Adding...') : (isAr ? 'إرسال دعوة وإضافة' : 'Send Invite')}</span>
+                <span>{isSubmittingManual ? (isAr ? 'جاري الإرسال...' : 'Sending...') : (isAr ? 'إرسال دعوة' : 'Send Invite')}</span>
               </button>
             </div>
           </form>
