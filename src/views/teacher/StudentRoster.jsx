@@ -25,7 +25,16 @@ import {
   RosterTable,
   PendingStudentsTable,
   InviteStudentModal,
+  QuickAttendanceBar,
 } from '../../features/teacher/roster';
+
+function getLocalTodayIso() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 export const StudentRoster = () => {
   const navigate = useNavigate();
@@ -61,9 +70,11 @@ export const StudentRoster = () => {
 
   const [activeTab, setActiveTab] = useState('enrolled'); // 'enrolled' | 'pending'
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'top' | 'attention'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'top' | 'attention' | 'present' | 'absent'
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const todayStr = useMemo(() => getLocalTodayIso(), []);
+  const [attendanceDate, setAttendanceDate] = useState(() => getLocalTodayIso());
 
   const breadcrumbs = useMemo(
     () => [
@@ -110,9 +121,22 @@ export const StudentRoster = () => {
       const st = s.status || s.academicStatus || 'Good';
       if (statusFilter === 'top') return st === 'Top 1%' || st === 'Excellence';
       if (statusFilter === 'attention') return st === 'Needs Support';
+      if (statusFilter === 'present') {
+        return s.todayAttendanceStatus === 'present' || s.todayAttendanceStatus === 'late';
+      }
+      if (statusFilter === 'absent') {
+        return s.todayAttendanceStatus !== 'present' && s.todayAttendanceStatus !== 'late';
+      }
       return true;
     });
   }, [currentEnrolled, searchQuery, statusFilter]);
+
+  const handleChangeAttendanceDate = (nextDate) => {
+    setAttendanceDate(nextDate);
+    if (activeId) {
+      fetchGroupRoster(activeId, nextDate);
+    }
+  };
 
   const filteredPending = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -204,9 +228,13 @@ export const StudentRoster = () => {
               <select
                 value={activeGroup?.id || ''}
                 onChange={(e) => {
-                  setActiveGroupId(e.target.value);
+                  const nextId = e.target.value;
+                  setActiveGroupId(nextId);
                   setSearchQuery('');
                   setStatusFilter('all');
+                  if (attendanceDate !== todayStr) {
+                    setAttendanceDate(todayStr);
+                  }
                 }}
                 style={{
                   padding: '7px 12px',
@@ -234,7 +262,7 @@ export const StudentRoster = () => {
             <button
               type="button"
               disabled={loadingRoster}
-              onClick={() => fetchGroupRoster(activeId)}
+              onClick={() => fetchGroupRoster(activeId, attendanceDate)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -719,6 +747,8 @@ export const StudentRoster = () => {
                 >
                   {[
                     { id: 'all', label: isAr ? 'الكل' : 'All' },
+                    { id: 'present', label: isAr ? 'حاضر' : 'Present' },
+                    { id: 'absent', label: isAr ? 'غير حاضر' : 'Not Present' },
                     { id: 'top', label: isAr ? 'المتفوقون' : 'Top' },
                     { id: 'attention', label: isAr ? 'يحتاج متابعة' : 'Needs Support' },
                   ].map((f) => (
@@ -802,7 +832,7 @@ export const StudentRoster = () => {
               </div>
               <button
                 type="button"
-                onClick={() => fetchGroupRoster(activeId)}
+                onClick={() => fetchGroupRoster(activeId, attendanceDate)}
                 style={{
                   padding: '8px 16px',
                   borderRadius: '10px',
@@ -833,19 +863,34 @@ export const StudentRoster = () => {
               {isAr ? 'جاري تحميل قائمة طلاب المجموعة...' : 'Loading cohort students...'}
             </div>
           ) : activeTab === 'enrolled' ? (
-            <RosterTable
-              groupId={activeId}
-              students={filteredEnrolled}
-              hasFilters={Boolean(searchQuery.trim() || statusFilter !== 'all')}
-              lang={lang}
-              isRtl={isRtl}
-              isMobile={isMobile}
-              onOpenInviteModal={() => setInviteModalOpen(true)}
-              onResetFilters={() => {
-                setSearchQuery('');
-                setStatusFilter('all');
-              }}
-            />
+            <>
+              {currentEnrolled.length > 0 && (
+                <QuickAttendanceBar
+                  groupId={activeId}
+                  students={currentEnrolled}
+                  attendanceDate={attendanceDate}
+                  todayStr={todayStr}
+                  onChangeDate={handleChangeAttendanceDate}
+                  lang={lang}
+                  isRtl={isRtl}
+                  isMobile={isMobile}
+                />
+              )}
+              <RosterTable
+                groupId={activeId}
+                students={filteredEnrolled}
+                attendanceDate={attendanceDate}
+                hasFilters={Boolean(searchQuery.trim() || statusFilter !== 'all')}
+                lang={lang}
+                isRtl={isRtl}
+                isMobile={isMobile}
+                onOpenInviteModal={() => setInviteModalOpen(true)}
+                onResetFilters={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                }}
+              />
+            </>
           ) : (
             <PendingStudentsTable
               groupId={activeId}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Smartphone, Users, BookOpen } from 'lucide-react';
+import { X, Copy, Check, Link2, Users, BookOpen, RefreshCw, Loader2 } from 'lucide-react';
 import { RealQRCode } from '../../../components/common/RealQRCode';
 import { useGroups } from '../../../context/GroupsContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -8,50 +8,78 @@ import { copyTextToClipboard } from '../../../utils';
 export const ClassQrModal = ({
   showQrModal,
   selectedClass,
-  lang,
+  lang = 'ar',
   onClose,
-  onOpenRoster
+  onOpenRoster,
 }) => {
-  const { studentJoinByCode } = useGroups();
+  const { groups, regenerateGroupJoinCode, showToast } = useGroups();
   const { currentRole } = useAuth();
   const isStudent = currentRole === 'student';
+  const isAr = lang === 'ar';
+
   const [copied, setCopied] = useState(false);
-  const [simulated, setSimulated] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
     if (!showQrModal) return undefined;
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape' && !regenerating) {
+        setConfirmRegen(false);
+        onClose?.();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [showQrModal, onClose]);
+  }, [showQrModal, regenerating, onClose]);
 
   if (!showQrModal || !selectedClass) return null;
 
-  const cleanJoinCode = String(selectedClass.joinCode || selectedClass.join_code || '').trim().toUpperCase();
+  // Always prefer the freshest group object from context (reflects regenerated joinCode immediately)
+  const liveClass =
+    groups.find((g) => g.id === selectedClass.id || g.uuid === selectedClass.id) || selectedClass;
+
+  const cleanJoinCode = String(liveClass.joinCode || liveClass.join_code || '').trim().toUpperCase();
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://motafawweq.me';
-  const qrValue = cleanJoinCode ? `${origin}/join-group/${cleanJoinCode}` : origin;
+  const qrValue = cleanJoinCode ? `${origin}/join-group/${encodeURIComponent(cleanJoinCode)}` : origin;
+
+  const handleClose = () => {
+    if (regenerating) return;
+    setConfirmRegen(false);
+    onClose?.();
+  };
 
   const handleCopyCode = async () => {
     if (!cleanJoinCode) return;
     const ok = await copyTextToClipboard(cleanJoinCode);
     if (ok) {
       setCopied(true);
+      showToast?.(isAr ? `تم نسخ كود المجموعة: ${cleanJoinCode}` : `Copied code: ${cleanJoinCode}`);
       window.setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const handleSimulateScan = () => {
-    const demoStudents = [
-      { nameAr: 'يوسف أحمد الشناوي', name: 'Youssef Ahmed', phone: '+20 109 988 7766', parentNameAr: 'أحمد الشناوي', parentPhone: '+20 100 998 8776' },
-      { nameAr: 'نورهان هاني الجوهري', name: 'Nourhan Hany', phone: '+20 101 122 3344', parentNameAr: 'هاني الجوهري', parentPhone: '+20 100 556 6778' },
-      { nameAr: 'عبدالرحمن حسن', name: 'Abdulrahman Hassan', phone: '+20 100 012 3456', parentNameAr: 'حسن مصطفى', parentPhone: '+20 101 123 4567' }
-    ];
-    const pick = demoStudents[Math.floor(Math.random() * demoStudents.length)];
-    studentJoinByCode(selectedClass.joinCode, pick);
-    setSimulated(true);
-    setTimeout(() => setSimulated(false), 3000);
+  const handleCopyJoinLink = async () => {
+    if (!cleanJoinCode) return;
+    const ok = await copyTextToClipboard(qrValue);
+    if (ok) {
+      setCopiedLink(true);
+      showToast?.(isAr ? 'تم نسخ رابط الانضمام للمجموعة!' : 'Join link copied!');
+      window.setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (regenerating || !liveClass.id) return;
+    if (!confirmRegen) {
+      setConfirmRegen(true);
+      return;
+    }
+    setRegenerating(true);
+    await regenerateGroupJoinCode(liveClass.id);
+    setRegenerating(false);
+    setConfirmRegen(false);
   };
 
   return (
@@ -65,26 +93,27 @@ export const ClassQrModal = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px'
+        padding: '20px',
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: '24px',
           padding: '28px 24px',
-          maxWidth: '420px',
+          maxWidth: '430px',
           width: '100%',
           textAlign: 'center',
           boxShadow: '0 24px 60px rgba(0,0,0,0.3)',
           border: '1px solid var(--border-subtle)',
-          position: 'relative'
+          position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={onClose}
+          type="button"
+          onClick={handleClose}
           style={{
             position: 'absolute',
             top: '16px',
@@ -98,69 +127,76 @@ export const ClassQrModal = ({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            color: 'var(--text-secondary)'
+            color: 'var(--text-secondary)',
           }}
         >
           <X size={18} />
         </button>
 
-        <h3 style={{
-          fontSize: '18px',
-          fontWeight: '900',
-          color: 'var(--text-primary)',
-          margin: '0 0 6px 0',
-          padding: '0 20px'
-        }}>
-          {lang === 'ar' ? selectedClass.nameAr : selectedClass.nameEn || selectedClass.name}
+        <h3
+          style={{
+            fontSize: '18px',
+            fontWeight: '900',
+            color: 'var(--text-primary)',
+            margin: '0 0 6px 0',
+            padding: '0 24px',
+          }}
+        >
+          {isAr ? liveClass.nameAr : liveClass.nameEn || liveClass.nameAr}
         </h3>
 
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '5px',
-          padding: '3px 10px',
-          borderRadius: '6px',
-          backgroundColor: 'var(--primary-surface)',
-          color: 'var(--primary)',
-          fontSize: '12px',
-          fontWeight: '800',
-          marginBottom: '10px'
-        }}>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '3px 10px',
+            borderRadius: '6px',
+            backgroundColor: 'var(--primary-surface)',
+            color: 'var(--primary)',
+            fontSize: '12px',
+            fontWeight: '800',
+            marginBottom: '10px',
+          }}
+        >
           <BookOpen size={13} />
-          <span>{lang === 'ar' ? (selectedClass.subjectAr || 'الأحياء') : (selectedClass.subjectEn || 'Biology')}</span>
+          <span>{isAr ? liveClass.subjectAr || 'المادة الدراسية' : liveClass.subjectEn || liveClass.subjectAr}</span>
         </div>
 
-        <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
+        <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.55 }}>
           {isStudent
-            ? (lang === 'ar'
-                ? 'كود وباركود المجموعة للمشاركة والانضمام مع زملائك'
-                : 'Cohort code & QR to share with your classmates')
-            : (lang === 'ar'
-                ? 'امسح الباركود بكاميرا هاتف الطالب للانضمام الفوري إلى المجموعة ومراجعة طلبه'
-                : 'Scan with student mobile camera for instant cohort join request')}
+            ? isAr
+              ? 'كود وباركود المجموعة للمشاركة والانضمام مع زملائك'
+              : 'Cohort code & QR to share with your classmates'
+            : isAr
+              ? 'يمسح الطالب الباركود بكاميرا هاتفه أو يدخل الكود لإرسال طلب انضمام فوري للمجموعة'
+              : 'Students scan this QR or enter the join code to request enrollment'}
         </p>
 
         {/* Real High-Resolution Authentic QR Code */}
-        <div style={{
-          width: '236px',
-          height: '236px',
-          margin: '0 auto 16px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '16px',
-          padding: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: '0 8px 24px var(--primary-glow)'
-        }}>
+        <div
+          style={{
+            width: '236px',
+            height: '236px',
+            margin: '0 auto 16px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: '0 8px 24px var(--primary-glow)',
+          }}
+        >
           <RealQRCode value={qrValue} size={220} />
         </div>
 
         {/* Join Code Chip with Copy */}
-        <div
+        <button
+          type="button"
           onClick={handleCopyCode}
-          title={lang === 'ar' ? 'انقر لنسخ الكود' : 'Click to copy code'}
+          title={isAr ? 'انقر لنسخ الكود' : 'Click to copy code'}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -176,17 +212,18 @@ export const ClassQrModal = ({
             color: 'var(--primary)',
             letterSpacing: '1px',
             cursor: 'pointer',
-            marginBottom: '16px'
+            marginBottom: '16px',
           }}
         >
-          {copied ? <Check size={15} color="var(--primary)" /> : <Copy size={15} />}
+          {copied ? <Check size={15} color="#10B981" /> : <Copy size={15} />}
           <span dir="ltr">{cleanJoinCode || '—'}</span>
-        </div>
+        </button>
 
         {/* Action Buttons: Student mode vs Teacher mode */}
         {isStudent ? (
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
+              type="button"
               onClick={handleCopyCode}
               style={{
                 flex: 1,
@@ -202,14 +239,15 @@ export const ClassQrModal = ({
                 fontSize: '13px',
                 fontWeight: '800',
                 cursor: 'pointer',
-                boxShadow: '0 2px 8px var(--primary-glow)'
+                boxShadow: '0 2px 8px var(--primary-glow)',
               }}
             >
               {copied ? <Check size={16} /> : <Copy size={16} />}
-              <span>{copied ? (lang === 'ar' ? 'تم نسخ الكود!' : 'Copied!') : (lang === 'ar' ? 'نسخ كود المجموعة' : 'Copy Code')}</span>
+              <span>{copied ? (isAr ? 'تم نسخ الكود!' : 'Copied!') : isAr ? 'نسخ كود المجموعة' : 'Copy Code'}</span>
             </button>
             <button
-              onClick={onClose}
+              type="button"
+              onClick={handleClose}
               style={{
                 padding: '11px 18px',
                 borderRadius: '12px',
@@ -218,46 +256,90 @@ export const ClassQrModal = ({
                 color: 'var(--text-secondary)',
                 fontSize: '13px',
                 fontWeight: '700',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
-              {lang === 'ar' ? 'إغلاق' : 'Close'}
+              {isAr ? 'إغلاق' : 'Close'}
             </button>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button
-              onClick={handleSimulateScan}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '10px 16px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-surface)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-subtle)'}
-            >
-              <Smartphone size={15} color="var(--primary)" />
-              <span>
-                {simulated
-                  ? (lang === 'ar' ? 'تم تسجيل مسح الطالب بنجاح!' : 'Scan Simulated!')
-                  : (lang === 'ar' ? 'محاكاة مسح الباركود بهاتف طالب' : 'Simulate Student Scan')}
-              </span>
-            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleCopyJoinLink}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '9px 12px',
+                  borderRadius: '11px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-medium)',
+                  color: copiedLink ? '#10B981' : 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                }}
+              >
+                {copiedLink ? <Check size={14} /> : <Link2 size={14} color="var(--primary)" />}
+                <span>{copiedLink ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ رابط الانضمام' : 'Copy Join Link'}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={regenerating}
+                onClick={handleRegenerateCode}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '9px 12px',
+                  borderRadius: '11px',
+                  backgroundColor: confirmRegen ? 'rgba(245, 158, 11, 0.14)' : 'var(--bg-subtle)',
+                  border: confirmRegen ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border-medium)',
+                  color: confirmRegen ? '#B45309' : 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: regenerating ? 'wait' : 'pointer',
+                }}
+              >
+                {regenerating ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={14} color={confirmRegen ? '#D97706' : 'var(--primary)'} />
+                )}
+                <span>
+                  {regenerating
+                    ? isAr
+                      ? 'جاري التجديد...'
+                      : 'Updating...'
+                    : confirmRegen
+                      ? isAr
+                        ? 'تأكيد إبطال القديم'
+                        : 'Confirm Rotate'
+                      : isAr
+                        ? 'تجديد الكود'
+                        : 'Rotate Code'}
+                </span>
+              </button>
+            </div>
+
+            {confirmRegen && (
+              <div style={{ fontSize: '11.5px', color: '#B45309', lineHeight: 1.45 }}>
+                {isAr
+                  ? 'سيتم إبطال الكود القديم وتوليد كود جديد فوراً (الطلاب المقيدون حالياً لن يتأثروا).'
+                  : 'Old join code will be invalidated immediately (current students are unaffected).'}
+              </div>
+            )}
 
             <button
+              type="button"
               onClick={() => {
-                onClose();
-                if (onOpenRoster) onOpenRoster(selectedClass);
+                handleClose();
+                if (onOpenRoster) onOpenRoster(liveClass);
               }}
               style={{
                 display: 'flex',
@@ -272,11 +354,11 @@ export const ClassQrModal = ({
                 fontSize: '13px',
                 fontWeight: '800',
                 cursor: 'pointer',
-                boxShadow: '0 2px 8px var(--primary-glow)'
+                boxShadow: '0 2px 8px var(--primary-glow)',
               }}
             >
               <Users size={15} />
-              <span>{lang === 'ar' ? 'فتح سجل الطلاب وقبول الطلبات' : 'Open Roster & Review Requests'}</span>
+              <span>{isAr ? 'فتح سجل الطلاب وقبول الطلبات' : 'Open Roster & Review Requests'}</span>
             </button>
           </div>
         )}

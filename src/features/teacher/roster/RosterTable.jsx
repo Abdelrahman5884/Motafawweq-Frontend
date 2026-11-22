@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Flame,
   MessageCircle,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../../../components/common/Avatar';
 import { useGroups } from '../../../context/GroupsContext';
+import { AttendanceActionButtons } from './AttendanceActionButtons';
 
 function formatWhatsappNumber(phone) {
   const digits = String(phone || '').replace(/\D/g, '');
@@ -60,6 +61,7 @@ function getAcademicBadge(status, isAr) {
 export const RosterTable = ({
   groupId,
   students = [],
+  attendanceDate = null,
   hasFilters = false,
   lang = 'ar',
   isRtl = true,
@@ -68,13 +70,31 @@ export const RosterTable = ({
   onResetFilters,
 }) => {
   const isAr = lang === 'ar';
-  const { removeStudentFromGroup, showToast } = useGroups();
+  const { removeStudentFromGroup, toggleStudentAttendance, showToast } = useGroups();
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [copiedCodeId, setCopiedCodeId] = useState(null);
+  const [busyAttendanceMap, setBusyAttendanceMap] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
+
+  const handleMarkAttendance = useCallback(
+    async (studentId, targetStatus) => {
+      if (!groupId) return;
+      setBusyAttendanceMap((prev) => {
+        if (prev[studentId]) return prev;
+        return { ...prev, [studentId]: targetStatus };
+      });
+      await toggleStudentAttendance(groupId, studentId, targetStatus, attendanceDate);
+      setBusyAttendanceMap((prev) => {
+        const next = { ...prev };
+        delete next[studentId];
+        return next;
+      });
+    },
+    [groupId, attendanceDate, toggleStudentAttendance]
+  );
 
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(students.length / pageSize));
@@ -264,6 +284,9 @@ export const RosterTable = ({
             const contactPhone = s.parentPhone || s.phone || '';
             const cleanWa = formatWhatsappNumber(contactPhone);
             const isCopied = copiedCodeId === s.id;
+            const isPresent = s.todayAttendanceStatus === 'present' || s.todayAttendanceStatus === 'late';
+            const isAbsent = s.todayAttendanceStatus === 'absent' || s.todayAttendanceStatus === 'excused';
+            const busyAtt = busyAttendanceMap[s.id];
 
             return (
               <div
@@ -352,6 +375,15 @@ export const RosterTable = ({
                   </div>
                 </div>
 
+                <AttendanceActionButtons
+                  isPresent={isPresent}
+                  isAbsent={isAbsent}
+                  busy={busyAtt}
+                  isAr={isAr}
+                  fullWidth
+                  onMark={(status) => handleMarkAttendance(s.id, status)}
+                />
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
                   {cleanWa ? (
                     <a
@@ -435,8 +467,9 @@ export const RosterTable = ({
                 >
                   <th style={{ padding: '14px 16px' }}>{isAr ? 'الطالب' : 'Student'}</th>
                   <th style={{ padding: '14px 16px' }}>{isAr ? 'كود الحضور (PIN)' : 'Attendance Pass'}</th>
-                  <th style={{ padding: '14px 16px' }}>{isAr ? 'الحضور والحصص' : 'Attendance'}</th>
-                  <th style={{ padding: '14px 16px' }}>{isAr ? 'متوسط الامتحانات' : 'Avg Exams'}</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'center' }}>{isAr ? 'حضور الحصة' : 'Session Attendance'}</th>
+                  <th style={{ padding: '14px 16px' }}>{isAr ? 'نسبة الحضور' : 'Rate'}</th>
+                  <th style={{ padding: '14px 16px' }}>{isAr ? 'الامتحانات' : 'Avg Exams'}</th>
                   <th style={{ padding: '14px 16px' }}>{isAr ? 'ولي الأمر والاتصال' : 'Contact'}</th>
                   <th style={{ padding: '14px 16px' }}>{isAr ? 'الحالة' : 'Status'}</th>
                   <th style={{ padding: '14px 16px', textAlign: 'center' }}>{isAr ? 'إجراء' : 'Action'}</th>
@@ -457,6 +490,9 @@ export const RosterTable = ({
                   const contactLabel = s.parentNameAr
                     || (s.parentPhone ? (isAr ? 'ولي الأمر' : 'Parent') : (contactPhone ? (isAr ? 'هاتف الطالب' : 'Student Phone') : '—'));
                   const isCopied = copiedCodeId === s.id;
+                  const isPresent = s.todayAttendanceStatus === 'present' || s.todayAttendanceStatus === 'late';
+                  const isAbsent = s.todayAttendanceStatus === 'absent' || s.todayAttendanceStatus === 'excused';
+                  const busyAtt = busyAttendanceMap[s.id];
 
                   return (
                     <tr key={s.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -513,6 +549,16 @@ export const RosterTable = ({
                         ) : (
                           <span style={{ color: 'var(--text-muted)' }}>—</span>
                         )}
+                      </td>
+
+                      <td style={{ padding: '13px 16px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                        <AttendanceActionButtons
+                          isPresent={isPresent}
+                          isAbsent={isAbsent}
+                          busy={busyAtt}
+                          isAr={isAr}
+                          onMark={(status) => handleMarkAttendance(s.id, status)}
+                        />
                       </td>
 
                       <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>

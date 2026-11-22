@@ -293,14 +293,14 @@ export const GroupsProvider = ({ children }) => {
     }
   }, [authLoading, activeUserId, isStudentRole, isTeacherRole, currentUser?.name, currentUser?.nameAr, currentUser?.phone]);
 
-  // Fetch Roster for active group (Teacher only) with stale-request guard
-  const fetchGroupRoster = useCallback(async (groupId) => {
+  // Fetch Roster for active group (Teacher only) with stale-request guard and optional session date
+  const fetchGroupRoster = useCallback(async (groupId, date = null) => {
     if (authLoading || !groupId || !isTeacherRole || !activeUserId) return;
     const seq = ++rosterRequestSeqRef.current;
     setLoadingRoster(true);
     setRosterError(null);
     try {
-      const res = await teacherApi.roster.list(groupId);
+      const res = await teacherApi.roster.list(groupId, date ? { date } : {});
       if (seq !== rosterRequestSeqRef.current) return;
       if (res?.data) {
         const enrolled = Array.isArray(res.data.enrolled) ? res.data.enrolled : [];
@@ -416,6 +416,53 @@ export const GroupsProvider = ({ children }) => {
     }
   }, [studentStudySessions, studySessionsStorageKey, isStudentRole]);
 
+  // Helper to normalize server study group payload consistently
+  const normalizeTeacherGroup = useCallback((g, fallback = {}) => {
+    const incomingSlots = g?.scheduleSlots || g?.schedule_slots;
+    const rawSlots = Array.isArray(incomingSlots) && incomingSlots.length > 0
+      ? incomingSlots.map((s) => {
+          const dayKey = String(s.day || s.day_of_week || '').toLowerCase();
+          const meta = DAY_LABELS[dayKey] || { ar: dayKey, en: dayKey };
+          return {
+            id: s.id || `slot-${dayKey}-${s.startTime || s.start_time || ''}`,
+            day: dayKey,
+            dayAr: s.dayAr || meta.ar,
+            dayEn: s.dayEn || meta.en,
+            startTime: s.startTime || s.start_time || '16:00',
+            endTime: s.endTime || s.end_time || '18:00',
+            hall: s.hall || s.hall_name || g.hallName || g.hall_name || fallback.hallName || 'القاعة الرئيسية',
+          };
+        })
+      : (Array.isArray(fallback.scheduleSlots) && fallback.scheduleSlots.length > 0
+        ? fallback.scheduleSlots
+        : parseScheduleSlots(g?.scheduleAr || g?.schedule_ar || fallback.scheduleAr, g?.hallName || g?.hall_name || fallback.hallName));
+
+    const rawPrice = g?.priceEgp ?? g?.price_egp ?? fallback.priceEgp ?? 0;
+    const numericPrice = !Number.isNaN(Number(rawPrice)) ? Number(rawPrice) : 0;
+
+    return {
+      id: g?.id || g?.uuid || fallback.id,
+      uuid: g?.uuid || g?.id || fallback.uuid || fallback.id,
+      nameAr: g?.nameAr || g?.name_ar || fallback.nameAr || 'مجموعة دراسية',
+      nameEn: g?.nameEn || g?.name_en || g?.nameAr || g?.name_ar || fallback.nameEn || fallback.nameAr || '',
+      subjectAr: g?.subjectAr || g?.subject_ar || fallback.subjectAr || 'المادة الدراسية',
+      subjectEn: g?.subjectEn || g?.subject_en || g?.subjectAr || g?.subject_ar || fallback.subjectEn || fallback.subjectAr || '',
+      gradeAr: g?.gradeAr || g?.grade_ar || fallback.gradeAr || 'الصف الثالث الثانوي',
+      gradeEn: g?.gradeEn || g?.grade_en || g?.gradeAr || g?.grade_ar || fallback.gradeEn || fallback.gradeAr || '',
+      scheduleAr: g?.scheduleAr || g?.schedule_ar || fallback.scheduleAr || '',
+      scheduleEn: g?.scheduleEn || g?.schedule_en || g?.scheduleAr || g?.schedule_ar || fallback.scheduleEn || fallback.scheduleAr || '',
+      centerName: g?.centerName || g?.center_name || fallback.centerName || '',
+      hallName: g?.hallName || g?.hall_name || fallback.hallName || 'القاعة الرئيسية',
+      priceEgp: numericPrice,
+      joinCode: String(g?.joinCode || g?.join_code || fallback.joinCode || '').trim().toUpperCase(),
+      maxStudents: Number(g?.maxStudents ?? g?.max_students ?? fallback.maxStudents) || 50,
+      enrolledCount: Number(g?.enrolledCount ?? g?.enrolled_count ?? fallback.enrolledCount) || 0,
+      pendingCount: Number(g?.pendingCount ?? g?.pending_count ?? fallback.pendingCount) || 0,
+      status: g?.status || fallback.status || 'active',
+      scheduleSlots: rawSlots,
+    };
+  }, []);
+
   // Add new study group
   const addGroup = async (groupData) => {
     const slots =
@@ -426,6 +473,7 @@ export const GroupsProvider = ({ children }) => {
         : parseScheduleSlots(groupData.scheduleAr, groupData.hallName || 'القاعة الرئيسية');
 
     try {
+      const cleanCustomCode = String(groupData.joinCode || '').trim().toUpperCase();
       const payload = {
         name_ar: groupData.nameAr || 'مجموعة دراسية جديدة',
         name_en: groupData.nameEn || groupData.nameAr || 'New Study Group',
@@ -436,6 +484,7 @@ export const GroupsProvider = ({ children }) => {
         schedule_ar: groupData.scheduleAr || 'الأحد والأربعاء 4:00 عصراً',
         price_egp: groupData.priceEgp !== undefined && groupData.priceEgp !== '' && !isNaN(Number(groupData.priceEgp)) ? Number(groupData.priceEgp) : 0,
         max_students: Number(groupData.maxStudents) || 50,
+        ...(cleanCustomCode ? { join_code: cleanCustomCode } : {}),
         slots: slots.map((s) => ({
           day_of_week: s.day,
           start_time: s.startTime || '16:00',
@@ -445,35 +494,15 @@ export const GroupsProvider = ({ children }) => {
       };
 
       const res = await teacherApi.groups.create(payload);
-      const g = res.data;
-      const rawCreatedPrice = g.priceEgp !== undefined && g.priceEgp !== null ? g.priceEgp : g.price_egp;
-      const createdPrice = rawCreatedPrice !== undefined && rawCreatedPrice !== null && !isNaN(Number(rawCreatedPrice))
-        ? Number(rawCreatedPrice)
-        : (groupData.priceEgp !== undefined && !isNaN(Number(groupData.priceEgp)) ? Number(groupData.priceEgp) : 0);
-
-      const createdObj = {
-        id: g.id || g.uuid,
-        uuid: g.uuid || g.id,
-        nameAr: g.nameAr || g.name_ar || groupData.nameAr,
-        nameEn: g.nameEn || g.name_en || groupData.nameEn,
-        subjectAr: g.subjectAr || g.subject_ar || groupData.subjectAr,
-        gradeAr: g.gradeAr || g.grade_ar || groupData.gradeAr,
-        scheduleAr: g.scheduleAr || g.schedule_ar || groupData.scheduleAr,
-        centerName: g.centerName || g.center_name || groupData.centerName,
-        hallName: g.hallName || g.hall_name || groupData.hallName,
-        maxStudents: Number(g.maxStudents || g.max_students) || 50,
-        priceEgp: createdPrice,
-        joinCode: g.joinCode || g.join_code,
-        scheduleSlots: slots,
-      };
+      const createdObj = normalizeTeacherGroup(res?.data || {}, { ...groupData, scheduleSlots: slots });
 
       setGroups((prev) => [createdObj, ...prev]);
       setActiveGroupId(createdObj.id);
       showToast('تم إنشاء المجموعة وإضافتها بنجاح!');
       return createdObj;
     } catch (err) {
-      console.error('Failed to create group:', err);
-      showToast(err.message || 'فشل إنشاء المجموعة.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      showToast(firstErr || err?.message || 'فشل إنشاء المجموعة.', 'warning');
       throw err;
     }
   };
@@ -491,13 +520,15 @@ export const GroupsProvider = ({ children }) => {
     try {
       const payload = {
         name_ar: updatedData.nameAr || existing?.nameAr,
-        name_en: updatedData.nameEn || existing?.nameEn,
+        name_en: updatedData.nameEn || updatedData.nameAr || existing?.nameEn,
+        subject_ar: updatedData.subjectAr || existing?.subjectAr,
+        grade_ar: updatedData.gradeAr || existing?.gradeAr,
         center_name: updatedData.centerName || existing?.centerName,
         hall_name: updatedData.hallName || existing?.hallName,
         price_egp: updatedData.priceEgp !== undefined && updatedData.priceEgp !== '' && !isNaN(Number(updatedData.priceEgp))
           ? Number(updatedData.priceEgp)
           : (existing?.priceEgp ?? 0),
-        max_students: Number(updatedData.maxStudents) || existing?.maxStudents,
+        max_students: Number(updatedData.maxStudents) || existing?.maxStudents || 50,
         schedule_ar: updatedData.scheduleAr || existing?.scheduleAr,
         slots: slots.map((s) => ({
           day_of_week: s.day,
@@ -507,21 +538,32 @@ export const GroupsProvider = ({ children }) => {
         })),
       };
 
-      await teacherApi.groups.update(groupId, payload);
+      const res = await teacherApi.groups.update(groupId, payload);
+      const updatedObj = normalizeTeacherGroup(res?.data || {}, { ...existing, ...updatedData, scheduleSlots: slots });
 
-      setGroups((prev) =>
-        prev.map((g) => {
-          if (g.id === groupId) {
-            return { ...g, ...updatedData, scheduleSlots: slots };
-          }
-          return g;
-        })
-      );
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? updatedObj : g)));
       showToast('تم حفظ تعديلات المجموعة بنجاح!');
+      return updatedObj;
     } catch (err) {
-      console.error('Failed to update group:', err);
-      showToast(err.message || 'فشل تحديث بيانات المجموعة.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      showToast(firstErr || err?.message || 'فشل تحديث بيانات المجموعة.', 'warning');
       throw err;
+    }
+  };
+
+  // Regenerate study group join code (Anti-leakage)
+  const regenerateGroupJoinCode = async (groupId) => {
+    try {
+      const res = await teacherApi.groups.regenerateCode(groupId);
+      const existing = groups.find((g) => g.id === groupId) || {};
+      const updatedObj = normalizeTeacherGroup(res?.data || {}, existing);
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? updatedObj : g)));
+      showToast(`تم تجديد كود الانضمام للمجموعة: ${updatedObj.joinCode}`);
+      return { success: true, group: updatedObj };
+    } catch (err) {
+      const msg = err?.message || 'تعذر تجديد كود الانضمام حالياً.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
     }
   };
 
@@ -540,14 +582,21 @@ export const GroupsProvider = ({ children }) => {
         delete copy[groupId];
         return copy;
       });
+      setRosterStats((prev) => {
+        const copy = { ...prev };
+        delete copy[groupId];
+        return copy;
+      });
       if (activeGroupId === groupId) {
         const remaining = groups.filter((g) => g.id !== groupId);
         setActiveGroupId(remaining.length > 0 ? remaining[0].id : '');
       }
       showToast('تم حذف المجموعة وسجلها بنجاح!');
+      return { success: true };
     } catch (err) {
-      console.error('Failed to delete group:', err);
-      showToast(err.message || 'فشل حذف المجموعة.', 'warning');
+      const msg = err?.message || 'فشل حذف المجموعة.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
     }
   };
 
@@ -663,36 +712,60 @@ export const GroupsProvider = ({ children }) => {
     }
   };
 
-  // Direct manual toggle of attendance
-  const toggleStudentAttendance = async (groupId, studentId, currentStatus) => {
-    const nextStatus = currentStatus === 'present' ? 'absent' : 'present';
+  // Direct manual toggle or explicit set of attendance (present / absent / late / excused)
+  const toggleStudentAttendance = async (groupId, enrollmentId, targetStatus = null, date = null) => {
     try {
-      await teacherApi.attendance.toggleManual(groupId, {
-        student_id: studentId,
-        status: nextStatus,
+      const res = await teacherApi.attendance.toggleManual(groupId, {
+        enrollment_id: String(enrollmentId),
+        ...(targetStatus ? { status: targetStatus } : {}),
+        ...(date ? { date } : {}),
       });
-      await fetchGroupRoster(groupId);
-      showToast('تم تحديث حالة الحضور بنجاح!');
+      await fetchGroupRoster(groupId, date);
+      const finalStatus = res?.data?.status || targetStatus;
+      const studentName = res?.data?.nameAr || '';
+      if (finalStatus === 'absent') {
+        showToast(studentName ? `تم تسجيل غياب الطالب: ${studentName}` : 'تم تسجيل غياب الطالب.', 'warning');
+      } else {
+        showToast(studentName ? `تم تسجيل حضور الطالب: ${studentName}` : 'تم تسجيل حضور الطالب بنجاح!');
+      }
+      return { success: true, record: res?.data };
     } catch (err) {
-      console.error('Failed to toggle attendance:', err);
-      showToast(err.message || 'فشل تحديث الحضور.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const msg = firstErr || err?.message || 'فشل تحديث حالة الحضور.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
     }
   };
 
-  // Record student attendance by Barcode or Passcode
-  const recordStudentAttendanceByCode = async (groupId, code) => {
-    const rawCode = (code || '').trim();
-    if (!rawCode) return { success: false, message: 'يرجى إدخال أو مسح الباركود' };
+  // Record student attendance by Barcode, PIN Passcode, Student Code, or Phone
+  const recordStudentAttendanceByCode = async (groupId, code, date = null) => {
+    const rawCode = String(code || '').trim();
+    if (!rawCode) {
+      return { success: false, message: 'يرجى إدخال كود الطالب أو مسح الباركود.' };
+    }
 
     try {
-      const res = await teacherApi.attendance.scan(groupId, rawCode, 'barcode_scanner');
-      await fetchGroupRoster(groupId);
-      showToast('تم تسجيل الحضور بنجاح!');
-      return { success: true, student: res?.data };
+      const res = await teacherApi.attendance.scan(groupId, rawCode, 'barcode_input', date);
+      await fetchGroupRoster(groupId, date);
+      const alreadyRecorded = Boolean(res?.data?.alreadyRecorded);
+      const record = res?.data?.record || null;
+      const studentName = record?.nameAr || '';
+      const msg = alreadyRecorded
+        ? (studentName ? `الطالب «${studentName}» مسجل حضوره بالفعل في هذه الحصة.` : 'الطالب مسجل حضوره بالفعل.')
+        : (studentName ? `تم تسجيل حضور الطالب «${studentName}» بنجاح!` : 'تم تسجيل الحضور بنجاح!');
+      showToast(msg, alreadyRecorded ? 'warning' : 'success');
+      return {
+        success: true,
+        alreadyRecorded,
+        record,
+        session: res?.data?.session || null,
+        message: msg,
+      };
     } catch (err) {
-      console.error('Scan attendance error:', err);
-      showToast(err.message || 'فشل تسجيل الحضور.', 'warning');
-      return { success: false, message: err.message || 'فشل تسجيل الحضور.' };
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const msg = firstErr || err?.message || 'لم يتم العثور على طالب مطابق لهذا الكود في المجموعة.';
+      showToast(msg, 'warning');
+      return { success: false, message: msg };
     }
   };
 
@@ -946,6 +1019,7 @@ export const GroupsProvider = ({ children }) => {
         getActiveGroup,
         addGroup,
         updateGroup,
+        regenerateGroupJoinCode,
         deleteGroup,
         enrolledStudents,
         pendingStudents,

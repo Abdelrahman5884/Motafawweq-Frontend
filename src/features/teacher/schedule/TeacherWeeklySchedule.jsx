@@ -9,7 +9,6 @@ import {
   Building2,
   Users,
   MapPin,
-  CheckCircle2,
   AlertCircle,
   Plus,
   Edit3,
@@ -18,14 +17,12 @@ import {
   Copy,
   ChevronLeft,
   ChevronRight,
-  Filter,
-  Sparkles,
   Flame,
   Search,
-  Bell,
   Trash2,
   StickyNote,
-  Maximize2
+  X,
+  Loader2,
 } from 'lucide-react';
 
 export const DAYS_CONFIG = [
@@ -49,16 +46,18 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
     enrolledStudents,
     setActiveGroupId,
     scheduleNotes,
+    scheduleError,
     addScheduleNote,
     toggleScheduleNote,
-    deleteScheduleNote
+    deleteScheduleNote,
+    showToast,
   } = useGroups();
 
   // Detect Real-World Today Key
   const todayKey = useMemo(() => {
     const dayNum = new Date().getDay();
-    const found = DAYS_CONFIG.find(d => d.dayIndex === dayNum);
-    return found ? found.key : 'tuesday'; // Default to Tuesday if not found
+    const found = DAYS_CONFIG.find((d) => d.dayIndex === dayNum);
+    return found ? found.key : 'tuesday';
   }, []);
 
   // Focused day for Day View and Mobile View (defaults to real today!)
@@ -67,7 +66,7 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
   // View Mode: 'grid' (7-day week) | 'focus' (expanded today/selected day) | 'agenda' (list)
   const [viewMode, setViewMode] = useState('grid');
 
-  // Center filter
+  // Center & Search filter
   const [selectedCenter, setSelectedCenter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -77,15 +76,20 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
   const [noteText, setNoteText] = useState('');
   const [noteTime, setNoteTime] = useState('16:00');
   const [notePriority, setNotePriority] = useState('medium'); // 'high' | 'medium' | 'normal'
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState('');
+  const [busyNotes, setBusyNotes] = useState({});
 
   // Copied join code feedback
   const [copiedCode, setCopiedCode] = useState(null);
 
   const handleCopyCode = (code, e) => {
     if (e) e.stopPropagation();
-    navigator.clipboard?.writeText(code);
+    if (!code) return;
+    navigator.clipboard?.writeText(code).catch(() => {});
     setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+    showToast?.(isAr ? `تم نسخ كود المجموعة: ${code}` : `Copied code: ${code}`);
+    window.setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const handleOpenRoster = (groupId, e) => {
@@ -103,40 +107,44 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
       tuesday: [],
       wednesday: [],
       thursday: [],
-      friday: []
+      friday: [],
     };
 
-    groups.forEach(group => {
-      // Filter center
+    const q = searchQuery.trim().toLowerCase();
+
+    groups.forEach((group) => {
+      if ((group.status || 'active') !== 'active') return;
       if (selectedCenter !== 'all' && group.centerName !== selectedCenter) return;
-      // Filter search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTitle = (group.nameAr && group.nameAr.toLowerCase().includes(q)) ||
-          (group.nameEn && group.nameEn.toLowerCase().includes(q)) ||
-          (group.subjectAr && group.subjectAr.toLowerCase().includes(q)) ||
-          (group.centerName && group.centerName.toLowerCase().includes(q));
+      if (q) {
+        const matchTitle =
+          String(group.nameAr || '').toLowerCase().includes(q) ||
+          String(group.nameEn || '').toLowerCase().includes(q) ||
+          String(group.subjectAr || '').toLowerCase().includes(q) ||
+          String(group.centerName || '').toLowerCase().includes(q) ||
+          String(group.hallName || '').toLowerCase().includes(q) ||
+          String(group.joinCode || '').toLowerCase().includes(q);
         if (!matchTitle) return;
       }
 
-      const slots = (Array.isArray(group.scheduleSlots) && group.scheduleSlots.length > 0)
-        ? group.scheduleSlots
-        : [];
+      const slots = Array.isArray(group.scheduleSlots) && group.scheduleSlots.length > 0 ? group.scheduleSlots : [];
+      const realEnrolledCount = Array.isArray(enrolledStudents[group.id])
+        ? enrolledStudents[group.id].length
+        : Number(group.enrolledCount ?? 0);
 
-      slots.forEach(slot => {
+      slots.forEach((slot) => {
         const dayKey = (slot.day || '').toLowerCase();
         if (result[dayKey]) {
           result[dayKey].push({
             ...slot,
             group,
-            enrolledCount: (enrolledStudents[group.id] || []).length
+            enrolledCount: realEnrolledCount,
           });
         }
       });
     });
 
     // Sort sessions in each day by start time
-    Object.keys(result).forEach(k => {
+    Object.keys(result).forEach((k) => {
       result[k].sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
     });
 
@@ -146,20 +154,8 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
   // Unique centers list for filter
   const centersList = useMemo(() => {
     const set = new Set();
-    groups.forEach(g => {
+    groups.forEach((g) => {
       if (g.centerName) set.add(g.centerName);
-    });
-    return Array.from(set);
-  }, [groups]);
-
-  // Unique halls list
-  const hallsList = useMemo(() => {
-    const set = new Set();
-    groups.forEach(g => {
-      if (g.hallName) set.add(g.hallName);
-      (g.scheduleSlots || []).forEach(s => {
-        if (s.hall) set.add(s.hall);
-      });
     });
     return Array.from(set);
   }, [groups]);
@@ -169,20 +165,49 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
     return Object.values(sessionsByDay).reduce((acc, list) => acc + list.length, 0);
   }, [sessionsByDay]);
 
-  // Today's sessions count
-  const todaySessions = sessionsByDay[todayKey] || [];
   const selectedDaySessions = sessionsByDay[selectedDayKey] || [];
 
-  const handleSaveNewNote = (e) => {
+  const handleSaveNewNote = async (e) => {
     e.preventDefault();
-    if (!noteText.trim()) return;
-    addScheduleNote(noteTargetDay, {
-      text: noteText.trim(),
-      time: noteTime,
-      priority: notePriority
+    if (!noteText.trim() || savingNote) return;
+    setSavingNote(true);
+    setNoteError('');
+    try {
+      await addScheduleNote(noteTargetDay, {
+        text: noteText.trim(),
+        time: noteTime || '16:00',
+        priority: notePriority,
+      });
+      setNoteText('');
+      setNoteModalOpen(false);
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      setNoteError(firstErr || err?.message || (isAr ? 'تعذر حفظ الملاحظة.' : 'Failed to save note.'));
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const handleToggleNote = async (dayKey, noteId) => {
+    if (busyNotes[noteId]) return;
+    setBusyNotes((prev) => ({ ...prev, [noteId]: true }));
+    await toggleScheduleNote(dayKey, noteId);
+    setBusyNotes((prev) => {
+      const next = { ...prev };
+      delete next[noteId];
+      return next;
     });
-    setNoteText('');
-    setNoteModalOpen(false);
+  };
+
+  const handleDeleteNote = async (dayKey, noteId) => {
+    if (busyNotes[noteId]) return;
+    setBusyNotes((prev) => ({ ...prev, [noteId]: true }));
+    await deleteScheduleNote(dayKey, noteId);
+    setBusyNotes((prev) => {
+      const next = { ...prev };
+      delete next[noteId];
+      return next;
+    });
   };
 
   const formatTimeTo12h = (t24) => {
@@ -416,8 +441,48 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
           </div>
         </div>
 
-        {/* Right: Center Filter + Add Note Action */}
+        {/* Right: Search + Center Filter + Add Note Action */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Search Input */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              minWidth: '190px',
+            }}
+          >
+            <Search size={13} color="var(--text-secondary)" />
+            <input
+              type="text"
+              placeholder={isAr ? 'ابحث في الحصص...' : 'Search sessions...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                border: 'none',
+                outline: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                width: '100%',
+                fontFamily: 'inherit',
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '1px' }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
           {/* Center selector */}
           <select
             value={selectedCenter}
@@ -431,19 +496,24 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
               fontSize: '12px',
               fontWeight: '700',
               outline: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             <option value="all">{isAr ? 'جميع السناتر والقاعات' : 'All Centers & Halls'}</option>
-            {centersList.map(c => (
-              <option key={c} value={c}>{c}</option>
+            {centersList.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
 
           {/* Add Note Button */}
           <button
+            type="button"
             onClick={() => {
               setNoteTargetDay(selectedDayKey || todayKey);
+              setNoteError('');
               setNoteModalOpen(true);
             }}
             style={{
@@ -458,7 +528,6 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
               fontSize: '12.5px',
               fontWeight: '700',
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
             }}
           >
             <StickyNote size={14} color="var(--primary)" />
@@ -466,6 +535,26 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
           </button>
         </div>
       </div>
+
+      {scheduleError && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 14px',
+            borderRadius: '12px',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#DC2626',
+            fontSize: '12.5px',
+            fontWeight: '700',
+          }}
+        >
+          <AlertCircle size={15} style={{ flexShrink: 0 }} />
+          <span>{scheduleError}</span>
+        </div>
+      )}
 
       {/* ── FOCUS MODE DAY SELECTOR ONLY (Hidden in Grid View to avoid duplicate days) ── */}
       {viewMode === 'focus' && (
@@ -480,10 +569,10 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
             const isToday = day.key === todayKey;
             const isSelected = day.key === selectedDayKey;
             const daySessionsCount = (sessionsByDay[day.key] || []).length;
-            const dayNotesCount = (scheduleNotes[day.key] || []).length;
 
             return (
               <button
+                type="button"
                 key={day.key}
                 onClick={() => setSelectedDayKey(day.key)}
                 style={{
@@ -522,9 +611,8 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', opacity: 0.9 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', opacity: 0.9 }}>
                   <span>{daySessionsCount} {isAr ? 'حصة' : 'class'}</span>
-                  {dayNotesCount > 0 && <span>• 📌 {dayNotesCount}</span>}
                 </div>
               </button>
             );
@@ -561,6 +649,7 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                   overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
+                  minWidth: 0,
                   transition: 'all 0.2s ease',
                   position: 'relative'
                 }}
@@ -613,7 +702,7 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                 </div>
 
                 {/* Day Body: Sessions Cards */}
-                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: 0 }}>
                   {daySessions.length === 0 ? (
                     <div style={{
                       flex: 1,
@@ -818,7 +907,9 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                   <div style={{
                     marginTop: 'auto',
                     paddingTop: '10px',
-                    borderTop: '1px solid var(--border-subtle)'
+                    borderTop: '1px solid var(--border-subtle)',
+                    minWidth: 0,
+                    overflow: 'hidden',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                       <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -848,7 +939,7 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                     </div>
 
                     {dayNotes.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
                         {dayNotes.slice(0, 3).map(note => (
                           <div
                             key={note.id}
@@ -856,36 +947,65 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                               display: 'flex',
                               alignItems: 'flex-start',
                               gap: '6px',
-                              padding: '5px 8px',
-                              borderRadius: '6px',
+                              padding: '6px 8px',
+                              borderRadius: '7px',
                               backgroundColor: note.isDone ? 'var(--bg-subtle)' : (note.priority === 'high' ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-surface)'),
                               border: `1px solid ${note.priority === 'high' ? 'rgba(239, 68, 68, 0.2)' : 'var(--border-subtle)'}`,
-                              fontSize: '11px'
+                              fontSize: '11px',
+                              minWidth: 0,
+                              maxWidth: '100%',
+                              overflow: 'hidden',
                             }}
                           >
                             <input
                               type="checkbox"
                               checked={note.isDone}
-                              onChange={() => toggleScheduleNote(day.key, note.id)}
-                              style={{ marginTop: '2px', cursor: 'pointer' }}
+                              disabled={Boolean(busyNotes[note.id])}
+                              onChange={() => handleToggleNote(day.key, note.id)}
+                              style={{ marginTop: '2px', cursor: 'pointer', flexShrink: 0 }}
                             />
                             <span style={{
                               flex: 1,
+                              minWidth: 0,
                               textDecoration: note.isDone ? 'line-through' : 'none',
                               color: note.isDone ? 'var(--text-muted)' : 'var(--text-primary)',
-                              lineHeight: 1.3
+                              lineHeight: 1.45,
+                              overflowWrap: 'anywhere',
+                              wordBreak: 'break-word',
                             }}>
                               {note.text}
                             </span>
                             <button
                               type="button"
-                              onClick={() => deleteScheduleNote(day.key, note.id)}
-                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+                              disabled={Boolean(busyNotes[note.id])}
+                              onClick={() => handleDeleteNote(day.key, note.id)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '1px', flexShrink: 0 }}
                             >
                               <Trash2 size={11} />
                             </button>
                           </div>
                         ))}
+                        {dayNotes.length > 3 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDayKey(day.key);
+                              setViewMode('focus');
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--primary)',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              padding: '2px 0',
+                            }}
+                          >
+                            {isAr ? `+${dayNotes.length - 3} ملاحظات أخرى` : `+${dayNotes.length - 3} more notes`}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -936,7 +1056,7 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                       backgroundColor: 'var(--primary)',
                       color: '#FFFFFF'
                     }}>
-                      {isAr ? 'اليوم الفعلي ⚡' : 'Current Day'}
+                      {isAr ? 'اليوم' : 'Today'}
                     </span>
                   )}
                 </div>
@@ -1015,9 +1135,31 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
               <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
                 {isAr ? 'لا توجد حصص مجدولة في هذا اليوم' : 'No classes scheduled for this day'}
               </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                {isAr ? 'يمكنك إضافة موعد حصة جديد من خلال زر "إضافة مجموعة جديدة"' : 'Add new class schedules using the new cohort button'}
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0' }}>
+                {isAr ? 'يمكنك إضافة موعد حصة جديد من خلال إنشاء مجموعة دراسية جديدة' : 'Add new class schedules by creating a new cohort'}
               </p>
+              {onAddNewClass && (
+                <button
+                  type="button"
+                  onClick={onAddNewClass}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '9px 18px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>{isAr ? 'إنشاء مجموعة جديدة' : 'Create New Cohort'}</span>
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
@@ -1152,7 +1294,8 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
 
                       {onOpenQr && (
                         <button
-                          onClick={(e) => onOpenQr(group)}
+                          type="button"
+                          onClick={() => onOpenQr(group)}
                           style={{
                             padding: '9px 12px',
                             borderRadius: '8px',
@@ -1223,39 +1366,47 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                 {isAr ? 'لا توجد ملاحظات أو مهام مسجلة لهذا اليوم.' : 'No notes recorded for this day.'}
               </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
                 {scheduleNotes[selectedDayKey].map(note => (
                   <div
                     key={note.id}
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
+                      alignItems: 'flex-start',
                       justifyContent: 'space-between',
                       padding: '10px 14px',
                       borderRadius: '10px',
                       backgroundColor: note.isDone ? 'var(--bg-subtle)' : 'var(--bg-surface)',
                       border: '1px solid var(--border-subtle)',
-                      gap: '12px'
+                      gap: '12px',
+                      minWidth: 0,
+                      overflow: 'hidden',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
                       <input
                         type="checkbox"
                         checked={note.isDone}
-                        onChange={() => toggleScheduleNote(selectedDayKey, note.id)}
-                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        disabled={Boolean(busyNotes[note.id])}
+                        onChange={() => handleToggleNote(selectedDayKey, note.id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', marginTop: '2px', flexShrink: 0 }}
                       />
                       <span style={{
+                        flex: 1,
+                        minWidth: 0,
                         fontSize: '13px',
                         fontWeight: '700',
                         color: note.isDone ? 'var(--text-muted)' : 'var(--text-primary)',
-                        textDecoration: note.isDone ? 'line-through' : 'none'
+                        textDecoration: note.isDone ? 'line-through' : 'none',
+                        lineHeight: 1.5,
+                        overflowWrap: 'anywhere',
+                        wordBreak: 'break-word',
                       }}>
                         {note.text}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                       <span style={{
                         fontSize: '11px',
                         fontWeight: '800',
@@ -1267,7 +1418,9 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                         {note.time}
                       </span>
                       <button
-                        onClick={() => deleteScheduleNote(selectedDayKey, note.id)}
+                        type="button"
+                        disabled={Boolean(busyNotes[note.id])}
+                        onClick={() => handleDeleteNote(selectedDayKey, note.id)}
                         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                       >
                         <Trash2 size={14} />
@@ -1292,7 +1445,37 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
           flexDirection: 'column',
           gap: '16px'
         }}>
-          {DAYS_CONFIG.map(day => {
+          {totalWeeklySessions === 0 ? (
+            <div style={{ textAlign: 'center', padding: '44px 16px', color: 'var(--text-secondary)' }}>
+              <Calendar size={36} color="var(--primary)" style={{ opacity: 0.45, marginBottom: '10px' }} />
+              <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                {isAr ? 'لا توجد حصص مجدولة مطابقة حالياً' : 'No matching scheduled sessions'}
+              </div>
+              {onAddNewClass && (
+                <button
+                  type="button"
+                  onClick={onAddNewClass}
+                  style={{
+                    marginTop: '8px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '9px 18px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>{isAr ? 'إنشاء مجموعة جديدة' : 'Create New Cohort'}</span>
+                </button>
+              )}
+            </div>
+          ) : DAYS_CONFIG.map(day => {
             const daySessions = sessionsByDay[day.key] || [];
             if (daySessions.length === 0) return null;
             const isToday = day.key === todayKey;
@@ -1355,16 +1538,17 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                         </span>
                         <div>
                           <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                            {isAr ? session.group.nameAr : session.group.nameEn}
+                            {isAr ? session.group.nameAr : session.group.nameEn || session.group.nameAr}
                           </div>
                           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {session.group.centerName} • {session.hall || session.group.hallName}
+                            {session.group.centerName} • {session.hall || session.group.hallName} • {session.enrolledCount} {isAr ? 'طالب' : 'students'}
                           </div>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button
+                          type="button"
                           onClick={() => handleOpenRoster(session.group.id)}
                           style={{
                             padding: '6px 12px',
@@ -1425,12 +1609,35 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                 </h3>
               </div>
               <button
+                type="button"
+                disabled={savingNote}
                 onClick={() => setNoteModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: savingNote ? 'not-allowed' : 'pointer' }}
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
+
+            {noteError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#DC2626',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  marginBottom: '10px',
+                }}
+              >
+                <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                <span>{noteError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSaveNewNote} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
@@ -1529,8 +1736,13 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
               <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                 <button
                   type="submit"
+                  disabled={savingNote}
                   style={{
                     flex: 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
                     padding: '9px',
                     borderRadius: '8px',
                     backgroundColor: 'var(--primary)',
@@ -1538,13 +1750,16 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                     border: 'none',
                     fontSize: '13px',
                     fontWeight: '800',
-                    cursor: 'pointer'
+                    cursor: savingNote ? 'wait' : 'pointer',
+                    opacity: savingNote ? 0.7 : 1,
                   }}
                 >
-                  {isAr ? 'حفظ الملاحظة' : 'Save Note'}
+                  {savingNote && <Loader2 size={14} className="animate-spin" />}
+                  <span>{savingNote ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ الملاحظة' : 'Save Note')}</span>
                 </button>
                 <button
                   type="button"
+                  disabled={savingNote}
                   onClick={() => setNoteModalOpen(false)}
                   style={{
                     padding: '9px 16px',
@@ -1553,7 +1768,7 @@ export const TeacherWeeklySchedule = ({ onOpenQr, onEditClass, onAddNewClass }) 
                     color: 'var(--text-secondary)',
                     border: '1px solid var(--border-subtle)',
                     fontSize: '13px',
-                    cursor: 'pointer'
+                    cursor: savingNote ? 'not-allowed' : 'pointer',
                   }}
                 >
                   {isAr ? 'إلغاء' : 'Cancel'}

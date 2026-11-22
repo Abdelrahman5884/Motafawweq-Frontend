@@ -211,8 +211,12 @@ export const teacherApi = {
 
   // ─── Stage 9: Attendance & Schedule ──────────────────────────────────────────
   attendance: {
-    scan: (groupUuid, barcode, method = 'qr_scan') =>
-      apiPost(`/teacher/groups/${groupUuid}/attendance/scan`, { barcode, method }),
+    scan: (groupUuid, code, method = 'barcode_input', date = null) =>
+      apiPost(`/teacher/groups/${groupUuid}/attendance/scan`, {
+        code,
+        method,
+        ...(date ? { date } : {}),
+      }),
     toggleManual: (groupUuid, data) =>
       apiPost(`/teacher/groups/${groupUuid}/attendance/toggle`, data),
     listSessions: (groupUuid) =>

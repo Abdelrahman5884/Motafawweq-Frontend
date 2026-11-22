@@ -67,7 +67,7 @@ export const ClassCard = ({
               {lang === 'ar' ? (cls.gradeAr || 'الصف الثالث الثانوي') : (cls.gradeEn || cls.grade || 'Grade 12')}
             </span>
 
-            {/* Enrolled Badge */}
+            {/* Enrolled / Capacity Badge */}
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -76,11 +76,17 @@ export const ClassCard = ({
               fontWeight: '700',
               padding: '3px 8px',
               borderRadius: '8px',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-secondary)'
+              backgroundColor: Number(cls.maxStudents || 0) > 0 && enrolledCount >= Number(cls.maxStudents)
+                ? 'rgba(239, 68, 68, 0.12)'
+                : 'var(--bg-subtle)',
+              color: Number(cls.maxStudents || 0) > 0 && enrolledCount >= Number(cls.maxStudents)
+                ? '#EF4444'
+                : 'var(--text-secondary)'
             }}>
               <Users size={12} color="var(--primary)" />
-              <span>{enrolledCount} {lang === 'ar' ? 'طالب' : 'Students'}</span>
+              <span>
+                {enrolledCount} / {cls.maxStudents || 50} {lang === 'ar' ? 'طالب' : 'Students'}
+              </span>
             </span>
 
             {/* Pending Requests Badge if any */}
@@ -191,13 +197,18 @@ export const ClassCard = ({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
             <MapPin size={14} color="var(--primary)" />
-            <span style={{ fontWeight: '600' }}>{cls.centerName}</span>
+            <span style={{ fontWeight: '600' }}>
+              {cls.centerName}
+              {cls.hallName ? ` • ${cls.hallName}` : ''}
+            </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
             <Coins size={14} color="var(--primary)" />
             <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
-              {cls.priceEgp} {lang === 'ar' ? 'ج.م / شهرياً' : 'EGP / mo'}
+              {Number(cls.priceEgp || 0) > 0
+                ? `${Number(cls.priceEgp)} ${lang === 'ar' ? 'ج.م / شهرياً' : 'EGP / mo'}`
+                : (lang === 'ar' ? 'مجانية' : 'Free')}
             </span>
           </div>
         </div>
