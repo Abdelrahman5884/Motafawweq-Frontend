@@ -5,6 +5,7 @@ import { studentApi } from '../services/studentApi';
 import { extractGroupJoinCode } from '../utils';
 import { useAuth } from './AuthContext';
 
+// Retained for backwards compatibility with legacy consumers
 export const ALL_REGISTERED_STUDENTS = [];
 
 export const parseScheduleSlots = (scheduleStr = '', defaultHall = 'القاعة الرئيسية') => {
@@ -99,6 +100,10 @@ export const GroupsProvider = ({ children }) => {
   // Enrolled and pending students keyed by group id/uuid
   const [enrolledStudents, setEnrolledStudents] = useState({});
   const [pendingStudents, setPendingStudents] = useState({});
+  const [rosterStats, setRosterStats] = useState({});
+  const [loadingRoster, setLoadingRoster] = useState(false);
+  const [rosterError, setRosterError] = useState(null);
+  const rosterRequestSeqRef = useRef(0);
 
   // Active group for Student Roster view
   const [activeGroupId, setActiveGroupId] = useState('');
@@ -288,19 +293,39 @@ export const GroupsProvider = ({ children }) => {
     }
   }, [authLoading, activeUserId, isStudentRole, isTeacherRole, currentUser?.name, currentUser?.nameAr, currentUser?.phone]);
 
-  // Fetch Roster for active group (Teacher only)
+  // Fetch Roster for active group (Teacher only) with stale-request guard
   const fetchGroupRoster = useCallback(async (groupId) => {
     if (authLoading || !groupId || !isTeacherRole || !activeUserId) return;
+    const seq = ++rosterRequestSeqRef.current;
+    setLoadingRoster(true);
+    setRosterError(null);
     try {
       const res = await teacherApi.roster.list(groupId);
+      if (seq !== rosterRequestSeqRef.current) return;
       if (res?.data) {
-        const enrolled = res.data.enrolled || [];
-        const pending = res.data.pending || [];
+        const enrolled = Array.isArray(res.data.enrolled) ? res.data.enrolled : [];
+        const pending = Array.isArray(res.data.pending) ? res.data.pending : [];
+        const stats = res.data.stats && typeof res.data.stats === 'object' ? res.data.stats : null;
         setEnrolledStudents((prev) => ({ ...prev, [groupId]: enrolled }));
         setPendingStudents((prev) => ({ ...prev, [groupId]: pending }));
+        if (stats) {
+          setRosterStats((prev) => ({ ...prev, [groupId]: stats }));
+        }
+        setGroups((prev) =>
+          prev.map((g) =>
+            g.id === groupId
+              ? { ...g, enrolledCount: enrolled.length, pendingCount: pending.length }
+              : g
+          )
+        );
       }
-    } catch {
-      // ignore non-critical roster fetch errors
+    } catch (err) {
+      if (seq !== rosterRequestSeqRef.current) return;
+      setRosterError(err?.message || 'تعذر تحميل سجل طلاب المجموعة.');
+    } finally {
+      if (seq === rosterRequestSeqRef.current) {
+        setLoadingRoster(false);
+      }
     }
   }, [authLoading, isTeacherRole, activeUserId]);
 
@@ -359,14 +384,27 @@ export const GroupsProvider = ({ children }) => {
   }, [authLoading, activeUserId, isStudentRole, isTeacherRole, studySessionsStorageKey]);
 
   useEffect(() => {
-    fetchGroups();
-    fetchScheduleNotes();
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      fetchGroups();
+      fetchScheduleNotes();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [fetchGroups, fetchScheduleNotes]);
 
   useEffect(() => {
-    if (activeGroupId && isTeacherRole) {
+    if (!activeGroupId || !isTeacherRole) return undefined;
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
       fetchGroupRoster(activeGroupId);
-    }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [activeGroupId, isTeacherRole, fetchGroupRoster]);
 
   useEffect(() => {
@@ -504,7 +542,7 @@ export const GroupsProvider = ({ children }) => {
       });
       if (activeGroupId === groupId) {
         const remaining = groups.filter((g) => g.id !== groupId);
-        if (remaining.length > 0) setActiveGroupId(remaining[0].id);
+        setActiveGroupId(remaining.length > 0 ? remaining[0].id : '');
       }
       showToast('تم حذف المجموعة وسجلها بنجاح!');
     } catch (err) {
@@ -519,9 +557,11 @@ export const GroupsProvider = ({ children }) => {
       await teacherApi.roster.accept(groupId, pendingId);
       await fetchGroupRoster(groupId);
       showToast('تم قبول الطالب بنجاح وإضافته لقائمة المقيدين!');
+      return { success: true };
     } catch (err) {
-      console.error('Failed to accept student:', err);
-      showToast(err.message || 'فشل قبول الطالب.', 'warning');
+      const msg = err?.message || 'فشل قبول الطالب.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
     }
   };
 
@@ -531,9 +571,11 @@ export const GroupsProvider = ({ children }) => {
       await teacherApi.roster.reject(groupId, pendingId, reason);
       await fetchGroupRoster(groupId);
       showToast('تم رفض طلب الانضمام.', 'warning');
+      return { success: true };
     } catch (err) {
-      console.error('Failed to reject student:', err);
-      showToast(err.message || 'فشل رفض الطالب.', 'warning');
+      const msg = err?.message || 'فشل رفض الطالب.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
     }
   };
 
@@ -543,23 +585,41 @@ export const GroupsProvider = ({ children }) => {
       await teacherApi.roster.remove(groupId, enrollmentUuid);
       await fetchGroupRoster(groupId);
       showToast('تم إلغاء قيد الطالب من هذه المجموعة.');
+      return { success: true };
     } catch (err) {
-      console.error('Failed to remove student:', err);
-      showToast(err.message || 'فشل إلغاء قيد الطالب.', 'warning');
+      const msg = err?.message || 'فشل إلغاء قيد الطالب.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
     }
   };
 
-  // Invite student directly by teacher search
-  const inviteStudentToGroup = async (groupId, studentId) => {
+  // Invite student directly by teacher search or manual registration
+  const inviteStudentToGroup = async (groupId, studentOrPayload) => {
     try {
-      await teacherApi.roster.invite(groupId, studentId);
+      let body;
+      if (studentOrPayload && typeof studentOrPayload === 'object') {
+        if (studentOrPayload.id && !studentOrPayload.name_ar) {
+          body = {
+            student_id: String(studentOrPayload.id),
+            parent_name_ar: studentOrPayload.parentNameAr || undefined,
+            parent_phone: studentOrPayload.parentPhone || undefined,
+          };
+        } else {
+          body = studentOrPayload;
+        }
+      } else {
+        body = { student_id: String(studentOrPayload ?? '') };
+      }
+
+      await teacherApi.roster.invite(groupId, body);
       await fetchGroupRoster(groupId);
       showToast('تم إرسال دعوة الانضمام للطالب بنجاح!');
-      return true;
+      return { success: true };
     } catch (err) {
-      console.error('Failed to invite student:', err);
-      showToast(err.message || 'فشل إرسال الدعوة للطالب.', 'warning');
-      return false;
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const msg = firstErr || err?.message || 'فشل إرسال الدعوة للطالب.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
     }
   };
 
@@ -889,6 +949,10 @@ export const GroupsProvider = ({ children }) => {
         deleteGroup,
         enrolledStudents,
         pendingStudents,
+        rosterStats,
+        loadingRoster,
+        rosterError,
+        fetchGroupRoster,
         acceptPendingStudent,
         rejectPendingStudent,
         removeStudentFromGroup,

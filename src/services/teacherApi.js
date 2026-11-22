@@ -194,8 +194,13 @@ export const teacherApi = {
     },
     searchStudents: (query) =>
       apiGet(`/teacher/students/search?search=${encodeURIComponent(query)}`),
-    invite: (groupUuid, studentId) =>
-      apiPost(`/teacher/groups/${groupUuid}/invite`, { student_id: studentId }),
+    invite: (groupUuid, payload) => {
+      const body =
+        payload && typeof payload === 'object'
+          ? payload
+          : { student_id: String(payload ?? '') };
+      return apiPost(`/teacher/groups/${groupUuid}/invite`, body);
+    },
     accept: (groupUuid, enrollmentUuid) =>
       apiPost(`/teacher/groups/${groupUuid}/enrollments/${enrollmentUuid}/accept`),
     reject: (groupUuid, enrollmentUuid, reason = '') =>
