@@ -346,11 +346,13 @@ export const teacherApi = {
     create: (data) => apiPost('/teacher/leagues', data),
     update: (uuid, data) => apiPut(`/teacher/leagues/${uuid}`, data),
     addParticipant: (uuid, data) => apiPost(`/teacher/leagues/${uuid}/participants`, data),
-    awardXp: (uuid, { studentId, xpPoints, reason = '' }) =>
+    removeParticipant: (uuid, participantId) =>
+      apiDelete(`/teacher/leagues/${uuid}/participants/${encodeURIComponent(participantId)}`),
+    awardXp: (uuid, { studentId, xpPoints, xpAmount, reason = '' }) =>
       apiPost(`/teacher/leagues/${uuid}/award-xp`, {
         student_id: studentId,
-        xp_points: xpPoints,
-        reason,
+        xp_amount: xpAmount ?? xpPoints,
+        reason_ar: reason,
       }),
     recalculate: (uuid) => apiPost(`/teacher/leagues/${uuid}/recalculate`),
     delete: (uuid) => apiDelete(`/teacher/leagues/${uuid}`),
