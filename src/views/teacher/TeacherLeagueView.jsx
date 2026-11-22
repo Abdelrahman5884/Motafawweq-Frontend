@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import {
   Trophy,
@@ -71,6 +72,7 @@ export const TeacherLeagueView = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [awardXpStudent, setAwardXpStudent] = useState(null);
   const [leagueToDelete, setLeagueToDelete] = useState(null);
+  const [leagueToCrown, setLeagueToCrown] = useState(null);
   const [participantToRemove, setParticipantToRemove] = useState(null);
   const [notice, setNotice] = useState(null);
 
@@ -347,22 +349,26 @@ export const TeacherLeagueView = () => {
     }
   };
 
-  const handleAnnounceWinners = () => {
-    if (!currentLeague || Number(currentLeague.totalCompetitors || 0) === 0) return;
+  const handleConfirmCrownLeague = async () => {
+    if (!leagueToCrown?.id) return;
+    const res = await teacherApi.leagues.crown(leagueToCrown.id);
+    const crowned = upsertLeagueDetail(res?.data);
+    setLeagueToCrown(null);
+
     try {
-      confetti({ particleCount: 120, spread: 80, origin: { y: 0.58 } });
+      confetti({ particleCount: 140, spread: 85, origin: { y: 0.56 } });
     } catch {
       // ignore
     }
 
-    const champion = currentLeague.podium?.[0]?.nameAr;
+    const champion = crowned?.podium?.[0]?.nameAr;
     showToast(
-      isAr ? 'تم تتويج أبطال الجولة بنجاح' : 'Champions Celebrated!',
+      isAr ? 'تم إعلان تتويج الدوري وإيقافه نهائياً' : 'League Crowned & Concluded!',
       isAr
         ? champion
-          ? `يتصدر "${champion}" دوري "${currentLeague.leagueTitle}" بين ${Number(currentLeague.totalCompetitors).toLocaleString()} متنافس.`
-          : `تم الاحتفاء بأبطال "${currentLeague.leagueTitle}".`
-        : `Celebrating the top performers of ${currentLeague.leagueTitle}.`
+          ? `تم اعتماد تتويج "${champion}" وأوائل "${crowned.leagueTitle}" وإيقاف الدوري نهائياً، وأصبحت شهادات الأوائل متاحة الآن.`
+          : `تم إعلان تتويج الدوري وإيقافه نهائياً، وأصبحت شهادات الدوري متاحة الآن.`
+        : `League "${crowned?.leagueTitle || ''}" is permanently concluded and certificates are now unlocked.`
     );
   };
 
@@ -456,10 +462,10 @@ export const TeacherLeagueView = () => {
             <span>{isAr ? 'بدء دوري جديد' : 'New League'}</span>
           </button>
 
-          {currentLeague?.id && Number(currentLeague.totalCompetitors || 0) > 0 && (
+          {currentLeague?.id && !currentLeague.isCrowned && Number(currentLeague.totalCompetitors || 0) > 0 && (
             <button
               type="button"
-              onClick={handleAnnounceWinners}
+              onClick={() => setLeagueToCrown(currentLeague)}
               style={{
                 flex: isMobile ? '1 1 auto' : 'initial',
                 display: 'inline-flex',
@@ -468,16 +474,16 @@ export const TeacherLeagueView = () => {
                 gap: '6px',
                 padding: isMobile ? '9px 14px' : '10px 16px',
                 borderRadius: '12px',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1.5px solid var(--border-medium)',
-                color: 'var(--text-primary)',
+                backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                border: '1.5px solid rgba(245, 158, 11, 0.45)',
+                color: isDark ? '#FBBF24' : '#B45309',
                 fontSize: '12.5px',
                 fontWeight: '800',
                 cursor: 'pointer',
               }}
             >
               <Award size={15} color="#D97706" />
-              <span>{isAr ? 'تتويج الأوائل' : 'Celebrate Winners'}</span>
+              <span>{isAr ? 'إعلان تتويج الدوري' : 'Crown & End League'}</span>
             </button>
           )}
 
@@ -720,6 +726,62 @@ export const TeacherLeagueView = () => {
 
           {currentLeague && (
             <>
+              {currentLeague.isConcluded && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    padding: '13px 16px',
+                    borderRadius: '16px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.4)',
+                    marginBottom: '18px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Trophy size={20} color="#D97706" style={{ flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '13.5px', fontWeight: '900', color: isDark ? '#FDE68A' : '#92400E' }}>
+                        {currentLeague.isCrowned
+                          ? isAr
+                            ? 'تم إعلان تتويج أبطال هذا الدوري وإيقافه نهائياً'
+                            : 'This league has been officially crowned and stopped'
+                          : isAr
+                            ? 'انتهت مدة هذا الدوري وتم إيقاف المنافسة'
+                            : 'This league round has ended'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: isDark ? '#E2E8F0' : '#B45309', marginTop: '2px' }}>
+                        {isAr
+                          ? 'المراكز النهائية معتمدة الآن ويمكنك إصدار شهادات أبطال الدوري من صفحة الشهادات.'
+                          : 'Final ranks are locked and league certificates are now unlocked.'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/teacher/certificates"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: '#D97706',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <Award size={14} />
+                    <span>{isAr ? 'إصدار شهادات الدوري' : 'Issue League Certificates'}</span>
+                  </Link>
+                </div>
+              )}
+
               <LeaguePodium
                 league={currentLeague}
                 isLoadingDetails={isLoadingActiveDetails}
@@ -816,6 +878,23 @@ export const TeacherLeagueView = () => {
           lang={lang}
           isRtl={isRtl}
           isMobile={isMobile}
+        />
+      )}
+
+      {leagueToCrown && (
+        <ConfirmActionModal
+          variant="crown"
+          title={isAr ? 'هل أنت متأكد من إعلان تتويج الدوري؟' : 'Confirm League Crowning?'}
+          message={
+            isAr
+              ? `عند إعلان تتويج دوري "${leagueToCrown.leagueTitle}" سيتم إيقاف الدوري نهائياً وإغلاق احتساب أي نقاط جديدة، واعتماد المراكز الحالية لإتاحة شهادات أبطال الدوري. لا يمكن التراجع عن هذا الإجراء.`
+              : `Crowning "${leagueToCrown.leagueTitle}" will permanently stop this league, lock all final rankings, and unlock league certificates. This action cannot be undone.`
+          }
+          confirmLabel={isAr ? 'نعم، أعلن التتويج وأوقف الدوري' : 'Yes, Crown & Stop League'}
+          cancelLabel={isAr ? 'تراجع' : 'Cancel'}
+          onConfirm={handleConfirmCrownLeague}
+          onClose={() => setLeagueToCrown(null)}
+          isRtl={isRtl}
         />
       )}
 

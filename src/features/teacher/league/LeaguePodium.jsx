@@ -349,26 +349,28 @@ export const LeaguePodium = ({
               ? 'أضف طلاباً إلى الدوري أو اربطه بمجموعة بها طلاب مسجلون لبدء المنافسة.'
               : 'Add students to this league or link an enrolled study group to kick off the competition.'}
           </div>
-          <button
-            type="button"
-            onClick={onAddStudent}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
-            }}
-          >
-            <UserPlus size={14} />
-            <span>{isAr ? 'إضافة طالب للدوري' : 'Add Student'}</span>
-          </button>
+          {!league?.isConcluded && (
+            <button
+              type="button"
+              onClick={onAddStudent}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '12.5px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              <UserPlus size={14} />
+              <span>{isAr ? 'إضافة طالب للدوري' : 'Add Student'}</span>
+            </button>
+          )}
         </div>
       ) : (
         <div

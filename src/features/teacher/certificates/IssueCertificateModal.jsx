@@ -1,9 +1,28 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Award, Search, X, Check, UserCheck, Users, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Award,
+  Search,
+  X,
+  Check,
+  UserCheck,
+  Users,
+  AlertCircle,
+  Loader2,
+  Trophy,
+  BookOpenCheck,
+  Sparkles,
+  Lock,
+} from 'lucide-react';
 import { Avatar } from '../../../components/common/Avatar';
 import { teacherApi } from '../../../services/teacherApi';
 import { HONORS_PRESETS } from './certificateHelpers';
+
+const TYPE_DEFAULT_HONORS = {
+  general: 'شهادة تميز وتفوق بالدرجة النهائية (Full Mark)',
+  course_completion: 'شهادة إتمام الكورس بمرتبة الشرف',
+  league: 'شهادة صدارة وبطل الدوري الأكاديمي',
+};
 
 export const IssueCertificateModal = ({
   courses,
@@ -21,13 +40,19 @@ export const IssueCertificateModal = ({
     ? defaultCourse.titleAr || defaultCourse.title_ar || defaultCourse.title || ''
     : '';
 
+  const [certificateType, setCertificateType] = useState('general'); // 'general' | 'course_completion' | 'league'
   const [mode, setMode] = useState('single'); // 'single' | 'bulk'
   const [studentQuery, setStudentQuery] = useState('');
   const [students, setStudents] = useState([]);
   const [isSearching, setIsSearching] = useState(true);
   const seqRef = useRef(0);
 
-  // Single-mode selected student or manual entry
+  // Eligibility context from backend (concluded leagues + per-student 100% course completion)
+  const [eligibilityCtx, setEligibilityCtx] = useState({ leagues: [], courseCompletion: null });
+  const [loadingEligibility, setLoadingEligibility] = useState(true);
+  const [selectedLeagueId, setSelectedLeagueId] = useState('');
+
+  // Single-mode selected student or manual entry (manual entry allowed only in 'general')
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [manualNameAr, setManualNameAr] = useState('');
   const [manualGradeAr, setManualGradeAr] = useState(defaultCourse?.gradeAr || 'الصف الثالث الثانوي');
@@ -39,23 +64,50 @@ export const IssueCertificateModal = ({
   const [selectedCourseId, setSelectedCourseId] = useState(defaultCourseId);
   const [customCourseName, setCustomCourseName] = useState(defaultCourseTitle);
   const [gradePercent, setGradePercent] = useState('98');
-  const [honorsPreset, setHonorsPreset] = useState(HONORS_PRESETS[0].ar);
+  const [honorsPreset, setHonorsPreset] = useState(TYPE_DEFAULT_HONORS.general);
   const [customHonorsTitle, setCustomHonorsTitle] = useState('');
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Debounced live backend student search
+  // Fetch live eligibility context whenever selectedCourseId changes
   useEffect(() => {
+    let active = true;
+    const timer = setTimeout(() => {
+      setLoadingEligibility(true);
+      teacherApi.certificates
+        .getEligibilityContext(selectedCourseId)
+        .then((res) => {
+          if (!active) return;
+          const data = res?.data || { leagues: [], courseCompletion: null };
+          setEligibilityCtx(data);
+        })
+        .catch(() => {
+          if (!active) return;
+          setEligibilityCtx({ leagues: [], courseCompletion: null });
+        })
+        .finally(() => {
+          if (active) setLoadingEligibility(false);
+        });
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [selectedCourseId]);
+
+  // Debounced live backend student search (for 'general' & 'course_completion')
+  useEffect(() => {
+    if (certificateType === 'league') return undefined;
     const seq = ++seqRef.current;
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
         const res = await teacherApi.roster.searchStudents(studentQuery.trim());
         if (seq !== seqRef.current) return;
-        const list = Array.isArray(res?.data) ? res.data : [];
-        setStudents(list);
+        setStudents(Array.isArray(res?.data) ? res.data : []);
       } catch {
         if (seq !== seqRef.current) return;
         setStudents([]);
@@ -67,15 +119,89 @@ export const IssueCertificateModal = ({
     }, studentQuery ? 300 : 0);
 
     return () => clearTimeout(timer);
-  }, [studentQuery]);
+  }, [studentQuery, certificateType]);
 
   const activeCourse = useMemo(() => {
     return courses.find((c) => String(c.uuid || c.id) === String(selectedCourseId)) || null;
   }, [courses, selectedCourseId]);
 
-  const effectiveCourseName = activeCourse
-    ? activeCourse.titleAr || activeCourse.title_ar || activeCourse.title
-    : customCourseName.trim();
+  const allLeagues = useMemo(
+    () => (Array.isArray(eligibilityCtx?.leagues) ? eligibilityCtx.leagues : []),
+    [eligibilityCtx]
+  );
+
+  const concludedLeagues = useMemo(
+    () => allLeagues.filter((l) => l.isConcluded),
+    [allLeagues]
+  );
+
+  const activeLeague = useMemo(() => {
+    if (concludedLeagues.length === 0) return null;
+    return concludedLeagues.find((l) => l.id === selectedLeagueId) || concludedLeagues[0];
+  }, [concludedLeagues, selectedLeagueId]);
+
+  // Student candidates list depending on certificateType
+  const displayedStudents = useMemo(() => {
+    if (certificateType === 'league') {
+      const participants = Array.isArray(activeLeague?.participants) ? activeLeague.participants : [];
+      const q = studentQuery.trim().toLowerCase();
+      return participants
+        .map((p) => ({
+          id: p.studentId,
+          nameAr: p.nameAr,
+          name: p.nameAr,
+          avatar: p.avatar,
+          email: p.email,
+          phone: p.phone,
+          studentCode: p.studentCode,
+          leagueRank: p.rank,
+          leagueScore: p.score,
+        }))
+        .filter((st) => {
+          if (!q) return true;
+          return (
+            String(st.nameAr || '').toLowerCase().includes(q) ||
+            String(st.studentCode || '').toLowerCase().includes(q)
+          );
+        });
+    }
+    return students;
+  }, [certificateType, activeLeague, studentQuery, students]);
+
+  const courseCompletionInfo = eligibilityCtx?.courseCompletion || null;
+  const totalPublishedLessons = Number(courseCompletionInfo?.totalPublishedLessons ?? 0);
+  const completionByStudent = courseCompletionInfo?.byStudent || {};
+
+  const getStudentCourseProgress = (studentId) => {
+    const entry = completionByStudent[String(studentId)];
+    if (entry) return entry;
+    return {
+      completedLessons: 0,
+      totalLessons: totalPublishedLessons,
+      percent: 0,
+      eligible: false,
+    };
+  };
+
+  const handleCertificateTypeChange = (nextType) => {
+    setCertificateType(nextType);
+    setSelectedStudent(null);
+    setManualNameAr('');
+    setBulkSelected({});
+    setStudentQuery('');
+    setError('');
+    setHonorsPreset(TYPE_DEFAULT_HONORS[nextType]);
+    if (nextType === 'league') {
+      setGradePercent('100');
+    }
+  };
+
+  const effectiveCourseName =
+    certificateType === 'league'
+      ? activeLeague?.titleAr || ''
+      : activeCourse
+        ? activeCourse.titleAr || activeCourse.title_ar || activeCourse.title
+        : customCourseName.trim();
 
   const effectiveHonorsAr = honorsPreset === '__custom__' ? customHonorsTitle.trim() : honorsPreset;
   const effectiveHonorsEn =
@@ -109,11 +235,24 @@ export const IssueCertificateModal = ({
     });
   };
 
+  const isLeagueBlocked = certificateType === 'league' && concludedLeagues.length === 0;
+  const isCourseEmptyBlocked =
+    certificateType === 'course_completion' && !loadingEligibility && totalPublishedLessons === 0;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (!effectiveCourseName) {
+    if (certificateType === 'league') {
+      if (!activeLeague) {
+        setError(
+          isAr
+            ? 'لا يمكن إصدار شهادة الدوري قبل انتهاء موعد الدوري أو إعلان تتويجه وإيقافه أولاً.'
+            : 'League certificates require a concluded or crowned league.'
+        );
+        return;
+      }
+    } else if (!effectiveCourseName) {
       setError(isAr ? 'يرجى اختيار مقرر دراسي أو إدخال اسم المقرر.' : 'Please select or enter a course name.');
       return;
     }
@@ -127,13 +266,51 @@ export const IssueCertificateModal = ({
     setIsSubmitting(true);
 
     try {
+      const sharedCourseId =
+        certificateType === 'league'
+          ? activeLeague?.courseId || undefined
+          : activeCourse
+            ? String(activeCourse.uuid || activeCourse.id)
+            : undefined;
+
       if (mode === 'single') {
-        const studentNameAr = (selectedStudent?.nameAr || selectedStudent?.name || manualNameAr).trim();
+        const studentNameAr = (
+          selectedStudent?.nameAr ||
+          selectedStudent?.name ||
+          (certificateType === 'general' ? manualNameAr : '')
+        ).trim();
+
         if (!studentNameAr) {
-          setError(isAr ? 'يرجى اختيار طالب من القائمة أو كتابة اسمه.' : 'Please select a student or enter a student name.');
+          setError(
+            certificateType === 'course_completion'
+              ? isAr
+                ? 'يرجى اختيار طالب أتم 100% من حصص المقرر.'
+                : 'Please select a student who completed 100% of the course.'
+              : certificateType === 'league'
+                ? isAr
+                  ? 'يرجى اختيار أحد أبطال الدوري المنتهي من القائمة.'
+                  : 'Please select a participant from the concluded league.'
+                : isAr
+                  ? 'يرجى اختيار طالب من القائمة أو كتابة اسمه.'
+                  : 'Please select or enter a student name.'
+          );
           setIsSubmitting(false);
           return;
         }
+
+        if (certificateType === 'course_completion') {
+          const prog = getStudentCourseProgress(selectedStudent?.id);
+          if (!prog.eligible) {
+            setError(
+              isAr
+                ? `لا يمكن إصدار شهادة إتمام الكورس لهذا الطالب قبل إكمال 100% من الحصص (المكتمل حالياً: ${prog.percent}%).`
+                : `Student must complete 100% of lessons (currently ${prog.percent}%).`
+            );
+            setIsSubmitting(false);
+            return;
+          }
+        }
+
         const scoreNum = Number(gradePercent);
         if (Number.isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) {
           setError(isAr ? 'يجب أن تكون الدرجة المئوية بين 0 و 100.' : 'Score must be between 0 and 100.');
@@ -142,8 +319,10 @@ export const IssueCertificateModal = ({
         }
 
         await onIssueSingle({
+          certificate_type: certificateType,
+          league_id: certificateType === 'league' ? activeLeague?.id : undefined,
           student_id: selectedStudent?.id ? String(selectedStudent.id) : null,
-          course_id: activeCourse ? String(activeCourse.uuid || activeCourse.id) : undefined,
+          course_id: sharedCourseId,
           student_name_ar: studentNameAr,
           student_name_en: selectedStudent?.nameEn || studentNameAr,
           student_email: selectedStudent?.email || undefined,
@@ -158,7 +337,7 @@ export const IssueCertificateModal = ({
         });
       } else {
         if (bulkList.length === 0) {
-          setError(isAr ? 'يرجى تحديد طالب واحد على الأقل للإصدار الجماعي.' : 'Please select at least one student for bulk issue.');
+          setError(isAr ? 'يرجى تحديد طالب واحد على الأقل للإصدار الجماعي.' : 'Please select at least one student.');
           setIsSubmitting(false);
           return;
         }
@@ -178,7 +357,9 @@ export const IssueCertificateModal = ({
         });
 
         await onIssueBulk({
-          course_id: activeCourse ? String(activeCourse.uuid || activeCourse.id) : undefined,
+          certificate_type: certificateType,
+          league_id: certificateType === 'league' ? activeLeague?.id : undefined,
+          course_id: sharedCourseId,
           course_name_ar: effectiveCourseName,
           course_name_en: activeCourse?.titleEn || undefined,
           grade_ar: activeCourse?.gradeAr || 'الصف الثالث الثانوي',
@@ -192,13 +373,23 @@ export const IssueCertificateModal = ({
       setError(
         err?.message ||
           (isAr
-            ? 'تعذر إصدار الشهادة. يرجى التحقق من البيانات والمحاولة مرة أخرى.'
-            : 'Failed to issue certificate. Please verify details and try again.')
+            ? 'تعذر إصدار الشهادة. يرجى التحقق من استيفاء الشروط والمحاولة مرة أخرى.'
+            : 'Failed to issue certificate. Please verify requirements.')
       );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const honorsOptions = useMemo(() => {
+    if (certificateType === 'league') {
+      return HONORS_PRESETS.filter((p) => p.ar.includes('الدوري'));
+    }
+    if (certificateType === 'course_completion') {
+      return HONORS_PRESETS.filter((p) => p.ar.includes('إتمام'));
+    }
+    return HONORS_PRESETS.filter((p) => !p.ar.includes('الدوري') && !p.ar.includes('إتمام'));
+  }, [certificateType]);
 
   return (
     <div
@@ -222,7 +413,7 @@ export const IssueCertificateModal = ({
           backgroundColor: 'var(--bg-surface)',
           borderRadius: '22px',
           width: '100%',
-          maxWidth: '580px',
+          maxWidth: '610px',
           maxHeight: '92vh',
           overflowY: 'auto',
           padding: isMobile ? '18px 15px' : '24px 26px',
@@ -231,7 +422,7 @@ export const IssueCertificateModal = ({
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Award size={20} color="var(--primary)" />
             <h3 style={{ fontSize: '17.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
@@ -247,7 +438,48 @@ export const IssueCertificateModal = ({
           </button>
         </div>
 
-        {/* Mode Tabs: Single vs Bulk */}
+        {/* Step 0: Certificate Type Selector (Enforces exact platform rules) */}
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            {isAr ? 'نوع الشهادة:' : 'Certificate Track:'}
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '7px' }}>
+            {[
+              { id: 'general', labelAr: 'تقدير وتفوق عام', labelEn: 'General Honor', Icon: Sparkles },
+              { id: 'course_completion', labelAr: 'إتمام الكورس (100%)', labelEn: 'Course Completion', Icon: BookOpenCheck },
+              { id: 'league', labelAr: 'أبطال الدوري', labelEn: 'League Champions', Icon: Trophy },
+            ].map((item) => {
+              const active = certificateType === item.id;
+              const ItemIcon = item.Icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleCertificateTypeChange(item.id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '9px 10px',
+                    borderRadius: '11px',
+                    border: active ? '2px solid var(--primary)' : '1px solid var(--border-medium)',
+                    backgroundColor: active ? 'rgba(21, 136, 199, 0.12)' : 'var(--bg-subtle)',
+                    color: active ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <ItemIcon size={14} />
+                  <span>{isAr ? item.labelAr : item.labelEn}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Single vs Bulk Tabs */}
         <div
           style={{
             display: 'grid',
@@ -256,7 +488,7 @@ export const IssueCertificateModal = ({
             padding: '4px',
             borderRadius: '12px',
             backgroundColor: 'var(--bg-subtle)',
-            marginBottom: '16px',
+            marginBottom: '14px',
           }}
         >
           <button
@@ -267,12 +499,12 @@ export const IssueCertificateModal = ({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              padding: '8px',
+              padding: '7px',
               borderRadius: '9px',
               border: 'none',
               backgroundColor: mode === 'single' ? 'var(--primary)' : 'transparent',
               color: mode === 'single' ? '#FFFFFF' : 'var(--text-secondary)',
-              fontSize: '12.5px',
+              fontSize: '12px',
               fontWeight: '800',
               cursor: 'pointer',
             }}
@@ -289,12 +521,12 @@ export const IssueCertificateModal = ({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              padding: '8px',
+              padding: '7px',
               borderRadius: '9px',
               border: 'none',
               backgroundColor: mode === 'bulk' ? 'var(--primary)' : 'transparent',
               color: mode === 'bulk' ? '#FFFFFF' : 'var(--text-secondary)',
-              fontSize: '12.5px',
+              fontSize: '12px',
               fontWeight: '800',
               cursor: 'pointer',
             }}
@@ -330,219 +562,70 @@ export const IssueCertificateModal = ({
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Student Search & Picker */}
-          <div>
-            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
-              {mode === 'single'
-                ? isAr
-                  ? 'اختيار الطالب (أو اكتب اسمه يدوياً بالأسفل)'
-                  : 'Select Student (or type name manually below)'
-                : isAr
-                  ? 'حدد الطلاب المراد إصدار شهادات لهم دفعة واحدة'
-                  : 'Select Multiple Students for Bulk Issuance'}
-            </label>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '7px 11px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-subtle)',
-                border: '1px solid var(--border-medium)',
-                marginBottom: '8px',
-              }}
-            >
-              <Search size={14} color="var(--text-secondary)" />
-              <input
-                type="text"
-                value={studentQuery}
-                onChange={(e) => setStudentQuery(e.target.value)}
-                placeholder={isAr ? 'ابحث باسم الطالب أو كوده أو بريده...' : 'Search by name, code, or email...'}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontSize: '12.5px',
-                  width: '100%',
-                  fontFamily: 'inherit',
-                }}
-              />
-              {studentQuery && (
-                <button
-                  type="button"
-                  onClick={() => setStudentQuery('')}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px' }}
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-
-            <div
-              style={{
-                maxHeight: '175px',
-                overflowY: 'auto',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '12px',
-                padding: '6px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '5px',
-                backgroundColor: 'var(--bg-subtle)',
-              }}
-            >
-              {isSearching ? (
-                <div style={{ padding: '18px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {isAr ? 'جاري البحث عن الطلاب...' : 'Searching students...'}
-                </div>
-              ) : students.length === 0 ? (
-                <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {isAr ? 'لا توجد نتائج مطابقة.' : 'No matching students found.'}
-                </div>
-              ) : (
-                students.map((st) => {
-                  const key = String(st.id);
-                  const displayName = st.nameAr || st.name || 'طالب';
-                  const isSelected =
-                    mode === 'single'
-                      ? String(selectedStudent?.id || '') === key
-                      : Boolean(bulkSelected[key]);
-
-                  return (
-                    <div
-                      key={key}
-                      onClick={() => {
-                        if (mode === 'single') {
-                          setSelectedStudent(st);
-                          setManualNameAr(displayName);
-                          if (st.gradeAr) setManualGradeAr(st.gradeAr);
-                        } else {
-                          handleToggleBulkStudent(st);
-                        }
-                      }}
-                      style={{
-                        padding: '7px 10px',
-                        borderRadius: '9px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '8px',
-                        backgroundColor: isSelected ? 'rgba(21, 136, 199, 0.1)' : 'var(--bg-surface)',
-                        border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
-                        <Avatar src={st.avatar} name={displayName} size={32} />
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: '12.5px',
-                              fontWeight: isSelected ? '800' : '700',
-                              color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {displayName}
-                          </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                            {[st.studentCode, st.phone || st.email].filter(Boolean).join(' • ')}
-                          </div>
-                        </div>
-                      </div>
-
-                      {mode === 'bulk' && isSelected ? (
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step="0.5"
-                          value={bulkSelected[key].gradePercent}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => handleBulkScoreChange(key, e.target.value)}
-                          title={isAr ? 'نسبة الطالب (%)' : 'Student score (%)'}
-                          style={{
-                            width: '68px',
-                            padding: '4px 6px',
-                            borderRadius: '7px',
-                            border: '1px solid var(--primary)',
-                            backgroundColor: 'var(--bg-surface)',
-                            color: 'var(--text-primary)',
-                            fontSize: '12px',
-                            fontWeight: '800',
-                            textAlign: 'center',
-                          }}
-                        />
-                      ) : (
-                        isSelected && (
-                          <div
-                            style={{
-                              width: '20px',
-                              height: '20px',
-                              borderRadius: '50%',
-                              backgroundColor: 'var(--primary)',
-                              color: '#FFFFFF',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                            }}
-                          >
-                            <Check size={12} strokeWidth={3} />
-                          </div>
-                        )
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {mode === 'single' && (
-              <div style={{ marginTop: '8px' }}>
-                <input
-                  type="text"
-                  value={manualNameAr}
-                  onChange={(e) => {
-                    setManualNameAr(e.target.value);
-                    if (selectedStudent && e.target.value !== (selectedStudent.nameAr || selectedStudent.name)) {
-                      setSelectedStudent(null);
-                    }
-                  }}
-                  placeholder={isAr ? 'اسم الطالب كما سيظهر على الشهادة *' : 'Student name on certificate *'}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '9px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                  }}
-                />
+          {/* Context-specific Selector: Concluded League OR Course */}
+          {certificateType === 'league' ? (
+            loadingEligibility ? (
+              <div style={{ padding: '14px', textAlign: 'center', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                {isAr ? 'جاري التحقق من الدوريات المنتهية والمتوّجة...' : 'Checking concluded leagues...'}
               </div>
-            )}
-          </div>
-
-          {/* Course & Score */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                {isAr ? 'المقرر الدراسي' : 'Course'} *
-              </label>
-              {courses.length > 0 ? (
+            ) : concludedLeagues.length === 0 ? (
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                  color: '#B45309',
+                  fontSize: '12.5px',
+                  lineHeight: 1.65,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: '900', marginBottom: '4px' }}>
+                  <Lock size={15} />
+                  <span>
+                    {isAr
+                      ? 'لا يمكن إصدار أو إعلان شهادة الدوري الآن'
+                      : 'League certificates are currently locked'}
+                  </span>
+                </div>
+                <div>
+                  {isAr
+                    ? 'يجب أولاً انتهاء مدة الدوري أو قيامك بإعلان «تتويج الدوري» وإيقافه نهائياً من صفحة الدوري قبل إصدار شهادات الأوائل.'
+                    : 'A league must either finish its scheduled end date or be officially crowned & stopped before issuing league certificates.'}
+                </div>
+                <Link
+                  to="/teacher/league"
+                  onClick={onClose}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    marginTop: '10px',
+                    padding: '7px 14px',
+                    borderRadius: '9px',
+                    backgroundColor: '#D97706',
+                    color: '#FFFFFF',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <Trophy size={13} />
+                  <span>{isAr ? 'الانتقال لصفحة الدوري لإعلان التتويج' : 'Go to Leagues to Crown Winners'}</span>
+                </Link>
+              </div>
+            ) : (
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  {isAr ? 'اختر الدوري المنتهي / المتوّج:' : 'Select Concluded / Crowned League:'} *
+                </label>
                 <select
-                  value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  value={activeLeague?.id || ''}
+                  onChange={(e) => {
+                    setSelectedLeagueId(e.target.value);
+                    setSelectedStudent(null);
+                    setBulkSelected({});
+                  }}
                   style={{
                     width: '100%',
                     padding: '9px 12px',
@@ -556,23 +639,30 @@ export const IssueCertificateModal = ({
                     outline: 'none',
                   }}
                 >
-                  {courses.map((c) => {
-                    const id = String(c.uuid || c.id);
-                    return (
-                      <option key={id} value={id}>
-                        {c.titleAr || c.title_ar || c.title}
-                      </option>
-                    );
-                  })}
+                  {concludedLeagues.map((lg) => (
+                    <option key={lg.id} value={lg.id}>
+                      {lg.titleAr} ({lg.isCrowned ? (isAr ? 'تم التتويج' : 'Crowned') : (isAr ? 'منتهي' : 'Ended')} • {lg.totalCompetitors} {isAr ? 'متنافس' : 'competitors'})
+                    </option>
+                  ))}
                 </select>
-              ) : (
-                <div>
-                  <input
-                    type="text"
-                    required
-                    value={customCourseName}
-                    onChange={(e) => setCustomCourseName(e.target.value)}
-                    placeholder={isAr ? 'اكتب اسم المقرر الدراسي...' : 'Enter course name...'}
+              </div>
+            )
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  {isAr ? 'المقرر الدراسي' : 'Course'} *
+                </label>
+                {courses.length > 0 ? (
+                  <select
+                    value={selectedCourseId}
+                    onChange={(e) => {
+                      setSelectedCourseId(e.target.value);
+                      if (certificateType === 'course_completion') {
+                        setSelectedStudent(null);
+                        setBulkSelected({});
+                      }
+                    }}
                     style={{
                       width: '100%',
                       padding: '9px 12px',
@@ -585,48 +675,374 @@ export const IssueCertificateModal = ({
                       fontFamily: 'inherit',
                       outline: 'none',
                     }}
+                  >
+                    {courses.map((c) => {
+                      const id = String(c.uuid || c.id);
+                      return (
+                        <option key={id} value={id}>
+                          {c.titleAr || c.title_ar || c.title}
+                        </option>
+                      );
+                    })}
+                  </select>
+                ) : (
+                  <div>
+                    <input
+                      type="text"
+                      required
+                      value={customCourseName}
+                      onChange={(e) => setCustomCourseName(e.target.value)}
+                      placeholder={isAr ? 'اكتب اسم المقرر الدراسي...' : 'Enter course name...'}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '11px',
+                        border: '1px solid var(--border-medium)',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-primary)',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                      }}
+                    />
+                    <Link to="/teacher/courses" style={{ fontSize: '11px', color: 'var(--primary)', display: 'inline-block', marginTop: '4px' }}>
+                      {isAr ? 'أو أنشئ مقرر جديد من صفحة المقررات ←' : 'Or create a course first →'}
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  {mode === 'single'
+                    ? isAr
+                      ? 'الدرجة المئوية (%)'
+                      : 'Score (%)'
+                    : isAr
+                      ? 'النسبة الافتراضية (%)'
+                      : 'Default Score (%)'}{' '}
+                  *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.5"
+                  required
+                  value={gradePercent}
+                  onChange={(e) => setGradePercent(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '11px',
+                    border: '1px solid var(--border-medium)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Rule Reminder Banner for Course Completion (100%) */}
+          {certificateType === 'course_completion' && (
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: '11px',
+                backgroundColor: isCourseEmptyBlocked ? 'rgba(239, 68, 68, 0.08)' : 'rgba(21, 136, 199, 0.08)',
+                border: `1px solid ${isCourseEmptyBlocked ? 'rgba(239, 68, 68, 0.3)' : 'rgba(21, 136, 199, 0.25)'}`,
+                fontSize: '12px',
+                fontWeight: '700',
+                color: isCourseEmptyBlocked ? '#EF4444' : 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <BookOpenCheck size={16} style={{ flexShrink: 0 }} />
+              <span>
+                {isCourseEmptyBlocked
+                  ? isAr
+                    ? 'هذا المقرر لا يحتوي على حصص منشورة بعد؛ يجب نشر حصص المقرر وإتمام الطالب 100% منها.'
+                    : 'This course has no published lessons yet.'
+                  : isAr
+                    ? `شهادة إتمام الكورس متاحة فقط للطلاب الذين أتموا 100% من الحصص المنشورة (${totalPublishedLessons} حصة).`
+                    : `Course completion certificates require 100% completion of all ${totalPublishedLessons} published lessons.`}
+              </span>
+            </div>
+          )}
+
+          {/* Student Search & Picker (hidden when league track is blocked) */}
+          {!isLeagueBlocked && (
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                {certificateType === 'league'
+                  ? isAr
+                    ? 'اختر من أبطال الدوري النهائيين:'
+                    : 'Select from Final League Standings:'
+                  : certificateType === 'course_completion'
+                    ? isAr
+                      ? 'اختر الطالب (المتاح فقط من أتم 100% من الكورس):'
+                      : 'Select Student (100% completion required):'
+                    : mode === 'single'
+                      ? isAr
+                        ? 'اختيار الطالب (أو اكتب اسمه يدوياً بالأسفل)'
+                        : 'Select Student (or type name manually below)'
+                      : isAr
+                        ? 'حدد الطلاب المراد إصدار شهادات لهم دفعة واحدة'
+                        : 'Select Multiple Students'}
+              </label>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '7px 11px',
+                  borderRadius: '10px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-medium)',
+                  marginBottom: '8px',
+                }}
+              >
+                <Search size={14} color="var(--text-secondary)" />
+                <input
+                  type="text"
+                  value={studentQuery}
+                  onChange={(e) => setStudentQuery(e.target.value)}
+                  placeholder={isAr ? 'ابحث باسم الطالب أو كوده...' : 'Search by name or code...'}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    fontSize: '12.5px',
+                    width: '100%',
+                    fontFamily: 'inherit',
+                  }}
+                />
+                {studentQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setStudentQuery('')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px' }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              <div
+                style={{
+                  maxHeight: '175px',
+                  overflowY: 'auto',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '6px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '5px',
+                  backgroundColor: 'var(--bg-subtle)',
+                }}
+              >
+                {certificateType !== 'league' && isSearching ? (
+                  <div style={{ padding: '18px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {isAr ? 'جاري البحث عن الطلاب...' : 'Searching students...'}
+                  </div>
+                ) : displayedStudents.length === 0 ? (
+                  <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {isAr ? 'لا توجد نتائج مطابقة.' : 'No matching students found.'}
+                  </div>
+                ) : (
+                  displayedStudents.map((st) => {
+                    const key = String(st.id);
+                    const displayName = st.nameAr || st.name || 'طالب';
+                    const progress =
+                      certificateType === 'course_completion'
+                        ? getStudentCourseProgress(st.id)
+                        : null;
+                    const isLockedByCompletion =
+                      certificateType === 'course_completion' && !progress?.eligible;
+                    const isSelected =
+                      mode === 'single'
+                        ? String(selectedStudent?.id || '') === key
+                        : Boolean(bulkSelected[key]);
+
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => {
+                          if (isLockedByCompletion) return;
+                          if (mode === 'single') {
+                            setSelectedStudent(st);
+                            setManualNameAr(displayName);
+                            if (st.gradeAr) setManualGradeAr(st.gradeAr);
+                          } else {
+                            handleToggleBulkStudent(st);
+                          }
+                        }}
+                        style={{
+                          padding: '7px 10px',
+                          borderRadius: '9px',
+                          cursor: isLockedByCompletion ? 'not-allowed' : 'pointer',
+                          opacity: isLockedByCompletion ? 0.6 : 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          backgroundColor: isSelected ? 'rgba(21, 136, 199, 0.1)' : 'var(--bg-surface)',
+                          border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0 }}>
+                          {certificateType === 'league' && st.leagueRank && (
+                            <span
+                              style={{
+                                minWidth: '26px',
+                                height: '24px',
+                                borderRadius: '6px',
+                                backgroundColor: st.leagueRank <= 3 ? '#F59E0B' : 'var(--bg-subtle)',
+                                color: st.leagueRank <= 3 ? '#FFFFFF' : 'var(--text-secondary)',
+                                fontSize: '11px',
+                                fontWeight: '900',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '0 4px',
+                                flexShrink: 0,
+                              }}
+                            >
+                              #{st.leagueRank}
+                            </span>
+                          )}
+                          <Avatar src={st.avatar} name={displayName} size={32} />
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: '12.5px',
+                                fontWeight: isSelected ? '800' : '700',
+                                color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {displayName}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              {certificateType === 'league'
+                                ? `${Number(st.leagueScore || 0).toLocaleString()} XP`
+                                : [st.studentCode, st.phone || st.email].filter(Boolean).join(' • ')}
+                            </div>
+                          </div>
+                        </div>
+
+                        {certificateType === 'course_completion' && progress && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '3px 8px',
+                              borderRadius: '7px',
+                              backgroundColor: progress.eligible
+                                ? 'rgba(16, 185, 129, 0.12)'
+                                : 'rgba(148, 163, 184, 0.16)',
+                              color: progress.eligible ? '#10B981' : 'var(--text-muted)',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {!progress.eligible && <Lock size={11} />}
+                            <span>
+                              {progress.completedLessons}/{progress.totalLessons} ({progress.percent}%)
+                            </span>
+                          </span>
+                        )}
+
+                        {mode === 'bulk' && isSelected ? (
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.5"
+                            value={bulkSelected[key].gradePercent}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => handleBulkScoreChange(key, e.target.value)}
+                            style={{
+                              width: '66px',
+                              padding: '4px 6px',
+                              borderRadius: '7px',
+                              border: '1px solid var(--primary)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              textAlign: 'center',
+                            }}
+                          />
+                        ) : (
+                          isSelected && (
+                            <div
+                              style={{
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '50%',
+                                backgroundColor: 'var(--primary)',
+                                color: '#FFFFFF',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Check size={12} strokeWidth={3} />
+                            </div>
+                          )
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {mode === 'single' && certificateType === 'general' && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    value={manualNameAr}
+                    onChange={(e) => {
+                      setManualNameAr(e.target.value);
+                      if (selectedStudent && e.target.value !== (selectedStudent.nameAr || selectedStudent.name)) {
+                        setSelectedStudent(null);
+                      }
+                    }}
+                    placeholder={isAr ? 'اسم الطالب كما سيظهر على الشهادة *' : 'Student name on certificate *'}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border-medium)',
+                      backgroundColor: 'var(--bg-subtle)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                    }}
                   />
-                  <Link to="/teacher/courses" style={{ fontSize: '11px', color: 'var(--primary)', display: 'inline-block', marginTop: '4px' }}>
-                    {isAr ? 'أو أنشئ مقرر جديد من صفحة المقررات ←' : 'Or create a course first →'}
-                  </Link>
                 </div>
               )}
             </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                {mode === 'single'
-                  ? isAr
-                    ? 'الدرجة المئوية (%)'
-                    : 'Score (%)'
-                  : isAr
-                    ? 'النسبة الافتراضية (%)'
-                    : 'Default Score (%)'}{' '}
-                *
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step="0.5"
-                required
-                value={gradePercent}
-                onChange={(e) => setGradePercent(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '11px',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                }}
-              />
-            </div>
-          </div>
+          )}
 
           {/* Honors Title & Issue Date */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: '12px' }}>
@@ -650,7 +1066,7 @@ export const IssueCertificateModal = ({
                   outline: 'none',
                 }}
               >
-                {HONORS_PRESETS.map((p) => (
+                {honorsOptions.map((p) => (
                   <option key={p.ar} value={p.ar}>
                     {isAr ? p.ar : p.en}
                   </option>
@@ -727,7 +1143,7 @@ export const IssueCertificateModal = ({
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLeagueBlocked || isCourseEmptyBlocked}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -739,8 +1155,8 @@ export const IssueCertificateModal = ({
                 color: '#FFFFFF',
                 fontWeight: '800',
                 fontSize: '13px',
-                cursor: isSubmitting ? 'wait' : 'pointer',
-                opacity: isSubmitting ? 0.7 : 1,
+                cursor: isSubmitting ? 'wait' : isLeagueBlocked || isCourseEmptyBlocked ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting || isLeagueBlocked || isCourseEmptyBlocked ? 0.55 : 1,
                 boxShadow: 'var(--shadow-primary)',
               }}
             >

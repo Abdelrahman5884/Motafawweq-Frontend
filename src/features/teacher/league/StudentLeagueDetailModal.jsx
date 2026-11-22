@@ -192,59 +192,61 @@ export const StudentLeagueDetailModal = ({
           </div>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onAwardXp(student);
-            }}
-            style={{
-              flex: 1,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '10px 12px',
-              borderRadius: '12px',
-              backgroundColor: '#D97706',
-              color: '#FFFFFF',
-              border: 'none',
-              fontWeight: '800',
-              fontSize: '12.5px',
-              cursor: 'pointer',
-            }}
-          >
-            <Sparkles size={14} />
-            <span>{isAr ? 'منح بونص XP' : 'Award Bonus XP'}</span>
-          </button>
+        {/* Actions (only while league is active) */}
+        {!league?.isConcluded && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onAwardXp(student);
+              }}
+              style={{
+                flex: 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '10px 12px',
+                borderRadius: '12px',
+                backgroundColor: '#D97706',
+                color: '#FFFFFF',
+                border: 'none',
+                fontWeight: '800',
+                fontSize: '12.5px',
+                cursor: 'pointer',
+              }}
+            >
+              <Sparkles size={14} />
+              <span>{isAr ? 'منح بونص XP' : 'Award Bonus XP'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onRemoveParticipant(student);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '5px',
-              padding: '10px 14px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              color: '#EF4444',
-              border: '1px solid rgba(239, 68, 68, 0.25)',
-              fontWeight: '800',
-              fontSize: '12.5px',
-              cursor: 'pointer',
-            }}
-          >
-            <UserMinus size={14} />
-            <span>{isAr ? 'إزالة' : 'Remove'}</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onRemoveParticipant(student);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                color: '#EF4444',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                fontWeight: '800',
+                fontSize: '12.5px',
+                cursor: 'pointer',
+              }}
+            >
+              <UserMinus size={14} />
+              <span>{isAr ? 'إزالة' : 'Remove'}</span>
+            </button>
+          </div>
+        )}
 
         <button
           type="button"

@@ -112,7 +112,7 @@ export const LeagueLeaderboardTable = ({
             </span>
           </h3>
 
-          {league?.id && (
+          {league?.id && !league.isConcluded && (
             <>
               <button
                 type="button"
@@ -506,55 +506,57 @@ export const LeagueLeaderboardTable = ({
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAwardXp(st);
-                      }}
-                      title={isAr ? 'منح نقاط بونص للطالب' : 'Award Bonus XP'}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: isMobile ? '5px 8px' : '6px 10px',
-                        borderRadius: '9px',
-                        backgroundColor: 'rgba(245, 158, 11, 0.14)',
-                        border: '1px solid rgba(245, 158, 11, 0.35)',
-                        color: isDark ? '#FBBF24' : '#B45309',
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Sparkles size={12} />
-                      <span>{isAr ? '+ بونص' : '+ XP'}</span>
-                    </button>
+                  {/* Action Buttons (disabled once league is ended/crowned) */}
+                  {!league.isConcluded && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAwardXp(st);
+                        }}
+                        title={isAr ? 'منح نقاط بونص للطالب' : 'Award Bonus XP'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: isMobile ? '5px 8px' : '6px 10px',
+                          borderRadius: '9px',
+                          backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          color: isDark ? '#FBBF24' : '#B45309',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Sparkles size={12} />
+                        <span>{isAr ? '+ بونص' : '+ XP'}</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveParticipant(st);
-                      }}
-                      title={isAr ? 'إزالة الطالب من الدوري' : 'Remove from league'}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '6px',
-                        borderRadius: '9px',
-                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
-                        color: '#EF4444',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <UserMinus size={13} />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveParticipant(st);
+                        }}
+                        title={isAr ? 'إزالة الطالب من الدوري' : 'Remove from league'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '6px',
+                          borderRadius: '9px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          color: '#EF4444',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <UserMinus size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

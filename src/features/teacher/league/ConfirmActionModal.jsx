@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
-import { AlertTriangle, AlertCircle } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Trophy } from 'lucide-react';
 
 export const ConfirmActionModal = ({
   title,
   message,
   confirmLabel,
   cancelLabel,
+  variant = 'danger',
   onConfirm,
   onClose,
   isRtl,
 }) => {
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
+  const isCrown = variant === 'crown';
+  const accentColor = isCrown ? '#D97706' : '#EF4444';
+  const accentBg = isCrown ? 'rgba(245, 158, 11, 0.14)' : 'rgba(239, 68, 68, 0.12)';
+  const accentShadow = isCrown ? 'rgba(217, 119, 6, 0.32)' : 'rgba(239, 68, 68, 0.3)';
 
   const handleConfirm = async () => {
     if (isBusy) return;
@@ -59,15 +64,15 @@ export const ConfirmActionModal = ({
             width: '52px',
             height: '52px',
             borderRadius: '15px',
-            backgroundColor: 'rgba(239, 68, 68, 0.12)',
-            color: '#EF4444',
+            backgroundColor: accentBg,
+            color: accentColor,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 14px',
           }}
         >
-          <AlertTriangle size={26} />
+          {isCrown ? <Trophy size={26} /> : <AlertTriangle size={26} />}
         </div>
 
         <h3 style={{ fontSize: '17.5px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
@@ -129,13 +134,13 @@ export const ConfirmActionModal = ({
               padding: '10px 16px',
               borderRadius: '11px',
               border: 'none',
-              backgroundColor: '#EF4444',
+              backgroundColor: accentColor,
               color: '#FFFFFF',
               fontSize: '13px',
               fontWeight: '800',
               cursor: isBusy ? 'wait' : 'pointer',
               opacity: isBusy ? 0.7 : 1,
-              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+              boxShadow: `0 4px 12px ${accentShadow}`,
             }}
           >
             {isBusy ? '...' : confirmLabel}

@@ -264,17 +264,26 @@ export const EditLeagueModal = ({
               gap: '8px',
               fontSize: '13px',
               fontWeight: '700',
-              color: 'var(--text-primary)',
+              color: league?.isCrowned ? 'var(--text-muted)' : 'var(--text-primary)',
               marginBottom: '20px',
-              cursor: 'pointer',
+              cursor: league?.isCrowned ? 'not-allowed' : 'pointer',
             }}
           >
             <input
               type="checkbox"
-              checked={isActive}
+              checked={league?.isCrowned ? false : isActive}
+              disabled={Boolean(league?.isCrowned)}
               onChange={(e) => setIsActive(e.target.checked)}
             />
-            <span>{isAr ? 'الدوري نشط حالياً ومتاح للمنافسة' : 'League is currently active'}</span>
+            <span>
+              {league?.isCrowned
+                ? isAr
+                  ? 'تم إعلان تتويج هذا الدوري وإيقافه نهائياً (لا يمكن إعادة تفعيله)'
+                  : 'This league has been crowned and permanently stopped'
+                : isAr
+                  ? 'الدوري نشط حالياً ومتاح للمنافسة'
+                  : 'League is currently active'}
+            </span>
           </label>
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>

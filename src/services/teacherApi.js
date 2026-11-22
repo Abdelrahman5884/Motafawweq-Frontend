@@ -355,6 +355,7 @@ export const teacherApi = {
         reason_ar: reason,
       }),
     recalculate: (uuid) => apiPost(`/teacher/leagues/${uuid}/recalculate`),
+    crown: (uuid) => apiPost(`/teacher/leagues/${uuid}/crown`),
     delete: (uuid) => apiDelete(`/teacher/leagues/${uuid}`),
   },
 
@@ -385,6 +386,10 @@ export const teacherApi = {
     list: (params = {}) => {
       const qs = new URLSearchParams(params).toString();
       return apiGet(`/teacher/certificates${qs ? `?${qs}` : ''}`);
+    },
+    getEligibilityContext: (courseId = '') => {
+      const qs = courseId ? `?course_id=${encodeURIComponent(courseId)}` : '';
+      return apiGet(`/teacher/certificates/eligibility-context${qs}`);
     },
     issue: (data) => apiPost('/teacher/certificates', data),
     bulkIssue: (data) => apiPost('/teacher/certificates/bulk-issue', data),

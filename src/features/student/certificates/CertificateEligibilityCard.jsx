@@ -130,15 +130,15 @@ export const CertificateEligibilityCard = ({
         ? 'الصدارة ضمن العشرة الأوائل (Top 10)'
         : 'Ranking Within the Top 10 Standings',
       requirement: isAr
-        ? 'تحقيق نقاط فعلية والتواجد ضمن قائمة العشرة الأوائل (Top 10) في دوري المقرر أو دوري الجمهورية.'
-        : 'Earn league points and place within the Top 10 in a course league or General Republic League.',
+        ? 'تحقيق نقاط فعلية والتواجد ضمن قائمة العشرة الأوائل (Top 10)، وتُتاح الشهادة فور انتهاء موعد الدوري أو إعلان المعلم تتويج الدوري وإيقافه.'
+        : 'Earn league points and finish Top 10. Certificates unlock once the league concludes or is crowned by your teacher.',
       status: leagueEligible
         ? isAr
-          ? `مستوفى الشروط • أفضل مركز حققته #${bestRank}`
-          : `Criteria Met • Best Rank #${bestRank}`
+          ? `مستوفى الشروط • أفضل مركز متوّج #${bestRank}`
+          : `Criteria Met • Concluded Best Rank #${bestRank}`
         : isAr
-          ? 'قيد التقدم • احصد نقاطاً ونافس لدخول Top 10'
-          : 'In Progress • Earn points to enter Top 10',
+          ? 'قيد الانتظار • تُتاح الشهادة بعد انتهاء الدوري أو إعلان التتويج'
+          : 'Pending • Unlocks once league ends or is crowned',
       actionTo: '/student/league',
       actionLabel: isAr ? 'استعراض الدوري' : 'Open Leagues',
       icon: Trophy,

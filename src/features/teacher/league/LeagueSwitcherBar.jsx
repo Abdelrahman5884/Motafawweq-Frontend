@@ -124,15 +124,19 @@ export const LeagueSwitcherBar = ({
                         fontWeight: '800',
                         padding: '2px 6px',
                         borderRadius: '6px',
-                        backgroundColor: lg.isActive
-                          ? 'rgba(16, 185, 129, 0.14)'
-                          : 'rgba(148, 163, 184, 0.18)',
-                        color: lg.isActive ? '#10B981' : 'var(--text-muted)',
+                        backgroundColor: lg.isCrowned
+                          ? 'rgba(245, 158, 11, 0.16)'
+                          : lg.isActive
+                            ? 'rgba(16, 185, 129, 0.14)'
+                            : 'rgba(148, 163, 184, 0.18)',
+                        color: lg.isCrowned ? '#D97706' : lg.isActive ? '#10B981' : 'var(--text-muted)',
                       }}
                     >
-                      {lg.isActive
-                        ? (isAr ? 'نشط' : 'Active')
-                        : (isAr ? 'منتهي' : 'Ended')}
+                      {lg.isCrowned
+                        ? (isAr ? 'تم التتويج' : 'Crowned')
+                        : lg.isActive
+                          ? (isAr ? 'نشط' : 'Active')
+                          : (isAr ? 'منتهي' : 'Ended')}
                     </span>
                   </div>
 
