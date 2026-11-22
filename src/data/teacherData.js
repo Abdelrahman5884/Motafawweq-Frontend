@@ -44,9 +44,11 @@ export const TEACHER_ANALYTICS = {
   centerDistribution: [],
 };
 
+import { TEACHER_SUBSCRIPTION_CATALOG } from '../constants/teacherPlanFeatures';
+
 export const TEACHER_CERTIFICATES = [];
 
-export const TEACHER_SUBSCRIPTION_PLANS = [];
+export const TEACHER_SUBSCRIPTION_PLANS = TEACHER_SUBSCRIPTION_CATALOG;
 
 export const MOCK_TEACHER_INVOICES = [];
 

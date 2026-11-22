@@ -17,8 +17,10 @@ import {
   Plus,
   Award,
   CheckCircle2,
+  Lock,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { useGroups } from '../../context/GroupsContext';
 import {
@@ -39,6 +41,7 @@ function getLocalTodayIso() {
 export const StudentRoster = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
+  const { teacherPlanQuotas } = useAuth();
   const isAr = lang === 'ar';
 
   const {
@@ -151,8 +154,16 @@ export const StudentRoster = () => {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const planStudentCap = teacherPlanQuotas?.maxStudentsPerGroup ?? null;
+  const effectiveMaxStudents = activeGroup
+    ? planStudentCap !== null
+      ? Math.min(Number(activeGroup.maxStudents || planStudentCap), planStudentCap)
+      : Number(activeGroup.maxStudents || 50)
+    : planStudentCap ?? 50;
+  const isPlanStudentLimitReached =
+    planStudentCap !== null && currentEnrolled.length >= planStudentCap;
   const isCapacityFull =
-    activeGroup && Number(activeGroup.maxStudents || 0) > 0 && currentEnrolled.length >= Number(activeGroup.maxStudents);
+    activeGroup && effectiveMaxStudents > 0 && currentEnrolled.length >= effectiveMaxStudents;
 
   const summaryStats = useMemo(() => {
     const apiStats = activeId ? rosterStats?.[activeId] : null;
@@ -459,7 +470,7 @@ export const StudentRoster = () => {
                     color: isCapacityFull ? '#EF4444' : '#10B981',
                   }}
                 >
-                  {currentEnrolled.length} / {activeGroup.maxStudents || 50} {isAr ? 'طالب' : 'students'}
+                  {currentEnrolled.length} / {effectiveMaxStudents} {isAr ? 'طالب' : 'students'}
                 </span>
               </div>
 
@@ -501,29 +512,58 @@ export const StudentRoster = () => {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setInviteModalOpen(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '7px',
-                padding: '10px 18px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-primary)',
-                flexShrink: 0,
-              }}
-            >
-              <UserPlus size={15} />
-              <span>{isAr ? 'دعوة / إضافة طالب' : 'Invite Student'}</span>
-            </button>
+            {isPlanStudentLimitReached ? (
+              <button
+                type="button"
+                onClick={() => navigate('/teacher/billing?plan=plus')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '7px',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  backgroundColor: '#FEF3C7',
+                  color: '#92400E',
+                  border: '1px solid #F59E0B',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <Lock size={14} />
+                <span>
+                  {isAr
+                    ? `اكتمل حد الباقة (${planStudentCap} طالب) — الترقية لبلس`
+                    : `Plan Limit (${planStudentCap} students) — Upgrade to Plus`}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setInviteModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '7px',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-primary)',
+                  flexShrink: 0,
+                }}
+              >
+                <UserPlus size={15} />
+                <span>{isAr ? 'دعوة / إضافة طالب' : 'Invite Student'}</span>
+              </button>
+            )}
           </div>
 
           {/* Cohort KPI Summary Strip */}
@@ -554,7 +594,7 @@ export const StudentRoster = () => {
               <div style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)' }}>
                 {summaryStats.totalEnrolled}
                 <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginInlineStart: '4px' }}>
-                  / {activeGroup.maxStudents || 50}
+                  / {effectiveMaxStudents}
                 </span>
               </div>
             </div>

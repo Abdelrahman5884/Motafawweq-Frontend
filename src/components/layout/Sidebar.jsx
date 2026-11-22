@@ -44,10 +44,15 @@ import {
   getStudentFeatureGate,
   STUDENT_PLANS
 } from '../../constants/studentPlanFeatures';
+import {
+  hasTeacherFeatureAccess,
+  getTeacherFeatureGate,
+  TEACHER_PLANS
+} from '../../constants/teacherPlanFeatures';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { currentRole, currentUser, studentPlanTier } = useAuth();
+  const { currentRole, currentUser, studentPlanTier, teacherPlanTier } = useAuth();
   const { streakDays: liveStreakDays } = useStudentActivity();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
@@ -85,21 +90,21 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             items: [
               { id: 'dashboard', path: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
               { id: 'teacher-courses', path: '/teacher/courses', label: lang === 'ar' ? 'المقررات والمناهج' : 'Courses & Curriculum', icon: BookOpen },
-              { id: 'teacher-exams', path: '/teacher/exams', label: lang === 'ar' ? 'بنك الأسئلة والامتحانات' : 'Question Bank & Exams', icon: ClipboardList },
-              { id: 'teacher-homework', path: '/teacher/homework', label: lang === 'ar' ? 'تصحيح الواجبات' : 'Homework & Grading', icon: FileText },
-              { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: 'AI' },
+              { id: 'teacher-exams', path: '/teacher/exams', label: lang === 'ar' ? 'بنك الأسئلة والامتحانات' : 'Question Bank & Exams', icon: ClipboardList, featureKey: 'exams' },
+              { id: 'teacher-homework', path: '/teacher/homework', label: lang === 'ar' ? 'تصحيح الواجبات' : 'Homework & Grading', icon: FileText, featureKey: 'homework' },
+              { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: teacherPlanTier === 'pro' ? 'AI' : null },
               { id: 'lesson-workspace', path: '/teacher/workspace', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace', icon: BookMarked },
             ]
           },
           {
             group: lang === 'ar' ? 'متابعة الطلاب والتقييم' : 'Students & Performance',
             items: [
-              { id: 'teacher-league', path: '/teacher/league', label: lang === 'ar' ? 'دوري الكورس والتحدي' : 'Course League', icon: Trophy },
-              { id: 'teacher-certificates', path: '/teacher/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
+              { id: 'teacher-league', path: '/teacher/league', label: lang === 'ar' ? 'دوري الكورس والتحدي' : 'Course League', icon: Trophy, featureKey: 'leagues' },
+              { id: 'teacher-certificates', path: '/teacher/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award, featureKey: 'certificates' },
               { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: Users },
               { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Building2 },
-              { id: 'teacher-schedule', path: '/teacher/schedule', label: lang === 'ar' ? 'جدول المواعيد والقاعات' : 'Weekly Schedule', icon: Calendar },
-              { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign },
+              { id: 'teacher-schedule', path: '/teacher/schedule', label: lang === 'ar' ? 'جدول المواعيد والقاعات' : 'Weekly Schedule', icon: Calendar, featureKey: 'schedule' },
+              { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign, featureKey: 'financials' },
               { id: 'teacher-billing', path: '/teacher/billing', label: lang === 'ar' ? 'الاشتراكات وباقات المعلم' : 'Plans & Billing', icon: CreditCard },
               { id: 'teacher-settings', path: '/teacher/settings', label: lang === 'ar' ? 'إعدادات المعلم' : 'Teacher Settings', icon: Settings },
             ]
@@ -193,12 +198,23 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       ? (currentFullPath === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.endsWith('?tab=overview')))
       : location.pathname === item.path;
 
-    const isLocked =
+    const isStudentLocked =
       effectiveRole === 'student' &&
       Boolean(item.featureKey) &&
       !hasStudentFeatureAccess(studentPlanTier, item.featureKey);
-    const gate = isLocked ? getStudentFeatureGate(item.featureKey) : null;
-    const requiredPlan = gate ? STUDENT_PLANS[gate.requiredTier] : null;
+    const isTeacherLocked =
+      effectiveRole === 'teacher' &&
+      Boolean(item.featureKey) &&
+      !hasTeacherFeatureAccess(teacherPlanTier, item.featureKey);
+    const isLocked = isStudentLocked || isTeacherLocked;
+    const gate = isStudentLocked
+      ? getStudentFeatureGate(item.featureKey)
+      : isTeacherLocked
+      ? getTeacherFeatureGate(item.featureKey)
+      : null;
+    const requiredPlan = gate
+      ? (isTeacherLocked ? TEACHER_PLANS[gate.requiredTier] : STUDENT_PLANS[gate.requiredTier])
+      : null;
 
     return (
       <div key={item.id} className="sidebar-item-wrapper">
@@ -520,6 +536,30 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                     <Flame size={12} color="#F59E0B" />
                     <span>{sidebarStreakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
                   </div>
+                )}
+                {effectiveRole === 'teacher' && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '1.5px 7px',
+                      borderRadius: '8px',
+                      backgroundColor: teacherPlanTier === 'pro'
+                        ? 'rgba(21, 136, 199, 0.15)'
+                        : teacherPlanTier === 'plus'
+                        ? 'rgba(2, 132, 199, 0.12)'
+                        : 'var(--bg-subtle)',
+                      color: teacherPlanTier === 'free' ? 'var(--text-secondary)' : 'var(--primary)',
+                      fontSize: '10px',
+                      fontWeight: '800',
+                      border: '1px solid var(--border-subtle)',
+                      flexShrink: 0
+                    }}
+                  >
+                    {lang === 'ar'
+                      ? (TEACHER_PLANS[teacherPlanTier]?.shortAr || 'مجاني')
+                      : (TEACHER_PLANS[teacherPlanTier]?.shortEn || 'Free')}
+                  </span>
                 )}
               </div>
               <div style={{

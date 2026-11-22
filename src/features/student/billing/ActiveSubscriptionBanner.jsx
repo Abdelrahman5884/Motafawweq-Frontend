@@ -1,7 +1,18 @@
 import React from 'react';
-import { ShieldCheck, Calendar, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Calendar, Sparkles, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
-export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true, onUpgrade }) => {
+export const ActiveSubscriptionBanner = ({
+  activeSub,
+  lang = 'ar',
+  isRtl = true,
+  onUpgrade,
+  subtitleOverride = null,
+  upgradeLabelOverride = null,
+  hideUpgrade = false,
+  onCancel = null,
+  isCancelling = false,
+  cancelLabel = null,
+}) => {
   const isAr = lang === 'ar';
 
   if (!activeSub) {
@@ -40,20 +51,23 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
       ? activeSub.highlightsEn
       : ['Courses & Lessons', 'Evaluations & Quizzes', 'Verified QR Certificates'];
 
-  const subtitle = isFree
-    ? isAr
-      ? 'حسابك مفعّل على الباقة المجانية — يمكنك الترقية إلى باقة بلس أو برو في أي لحظة لفتح أدوات الذكاء الاصطناعي والاختبارات غير المحدودة.'
-      : 'Your account is active on the Free tier — upgrade to Plus or Pro anytime to unlock AI tools and unlimited practice.'
-    : tier === 'pro'
+  const subtitle = subtitleOverride
+    ? subtitleOverride
+    : isFree
       ? isAr
-        ? 'تمتلك كامل صلاحيات باقة برو بما في ذلك تحويل المحاضرات الذكي بالـ AI وتوليد كويزات البابل شيت الفورية والشهادات المعتمدة.'
-        : 'Full Student Pro access unlocked: AI Lecture Converter, instant Bubble-Sheet quizzes, and verified certificates.'
-      : isAr
-        ? 'تمتلك صلاحيات باقة بلس: المنافسة في دوريات المتفوقين والأوسمة والتحديات الأسبوعية والشهادات المعتمدة بكود QR.'
-        : 'Student Plus active: full Honors Leagues, badges, weekly challenges, analytics, and official QR certificates.';
+        ? 'حسابك مفعّل على الباقة المجانية — يمكنك الترقية إلى باقة بلس أو برو في أي لحظة لفتح أدوات الذكاء الاصطناعي والاختبارات غير المحدودة.'
+        : 'Your account is active on the Free tier — upgrade to Plus or Pro anytime to unlock AI tools and unlimited practice.'
+      : tier === 'pro'
+        ? isAr
+          ? 'تمتلك كامل صلاحيات باقة برو بما في ذلك تحويل المحاضرات الذكي بالـ AI وتوليد كويزات البابل شيت الفورية والشهادات المعتمدة.'
+          : 'Full Student Pro access unlocked: AI Lecture Converter, instant Bubble-Sheet quizzes, and verified certificates.'
+        : isAr
+          ? 'تمتلك صلاحيات باقة بلس: المنافسة في دوريات المتفوقين والأوسمة والتحديات الأسبوعية والشهادات المعتمدة بكود QR.'
+          : 'Student Plus active: full Honors Leagues, badges, weekly challenges, analytics, and official QR certificates.';
 
-  const upgradeLabel =
-    tier === 'pro'
+  const upgradeLabel = upgradeLabelOverride
+    ? upgradeLabelOverride
+    : tier === 'pro'
       ? isAr
         ? 'الترقية للباقة السنوية (وفر 30%)'
         : 'Switch to Annual Pro (Save 30%)'
@@ -227,7 +241,7 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
           </div>
         </div>
 
-        {onUpgrade && !isMaxPlan && (
+        {!hideUpgrade && onUpgrade && !isMaxPlan && (
           <button
             type="button"
             onClick={onUpgrade}
@@ -247,6 +261,31 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
           >
             <Sparkles size={13} />
             <span>{upgradeLabel}</span>
+          </button>
+        )}
+
+        {onCancel && !isFree && (
+          <button
+            type="button"
+            disabled={isCancelling}
+            onClick={onCancel}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 16px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              color: '#DC2626',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: isCancelling ? 'wait' : 'pointer',
+              opacity: isCancelling ? 0.7 : 1,
+            }}
+          >
+            {isCancelling ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+            <span>{cancelLabel || (isAr ? 'إلغاء الاشتراك الحالي' : 'Cancel Subscription')}</span>
           </button>
         )}
       </div>

@@ -9,13 +9,14 @@ import { API_BASE_URL, STORAGE_KEYS } from '../constants';
 // ─── Structured API Error ──────────────────────────────────────────────────────
 
 export class ApiError extends Error {
-  constructor({ message, status = 0, errorCode = null, errors = null, meta = null }) {
+  constructor({ message, status = 0, errorCode = null, errors = null, meta = null, data = null }) {
     super(message || 'حدث خطأ أثناء الاتصال بالخادم.');
     this.name = 'ApiError';
     this.status = status;
     this.errorCode = errorCode;
     this.errors = errors;
     this.meta = meta;
+    this.data = data;
   }
 
   /**
@@ -245,7 +246,11 @@ export async function apiRequest(path, { method = 'GET', body, headers: extraHea
       }
     }
 
-    if (res.status === 403 && payload?.error_code === 'SUBSCRIPTION_REQUIRED' && typeof window !== 'undefined') {
+    if (
+      res.status === 403 &&
+      (payload?.error_code === 'SUBSCRIPTION_REQUIRED' || payload?.error_code === 'PLAN_QUOTA_EXCEEDED') &&
+      typeof window !== 'undefined'
+    ) {
       window.dispatchEvent(
         new CustomEvent('motafawweq:plan-updated', {
           detail: { planTier: payload?.current_plan || 'free' },
@@ -267,6 +272,7 @@ export async function apiRequest(path, { method = 'GET', body, headers: extraHea
       errorCode: payload?.error_code || null,
       errors: payload?.errors || null,
       meta: payload?.meta || null,
+      data: payload || null,
     });
   }
 

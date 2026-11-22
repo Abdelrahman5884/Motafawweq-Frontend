@@ -5,6 +5,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useGroups } from '../../context/GroupsContext';
 import { teacherApi } from '../../services/teacherApi';
+import { hasTeacherFeatureAccess } from '../../constants/teacherPlanFeatures';
 import {
   TeacherWelcomeBanner,
   TeacherStatCards,
@@ -66,7 +67,8 @@ const DashboardSkeleton = () => (
 );
 
 export const TeacherDashboard = () => {
-  const { navigate, currentUser } = useAuth();
+  const { navigate, currentUser, teacherPlanTier } = useAuth();
+  const isScheduleLocked = !hasTeacherFeatureAccess(teacherPlanTier, 'schedule');
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
   const { setActiveGroupId } = useGroups();
@@ -246,6 +248,7 @@ export const TeacherDashboard = () => {
         <ActiveClassesList
           lang={lang}
           activeClasses={dashboardData?.activeClasses || []}
+          isScheduleLocked={isScheduleLocked}
           onOpenClasses={() => navigate('/teacher/classes')}
           onOpenSchedule={() => navigate('/teacher/schedule')}
           onOpenRoster={handleOpenGroupRoster}

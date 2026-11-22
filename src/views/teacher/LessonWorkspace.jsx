@@ -20,7 +20,10 @@ import {
   AlertCircle,
   RefreshCw,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
+import { TeacherSubscriptionGate } from '../../components/teacher/TeacherSubscriptionGate';
+import { hasTeacherFeatureAccess } from '../../constants/teacherPlanFeatures';
 import {
   WorkspaceSidebar,
   WorkspaceMediaTab,
@@ -36,9 +39,10 @@ export const LessonWorkspace = () => {
   const [searchParams] = useSearchParams();
   const requestedLessonId = searchParams.get('lesson') || '';
   const requestedCourseId = searchParams.get('courseId') || '';
-  const { navigate } = useAuth();
+  const { navigate, teacherPlanTier } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
+  const canUseLessonAi = hasTeacherFeatureAccess(teacherPlanTier, 'ai_transcript');
 
   const [lessonsList, setLessonsList] = useState([]);
   const [coursesList, setCoursesList] = useState([]);
@@ -802,12 +806,13 @@ export const LessonWorkspace = () => {
                   }}
                 >
                   {[
-                    { id: 'media', icon: Headphones, labelAr: 'الوسائط والمرفقات والفصول', labelEn: 'Media, Chapters & Files' },
-                    { id: 'transcript', icon: FileText, labelAr: `التفريغ النصي (${currentLesson.transcript?.length || 0})`, labelEn: `Transcript (${currentLesson.transcript?.length || 0})` },
-                    { id: 'graph', icon: Share2, labelAr: 'خريطة المفاهيم', labelEn: 'Mind Map' },
+                    { id: 'media', icon: Headphones, labelAr: 'الوسائط والمرفقات والفصول', labelEn: 'Media, Chapters & Files', requiresPro: false },
+                    { id: 'transcript', icon: FileText, labelAr: `التفريغ النصي (${currentLesson.transcript?.length || 0})`, labelEn: `Transcript (${currentLesson.transcript?.length || 0})`, requiresPro: true },
+                    { id: 'graph', icon: Share2, labelAr: 'خريطة المفاهيم', labelEn: 'Mind Map', requiresPro: true },
                   ].map((tab) => {
                     const Icon = tab.icon;
                     const active = activeSection === tab.id;
+                    const lockedTab = tab.requiresPro && !canUseLessonAi;
                     return (
                       <button
                         key={tab.id}
@@ -829,6 +834,24 @@ export const LessonWorkspace = () => {
                       >
                         <Icon size={15} />
                         <span>{isAr ? tab.labelAr : tab.labelEn}</span>
+                        {lockedTab && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '1px 6px',
+                              borderRadius: '999px',
+                              fontSize: '10px',
+                              fontWeight: '800',
+                              backgroundColor: active ? 'rgba(255,255,255,0.22)' : 'rgba(21, 136, 199, 0.14)',
+                              color: active ? '#FFFFFF' : 'var(--primary)',
+                            }}
+                          >
+                            <Lock size={10} />
+                            <span>Pro AI</span>
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -854,26 +877,30 @@ export const LessonWorkspace = () => {
               )}
 
               {activeSection === 'transcript' && (
-                <WorkspaceTranscriptTab
-                  key={currentLesson.id}
-                  lesson={currentLesson}
-                  lang={lang}
-                  isRtl={isRtl}
-                  onJumpToTimestamp={handleJumpToTimestamp}
-                  onGetCurrentTime={getCurrentPlayerTime}
-                  onSyncTranscript={handleSyncTranscript}
-                />
+                <TeacherSubscriptionGate feature="ai_transcript" inline>
+                  <WorkspaceTranscriptTab
+                    key={currentLesson.id}
+                    lesson={currentLesson}
+                    lang={lang}
+                    isRtl={isRtl}
+                    onJumpToTimestamp={handleJumpToTimestamp}
+                    onGetCurrentTime={getCurrentPlayerTime}
+                    onSyncTranscript={handleSyncTranscript}
+                  />
+                </TeacherSubscriptionGate>
               )}
 
               {activeSection === 'graph' && (
-                <WorkspaceMindMapTab
-                  key={currentLesson.id}
-                  lesson={currentLesson}
-                  lang={lang}
-                  isRtl={isRtl}
-                  onJumpToTimestamp={handleJumpToTimestamp}
-                  onSaveConceptGraph={handleSaveConceptGraph}
-                />
+                <TeacherSubscriptionGate feature="ai_mindmap" inline>
+                  <WorkspaceMindMapTab
+                    key={currentLesson.id}
+                    lesson={currentLesson}
+                    lang={lang}
+                    isRtl={isRtl}
+                    onJumpToTimestamp={handleJumpToTimestamp}
+                    onSaveConceptGraph={handleSaveConceptGraph}
+                  />
+                </TeacherSubscriptionGate>
               )}
             </main>
           )}

@@ -4,6 +4,7 @@ import { teacherApi } from '../services/teacherApi';
 import { studentApi } from '../services/studentApi';
 import { extractGroupJoinCode } from '../utils';
 import { useAuth } from './AuthContext';
+import { hasTeacherFeatureAccess } from '../constants/teacherPlanFeatures';
 
 // Retained for backwards compatibility with legacy consumers
 export const ALL_REGISTERED_STUDENTS = [];
@@ -84,14 +85,16 @@ const DAY_LABELS = {
 const GroupsContext = createContext(null);
 
 export const GroupsProvider = ({ children }) => {
-  const { currentUser, isAuthenticated, authLoading } = useAuth();
+  const { currentUser, isAuthenticated, authLoading, teacherPlanTier } = useAuth();
   const hasToken = Boolean(tokenStorage.getAccessToken());
   const isStudentRole = currentUser?.role === 'student';
   const isTeacherRole = currentUser?.role === 'teacher';
+  const canUseTeacherSchedule = isTeacherRole && hasTeacherFeatureAccess(teacherPlanTier, 'schedule');
   const activeUserId = isAuthenticated && hasToken && currentUser?.id ? String(currentUser.id) : '';
   const studySessionsStorageKey = activeUserId ? `motafawweq_student_study_sessions_${activeUserId}` : '';
 
   const [groups, setGroups] = useState([]);
+  const [groupsMeta, setGroupsMeta] = useState(null);
   const [loadingGroups, setLoadingGroups] = useState(true);
   const [groupsError, setGroupsError] = useState(null);
   const [loadingSchedule, setLoadingSchedule] = useState(true);
@@ -242,6 +245,9 @@ export const GroupsProvider = ({ children }) => {
 
       const res = await teacherApi.groups.list();
       const rawList = Array.isArray(res?.data) ? res.data : [];
+      if (res?.meta) {
+        setGroupsMeta(res.meta);
+      }
       const mappedGroups = rawList.map((g) => ({
         id: g.id || g.uuid,
         uuid: g.uuid || g.id,
@@ -354,6 +360,13 @@ export const GroupsProvider = ({ children }) => {
         return;
       }
 
+      if (isTeacherRole && !canUseTeacherSchedule) {
+        setScheduleNotes({ ...EMPTY_NOTES_MAP });
+        setScheduleError(null);
+        setLoadingSchedule(false);
+        return;
+      }
+
       const res = await teacherApi.schedule.getWeekly();
       const daysData = res?.data?.days;
       if (daysData && typeof daysData === 'object') {
@@ -381,7 +394,7 @@ export const GroupsProvider = ({ children }) => {
     } finally {
       setLoadingSchedule(false);
     }
-  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, studySessionsStorageKey]);
+  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, canUseTeacherSchedule, studySessionsStorageKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1009,6 +1022,7 @@ export const GroupsProvider = ({ children }) => {
     <GroupsContext.Provider
       value={{
         groups,
+        groupsMeta,
         loadingGroups,
         groupsError,
         loadingSchedule,

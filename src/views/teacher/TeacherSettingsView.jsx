@@ -38,13 +38,16 @@ import { useDialog } from '../../context/DialogContext';
 import { SPage, SPageHeader, SCard, SSection, SButton } from '../../components/student/ui';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { AvatarCropperModal, AvatarLightboxModal } from '../../components/common/AvatarCropperModal';
+import { TeacherSubscriptionGate } from '../../components/teacher/TeacherSubscriptionGate';
+import { hasTeacherFeatureAccess } from '../../constants/teacherPlanFeatures';
 
 export const TeacherSettingsView = () => {
   const { lang, isRtl, setLang } = useLanguage();
   const { theme, setTheme, isDark } = useTheme();
-  const { updateUserProfile, logout, navigate } = useAuth();
+  const { updateUserProfile, logout, navigate, teacherPlanTier } = useAuth();
   const { showAlert } = useDialog();
   const isAr = lang === 'ar';
+  const canAccessFinancials = hasTeacherFeatureAccess(teacherPlanTier, 'financials');
 
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -126,7 +129,7 @@ export const TeacherSettingsView = () => {
     let mounted = true;
     Promise.all([
       teacherApi.settings.get().catch(() => null),
-      teacherApi.payoutAccounts.list().catch(() => null),
+      canAccessFinancials ? teacherApi.payoutAccounts.list().catch(() => null) : Promise.resolve(null),
     ]).then(([settingsRes, payoutRes]) => {
       if (!mounted) return;
       const s = settingsRes?.data || {};
@@ -182,7 +185,7 @@ export const TeacherSettingsView = () => {
     });
 
     return () => { mounted = false; };
-  }, []);
+  }, [canAccessFinancials]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -412,7 +415,7 @@ export const TeacherSettingsView = () => {
   const tabs = [
     { id: 'profile', labelAr: 'البيانات الشخصية والتعريف الأكاديمي', labelEn: 'Profile & Info', icon: User },
     { id: 'stages', labelAr: 'المراحل والمناهج الدراسية', labelEn: 'Stages & Curriculum', icon: GraduationCap },
-    { id: 'payouts', labelAr: 'الحسابات البنكية واستقبال التحويلات', labelEn: 'Bank & Receiving Accounts', icon: CreditCard },
+    { id: 'payouts', labelAr: 'الحسابات البنكية واستقبال التحويلات', labelEn: 'Bank & Receiving Accounts', icon: CreditCard, locked: !canAccessFinancials },
     { id: 'preferences', labelAr: 'المظهر واللغة والتنبيهات', labelEn: 'Theme, Language & Alerts', icon: Palette },
     { id: 'security', labelAr: 'الأمان وكلمة المرور', labelEn: 'Security & 2FA', icon: Shield }
   ];
@@ -578,6 +581,24 @@ export const TeacherSettingsView = () => {
               >
                 <Icon size={16} />
                 <span>{isAr ? tab.labelAr : tab.labelEn}</span>
+                {tab.locked && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontSize: '10px',
+                      fontWeight: '800',
+                      padding: '2px 6px',
+                      borderRadius: '999px',
+                      backgroundColor: 'rgba(217, 119, 6, 0.14)',
+                      color: '#B45309',
+                    }}
+                  >
+                    <Lock size={10} />
+                    {isAr ? 'بلس' : 'Plus'}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -1040,6 +1061,7 @@ export const TeacherSettingsView = () => {
 
           {/* ════════════ 3. PAYOUTS & DIRECT RECEIVING ACCOUNTS TAB ════════════ */}
           {activeTab === 'payouts' && (
+            <TeacherSubscriptionGate feature="financials" inline>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
                 <SSection
@@ -1334,6 +1356,7 @@ export const TeacherSettingsView = () => {
                 </SSection>
               </SCard>
             </div>
+            </TeacherSubscriptionGate>
           )}
 
           {/* ════════════ 4. PREFERENCES TAB (Theme, Language, Alerts - NO EMOJIS) ════════════ */}

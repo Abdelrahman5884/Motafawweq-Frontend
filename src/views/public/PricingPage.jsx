@@ -141,20 +141,20 @@ export const PricingPage = () => {
     nameAr: p.nameAr,
     nameEn: p.nameEn,
     tier: p.tier,
-    taglineAr: p.tier === 'free' ? 'لتجربة محرك التسجيل والخرائط' : (p.tier === 'plus' ? 'الأنسب لمعلمي المجموعات والسناتر' : 'الخيار الأكثر شعبية لمعلمي الثانوية والإعدادية'),
-    taglineEn: p.tier === 'free' ? 'Try the core transcription engine' : (p.tier === 'plus' ? 'Ideal for tutoring cohorts' : 'Most popular for top Egyptian tutors'),
+    taglineAr: p.subtitleAr || (p.tier === 'free' ? 'ابدأ بكورس واحد و3 حصص ومجموعة واحدة' : (p.tier === 'plus' ? 'كل أدوات التدريس ماعدا الذكاء الاصطناعي AI' : 'كل مزايا بلس + مجموعات مفتوحة + كامل أدوات AI')),
+    taglineEn: p.subtitleEn || (p.tier === 'free' ? 'Start with 1 course, 3 lessons & 1 group' : (p.tier === 'plus' ? 'All teaching tools except AI' : 'Everything in Plus + unlimited groups + AI')),
     price: Math.round(p.pricing[billingCycle === 'yearly' ? 'annual' : 'monthly'].priceEgp * (billingCycle === 'yearly' ? (1/10) : 1)),
     periodAr: p.tier === 'free' ? 'دائماً مجاناً' : (billingCycle === 'yearly' ? 'ج.م / شهرياً (تدفع سنوياً)' : 'جنيه مصري / شهرياً'),
     periodEn: p.tier === 'free' ? 'Forever Free' : (billingCycle === 'yearly' ? 'EGP / mo (billed yearly)' : 'EGP / month'),
-    usersLimitAr: p.tier === 'free' ? 'حتى 50 طالباً' : (p.tier === 'plus' ? 'حتى 500 طالب نشط' : 'طلاب غير محدودين (Unlimited)'),
-    usersLimitEn: p.tier === 'free' ? 'Up to 50 students' : (p.tier === 'plus' ? 'Up to 500 active students' : 'Unlimited students'),
-    color: p.color,
+    usersLimitAr: p.tier === 'free' ? 'كورس واحد • 3 حصص • مجموعة (50 طالب)' : (p.tier === 'plus' ? 'حتى 12 مجموعة • كورسات وحصص غير محدودة' : 'مجموعات غير محدودة • شامل AI بالكامل'),
+    usersLimitEn: p.tier === 'free' ? '1 course • 3 lessons • 1 group (50 students)' : (p.tier === 'plus' ? 'Up to 12 groups • Unlimited courses & lessons' : 'Unlimited groups • Full AI included'),
+    color: p.color || (p.tier === 'pro' ? '#1588C7' : p.tier === 'plus' ? '#0284C7' : 'var(--text-secondary)'),
     popular: p.popular,
     featuresAr: p.featuresAr.slice(0, 6),
     featuresEn: p.featuresEn.slice(0, 6),
     role: 'teacher',
-    ctaAr: p.tier === 'free' ? 'ابدأ كمعلم مجاناً' : (p.tier === 'plus' ? 'اشترك في باقة بلس' : 'اشترك في باقة برو'),
-    ctaEn: p.tier === 'free' ? 'Start as Teacher Free' : (p.tier === 'plus' ? 'Get Teacher Plus' : 'Get Teacher Pro')
+    ctaAr: p.tier === 'free' ? 'ابدأ كمعلم مجاناً' : (p.tier === 'plus' ? 'اشترك في بلس (120 ج.م)' : 'اشترك في برو (150 ج.م)'),
+    ctaEn: p.tier === 'free' ? 'Start as Teacher Free' : (p.tier === 'plus' ? 'Get Teacher Plus (120 EGP)' : 'Get Teacher Pro (150 EGP)')
   }));
 
   // Convert center plans to display cards (Free, Plus 200 EGP, Pro 400 EGP)
@@ -536,8 +536,11 @@ export const PricingPage = () => {
                 onClick={() => {
                   switchRole(plan.role);
                   if (plan.role === 'center') navigate('/center/dashboard');
-                  else if (plan.role === 'teacher') navigate('/teacher/studio');
-                  else navigate('/student/dashboard');
+                  else if (plan.role === 'teacher') {
+                    navigate(plan.tier === 'free' ? '/teacher/dashboard' : `/teacher/billing?plan=${plan.tier}`);
+                  } else {
+                    navigate(plan.tier === 'free' ? '/student/dashboard' : `/student/billing?plan=${plan.tier}`);
+                  }
                 }}
                 style={{
                   width: '100%',

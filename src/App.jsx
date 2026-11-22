@@ -40,6 +40,7 @@ import { ClassManager } from './views/teacher/ClassManager';
 import { StudentRoster } from './views/teacher/StudentRoster';
 import { TeacherFinancials } from './views/teacher/TeacherFinancials';
 import { AIProcessingScreen } from './views/teacher/AIProcessingScreen';
+import { TeacherSubscriptionGate } from './components/teacher/TeacherSubscriptionGate';
 
 import { GroupsProvider } from './context/GroupsContext';
 
@@ -402,20 +403,20 @@ export default function App() {
                     <Route path="/teacher" element={<Navigate to="/teacher/dashboard" replace />} />
                     <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
                     <Route path="/teacher/courses" element={<TeacherCoursesView />} />
-                    <Route path="/teacher/exams" element={<TeacherExamsView />} />
-                    <Route path="/teacher/homework" element={<TeacherHomeworkView />} />
-                    <Route path="/teacher/league" element={<TeacherLeagueView />} />
+                    <Route path="/teacher/exams" element={<TeacherSubscriptionGate feature="exams"><TeacherExamsView /></TeacherSubscriptionGate>} />
+                    <Route path="/teacher/homework" element={<TeacherSubscriptionGate feature="homework"><TeacherHomeworkView /></TeacherSubscriptionGate>} />
+                    <Route path="/teacher/league" element={<TeacherSubscriptionGate feature="leagues"><TeacherLeagueView /></TeacherSubscriptionGate>} />
                     <Route path="/teacher/analytics" element={<Navigate to="/teacher/dashboard" replace />} />
-                    <Route path="/teacher/certificates" element={<TeacherCertificatesView />} />
+                    <Route path="/teacher/certificates" element={<TeacherSubscriptionGate feature="certificates"><TeacherCertificatesView /></TeacherSubscriptionGate>} />
                     <Route path="/teacher/settings" element={<TeacherSettingsView />} />
                     <Route path="/teacher/studio" element={<RecordingStudio />} />
                     <Route path="/teacher/workspace" element={<LessonWorkspace />} />
                     <Route path="/teacher/classes" element={<ClassManager />} />
-                    <Route path="/teacher/schedule" element={<ClassManager defaultTab="schedule" />} />
+                    <Route path="/teacher/schedule" element={<TeacherSubscriptionGate feature="schedule"><ClassManager defaultTab="schedule" /></TeacherSubscriptionGate>} />
                     <Route path="/teacher/students" element={<StudentRoster />} />
-                    <Route path="/teacher/financials" element={<TeacherFinancials />} />
+                    <Route path="/teacher/financials" element={<TeacherSubscriptionGate feature="financials"><TeacherFinancials /></TeacherSubscriptionGate>} />
                     <Route path="/teacher/billing" element={<TeacherBillingView />} />
-                    <Route path="/teacher/processing" element={<AIProcessingScreen />} />
+                    <Route path="/teacher/processing" element={<TeacherSubscriptionGate feature="ai_processing"><AIProcessingScreen /></TeacherSubscriptionGate>} />
 
                     {/* Student Routes */}
                     <Route path="/join-group/:code" element={<JoinGroupRedirect />} />

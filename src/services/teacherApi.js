@@ -424,6 +424,7 @@ export const teacherApi = {
     validateCoupon: (code, orderAmount = 0) =>
       apiPost('/teacher/billing/validate-coupon', { code, order_amount: orderAmount }),
     subscribe: (data) => apiPost('/teacher/billing/subscribe', data),
+    cancel: () => apiPost('/teacher/billing/cancel', {}),
   },
 
   // Centralized Supabase Storage

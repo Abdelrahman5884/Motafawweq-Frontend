@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authService, tokenStorage } from '../services/api';
 import { normalizeStudentPlanTier } from '../constants/studentPlanFeatures';
+import { normalizeTeacherPlanTier, getTeacherPlanQuotas } from '../constants/teacherPlanFeatures';
 
 export const ROLES = {
   teacher: {
@@ -12,6 +13,7 @@ export const ROLES = {
     email: 'salma.biology@motafawweq.me',
     phone: '01012345678',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    plan_tier: 'free',
     center: 'Dokki Elite Center & Online',
     grade: '3rd Secondary',
     defaultRoute: '/teacher/dashboard'
@@ -87,9 +89,10 @@ function buildFrontendUser(apiUser, extras = {}) {
     ? (apiUser.avatar || null)
     : (Object.prototype.hasOwnProperty.call(extras, 'avatar') ? (extras.avatar || null) : (baseRole.avatar || null));
   const hasApiPlanField = Boolean(apiUser && Object.prototype.hasOwnProperty.call(apiUser, 'plan_tier'));
-  const resolvedPlanTier = normalizeStudentPlanTier(
-    hasApiPlanField ? apiUser.plan_tier : (extras.plan_tier ?? baseRole.plan_tier ?? 'free')
-  );
+  const rawPlanTier = hasApiPlanField ? apiUser.plan_tier : (extras.plan_tier ?? baseRole.plan_tier ?? 'free');
+  const resolvedPlanTier = roleKey === 'teacher'
+    ? normalizeTeacherPlanTier(rawPlanTier)
+    : normalizeStudentPlanTier(rawPlanTier);
 
   return {
     ...baseRole,
@@ -104,6 +107,7 @@ function buildFrontendUser(apiUser, extras = {}) {
     avatar: resolvedAvatar,
     plan_tier: resolvedPlanTier,
     unlocked_features: apiUser?.unlocked_features || extras.unlocked_features || null,
+    plan_quotas: apiUser?.plan_quotas || extras.plan_quotas || (roleKey === 'teacher' ? getTeacherPlanQuotas(resolvedPlanTier) : null),
     role: roleKey,
     roleLabel: extras.roleLabel || apiUser?.role_label || baseRole.roleLabel,
     roleLabelAr: extras.roleLabelAr || apiUser?.role_label || baseRole.roleLabelAr,
@@ -177,8 +181,10 @@ export const AuthProvider = ({ children }) => {
     'recording-studio': '/teacher/studio',
     'lesson-workspace': '/teacher/workspace',
     'classes': '/teacher/classes',
+    'teacher-schedule': '/teacher/schedule',
     'students': '/teacher/students',
     'financials': '/teacher/financials',
+    'teacher-billing': '/teacher/billing',
     'ai-processing': '/teacher/processing',
     'student-dashboard': '/student/dashboard',
     'courses': '/student/courses',
@@ -280,10 +286,18 @@ export const AuthProvider = ({ children }) => {
       clearLocalSession();
     };
     const onPlanUpdated = (event) => {
-      const nextTier = normalizeStudentPlanTier(event?.detail?.planTier);
+      const rawTier = event?.detail?.planTier;
       setCurrentUser((prev) => {
-        if (!prev || prev.plan_tier === nextTier) return prev;
-        const next = { ...prev, plan_tier: nextTier };
+        if (!prev) return prev;
+        const nextTier = prev.role === 'teacher'
+          ? normalizeTeacherPlanTier(rawTier)
+          : normalizeStudentPlanTier(rawTier);
+        if (prev.plan_tier === nextTier) return prev;
+        const next = {
+          ...prev,
+          plan_tier: nextTier,
+          ...(prev.role === 'teacher' ? { plan_quotas: getTeacherPlanQuotas(nextTier) } : {}),
+        };
         try {
           localStorage.setItem('motafawweq_custom_user', JSON.stringify(next));
         } catch {
@@ -570,6 +584,8 @@ export const AuthProvider = ({ children }) => {
         currentRole,
         currentUser,
         studentPlanTier: normalizeStudentPlanTier(currentUser?.plan_tier),
+        teacherPlanTier: normalizeTeacherPlanTier(currentUser?.plan_tier),
+        teacherPlanQuotas: currentUser?.plan_quotas || getTeacherPlanQuotas(currentUser?.plan_tier),
         selectedLessonId,
         setSelectedLessonId,
         searchModalOpen,

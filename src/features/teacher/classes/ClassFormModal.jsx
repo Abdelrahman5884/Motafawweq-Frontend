@@ -71,9 +71,10 @@ const buildInitialSessions = (initialData) => {
   ];
 };
 
-const ClassFormModalContent = ({ initialData, existingGroups, lang, onClose, onSubmit }) => {
+const ClassFormModalContent = ({ initialData, existingGroups, maxStudentsLimit = null, lang, onClose, onSubmit }) => {
   const isEdit = Boolean(initialData);
   const isAr = lang === 'ar';
+  const effectiveMaxCapacity = maxStudentsLimit !== null ? Number(maxStudentsLimit) : 1000;
 
   const [formData, setFormData] = useState(() => buildInitialFormState(initialData));
   const [sessions, setSessions] = useState(() => buildInitialSessions(initialData));
@@ -248,8 +249,16 @@ const ClassFormModalContent = ({ initialData, existingGroups, lang, onClose, onS
       setSubmitError(isAr ? 'يرجى إدخال سعر شهري صحيح (0 أو أكثر).' : 'Please enter a valid non-negative price.');
       return;
     }
-    if (parsedMax < 1 || parsedMax > 1000) {
-      setSubmitError(isAr ? 'الحد الأقصى للطلاب يجب أن يكون بين 1 و 1000.' : 'Max students must be between 1 and 1000.');
+    if (parsedMax < 1 || parsedMax > effectiveMaxCapacity) {
+      setSubmitError(
+        maxStudentsLimit !== null
+          ? isAr
+            ? `الحد الأقصى للطلاب في المجموعة الواحدة هو ${effectiveMaxCapacity} طالب في باقتك الحالية. قم بالترقية إلى باقة بلس لسعة مفتوحة.`
+            : `Maximum capacity per group is ${effectiveMaxCapacity} students on your current plan. Upgrade to Plus for unlimited capacity.`
+          : isAr
+            ? 'الحد الأقصى للطلاب يجب أن يكون بين 1 و 1000.'
+            : 'Max students must be between 1 and 1000.'
+      );
       return;
     }
     if (!isEdit && cleanCode && !/^[A-Z0-9\-_]{4,32}$/.test(cleanCode)) {
@@ -910,7 +919,7 @@ const ClassFormModalContent = ({ initialData, existingGroups, lang, onClose, onS
               <input
                 type="number"
                 min="1"
-                max="1000"
+                max={effectiveMaxCapacity}
                 required
                 placeholder="50"
                 value={formData.maxStudents}
@@ -927,6 +936,13 @@ const ClassFormModalContent = ({ initialData, existingGroups, lang, onClose, onS
                   outline: 'none',
                 }}
               />
+              {maxStudentsLimit !== null && (
+                <div style={{ fontSize: '11px', color: '#D97706', fontWeight: '700', marginTop: '4px' }}>
+                  {isAr
+                    ? `الحد الأقصى في الباقة المجانية: ${effectiveMaxCapacity} طالب`
+                    : `Free plan limit: ${effectiveMaxCapacity} students max`}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1053,6 +1069,7 @@ export const ClassFormModal = ({
   isOpen,
   initialData = null,
   existingGroups = [],
+  maxStudentsLimit = null,
   lang = 'ar',
   onClose,
   onSubmit,
@@ -1064,6 +1081,7 @@ export const ClassFormModal = ({
       key={formKey}
       initialData={initialData}
       existingGroups={existingGroups}
+      maxStudentsLimit={maxStudentsLimit}
       lang={lang}
       onClose={onClose}
       onSubmit={onSubmit}

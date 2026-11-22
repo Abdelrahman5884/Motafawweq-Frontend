@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import { useGroups } from '../../context/GroupsContext';
 import {
   Plus,
@@ -11,19 +12,25 @@ import {
   X,
   RefreshCw,
   Loader2,
+  Lock,
+  Sparkles,
 } from 'lucide-react';
 import { ClassCard, ClassQrModal, ClassFormModal } from '../../features/teacher/classes';
 import { TeacherWeeklySchedule } from '../../features/teacher/schedule';
+import { TeacherSubscriptionGate } from '../../components/teacher/TeacherSubscriptionGate';
+import { hasTeacherFeatureAccess, TEACHER_PLANS } from '../../constants/teacherPlanFeatures';
 
 export const ClassManager = ({ defaultTab }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { lang, isRtl } = useLanguage();
+  const { teacherPlanTier, teacherPlanQuotas } = useAuth();
   const isAr = lang === 'ar';
 
   const {
     groups,
+    groupsMeta,
     loadingGroups,
     groupsError,
     refreshGroups,
@@ -35,6 +42,16 @@ export const ClassManager = ({ defaultTab }) => {
     setActiveGroupId,
     showToast,
   } = useGroups();
+
+  const canUseSchedule = hasTeacherFeatureAccess(teacherPlanTier, 'schedule');
+  const maxGroups = groupsMeta?.maxGroups !== undefined ? groupsMeta.maxGroups : (teacherPlanQuotas?.maxGroups ?? null);
+  const maxStudentsPerGroup =
+    groupsMeta?.maxStudentsPerGroup !== undefined
+      ? groupsMeta.maxStudentsPerGroup
+      : (teacherPlanQuotas?.maxStudentsPerGroup ?? null);
+  const isGroupQuotaReached = maxGroups !== null && groups.length >= maxGroups;
+  const nextGroupsTier = teacherPlanTier === 'free' ? 'plus' : 'pro';
+  const nextGroupsPlan = TEACHER_PLANS[nextGroupsTier] || TEACHER_PLANS.plus;
 
   const [isMobile, setIsMobile] = useState(
     () => (typeof window !== 'undefined' ? window.matchMedia('(max-width: 767px)').matches : false)
@@ -196,6 +213,24 @@ export const ClassManager = ({ defaultTab }) => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {maxGroups !== null && (
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: '800',
+                padding: '7px 12px',
+                borderRadius: '10px',
+                backgroundColor: isGroupQuotaReached ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-subtle)',
+                color: isGroupQuotaReached ? '#D97706' : 'var(--text-secondary)',
+                border: `1px solid ${isGroupQuotaReached ? 'rgba(245, 158, 11, 0.35)' : 'var(--border-subtle)'}`,
+              }}
+            >
+              {isAr
+                ? `المجموعات: ${groups.length} / ${maxGroups}`
+                : `Groups: ${groups.length} / ${maxGroups}`}
+            </span>
+          )}
+
           <button
             type="button"
             disabled={loadingGroups}
@@ -218,30 +253,57 @@ export const ClassManager = ({ defaultTab }) => {
             <span>{isAr ? 'تحديث' : 'Refresh'}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setEditingClass(null);
-              setFormModalOpen(true);
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-primary)',
-            }}
-          >
-            <Plus size={16} />
-            <span>{isAr ? 'إنشاء مجموعة جديدة' : 'Add New Cohort'}</span>
-          </button>
+          {isGroupQuotaReached ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/teacher/billing?plan=${nextGroupsTier}`)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                color: '#B45309',
+                border: '1.5px solid rgba(245, 158, 11, 0.45)',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              <Lock size={15} />
+              <span>
+                {isAr
+                  ? `ترقية إلى ${nextGroupsPlan.shortAr} لإضافة مجموعات`
+                  : `Upgrade to ${nextGroupsPlan.shortEn} for More Groups`}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingClass(null);
+                setFormModalOpen(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-primary)',
+              }}
+            >
+              <Plus size={16} />
+              <span>{isAr ? 'إنشاء مجموعة جديدة' : 'Add New Cohort'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -326,7 +388,25 @@ export const ClassManager = ({ defaultTab }) => {
           >
             <Calendar size={15} />
             <span>{isAr ? 'الجدول الأسبوعي' : 'Weekly Schedule'}</span>
-            {todaySessionsCount > 0 ? (
+            {!canUseSchedule ? (
+              <span
+                style={{
+                  fontSize: '10.5px',
+                  fontWeight: '800',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                  color: '#D97706',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <Lock size={10} />
+                <span>Plus</span>
+              </span>
+            ) : todaySessionsCount > 0 ? (
               <span
                 style={{
                   fontSize: '11px',
@@ -431,6 +511,57 @@ export const ClassManager = ({ defaultTab }) => {
         )}
       </div>
 
+      {/* Quota Reached Upgrade Notice Banner */}
+      {activeTab === 'groups' && isGroupQuotaReached && (
+        <div
+          style={{
+            marginBottom: '18px',
+            padding: '14px 18px',
+            borderRadius: '14px',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '800', color: '#B45309' }}>
+            <Lock size={17} style={{ flexShrink: 0 }} />
+            <span>
+              {teacherPlanTier === 'free'
+                ? isAr
+                  ? 'لقد وصلت للحد الأقصى في الباقة المجانية (مجموعة واحدة بحد أقصى 50 طالب). اشترك في باقة المعلم بلس (120 ج.م/شهر) لإنشاء حتى 12 مجموعة.'
+                  : 'You reached the Free plan limit (1 group, max 50 students). Upgrade to Teacher Plus (120 EGP/mo) for up to 12 groups.'
+                : isAr
+                  ? 'لقد وصلت للحد الأقصى في باقة المعلم بلس (12 مجموعة). اشترك في باقة المعلم برو (150 ج.م/شهر) لمجموعات غير محدودة.'
+                  : 'You reached the Teacher Plus limit (12 groups). Upgrade to Teacher Pro (150 EGP/mo) for unlimited groups.'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`/teacher/billing?plan=${nextGroupsTier}`)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <Sparkles size={14} />
+            <span>{isAr ? `اشترك في ${nextGroupsPlan.nameAr}` : `Subscribe to ${nextGroupsPlan.nameEn}`}</span>
+          </button>
+        </div>
+      )}
+
       {/* Loading / Error States */}
       {loadingGroups && groups.length === 0 ? (
         <div
@@ -483,17 +614,23 @@ export const ClassManager = ({ defaultTab }) => {
           </button>
         </div>
       ) : activeTab === 'schedule' ? (
-        <TeacherWeeklySchedule
-          onOpenQr={(cls) => setSelectedClassForQr(cls)}
-          onEditClass={(cls) => {
-            setEditingClass(cls);
-            setFormModalOpen(true);
-          }}
-          onAddNewClass={() => {
-            setEditingClass(null);
-            setFormModalOpen(true);
-          }}
-        />
+        <TeacherSubscriptionGate feature="schedule" inline>
+          <TeacherWeeklySchedule
+            onOpenQr={(cls) => setSelectedClassForQr(cls)}
+            onEditClass={(cls) => {
+              setEditingClass(cls);
+              setFormModalOpen(true);
+            }}
+            onAddNewClass={() => {
+              if (isGroupQuotaReached) {
+                navigate(`/teacher/billing?plan=${nextGroupsTier}`);
+                return;
+              }
+              setEditingClass(null);
+              setFormModalOpen(true);
+            }}
+          />
+        </TeacherSubscriptionGate>
       ) : groups.length === 0 ? (
         <div
           style={{
@@ -619,6 +756,7 @@ export const ClassManager = ({ defaultTab }) => {
         isOpen={formModalOpen}
         initialData={editingClass}
         existingGroups={groups}
+        maxStudentsLimit={maxStudentsPerGroup}
         lang={lang}
         onClose={() => {
           setFormModalOpen(false);

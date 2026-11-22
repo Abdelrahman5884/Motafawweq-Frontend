@@ -8,7 +8,9 @@ import {
   RefreshCw,
   AlertTriangle,
   Sparkles,
+  Lock,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { teacherApi } from '../../services/teacherApi';
@@ -29,18 +31,19 @@ const STATUS_FILTERS = [
 
 export const TeacherCoursesView = () => {
   const navigate = useNavigate();
+  const { teacherPlanTier, teacherPlanQuotas } = useAuth();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
   const isAr = lang === 'ar';
 
   const [courses, setCourses] = useState([]);
-  const [meta, setMeta] = useState({
+  const [meta, setMeta] = useState(() => ({
     activeCoursesCount: 0,
-    maxCourses: null,
-    planTier: 'plus',
+    maxCourses: teacherPlanQuotas?.maxCourses ?? null,
+    planTier: teacherPlanTier || 'free',
     defaultSubjectAr: '',
     defaultSubjectEn: '',
-  });
+  }));
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -99,7 +102,7 @@ export const TeacherCoursesView = () => {
           setMeta({
             activeCoursesCount: Number(res.meta.activeCoursesCount ?? rawList.length),
             maxCourses: res.meta.maxCourses ?? null,
-            planTier: res.meta.planTier || 'plus',
+            planTier: res.meta.planTier || 'free',
             defaultSubjectAr: res.meta.defaultSubjectAr || '',
             defaultSubjectEn: res.meta.defaultSubjectEn || '',
           });
@@ -146,9 +149,14 @@ export const TeacherCoursesView = () => {
     [courses]
   );
 
-  const isQuotaReached = meta.maxCourses !== null && courses.length >= meta.maxCourses;
+  const effectiveMaxCourses = meta.maxCourses !== undefined ? meta.maxCourses : (teacherPlanQuotas?.maxCourses ?? null);
+  const isQuotaReached = effectiveMaxCourses !== null && courses.length >= effectiveMaxCourses;
 
   const openCreateModal = () => {
+    if (isQuotaReached) {
+      navigate('/teacher/billing?plan=plus');
+      return;
+    }
     setFormError('');
     setIsQuotaError(false);
     setEditingCourse(null);
@@ -308,55 +316,102 @@ export const TeacherCoursesView = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {isQuotaReached && (
+          {isQuotaReached ? (
             <button
               type="button"
-              onClick={() => navigate('/teacher/billing')}
+              onClick={() => navigate('/teacher/billing?plan=plus')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '10px 14px',
+                gap: '8px',
+                padding: '10px 18px',
                 borderRadius: '10px',
-                backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                color: '#D97706',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                fontSize: '12.5px',
+                backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                color: '#B45309',
+                border: '1.5px solid rgba(245, 158, 11, 0.45)',
+                fontSize: '13px',
                 fontWeight: '800',
                 cursor: 'pointer',
               }}
             >
-              <Sparkles size={14} />
-              <span>{isAr ? 'ترقية الباقة' : 'Upgrade Plan'}</span>
+              <Lock size={15} />
+              <span>{isAr ? 'ترقية إلى Plus لإنشاء كورسات غير محدودة' : 'Upgrade to Plus for Unlimited Courses'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={openCreateModal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                fontSize: '13px',
+                fontWeight: '800',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'opacity 0.15s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.92'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+            >
+              <Plus size={16} />
+              <span>{isAr ? 'إنشاء كورس جديد' : 'New Course'}</span>
             </button>
           )}
+        </div>
+      </div>
 
+      {/* Free Tier Course Limit Banner */}
+      {isQuotaReached && (
+        <div
+          style={{
+            marginBottom: '18px',
+            padding: '14px 18px',
+            borderRadius: '14px',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '800', color: '#B45309' }}>
+            <Lock size={17} style={{ flexShrink: 0 }} />
+            <span>
+              {isAr
+                ? `لقد وصلت للحد الأقصى في الباقة المجانية (${effectiveMaxCourses} كورس فقط). اشترك في باقة المعلم بلس (120 ج.م/شهر) لإنشاء عدد غير محدود من الكورسات والحصص.`
+                : `You reached the Free plan limit (${effectiveMaxCourses} course max). Subscribe to Teacher Plus (120 EGP/mo) for unlimited courses and lessons.`}
+            </span>
+          </div>
           <button
             type="button"
-            onClick={openCreateModal}
+            onClick={() => navigate('/teacher/billing?plan=plus')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
+              gap: '6px',
+              padding: '8px 14px',
               borderRadius: '10px',
               backgroundColor: 'var(--primary)',
               color: '#FFFFFF',
-              fontSize: '13px',
-              fontWeight: '800',
               border: 'none',
+              fontSize: '12px',
+              fontWeight: '800',
               cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'opacity 0.15s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.92'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
           >
-            <Plus size={16} />
-            <span>{isAr ? 'إنشاء كورس جديد' : 'New Course'}</span>
+            <Sparkles size={14} />
+            <span>{isAr ? 'اشترك في باقة المعلم بلس' : 'Subscribe to Teacher Plus'}</span>
           </button>
         </div>
-      </div>
+      )}
 
       {/* ── COMPACT KPI STRIP ── */}
       {!isLoading && !loadError && courses.length > 0 && (
@@ -680,7 +735,7 @@ export const TeacherCoursesView = () => {
           onSubmit={handleSaveCourse}
           onOpenBilling={() => {
             closeFormModal();
-            navigate('/teacher/billing');
+            navigate('/teacher/billing?plan=plus');
           }}
         />
       )}

@@ -72,7 +72,7 @@ function extractMediaDurationSeconds(file) {
 }
 
 export const RecordingStudio = () => {
-  const { navigate } = useAuth();
+  const { navigate, teacherPlanTier, teacherPlanQuotas } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
 
@@ -100,8 +100,14 @@ export const RecordingStudio = () => {
     };
   });
 
-  const [planTier, setPlanTier] = useState('free');
-  const isProPlan = planTier === 'pro';
+  const [fetchedPlanTier, setFetchedPlanTier] = useState(null);
+  const [lessonsMeta, setLessonsMeta] = useState(() => ({
+    maxLessons: teacherPlanQuotas?.maxLessons ?? null,
+    activeLessonsCount: 0,
+  }));
+
+  const effectivePlanTier = fetchedPlanTier || teacherPlanTier || 'free';
+  const isProPlan = effectivePlanTier === 'pro';
   const isProAiActive = isProPlan && Object.values(aiFeatures).some(Boolean);
 
   // Lesson Metadata & Catalogs
@@ -178,7 +184,7 @@ export const RecordingStudio = () => {
 
       if (settingsRes.status === 'fulfilled' && settingsRes.value?.data) {
         const s = settingsRes.value.data;
-        if (s.planTier) setPlanTier(s.planTier);
+        if (s.planTier) setFetchedPlanTier(s.planTier);
         if (s.subjectAr || s.subjectEn) {
           setDefaultSubject(s.subjectAr || s.subjectEn);
         }
@@ -191,7 +197,17 @@ export const RecordingStudio = () => {
       }
 
       if (lessonsRes.status === 'fulfilled' && Array.isArray(lessonsRes.value?.data)) {
-        setRecentLessons(lessonsRes.value.data);
+        const list = lessonsRes.value.data;
+        setRecentLessons(list);
+        if (lessonsRes.value?.meta) {
+          setLessonsMeta({
+            maxLessons: lessonsRes.value.meta.maxLessons ?? null,
+            activeLessonsCount: Number(lessonsRes.value.meta.activeLessonsCount ?? list.length),
+          });
+          if (lessonsRes.value.meta.planTier) {
+            setFetchedPlanTier(lessonsRes.value.meta.planTier);
+          }
+        }
       }
       setLoadingLessons(false);
     });
@@ -209,6 +225,10 @@ export const RecordingStudio = () => {
 
   const effectiveSubject = selectedCourse?.subjectAr || selectedCourse?.subject || defaultSubject || '';
   const effectiveGrade = selectedCourse?.gradeAr || selectedCourse?.grade || defaultGrade || '';
+
+  const effectiveMaxLessons = lessonsMeta.maxLessons !== undefined ? lessonsMeta.maxLessons : (teacherPlanQuotas?.maxLessons ?? null);
+  const currentLessonsCount = recentLessons.length;
+  const isLessonQuotaReached = effectiveMaxLessons !== null && currentLessonsCount >= effectiveMaxLessons;
 
   // Live recording timer
   useEffect(() => {
@@ -293,6 +313,15 @@ export const RecordingStudio = () => {
   }) => {
     if (isSubmitting) return;
     setStudioError('');
+
+    if (isLessonQuotaReached && !draftLessonUuidRef.current) {
+      setStudioError(
+        isAr
+          ? `لقد وصلت للحد الأقصى للحصص في الباقة المجانية (${effectiveMaxLessons} حصص). اشترك في باقة المعلم بلس (120 ج.م/شهر) لرفع حصص غير محدودة.`
+          : `You reached the Free plan lesson limit (${effectiveMaxLessons} lessons). Subscribe to Teacher Plus (120 EGP/mo) for unlimited lessons.`
+      );
+      return;
+    }
 
     const resolvedTitle = title.trim() || defaultTitle;
     if (resolvedTitle.length < 3) {
@@ -561,11 +590,28 @@ export const RecordingStudio = () => {
 
       {/* Studio Header */}
       <div style={{ marginBottom: '22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
           <Radio size={18} color="var(--primary)" />
           <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>
-            {isAr ? 'استوديو التسجيل الذكي والمواد التعليمية' : 'Smart Recording & Materials Studio'}
+            {isAr ? 'استوديو التسجيل والمواد التعليمية' : 'Recording & Materials Studio'}
           </span>
+          {effectiveMaxLessons !== null && (
+            <span
+              style={{
+                fontSize: '11.5px',
+                fontWeight: '800',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                backgroundColor: isLessonQuotaReached ? 'rgba(245, 158, 11, 0.14)' : 'var(--bg-subtle)',
+                color: isLessonQuotaReached ? '#D97706' : 'var(--text-secondary)',
+                border: `1px solid ${isLessonQuotaReached ? 'rgba(245, 158, 11, 0.35)' : 'var(--border-subtle)'}`,
+              }}
+            >
+              {isAr
+                ? `رصيد الحصص: ${currentLessonsCount} / ${effectiveMaxLessons} حصة`
+                : `Lessons Quota: ${currentLessonsCount} / ${effectiveMaxLessons}`}
+            </span>
+          )}
         </div>
         <h1
           style={{
@@ -584,6 +630,53 @@ export const RecordingStudio = () => {
             : 'Enter lesson details, then record or upload audio/video and attach PDF booklets & whiteboard photos.'}
         </p>
       </div>
+
+      {/* Free Plan 3-Lesson Limit Banner */}
+      {isLessonQuotaReached && (
+        <div
+          style={{
+            marginBottom: '18px',
+            padding: '14px 18px',
+            borderRadius: '14px',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            border: '1.5px solid rgba(245, 158, 11, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: '800', color: '#B45309' }}>
+            <Lock size={17} style={{ flexShrink: 0 }} />
+            <span>
+              {isAr
+                ? `لقد استهلكت الحد الأقصى للباقة المجانية (${effectiveMaxLessons} حصص بدون AI). اشترك في باقة المعلم بلس (120 ج.م/شهر) لرفع عدد غير محدود من الحصص، أو باقة برو (150 ج.م/شهر) مع أدوات الذكاء الاصطناعي.`
+                : `You reached the Free tier limit (${effectiveMaxLessons} lessons without AI). Subscribe to Teacher Plus (120 EGP/mo) for unlimited lessons, or Teacher Pro (150 EGP/mo) with full AI tools.`}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/billing?plan=plus')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 15px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '12.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <Crown size={14} />
+            <span>{isAr ? 'ترقية إلى باقة المعلم بلس' : 'Upgrade to Teacher Plus'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Global Inline Error Banner */}
       {studioError && (
@@ -685,7 +778,7 @@ export const RecordingStudio = () => {
               {!isProPlan && (
                 <button
                   type="button"
-                  onClick={() => navigate('/teacher/billing')}
+                  onClick={() => navigate('/teacher/billing?plan=pro')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -701,7 +794,7 @@ export const RecordingStudio = () => {
                   }}
                 >
                   <Lock size={12} />
-                  <span>{isAr ? 'ترقية إلى Pro' : 'Upgrade to Pro'}</span>
+                  <span>{isAr ? 'اشترك في Pro (150 ج.م/شهر)' : 'Upgrade to Pro (150 EGP/mo)'}</span>
                 </button>
               )}
             </div>
@@ -990,29 +1083,52 @@ export const RecordingStudio = () => {
           )}
         </div>
 
-        <button
-          type="button"
-          disabled={isSubmitting}
-          onClick={handleFinalSubmitAll}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 26px',
-            borderRadius: 'var(--radius-lg)',
-            border: 'none',
-            backgroundColor: 'var(--primary)',
-            color: '#FFFFFF',
-            fontSize: '14px',
-            fontWeight: '800',
-            cursor: isSubmitting ? 'not-allowed' : 'pointer',
-            boxShadow: '0 6px 18px rgba(21, 136, 199, 0.35)',
-            opacity: isSubmitting ? 0.72 : 1,
-          }}
-        >
-          {isSubmitting ? <Loader2 size={17} className="studio-spin" /> : <CheckCircle2 size={17} />}
-          <span>{isAr ? 'حفظ ونشر الحصة ومرفقاتها' : 'Save & Publish Lesson'}</span>
-        </button>
+        {isLessonQuotaReached ? (
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/billing?plan=plus')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 24px',
+              borderRadius: 'var(--radius-lg)',
+              border: '1.5px solid rgba(245, 158, 11, 0.45)',
+              backgroundColor: 'rgba(245, 158, 11, 0.14)',
+              color: '#B45309',
+              fontSize: '13.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <Lock size={16} />
+            <span>{isAr ? 'ترقية إلى Plus لرفع المزيد من الحصص' : 'Upgrade to Plus to Upload More Lessons'}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={handleFinalSubmitAll}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 26px',
+              borderRadius: 'var(--radius-lg)',
+              border: 'none',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              fontSize: '14px',
+              fontWeight: '800',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              boxShadow: '0 6px 18px rgba(21, 136, 199, 0.35)',
+              opacity: isSubmitting ? 0.72 : 1,
+            }}
+          >
+            {isSubmitting ? <Loader2 size={17} className="studio-spin" /> : <CheckCircle2 size={17} />}
+            <span>{isAr ? 'حفظ ونشر الحصة ومرفقاتها' : 'Save & Publish Lesson'}</span>
+          </button>
+        )}
       </div>
 
       {/* Live Recent Studio Lessons */}

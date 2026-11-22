@@ -96,8 +96,8 @@ export const INITIAL_SUBSCRIPTION_PLANS = [
   {
     id: 'plan-teacher-starter',
     targetRole: 'teacher',
-    nameAr: 'باقة المعلم الأساسية (الانطلاق)',
-    nameEn: 'Teacher Starter',
+    nameAr: 'الباقة المجانية للمعلم',
+    nameEn: 'Teacher Free',
     billingCycle: 'monthly',
     priceEgp: 0,
     annualPriceEgp: 0,
@@ -105,76 +105,67 @@ export const INITIAL_SUBSCRIPTION_PLANS = [
     isPopular: false,
     badgeAr: 'مجانية 100%',
     badgeEn: 'Free Start',
-    commissionPercent: 15,
     featuresAr: [
-      'حتى 150 طالباً نشطاً في الكورسات',
-      '600 دقيقة معالجة صوت ذكية مجانية شهرياً',
-      'توليد الكويزات التلقائية وبنوك الأسئلة',
-      'حماية الفيديوهات بمنع التحميل المباشر',
-      'نسبة المنصة من المبيعات: 15% فقط'
+      'إنشاء كورس واحد فقط',
+      'رفع حتى 3 حصص بدون استخدام AI',
+      'إنشاء مجموعة دراسية واحدة فقط بحد أقصى 50 طالب',
+      'إدارة قائمة طلاب المجموعة والحضور بالباركود'
     ],
     featuresEn: [
-      'Up to 150 active course students',
-      '600 Free AI transcription minutes/mo',
-      'Automatic quiz generator',
-      'Anti-download video protection',
-      'Platform commission: 15% only'
+      'Create 1 active course',
+      'Upload up to 3 lessons without AI',
+      'Create 1 study group with up to 50 students',
+      'Student roster and QR attendance tracking'
+    ]
+  },
+  {
+    id: 'plan-teacher-plus',
+    targetRole: 'teacher',
+    nameAr: 'باقة المعلم بلس (Plus)',
+    nameEn: 'Teacher Plus',
+    billingCycle: 'monthly',
+    priceEgp: 120,
+    annualPriceEgp: 900,
+    isActive: true,
+    isPopular: true,
+    badgeAr: 'الأكثر اختياراً للمعلمين',
+    badgeEn: 'Most Popular',
+    featuresAr: [
+      'إنشاء حتى 12 مجموعة دراسية بطلاب مفتوحين',
+      'كورسات وحصص غير محدودة (بدون AI)',
+      'الجدول الأسبوعي لتنظيم المجموعات والملاحظات',
+      'الامتحانات، الواجبات، الدوري، الشهادات والماليات'
+    ],
+    featuresEn: [
+      'Up to 12 study groups with unlimited students',
+      'Unlimited courses and lessons (without AI)',
+      'Weekly schedule organizer & conflict detection',
+      'Exams, Homework, Leagues, Certificates & Financials'
     ]
   },
   {
     id: 'plan-teacher-pro',
     targetRole: 'teacher',
-    nameAr: 'باقة المعلم المحترف (Pro Tutor)',
-    nameEn: 'Pro Tutor Tier',
+    nameAr: 'باقة المعلم برو (Pro)',
+    nameEn: 'Teacher Pro',
     billingCycle: 'monthly',
-    priceEgp: 450,
-    annualPriceEgp: 4500,
-    isActive: true,
-    isPopular: true,
-    badgeAr: 'الأكثر شعبية للمعلمين',
-    badgeEn: 'Most Popular',
-    commissionPercent: 10,
-    featuresAr: [
-      'حتى 2,000 طالب نشط عبر السناتر والمنصة',
-      '3,000 دقيقة تفريغ ومساعد صوتي ذكي للمحاضرات',
-      'توليد مذكرات وملخصات PDF فائقة التنسيق بضغطة زر',
-      'حماية الفيديو القصوى (علامة مائية ديناميكية بكود الطالب)',
-      'نسبة المنصة مخفضة: 10% فقط'
-    ],
-    featuresEn: [
-      'Up to 2,000 active students',
-      '3,000 AI lecture audio minutes/mo',
-      'One-click stylized PDF study guide generation',
-      'Dynamic forensic student-ID watermarking',
-      'Reduced platform commission: 10% only'
-    ]
-  },
-  {
-    id: 'plan-teacher-vip',
-    targetRole: 'teacher',
-    nameAr: 'باقة كبار المعلمين والسناتر الخاصة',
-    nameEn: 'Master Tutor VIP',
-    billingCycle: 'monthly',
-    priceEgp: 950,
-    annualPriceEgp: 9500,
+    priceEgp: 150,
+    annualPriceEgp: 1125,
     isActive: true,
     isPopular: false,
-    badgeAr: 'نخبة الجمهورية',
-    badgeEn: 'VIP Elite',
-    commissionPercent: 7,
+    badgeAr: 'شاملة AI بالكامل',
+    badgeEn: 'Full AI Included',
     featuresAr: [
-      'طلاب غير محدودين في جميع المراحل التعليمية',
-      'دقائق معالجة صوت وذكاء اصطناعي مفتوحة بلا حدود',
-      'نطاق مخصص وبراند كامل باسم المعلم وتطبيقه الخاص',
-      'أقل نسبة عمولة للمنصة على الإطلاق: 7% فقط',
-      'أولوية التسوية وسحب الأرباح الفورية خلال دقائق'
+      'كل مزايا باقة المعلم بلس بدون حدود',
+      'إنشاء عدد غير محدود من المجموعات الدراسية',
+      'التفريغ النصي الذكي للحصص بالذكاء الاصطناعي (AI)',
+      'خرائط المفاهيم التفاعلية وفهرسة الفصول بالـ AI'
     ],
     featuresEn: [
-      'Unlimited enrolled students',
-      'Unlimited AI speech and transcription processing',
-      'Custom sub-domain & white-label teacher branding',
-      'Lowest platform commission rate: 7% only',
-      'Priority instant payout settlements'
+      'Everything in Teacher Plus with no limits',
+      'Unlimited study groups',
+      'AI Synchronized Lesson Transcripts',
+      'AI Concept Mind Maps & Smart Chapter Indexing'
     ]
   },
 

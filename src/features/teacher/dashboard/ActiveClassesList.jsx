@@ -13,6 +13,7 @@ import {
   Calendar,
   Loader2,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import { teacherApi } from '../../../services/teacherApi';
 
@@ -26,6 +27,7 @@ const BROADCAST_TYPES = [
 export const ActiveClassesList = ({
   lang,
   activeClasses = [],
+  isScheduleLocked = false,
   onOpenClasses,
   onOpenSchedule,
   onOpenRoster,
@@ -238,8 +240,9 @@ export const ActiveClassesList = ({
                 transition: 'all 0.15s ease',
               }}
             >
-              <Calendar size={13} color="var(--primary)" />
+              <Calendar size={13} color={isScheduleLocked ? '#D97706' : 'var(--primary)'} />
               <span>{isAr ? 'الجدول الأسبوعي' : 'Weekly Schedule'}</span>
+              {isScheduleLocked && <Lock size={11} color="#D97706" />}
             </button>
           )}
 
