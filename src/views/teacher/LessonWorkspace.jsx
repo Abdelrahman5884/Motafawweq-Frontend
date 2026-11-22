@@ -1,33 +1,36 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { teacherApi } from '../../services/teacherApi';
-import { NotebookMindMapCanvas } from '../../components/knowledge-map/NotebookMindMapCanvas';
+import { MAX_STORAGE_FILE_SIZE_BYTES } from '../../services/storageService';
 import {
-  Video,
-  Mic,
   FileText,
   Share2,
-  Search,
   Clock,
   BookOpen,
-  Copy,
-  Check,
-  ExternalLink,
-  Sparkles,
   Calendar,
-  Trash2,
-  AlertTriangle,
   X,
   Plus,
-  Image as ImageIcon,
-  Layers,
   Loader2,
   Headphones,
   Edit3,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
+import {
+  WorkspaceSidebar,
+  WorkspaceMediaTab,
+  WorkspaceTranscriptTab,
+  WorkspaceMindMapTab,
+  EditLessonModal,
+  DeleteLessonModal,
+  mapLesson,
+  extractMediaDurationSeconds,
+} from '../../features/teacher/workspace';
 
 export const LessonWorkspace = () => {
   const [searchParams] = useSearchParams();
@@ -35,32 +38,35 @@ export const LessonWorkspace = () => {
   const requestedCourseId = searchParams.get('courseId') || '';
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
+  const isAr = lang === 'ar';
 
   const [lessonsList, setLessonsList] = useState([]);
+  const [coursesList, setCoursesList] = useState([]);
+  const [groupsList, setGroupsList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [selectedLessonId, setSelectedLessonId] = useState('');
-  const [lessonToDelete, setLessonToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Filters
+  // Sidebar Filters
   const [lessonSearch, setLessonSearch] = useState('');
-  const [mediaFilter, setMediaFilter] = useState('all'); // 'all' | 'audio' | 'video'
+  const [courseFilter, setCourseFilter] = useState(requestedCourseId || 'all');
+  const [mediaFilter, setMediaFilter] = useState('all');
 
   // Active inner section: 'media' | 'transcript' | 'graph'
   const [activeSection, setActiveSection] = useState('media');
 
-  // Transcript helpers
-  const [transcriptSearch, setTranscriptSearch] = useState('');
-  const [copiedText, setCopiedText] = useState(false);
-
-  // Image lightbox
+  // Modals: Lightbox, PDF Preview, Edit, Delete
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [previewPdf, setPreviewPdf] = useState(null);
+  const [lessonToDelete, setLessonToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
-  // Edit Lesson modal state
-  const [coursesList, setCoursesList] = useState([]);
-  const [groupsList, setGroupsList] = useState([]);
+  // Edit Lesson Modal state
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [editError, setEditError] = useState('');
   const [editForm, setEditForm] = useState({
     titleAr: '',
     descriptionAr: '',
@@ -72,7 +78,11 @@ export const LessonWorkspace = () => {
   const [editNewPdfs, setEditNewPdfs] = useState([]);
   const [editNewImages, setEditNewImages] = useState([]);
 
-  // Real media refs
+  // Toast feedback
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  // Real media player refs
   const audioRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -83,105 +93,141 @@ export const LessonWorkspace = () => {
     },
   ]);
 
-  const mapLessons = (raw) =>
-    raw.map((l) => ({
-      id: l.id || l.uuid,
-      uuid: l.id || l.uuid,
-      courseId: l.courseId || '',
-      title: l.titleEn || l.titleAr || l.title || '',
-      titleAr: l.titleAr || l.title || '',
-      descriptionAr: l.descriptionAr || l.description || '',
-      unitAr: l.unitAr || l.courseTitleAr || l.subjectAr || '',
-      courseTitleAr: l.courseTitleAr || '',
-      subjectAr: l.subjectAr || l.subject || '',
-      gradeAr: l.gradeAr || l.grade || '',
-      classGroup: l.classGroup || '',
-      mediaType: l.mediaType || (l.mode === 'video' || l.mode === 'embed' ? 'video' : 'audio'),
-      mediaStreamUrl: l.mediaStreamUrl || null,
-      mediaOriginalName: l.mediaOriginalName || '',
-      mediaSizeBytes: l.mediaSizeBytes || 0,
-      embedUrl: l.embedUrl || '',
-      videoUrl: l.videoUrl || l.embedUrl || l.mediaStreamUrl || '',
-      isYoutube: Boolean(l.isYoutube),
-      durationFormatted: l.durationFormatted || l.durationLabel || '00:00',
-      durationSeconds: l.durationSeconds || 0,
-      recordedDate: (l.publishedAt || l.createdAt || '').slice(0, 10) || '',
-      aiFeatures: l.aiFeatures || { speechToText: false, conceptGraph: false, chapterIndexing: false },
-      chapters: Array.isArray(l.chapters) ? l.chapters : [],
-      transcript: Array.isArray(l.transcript) ? l.transcript : [],
-      notebookMindMap: l.notebookMindMap || null,
-      lessonPdfs: Array.isArray(l.lessonPdfs) ? l.lessonPdfs : [],
-      lessonImages: Array.isArray(l.lessonImages) ? l.lessonImages : [],
-    }));
+  const showToast = useCallback((message, type = 'success') => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    setToast({ message, type });
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3500);
+  }, []);
 
-  const refreshLessons = async () => {
-    const res = await teacherApi.studio.listLessons();
-    const raw = Array.isArray(res?.data) ? res.data : [];
-    const mapped = mapLessons(raw);
-    setLessonsList(mapped);
-    return mapped;
-  };
-
-  // Fetch real lessons, courses, and groups from backend
   useEffect(() => {
-    let mounted = true;
-
-    Promise.allSettled([
-      teacherApi.studio.listLessons(),
-      teacherApi.courses.list(),
-      teacherApi.groups.list(),
-    ])
-      .then(([lessonsRes, coursesRes, groupsRes]) => {
-        if (!mounted) return;
-        if (lessonsRes.status === 'fulfilled') {
-          const raw = Array.isArray(lessonsRes.value?.data) ? lessonsRes.value.data : [];
-          const mapped = mapLessons(raw);
-          setLessonsList(mapped);
-          const courseMatch = requestedCourseId
-            ? mapped.find((m) => String(m.courseId) === String(requestedCourseId))
-            : null;
-          const savedUuid = requestedLessonId || courseMatch?.id || sessionStorage.getItem('currentLessonUuid');
-          if (savedUuid && mapped.some((m) => m.id === savedUuid)) {
-            setSelectedLessonId(savedUuid);
-            try {
-              sessionStorage.setItem('currentLessonUuid', savedUuid);
-            } catch { /* ignore */ }
-          } else if (mapped.length > 0) {
-            setSelectedLessonId(mapped[0].id);
-          }
-        }
-        if (coursesRes.status === 'fulfilled' && Array.isArray(coursesRes.value?.data)) {
-          setCoursesList(coursesRes.value.data);
-        }
-        if (groupsRes.status === 'fulfilled' && Array.isArray(groupsRes.value?.data)) {
-          setGroupsList(groupsRes.value.data);
-        }
-      })
-      .catch((err) => {
-        console.warn('Teacher studio lessons fetch error:', err);
-      })
-      .finally(() => {
-        if (mounted) setIsLoading(false);
-      });
-
     return () => {
-      mounted = false;
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
     };
-  }, [requestedLessonId, requestedCourseId]);
+  }, []);
+
+  const fetchWorkspaceData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const [wsRes, coursesRes, groupsRes] = await Promise.all([
+        teacherApi.workspace.index(),
+        teacherApi.courses.list().catch(() => ({ data: [] })),
+        teacherApi.groups.list().catch(() => ({ data: [] })),
+      ]);
+
+      const rawLessons = Array.isArray(wsRes?.data?.lessons)
+        ? wsRes.data.lessons
+        : Array.isArray(wsRes?.data)
+          ? wsRes.data
+          : [];
+      const mapped = rawLessons.map(mapLesson);
+      setLessonsList(mapped);
+      setCoursesList(Array.isArray(coursesRes?.data) ? coursesRes.data : []);
+      setGroupsList(Array.isArray(groupsRes?.data) ? groupsRes.data : []);
+
+      return mapped;
+    } catch (err) {
+      setLoadError(
+        err?.message || (isAr ? 'تعذر تحميل مكتبة الحصص. يرجى المحاولة مرة أخرى.' : 'Failed to load workspace lessons.')
+      );
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAr]);
+
+  useEffect(() => {
+    let active = true;
+    const init = async () => {
+      try {
+        const [wsRes, coursesRes, groupsRes] = await Promise.all([
+          teacherApi.workspace.index(),
+          teacherApi.courses.list().catch(() => ({ data: [] })),
+          teacherApi.groups.list().catch(() => ({ data: [] })),
+        ]);
+        if (!active) return;
+
+        const rawLessons = Array.isArray(wsRes?.data?.lessons)
+          ? wsRes.data.lessons
+          : Array.isArray(wsRes?.data)
+            ? wsRes.data
+            : [];
+        const mapped = rawLessons.map(mapLesson);
+        setLessonsList(mapped);
+        setCoursesList(Array.isArray(coursesRes?.data) ? coursesRes.data : []);
+        setGroupsList(Array.isArray(groupsRes?.data) ? groupsRes.data : []);
+
+        const courseMatch = requestedCourseId
+          ? mapped.find((m) => String(m.courseId) === String(requestedCourseId))
+          : null;
+        const storedUuid = (() => {
+          try {
+            return sessionStorage.getItem('currentLessonUuid') || '';
+          } catch {
+            return '';
+          }
+        })();
+        const targetId = requestedLessonId || courseMatch?.id || storedUuid;
+        if (targetId && mapped.some((m) => m.id === targetId)) {
+          setSelectedLessonId(targetId);
+        } else if (mapped.length > 0) {
+          setSelectedLessonId(mapped[0].id);
+        }
+      } catch (err) {
+        if (active) {
+          setLoadError(
+            err?.message || (isAr ? 'تعذر تحميل مكتبة الحصص. يرجى المحاولة مرة أخرى.' : 'Failed to load workspace lessons.')
+          );
+        }
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    init();
+    return () => {
+      active = false;
+    };
+  }, [requestedLessonId, requestedCourseId, isAr]);
+
+  const refreshSingleLesson = useCallback(async (lessonUuid) => {
+    const res = await teacherApi.workspace.getLesson(lessonUuid);
+    if (res?.data) {
+      const updated = mapLesson(res.data);
+      setLessonsList((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+      return updated;
+    }
+    return null;
+  }, []);
+
+  // Computed live KPI stats
+  const workspaceStats = useMemo(() => {
+    const totalSeconds = lessonsList.reduce((acc, l) => acc + Number(l.durationSeconds || 0), 0);
+    const videoCount = lessonsList.filter((l) => l.mediaType === 'video').length;
+    return {
+      totalLessons: lessonsList.length,
+      totalHours: Math.round((totalSeconds / 3600) * 10) / 10,
+      videoCount,
+      audioCount: lessonsList.length - videoCount,
+    };
+  }, [lessonsList]);
 
   const filteredLessons = useMemo(() => {
     const q = lessonSearch.trim().toLowerCase();
     return lessonsList.filter((l) => {
-      const matchQuery =
-        !q ||
-        (l.titleAr && l.titleAr.toLowerCase().includes(q)) ||
-        (l.title && l.title.toLowerCase().includes(q)) ||
-        (l.subjectAr && l.subjectAr.toLowerCase().includes(q)) ||
-        (l.courseTitleAr && l.courseTitleAr.toLowerCase().includes(q));
-      const matchMedia = mediaFilter === 'all' || l.mediaType === mediaFilter;
-      return matchQuery && matchMedia;
+      if (courseFilter !== 'all' && String(l.courseId) !== String(courseFilter)) return false;
+      if (mediaFilter !== 'all' && l.mediaType !== mediaFilter) return false;
+      if (!q) return true;
+      return (
+        (l.titleAr || '').toLowerCase().includes(q) ||
+        (l.title || '').toLowerCase().includes(q) ||
+        (l.subjectAr || '').toLowerCase().includes(q) ||
+        (l.courseTitleAr || '').toLowerCase().includes(q)
+      );
     });
-  }, [lessonsList, lessonSearch, mediaFilter]);
+  }, [lessonsList, lessonSearch, courseFilter, mediaFilter]);
 
   const currentLesson = useMemo(() => {
     if (!lessonsList.length) return null;
@@ -193,23 +239,79 @@ export const LessonWorkspace = () => {
     setActiveSection('media');
     try {
       sessionStorage.setItem('currentLessonUuid', lessonId);
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
+  };
+
+  const getCurrentPlayerTime = () => {
+    const el = videoRef.current || audioRef.current;
+    if (el && Number.isFinite(el.currentTime)) {
+      return Math.floor(el.currentTime);
+    }
+    return 0;
   };
 
   const handleJumpToTimestamp = (seconds) => {
     setActiveSection('media');
     setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.currentTime = seconds;
-        audioRef.current.play().catch(() => {});
+      const target = videoRef.current || audioRef.current;
+      if (target) {
+        target.currentTime = Math.max(0, Number(seconds) || 0);
+        target.play().catch(() => {});
       }
-      if (videoRef.current) {
-        videoRef.current.currentTime = seconds;
-        videoRef.current.play().catch(() => {});
-      }
-    }, 50);
+    }, 60);
   };
 
+  // Workspace Interactive Mutations (Chapters, Transcript, Concept Graph, Reorder, Delete Attachment)
+  const handleSyncChapters = async (lessonId, chapters) => {
+    const res = await teacherApi.workspace.syncChapters(lessonId, chapters);
+    const updatedChapters = Array.isArray(res?.data) ? res.data : [];
+    setLessonsList((prev) =>
+      prev.map((l) => (l.id === lessonId ? { ...l, chapters: updatedChapters } : l))
+    );
+    showToast(isAr ? 'تم حفظ فصول الحصة بنجاح.' : 'Lesson chapters saved.');
+  };
+
+  const handleSyncTranscript = async (lessonId, segments) => {
+    const res = await teacherApi.workspace.syncTranscript(lessonId, segments);
+    const updatedSegments = Array.isArray(res?.data) ? res.data : [];
+    setLessonsList((prev) =>
+      prev.map((l) => (l.id === lessonId ? { ...l, transcript: updatedSegments } : l))
+    );
+    showToast(isAr ? 'تم حفظ التفريغ النصي بنجاح.' : 'Transcript saved.');
+  };
+
+  const handleSaveConceptGraph = async (lessonId, treeData) => {
+    const res = await teacherApi.workspace.saveConceptGraph(lessonId, treeData);
+    const savedTree = res?.data || treeData;
+    setLessonsList((prev) =>
+      prev.map((l) => (l.id === lessonId ? { ...l, notebookMindMap: savedTree } : l))
+    );
+    showToast(isAr ? 'تم حفظ خريطة المفاهيم بنجاح.' : 'Concept map saved.');
+  };
+
+  const handleReorderWhiteboards = async (lessonId, orderedIds) => {
+    try {
+      await teacherApi.studio.reorderAttachments(lessonId, orderedIds, 'whiteboard_image');
+      await refreshSingleLesson(lessonId);
+      showToast(isAr ? 'تم تحديث ترتيب صور السبورة.' : 'Whiteboard order updated.');
+    } catch (err) {
+      showToast(err?.message || (isAr ? 'تعذر إعادة ترتيب الصور.' : 'Failed to reorder images.'), 'error');
+    }
+  };
+
+  const handleDeleteAttachment = async (lessonId, attachmentId) => {
+    try {
+      await teacherApi.studio.deleteAttachment(lessonId, attachmentId);
+      await refreshSingleLesson(lessonId);
+      showToast(isAr ? 'تم حذف المرفق بنجاح.' : 'Attachment deleted.');
+    } catch (err) {
+      showToast(err?.message || (isAr ? 'تعذر حذف المرفق.' : 'Failed to delete attachment.'), 'error');
+    }
+  };
+
+  // Edit Lesson Modal
   const handleOpenEditModal = () => {
     if (!currentLesson) return;
     setEditForm({
@@ -222,75 +324,95 @@ export const LessonWorkspace = () => {
     setEditMediaFile(null);
     setEditNewPdfs([]);
     setEditNewImages([]);
+    setEditError('');
+    setSaveProgress(0);
     setIsEditOpen(true);
   };
 
   const handleSaveLessonEdit = async (e) => {
     e.preventDefault();
     if (!currentLesson || isSavingEdit) return;
+    setEditError('');
 
-    if (editMediaFile && editMediaFile.size > 52428800) {
-      alert(lang === 'ar' ? 'حجم الملف يتجاوز 50 ميجابايت.' : 'File exceeds 50 MB limit.');
+    if (editForm.titleAr.trim().length < 3) {
+      setEditError(isAr ? 'عنوان الحصة يجب ألا يقل عن 3 أحرف.' : 'Title must be at least 3 characters.');
+      return;
+    }
+
+    if (editMediaFile && editMediaFile.size > MAX_STORAGE_FILE_SIZE_BYTES) {
+      setEditError(isAr ? 'حجم ملف الوسائط يتجاوز الحد الأقصى (50 ميجابايت).' : 'Media file exceeds 50 MB limit.');
+      return;
+    }
+
+    const oversizedAtt = [...editNewPdfs, ...editNewImages].find((f) => f.size > MAX_STORAGE_FILE_SIZE_BYTES);
+    if (oversizedAtt) {
+      setEditError(
+        isAr
+          ? `الملف «${oversizedAtt.name}» يتجاوز الحد الأقصى (50 ميجابايت).`
+          : `File "${oversizedAtt.name}" exceeds 50 MB limit.`
+      );
       return;
     }
 
     setIsSavingEdit(true);
+    setSaveProgress(10);
+
     try {
       await teacherApi.studio.updateLesson(currentLesson.id, {
-        title_ar: editForm.titleAr,
-        description_ar: editForm.descriptionAr,
+        title_ar: editForm.titleAr.trim(),
+        description_ar: editForm.descriptionAr.trim(),
         course_uuid: editForm.courseId || null,
-        target_group_code: editForm.classGroup,
-        embed_url: editForm.embedUrl || '',
+        target_group_code: editForm.classGroup || '',
+        embed_url: editForm.embedUrl.trim(),
       });
+      setSaveProgress(30);
 
       if (editMediaFile) {
+        const durSecs = await extractMediaDurationSeconds(editMediaFile);
         try {
-          await teacherApi.studio.uploadMediaDirect(currentLesson.id, editMediaFile, {});
+          await teacherApi.studio.uploadMediaDirect(currentLesson.id, editMediaFile, {
+            durationSeconds: durSecs,
+            onProgress: (pct) => setSaveProgress(30 + Math.round((pct / 100) * 45)),
+          });
         } catch {
-          await teacherApi.studio.uploadMedia(currentLesson.id, editMediaFile, {});
+          await teacherApi.studio.uploadMedia(currentLesson.id, editMediaFile, {
+            duration_seconds: durSecs,
+            onProgress: (pct) => setSaveProgress(30 + Math.round((pct / 100) * 45)),
+          });
         }
       }
+      setSaveProgress(75);
 
-      const attTasks = [];
-      editNewPdfs.forEach((file) => {
-        attTasks.push(teacherApi.studio.uploadPdf(currentLesson.id, file, file.name.replace(/\.[^/.]+$/, '')));
-      });
-      editNewImages.forEach((file, idx) => {
-        attTasks.push(
-          teacherApi.studio.uploadImage(currentLesson.id, file, {
-            titleAr: file.name.replace(/\.[^/.]+$/, ''),
-            order: (currentLesson.lessonImages?.length || 0) + idx + 1,
-          })
-        );
-      });
-      if (attTasks.length > 0) {
-        await Promise.all(attTasks);
+      for (const pdf of editNewPdfs) {
+        await teacherApi.studio.uploadPdf(currentLesson.id, pdf, pdf.name.replace(/\.[^/.]+$/, ''));
       }
 
-      await refreshLessons();
+      const baseImgOrder = currentLesson.lessonImages?.length || 0;
+      for (let i = 0; i < editNewImages.length; i += 1) {
+        const img = editNewImages[i];
+        await teacherApi.studio.uploadImage(currentLesson.id, img, {
+          titleAr: img.name.replace(/\.[^/.]+$/, ''),
+          order: baseImgOrder + i + 1,
+        });
+      }
+
+      setSaveProgress(100);
+      await refreshSingleLesson(currentLesson.id);
       setIsEditOpen(false);
+      showToast(isAr ? 'تم حفظ تعديلات الحصة بنجاح.' : 'Lesson updated successfully.');
     } catch (err) {
-      console.warn('Update lesson error:', err);
-      alert(err?.message || (lang === 'ar' ? 'حدث خطأ أثناء حفظ التعديلات.' : 'Failed to save changes.'));
+      setEditError(err?.message || (isAr ? 'حدث خطأ أثناء حفظ التعديلات.' : 'Failed to save changes.'));
     } finally {
       setIsSavingEdit(false);
+      setSaveProgress(0);
     }
   };
 
-  const handleDeleteExistingAttachment = async (attachmentId) => {
-    if (!currentLesson) return;
-    try {
-      await teacherApi.studio.deleteAttachment(currentLesson.id, attachmentId);
-      await refreshLessons();
-    } catch (err) {
-      console.warn('Delete attachment error:', err);
-    }
-  };
-
+  // Delete Lesson
   const handleDeleteConfirm = async () => {
     if (!lessonToDelete || isDeleting) return;
     setIsDeleting(true);
+    setDeleteError('');
     try {
       await teacherApi.studio.deleteLesson(lessonToDelete.id);
       const remaining = lessonsList.filter((l) => l.id !== lessonToDelete.id);
@@ -299,52 +421,71 @@ export const LessonWorkspace = () => {
         setSelectedLessonId(remaining[0]?.id || '');
       }
       setLessonToDelete(null);
+      showToast(isAr ? 'تم حذف الحصة بنجاح.' : 'Lesson deleted successfully.');
     } catch (err) {
-      console.warn('Delete lesson error:', err);
+      setDeleteError(err?.message || (isAr ? 'تعذر حذف الحصة. يرجى المحاولة مرة أخرى.' : 'Failed to delete lesson.'));
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleCopyTranscript = () => {
-    if (!currentLesson?.transcript?.length) return;
-    const text = currentLesson.transcript
-      .map((seg) => `[${seg.timestamp || '00:00'}] ${seg.textAr || seg.text || ''}`)
-      .join('\n\n');
-    navigator.clipboard?.writeText(text);
-    setCopiedText(true);
-    setTimeout(() => setCopiedText(false), 2000);
-  };
-
-  const formatBytesLabel = (bytes) => {
-    if (!bytes) return '';
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const getEmbedIframeSrc = (url) => {
-    if (!url) return '';
-    if (url.includes('youtube.com/watch?v=')) {
-      const id = url.split('v=')[1]?.split('&')[0];
-      return id ? `https://www.youtube.com/embed/${id}` : url;
-    }
-    if (url.includes('youtu.be/')) {
-      const id = url.split('youtu.be/')[1]?.split('?')[0];
-      return id ? `https://www.youtube.com/embed/${id}` : url;
-    }
-    return url;
-  };
-
   return (
     <div
+      className="lw-container"
       style={{
         maxWidth: '1320px',
         margin: '0 auto',
-        padding: '28px 24px 64px',
         fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit',
         direction: isRtl ? 'rtl' : 'ltr',
       }}
     >
+      <style>{`
+        .lw-container { padding: 28px 24px 64px; }
+        @keyframes lwSpin { to { transform: rotate(360deg); } }
+        .lw-spin { animation: lwSpin 0.85s linear infinite; }
+        .lw-split-grid {
+          display: grid;
+          grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
+          gap: 20px;
+          align-items: start;
+        }
+        .lw-sidebar {
+          position: sticky;
+          top: 20px;
+        }
+        @media (max-width: 960px) {
+          .lw-container { padding: 16px 12px 64px !important; }
+          .lw-split-grid { grid-template-columns: 1fr !important; }
+          .lw-sidebar { position: static !important; }
+        }
+      `}</style>
+
+      {/* Inline Toast */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: isRtl ? '24px' : 'auto',
+            right: isRtl ? 'auto' : '24px',
+            zIndex: 99999,
+            backgroundColor: toast.type === 'error' ? '#EF4444' : '#059669',
+            color: '#FFFFFF',
+            padding: '11px 16px',
+            borderRadius: '10px',
+            boxShadow: 'var(--shadow-lg)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '13px',
+            fontWeight: '800',
+          }}
+        >
+          {toast.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       {/* Top Header */}
       <div
         style={{
@@ -353,24 +494,17 @@ export const LessonWorkspace = () => {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '16px',
-          marginBottom: '24px',
+          marginBottom: '20px',
         }}
       >
         <div>
-          <h1
-            style={{
-              fontSize: '24px',
-              fontWeight: '800',
-              color: 'var(--text-primary)',
-              margin: '0 0 4px 0',
-            }}
-          >
-            {lang === 'ar' ? 'مكتبة الحصص والشرح' : 'Lessons & Content Workspace'}
+          <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
+            {isAr ? 'مكتبة الحصص والشرح' : 'Lessons & Content Workspace'}
           </h1>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
-            {lang === 'ar'
-              ? 'تصفح حصصك المسجلة، استمع للتسجيلات، وراجع الملازم وصور السبورة بسهولة.'
-              : 'Browse your recorded lessons, play media, and review attached PDFs and whiteboard notes.'}
+            {isAr
+              ? 'إدارة الحصص المسجلة، الفصول الزمنية، الملازم وصور السبورة، التفريغ النصي وخريطة المفاهيم.'
+              : 'Manage recorded lessons, timestamped chapters, attachments, transcripts, and concept maps.'}
           </p>
         </div>
 
@@ -393,11 +527,87 @@ export const LessonWorkspace = () => {
           }}
         >
           <Plus size={17} />
-          <span>{lang === 'ar' ? 'تسجيل أو رفع حصة جديدة' : 'New Lesson'}</span>
+          <span>{isAr ? 'تسجيل أو رفع حصة جديدة' : 'New Lesson'}</span>
         </button>
       </div>
 
-      {/* Loading State */}
+      {/* Workspace KPI Strip */}
+      {!isLoading && !loadError && lessonsList.length > 0 && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 155px), 1fr))',
+            gap: '12px',
+            marginBottom: '20px',
+          }}
+        >
+          {[
+            { label: isAr ? 'إجمالي الحصص' : 'Total Lessons', value: workspaceStats.totalLessons, color: 'var(--text-primary)' },
+            { label: isAr ? 'إجمالي الساعات' : 'Total Hours', value: `${workspaceStats.totalHours} ${isAr ? 'ساعة' : 'hrs'}`, color: 'var(--primary)' },
+            { label: isAr ? 'حصص الفيديو' : 'Video Lessons', value: workspaceStats.videoCount, color: '#0EA5E9' },
+            { label: isAr ? 'الحصص الصوتية' : 'Audio Lessons', value: workspaceStats.audioCount, color: '#10B981' },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              style={{
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '13px 16px',
+                boxShadow: 'var(--shadow-xs)',
+              }}
+            >
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '700' }}>{stat.label}</div>
+              <div style={{ fontSize: '20px', fontWeight: '900', color: stat.color, marginTop: '4px' }}>{stat.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {loadError && !isLoading && (
+        <div
+          style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '22px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#EF4444', fontWeight: '700', fontSize: '13.5px' }}>
+            <AlertCircle size={18} />
+            <span>{loadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={fetchWorkspaceData}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              backgroundColor: '#EF4444',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '12.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <RefreshCw size={14} />
+            <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Main Content */}
       {isLoading ? (
         <div
           style={{
@@ -408,13 +618,12 @@ export const LessonWorkspace = () => {
             textAlign: 'center',
           }}
         >
-          <Loader2 size={32} color="var(--primary)" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px' }} />
+          <Loader2 size={32} color="var(--primary)" className="lw-spin" style={{ margin: '0 auto 12px' }} />
           <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-            {lang === 'ar' ? 'جاري تحميل حصصك...' : 'Loading your lessons...'}
+            {isAr ? 'جاري تحميل حصصك...' : 'Loading your lessons...'}
           </div>
         </div>
-      ) : lessonsList.length === 0 ? (
-        /* Empty State */
+      ) : !loadError && lessonsList.length === 0 ? (
         <div
           style={{
             backgroundColor: 'var(--bg-surface-elevated)',
@@ -440,10 +649,10 @@ export const LessonWorkspace = () => {
             <BookOpen size={30} />
           </div>
           <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
-            {lang === 'ar' ? 'لا توجد حصص مسجلة بعد' : 'No Lessons Yet'}
+            {isAr ? 'لا توجد حصص مسجلة بعد' : 'No Lessons Yet'}
           </h3>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px' }}>
-            {lang === 'ar'
+            {isAr
               ? 'ابدأ بتسجيل أول حصة أو رفع ملف صوتي/فيديو وملازم الشرح من الاستوديو الذكي.'
               : 'Record or upload your first lesson from the Smart Studio.'}
           </p>
@@ -465,205 +674,30 @@ export const LessonWorkspace = () => {
             }}
           >
             <Plus size={16} />
-            <span>{lang === 'ar' ? 'الذهاب لاستوديو التسجيل' : 'Go to Studio'}</span>
+            <span>{isAr ? 'الذهاب لاستوديو التسجيل' : 'Go to Studio'}</span>
           </button>
         </div>
-      ) : (
-        /* Master-Detail Clean Split Layout */
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(290px, 340px) 1fr',
-            gap: '20px',
-            alignItems: 'start',
-          }}
-        >
-          {/* Sidebar: Lessons List */}
-          <aside
-            style={{
-              backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '16px',
-              boxShadow: 'var(--shadow-sm)',
-              position: 'sticky',
-              top: '20px',
+      ) : lessonsList.length > 0 ? (
+        <div className="lw-split-grid">
+          <WorkspaceSidebar
+            lessons={filteredLessons}
+            courses={coursesList}
+            selectedLessonId={currentLesson?.id || ''}
+            searchQuery={lessonSearch}
+            onSearchChange={setLessonSearch}
+            courseFilter={courseFilter}
+            onCourseFilterChange={setCourseFilter}
+            mediaFilter={mediaFilter}
+            onMediaFilterChange={setMediaFilter}
+            lang={lang}
+            isRtl={isRtl}
+            onSelectLesson={handleSelectLesson}
+            onRequestDelete={(lesson) => {
+              setDeleteError('');
+              setLessonToDelete(lesson);
             }}
-          >
-            {/* Search Input */}
-            <div style={{ position: 'relative', marginBottom: '12px' }}>
-              <Search
-                size={15}
-                color="var(--text-tertiary)"
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  [isRtl ? 'right' : 'left']: '12px',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                type="text"
-                value={lessonSearch}
-                onChange={(e) => setLessonSearch(e.target.value)}
-                placeholder={lang === 'ar' ? 'ابحث في الحصص...' : 'Search lessons...'}
-                style={{
-                  width: '100%',
-                  padding: isRtl ? '9px 36px 9px 12px' : '9px 12px 9px 36px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+          />
 
-            {/* Filter Pills */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
-              {[
-                { key: 'all', labelAr: 'الكل', labelEn: 'All' },
-                { key: 'audio', labelAr: 'صوتي', labelEn: 'Audio' },
-                { key: 'video', labelAr: 'فيديو', labelEn: 'Video' },
-              ].map((pill) => {
-                const active = mediaFilter === pill.key;
-                return (
-                  <button
-                    key={pill.key}
-                    type="button"
-                    onClick={() => setMediaFilter(pill.key)}
-                    style={{
-                      flex: 1,
-                      padding: '6px 10px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid ' + (active ? 'var(--primary)' : 'var(--border-subtle)'),
-                      backgroundColor: active ? 'var(--primary-surface)' : 'transparent',
-                      color: active ? 'var(--primary)' : 'var(--text-secondary)',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {lang === 'ar' ? pill.labelAr : pill.labelEn}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Lessons Cards */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                maxHeight: '65vh',
-                overflowY: 'auto',
-              }}
-            >
-              {filteredLessons.length === 0 ? (
-                <div style={{ padding: '24px 12px', textAlign: 'center', fontSize: '13px', color: 'var(--text-tertiary)' }}>
-                  {lang === 'ar' ? 'لا توجد نتائج مطابقة' : 'No matching lessons'}
-                </div>
-              ) : (
-                filteredLessons.map((lesson) => {
-                  const isSelected = currentLesson?.id === lesson.id;
-                  const attachmentsCount = (lesson.lessonPdfs?.length || 0) + (lesson.lessonImages?.length || 0);
-                  return (
-                    <div
-                      key={lesson.id}
-                      onClick={() => handleSelectLesson(lesson.id)}
-                      style={{
-                        padding: '12px 14px',
-                        borderRadius: 'var(--radius-lg)',
-                        border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                        backgroundColor: isSelected ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        position: 'relative',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                          <div
-                            style={{
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: '8px',
-                              backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-surface-elevated)',
-                              color: isSelected ? '#FFFFFF' : 'var(--primary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                            }}
-                          >
-                            {lesson.mediaType === 'video' ? <Video size={15} /> : <Mic size={15} />}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '13.5px',
-                              fontWeight: '800',
-                              color: 'var(--text-primary)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {lang === 'ar' ? lesson.titleAr : lesson.title}
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLessonToDelete(lesson);
-                          }}
-                          title={lang === 'ar' ? 'حذف الحصة' : 'Delete lesson'}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-tertiary)',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '6px',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                        {lesson.subjectAr && <span>{lesson.subjectAr}</span>}
-                        {lesson.courseTitleAr && (
-                          <span style={{ color: '#10B981', fontWeight: '700' }}>• {lesson.courseTitleAr}</span>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Clock size={12} />
-                          {lesson.durationFormatted}
-                        </span>
-                        {attachmentsCount > 0 && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontWeight: '700' }}>
-                            <Layers size={12} />
-                            {attachmentsCount} {lang === 'ar' ? 'مرفقات' : 'files'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </aside>
-
-          {/* Main Workspace Area */}
           {currentLesson && (
             <main style={{ display: 'flex', flexDirection: 'column', gap: '18px', minWidth: 0 }}>
               {/* Lesson Header Card */}
@@ -679,7 +713,7 @@ export const LessonWorkspace = () => {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '10px' }}>
                   <div>
                     <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-                      {lang === 'ar' ? currentLesson.titleAr : currentLesson.title}
+                      {isAr ? currentLesson.titleAr : currentLesson.title}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       {currentLesson.subjectAr && (
@@ -734,7 +768,7 @@ export const LessonWorkspace = () => {
                       }}
                     >
                       <Edit3 size={14} />
-                      <span>{lang === 'ar' ? 'تعديل الحصة' : 'Edit Lesson'}</span>
+                      <span>{isAr ? 'تعديل الحصة' : 'Edit Lesson'}</span>
                     </button>
                   </div>
                 </div>
@@ -768,8 +802,8 @@ export const LessonWorkspace = () => {
                   }}
                 >
                   {[
-                    { id: 'media', icon: Headphones, labelAr: 'الوسائط والمرفقات', labelEn: 'Media & Attachments' },
-                    { id: 'transcript', icon: FileText, labelAr: 'التفريغ النصي', labelEn: 'Transcript' },
+                    { id: 'media', icon: Headphones, labelAr: 'الوسائط والمرفقات والفصول', labelEn: 'Media, Chapters & Files' },
+                    { id: 'transcript', icon: FileText, labelAr: `التفريغ النصي (${currentLesson.transcript?.length || 0})`, labelEn: `Transcript (${currentLesson.transcript?.length || 0})` },
                     { id: 'graph', icon: Share2, labelAr: 'خريطة المفاهيم', labelEn: 'Mind Map' },
                   ].map((tab) => {
                     const Icon = tab.icon;
@@ -783,7 +817,7 @@ export const LessonWorkspace = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '7px',
-                          padding: '8px 16px',
+                          padding: '8px 15px',
                           borderRadius: 'var(--radius-md)',
                           border: '1px solid ' + (active ? 'var(--primary)' : 'var(--border-subtle)'),
                           backgroundColor: active ? 'var(--primary)' : 'var(--bg-subtle)',
@@ -791,481 +825,66 @@ export const LessonWorkspace = () => {
                           fontSize: '13px',
                           fontWeight: '700',
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
                         }}
                       >
                         <Icon size={15} />
-                        <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
+                        <span>{isAr ? tab.labelAr : tab.labelEn}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* SECTION 1: MEDIA & ATTACHMENTS */}
               {activeSection === 'media' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                  {/* Media Player Card */}
-                  <div
-                    style={{
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-xl)',
-                      padding: '22px 24px',
-                      boxShadow: 'var(--shadow-sm)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {currentLesson.mediaType === 'video' ? (
-                          <Video size={18} color="var(--primary)" />
-                        ) : (
-                          <Mic size={18} color="var(--primary)" />
-                        )}
-                        <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                          {currentLesson.mediaType === 'video'
-                            ? lang === 'ar' ? 'فيديو الحصة' : 'Lesson Video'
-                            : lang === 'ar' ? 'التسجيل الصوتي للحصة' : 'Lesson Audio Recording'}
-                        </h3>
-                      </div>
-
-                      {currentLesson.mediaOriginalName && (
-                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-                          {currentLesson.mediaOriginalName}
-                          {currentLesson.mediaSizeBytes ? ` (${formatBytesLabel(currentLesson.mediaSizeBytes)})` : ''}
-                        </span>
-                      )}
-                    </div>
-
-                    {currentLesson.mediaType === 'video' ? (
-                      currentLesson.mediaStreamUrl && !currentLesson.isYoutube && !currentLesson.videoUrl?.includes('youtu') ? (
-                        <div style={{ borderRadius: '14px', overflow: 'hidden', backgroundColor: '#000' }}>
-                          <video
-                            ref={videoRef}
-                            key={currentLesson.mediaStreamUrl}
-                            controls
-                            src={currentLesson.mediaStreamUrl}
-                            style={{ width: '100%', maxHeight: '460px', display: 'block' }}
-                          />
-                        </div>
-                      ) : currentLesson.embedUrl || currentLesson.videoUrl ? (
-                        <div
-                          style={{
-                            position: 'relative',
-                            paddingBottom: '56.25%',
-                            height: 0,
-                            overflow: 'hidden',
-                            borderRadius: '14px',
-                            backgroundColor: '#000',
-                          }}
-                        >
-                          <iframe
-                            src={getEmbedIframeSrc(currentLesson.embedUrl || currentLesson.videoUrl)}
-                            title={currentLesson.titleAr}
-                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            padding: '28px',
-                            borderRadius: 'var(--radius-lg)',
-                            backgroundColor: 'var(--bg-subtle)',
-                            textAlign: 'center',
-                            color: 'var(--text-secondary)',
-                            fontSize: '13.5px',
-                          }}
-                        >
-                          {lang === 'ar' ? 'لم يتم رفع ملف فيديو أو رابط لهذه الحصة.' : 'No video file or embed URL attached.'}
-                        </div>
-                      )
-                    ) : currentLesson.mediaStreamUrl ? (
-                      <div
-                        style={{
-                          padding: '18px 20px',
-                          borderRadius: 'var(--radius-lg)',
-                          backgroundColor: 'var(--bg-subtle)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        <audio
-                          ref={audioRef}
-                          key={currentLesson.mediaStreamUrl}
-                          controls
-                          src={currentLesson.mediaStreamUrl}
-                          style={{ width: '100%', display: 'block' }}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          padding: '28px',
-                          borderRadius: 'var(--radius-lg)',
-                          backgroundColor: 'var(--bg-subtle)',
-                          textAlign: 'center',
-                          color: 'var(--text-secondary)',
-                          fontSize: '13.5px',
-                        }}
-                      >
-                        {lang === 'ar'
-                          ? 'لم يتم رفع ملف صوتي لهذه الحصة بعد.'
-                          : 'No audio file uploaded for this lesson yet.'}
-                      </div>
-                    )}
-
-                    {/* Chapters timestamps */}
-                    {currentLesson.chapters && currentLesson.chapters.length > 0 && (
-                      <div style={{ marginTop: '18px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '10px' }}>
-                          {lang === 'ar' ? 'فصول الحصة' : 'Lesson Chapters'}
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {currentLesson.chapters.map((ch) => (
-                            <button
-                              key={ch.id}
-                              type="button"
-                              onClick={() => handleJumpToTimestamp(ch.startSeconds || 0)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                padding: '7px 12px',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--border-subtle)',
-                                backgroundColor: 'var(--bg-subtle)',
-                                color: 'var(--text-primary)',
-                                fontSize: '12.5px',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <span>{lang === 'ar' ? ch.titleAr : ch.title}</span>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--primary)' }}>
-                                {ch.timestamp}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Attachments Card (PDFs + Whiteboard Images) */}
-                  <div
-                    style={{
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-xl)',
-                      padding: '22px 24px',
-                      boxShadow: 'var(--shadow-sm)',
-                    }}
-                  >
-                    <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 14px 0' }}>
-                      {lang === 'ar' ? 'الملازم وصور السبورة المرفقة' : 'Attached PDFs & Whiteboard Notes'}
-                    </h3>
-
-                    {(!currentLesson.lessonPdfs || currentLesson.lessonPdfs.length === 0) &&
-                    (!currentLesson.lessonImages || currentLesson.lessonImages.length === 0) ? (
-                      <div
-                        style={{
-                          padding: '24px',
-                          borderRadius: 'var(--radius-lg)',
-                          backgroundColor: 'var(--bg-subtle)',
-                          textAlign: 'center',
-                          fontSize: '13px',
-                          color: 'var(--text-tertiary)',
-                        }}
-                      >
-                        {lang === 'ar' ? 'لا توجد ملازم PDF أو صور سبورة مرفقة بهذه الحصة.' : 'No PDFs or whiteboard images attached.'}
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                        {/* PDFs */}
-                        {currentLesson.lessonPdfs?.length > 0 && (
-                          <div>
-                            <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <FileText size={14} />
-                              <span>{lang === 'ar' ? 'ملفات وملازم PDF' : 'PDF Materials'}</span>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
-                              {currentLesson.lessonPdfs.map((pdf) => (
-                                <a
-                                  key={pdf.id}
-                                  href={pdf.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '12px',
-                                    padding: '12px 14px',
-                                    borderRadius: 'var(--radius-lg)',
-                                    border: '1px solid var(--border-subtle)',
-                                    backgroundColor: 'var(--bg-subtle)',
-                                    color: 'var(--text-primary)',
-                                    textDecoration: 'none',
-                                  }}
-                                >
-                                  <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontSize: '13.5px', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {pdf.title || pdf.fileName}
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                                      {pdf.fileSize || ''}
-                                      {pdf.pagesCount ? ` • ${pdf.pagesCount} ${lang === 'ar' ? 'صفحة' : 'pages'}` : ''}
-                                    </div>
-                                  </div>
-                                  <ExternalLink size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Whiteboard Images */}
-                        {currentLesson.lessonImages?.length > 0 && (
-                          <div>
-                            <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <ImageIcon size={14} />
-                              <span>{lang === 'ar' ? 'صور السبورة' : 'Whiteboard Images'}</span>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '12px' }}>
-                              {currentLesson.lessonImages.map((img, idx) => (
-                                <div
-                                  key={img.id}
-                                  onClick={() => setLightboxImage(img)}
-                                  style={{
-                                    borderRadius: 'var(--radius-lg)',
-                                    overflow: 'hidden',
-                                    border: '1px solid var(--border-subtle)',
-                                    backgroundColor: 'var(--bg-subtle)',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  <div style={{ position: 'relative' }}>
-                                    <img
-                                      src={img.url}
-                                      alt={img.title || `Whiteboard ${idx + 1}`}
-                                      style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-                                    />
-                                    <span
-                                      style={{
-                                        position: 'absolute',
-                                        top: '8px',
-                                        [isRtl ? 'right' : 'left']: '8px',
-                                        padding: '2px 8px',
-                                        borderRadius: '999px',
-                                        backgroundColor: 'rgba(15, 23, 42, 0.72)',
-                                        color: '#FFFFFF',
-                                        fontSize: '11px',
-                                        fontWeight: '700',
-                                      }}
-                                    >
-                                      #{img.order || idx + 1}
-                                    </span>
-                                  </div>
-                                  <div style={{ padding: '10px 12px' }}>
-                                    <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {img.title}
-                                    </div>
-                                    {img.caption && (
-                                      <div style={{ fontSize: '11.5px', color: 'var(--text-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {img.caption}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <WorkspaceMediaTab
+                  key={currentLesson.id}
+                  lesson={currentLesson}
+                  audioRef={audioRef}
+                  videoRef={videoRef}
+                  lang={lang}
+                  isRtl={isRtl}
+                  onJumpToTimestamp={handleJumpToTimestamp}
+                  onGetCurrentTime={getCurrentPlayerTime}
+                  onSyncChapters={handleSyncChapters}
+                  onReorderWhiteboards={handleReorderWhiteboards}
+                  onDeleteAttachment={handleDeleteAttachment}
+                  onOpenLightbox={setLightboxImage}
+                  onPreviewPdf={setPreviewPdf}
+                />
               )}
 
-              {/* SECTION 2: TRANSCRIPT */}
               {activeSection === 'transcript' && (
-                <div
-                  style={{
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-xl)',
-                    padding: '22px 24px',
-                    boxShadow: 'var(--shadow-sm)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                      {lang === 'ar' ? 'التفريغ النصي للحصة' : 'Lesson Transcript'}
-                    </h3>
-
-                    {currentLesson.transcript?.length > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <div style={{ position: 'relative' }}>
-                          <Search
-                            size={14}
-                            color="var(--text-tertiary)"
-                            style={{
-                              position: 'absolute',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              [isRtl ? 'right' : 'left']: '10px',
-                            }}
-                          />
-                          <input
-                            type="text"
-                            value={transcriptSearch}
-                            onChange={(e) => setTranscriptSearch(e.target.value)}
-                            placeholder={lang === 'ar' ? 'ابحث في النص...' : 'Search transcript...'}
-                            style={{
-                              padding: isRtl ? '7px 32px 7px 12px' : '7px 12px 7px 32px',
-                              borderRadius: 'var(--radius-md)',
-                              border: '1px solid var(--border-subtle)',
-                              backgroundColor: 'var(--bg-subtle)',
-                              color: 'var(--text-primary)',
-                              fontSize: '12.5px',
-                            }}
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={handleCopyTranscript}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '7px 12px',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--border-subtle)',
-                            backgroundColor: 'var(--bg-subtle)',
-                            color: 'var(--text-primary)',
-                            fontSize: '12.5px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {copiedText ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
-                          <span>{copiedText ? (lang === 'ar' ? 'تم النسخ' : 'Copied') : (lang === 'ar' ? 'نسخ النص' : 'Copy')}</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {!currentLesson.transcript || currentLesson.transcript.length === 0 ? (
-                    <div
-                      style={{
-                        padding: '36px 20px',
-                        borderRadius: 'var(--radius-lg)',
-                        backgroundColor: 'var(--bg-subtle)',
-                        textAlign: 'center',
-                        color: 'var(--text-secondary)',
-                        fontSize: '13.5px',
-                      }}
-                    >
-                      <Sparkles size={24} color="var(--primary)" style={{ margin: '0 auto 10px', display: 'block' }} />
-                      {lang === 'ar'
-                        ? 'لا يوجد تفريغ نصي لهذه الحصة حتى الآن (يتطلب تفعيل مخرجات الذكاء الاصطناعي على باقة Pro).'
-                        : 'No transcript available for this lesson yet (requires Pro AI processing).'}
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {currentLesson.transcript
-                        .filter((seg) => {
-                          if (!transcriptSearch.trim()) return true;
-                          const txt = (seg.textAr || seg.text || '').toLowerCase();
-                          return txt.includes(transcriptSearch.trim().toLowerCase());
-                        })
-                        .map((seg, idx) => (
-                          <div
-                            key={seg.id || idx}
-                            onClick={() => handleJumpToTimestamp(seg.startSeconds || 0)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: '12px',
-                              padding: '12px 14px',
-                              borderRadius: 'var(--radius-md)',
-                              backgroundColor: 'var(--bg-subtle)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: '11.5px',
-                                fontWeight: '700',
-                                color: 'var(--primary)',
-                                backgroundColor: 'var(--primary-surface)',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                flexShrink: 0,
-                              }}
-                            >
-                              {seg.timestamp || '00:00'}
-                            </span>
-                            <p style={{ margin: 0, fontSize: '13.5px', lineHeight: 1.7, color: 'var(--text-primary)' }}>
-                              {seg.textAr || seg.text}
-                            </p>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
+                <WorkspaceTranscriptTab
+                  key={currentLesson.id}
+                  lesson={currentLesson}
+                  lang={lang}
+                  isRtl={isRtl}
+                  onJumpToTimestamp={handleJumpToTimestamp}
+                  onGetCurrentTime={getCurrentPlayerTime}
+                  onSyncTranscript={handleSyncTranscript}
+                />
               )}
 
-              {/* SECTION 3: CONCEPT GRAPH */}
               {activeSection === 'graph' && (
-                <div
-                  style={{
-                    backgroundColor: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-xl)',
-                    padding: '22px 24px',
-                    boxShadow: 'var(--shadow-sm)',
-                  }}
-                >
-                  {!currentLesson.notebookMindMap ? (
-                    <div
-                      style={{
-                        padding: '36px 20px',
-                        borderRadius: 'var(--radius-lg)',
-                        backgroundColor: 'var(--bg-subtle)',
-                        textAlign: 'center',
-                        color: 'var(--text-secondary)',
-                        fontSize: '13.5px',
-                      }}
-                    >
-                      <Share2 size={24} color="var(--primary)" style={{ margin: '0 auto 10px', display: 'block' }} />
-                      {lang === 'ar'
-                        ? 'لم يتم توليد خريطة مفاهيم لهذه الحصة بعد (متاح لمشتركي باقة Pro).'
-                        : 'No concept map generated for this lesson yet (available on Pro plan).'}
-                    </div>
-                  ) : (
-                    <NotebookMindMapCanvas
-                      treeData={currentLesson.notebookMindMap}
-                      lessonTitle={lang === 'ar' ? currentLesson.titleAr : currentLesson.title}
-                      unitTitle={currentLesson.unitAr || ''}
-                      onJumpToTimestamp={handleJumpToTimestamp}
-                      lang={lang}
-                      isRtl={isRtl}
-                    />
-                  )}
-                </div>
+                <WorkspaceMindMapTab
+                  key={currentLesson.id}
+                  lesson={currentLesson}
+                  lang={lang}
+                  isRtl={isRtl}
+                  onJumpToTimestamp={handleJumpToTimestamp}
+                  onSaveConceptGraph={handleSaveConceptGraph}
+                />
               )}
             </main>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Whiteboard Lightbox Modal */}
       {lightboxImage && (
         <div
+          role="dialog"
+          aria-modal="true"
           onClick={() => setLightboxImage(null)}
           style={{
             position: 'fixed',
@@ -1281,7 +900,7 @@ export const LessonWorkspace = () => {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              maxWidth: '900px',
+              maxWidth: '920px',
               width: '100%',
               backgroundColor: 'var(--bg-surface-elevated)',
               borderRadius: 'var(--radius-xl)',
@@ -1310,278 +929,16 @@ export const LessonWorkspace = () => {
         </div>
       )}
 
-      {/* Edit Lesson Modal */}
-      {isEditOpen && currentLesson && (
+      {/* Inline PDF Preview Modal */}
+      {previewPdf && (
         <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewPdf(null)}
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-          }}
-        >
-          <form
-            onSubmit={handleSaveLessonEdit}
-            style={{
-              backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-medium)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '24px',
-              maxWidth: '620px',
-              width: '100%',
-              maxHeight: '88vh',
-              overflowY: 'auto',
-              boxShadow: 'var(--shadow-xl)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? 'تعديل بيانات وملفات الحصة' : 'Edit Lesson & Materials'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsEditOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                {lang === 'ar' ? 'عنوان الحصة' : 'Lesson Title'}
-              </label>
-              <input
-                type="text"
-                required
-                value={editForm.titleAr}
-                onChange={(e) => setEditForm((p) => ({ ...p, titleAr: e.target.value }))}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13.5px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'المقرر الدراسي' : 'Course'}
-                </label>
-                <select
-                  value={editForm.courseId}
-                  onChange={(e) => setEditForm((p) => ({ ...p, courseId: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                  }}
-                >
-                  <option value="">{lang === 'ar' ? '-- بدون ربط بمقرر --' : '-- None --'}</option>
-                  {coursesList.map((c) => (
-                    <option key={c.uuid || c.id} value={c.uuid || c.id}>
-                      {c.titleAr || c.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'المجموعة والقاعة' : 'Group'}
-                </label>
-                <select
-                  value={editForm.classGroup}
-                  onChange={(e) => setEditForm((p) => ({ ...p, classGroup: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                  }}
-                >
-                  <option value="">{lang === 'ar' ? '-- اختر المجموعة --' : '-- Select Group --'}</option>
-                  {groupsList.map((g) => (
-                    <option key={g.uuid || g.id || g.code} value={g.code || g.uuid || g.id}>
-                      {g.nameAr || g.name || g.code}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                {lang === 'ar' ? 'وصف الحصة' : 'Description'}
-              </label>
-              <textarea
-                rows={3}
-                value={editForm.descriptionAr}
-                onChange={(e) => setEditForm((p) => ({ ...p, descriptionAr: e.target.value }))}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                {lang === 'ar' ? 'استبدال أو رفع ملف صوت/فيديو جديد (اختياري)' : 'Replace / Upload Audio or Video (Optional)'}
-              </label>
-              <input
-                type="file"
-                accept="audio/*,video/*"
-                onChange={(e) => setEditMediaFile(e.target.files?.[0] || null)}
-                style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                {lang === 'ar' ? 'رابط يوتيوب أو فيديو خارجي (اختياري)' : 'YouTube / External Video URL'}
-              </label>
-              <input
-                type="url"
-                value={editForm.embedUrl}
-                onChange={(e) => setEditForm((p) => ({ ...p, embedUrl: e.target.value }))}
-                placeholder="https://youtube.com/watch?v=..."
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'إضافة ملفات PDF جديدة' : 'Add New PDFs'}
-                </label>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  multiple
-                  onChange={(e) => setEditNewPdfs(Array.from(e.target.files || []))}
-                  style={{ fontSize: '12px', color: 'var(--text-secondary)' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'إضافة صور سبورة جديدة' : 'Add New Whiteboard Images'}
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => setEditNewImages(Array.from(e.target.files || []))}
-                  style={{ fontSize: '12px', color: 'var(--text-secondary)' }}
-                />
-              </div>
-            </div>
-
-            {/* Existing attachments quick delete */}
-            {((currentLesson.lessonPdfs?.length || 0) > 0 || (currentLesson.lessonImages?.length || 0) > 0) && (
-              <div style={{ padding: '12px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-subtle)' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                  {lang === 'ar' ? 'المرفقات الحالية:' : 'Current Attachments:'}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {[...(currentLesson.lessonPdfs || []), ...(currentLesson.lessonImages || [])].map((att) => (
-                    <div key={att.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--text-primary)' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.title || att.fileName}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteExistingAttachment(att.id)}
-                        style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
-                      >
-                        {lang === 'ar' ? 'حذف' : 'Remove'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
-              <button
-                type="button"
-                onClick={() => setIsEditOpen(false)}
-                style={{
-                  padding: '9px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-              </button>
-              <button
-                type="submit"
-                disabled={isSavingEdit}
-                style={{
-                  padding: '9px 20px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: isSavingEdit ? 'not-allowed' : 'pointer',
-                  opacity: isSavingEdit ? 0.65 : 1,
-                }}
-              >
-                {isSavingEdit ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Delete Lesson Modal */}
-      {lessonToDelete && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backgroundColor: 'rgba(15, 23, 42, 0.8)',
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
@@ -1590,66 +947,90 @@ export const LessonWorkspace = () => {
           }}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-medium)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '24px',
-              maxWidth: '420px',
+              maxWidth: '920px',
               width: '100%',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              borderRadius: 'var(--radius-xl)',
+              overflow: 'hidden',
               boxShadow: 'var(--shadow-xl)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', color: '#EF4444' }}>
-              <AlertTriangle size={22} />
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? 'تأكيد حذف الحصة' : 'Confirm Lesson Deletion'}
-              </h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)', gap: '10px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {previewPdf.title || previewPdf.fileName}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <a
+                  href={previewPdf.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 11px',
+                    borderRadius: '7px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#FFFFFF',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <ExternalLink size={13} />
+                  <span>{isAr ? 'فتح في تبويب جديد' : 'Open'}</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPdf(null)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
-            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.6 }}>
-              {lang === 'ar'
-                ? `هل أنت متأكد من حذف "${lessonToDelete.titleAr}"؟ سيتم تحديث عدد الحصص في المقرر المرتبط تلقائياً.`
-                : `Delete "${lessonToDelete.title}"? Linked course lesson count will update automatically.`}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setLessonToDelete(null)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-              </button>
-              <button
-                type="button"
-                disabled={isDeleting}
-                onClick={handleDeleteConfirm}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  backgroundColor: '#EF4444',
-                  color: '#FFFFFF',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  opacity: isDeleting ? 0.6 : 1,
-                }}
-              >
-                {isDeleting ? (lang === 'ar' ? 'جاري الحذف...' : 'Deleting...') : (lang === 'ar' ? 'حذف الحصة' : 'Delete')}
-              </button>
-            </div>
+            <iframe
+              src={previewPdf.url}
+              title={previewPdf.title || 'PDF'}
+              style={{ width: '100%', height: '75vh', border: 'none', display: 'block', backgroundColor: '#FFFFFF' }}
+            />
           </div>
         </div>
       )}
+
+      <EditLessonModal
+        isOpen={isEditOpen}
+        lesson={currentLesson}
+        editForm={editForm}
+        onChangeForm={(patch) => setEditForm((prev) => ({ ...prev, ...patch }))}
+        coursesList={coursesList}
+        groupsList={groupsList}
+        editMediaFile={editMediaFile}
+        onChangeMediaFile={setEditMediaFile}
+        editNewPdfs={editNewPdfs}
+        onChangeNewPdfs={setEditNewPdfs}
+        editNewImages={editNewImages}
+        onChangeNewImages={setEditNewImages}
+        isSaving={isSavingEdit}
+        saveProgress={saveProgress}
+        saveError={editError}
+        onClearError={() => setEditError('')}
+        lang={lang}
+        onClose={() => setIsEditOpen(false)}
+        onSubmit={handleSaveLessonEdit}
+        onDeleteExistingAttachment={handleDeleteAttachment}
+      />
+
+      <DeleteLessonModal
+        lesson={lessonToDelete}
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+        lang={lang}
+        onCancel={() => setLessonToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 };
