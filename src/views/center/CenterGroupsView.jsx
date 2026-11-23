@@ -256,7 +256,7 @@ export const CenterGroupsView = () => {
               <span>{groupsError}</span>
             </span>
             <SButton
-              variant="secondary"
+              variant="ghost"
               size="sm"
               icon={<RefreshCw size={13} />}
               onClick={handleRefreshAll}
@@ -293,8 +293,8 @@ export const CenterGroupsView = () => {
             <SSkeleton height={320} radius={16} />
           </div>
         ) : !activeGroup ? (
-          <SCard padding="lg">
-            <div style={{ textAlign: 'center', padding: '28px 16px' }}>
+          <SCard padding={36}>
+            <div style={{ textAlign: 'center', padding: '12px 16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 8px' }}>
                 {isAr ? 'المجموعة المطلوبة غير موجودة أو تم حذفها' : 'Cohort not found'}
               </h2>

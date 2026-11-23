@@ -236,8 +236,8 @@ export const CenterRoomsCatalogSection = ({
 
       {/* ── Rooms Grid ── */}
       {enrichedRooms.length === 0 ? (
-        <SCard padding="lg">
-          <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+        <SCard padding={32}>
+          <div style={{ textAlign: 'center', padding: '12px 16px' }}>
             <div
               style={{
                 width: '54px',
@@ -275,8 +275,8 @@ export const CenterRoomsCatalogSection = ({
           </div>
         </SCard>
       ) : filteredRooms.length === 0 ? (
-        <SCard padding="lg">
-          <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+        <SCard padding={32}>
+          <div style={{ textAlign: 'center', padding: '8px 12px', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
             {isAr ? 'لا توجد قاعات تطابق معايير البحث الحالية.' : 'No classrooms match the current filter.'}
           </div>
         </SCard>
@@ -302,21 +302,23 @@ export const CenterRoomsCatalogSection = ({
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
                         <SBadge
-                          tone={room.isAvailable ? 'success' : 'warning'}
-                          size="sm"
-                          icon={room.isAvailable ? <Check size={11} /> : <Wrench size={11} />}
+                          variant={room.isAvailable ? 'success' : 'warning'}
+                          size="xs"
                         >
-                          {room.isAvailable
-                            ? isAr
-                              ? 'متاحة للتشغيل'
-                              : 'Available'
-                            : isAr
-                              ? 'في الصيانة'
-                              : 'Maintenance'}
+                          {room.isAvailable ? <Check size={11} /> : <Wrench size={11} />}
+                          <span>
+                            {room.isAvailable
+                              ? isAr
+                                ? 'متاحة للتشغيل'
+                                : 'Available'
+                              : isAr
+                                ? 'في الصيانة'
+                                : 'Maintenance'}
+                          </span>
                         </SBadge>
 
                         {room.branchNameAr && (
-                          <SBadge tone="neutral" size="sm">
+                          <SBadge variant="default" size="xs">
                             {room.branchNameAr}
                           </SBadge>
                         )}
@@ -538,7 +540,7 @@ export const CenterRoomsCatalogSection = ({
                 {/* Card Footer Actions */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <SButton
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
                     icon={<Calendar size={14} />}
                     onClick={() => onOpenRoomSchedule?.(room)}

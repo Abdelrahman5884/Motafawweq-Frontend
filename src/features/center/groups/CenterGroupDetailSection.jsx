@@ -232,7 +232,7 @@ export const CenterGroupDetailSection = ({
       <div className="cg-toolbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <SButton
-            variant="secondary"
+            variant="ghost"
             size="sm"
             icon={isRtl ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
             onClick={onBackToGroups}
@@ -259,7 +259,7 @@ export const CenterGroupDetailSection = ({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <SButton
-            variant="secondary"
+            variant="ghost"
             size="sm"
             icon={<Pencil size={14} />}
             onClick={(e) => onEditCohort?.(activeGroup, e)}
@@ -289,7 +289,7 @@ export const CenterGroupDetailSection = ({
       </div>
 
       {/* ── 2. Group Overview Card ── */}
-      <SCard padding="md">
+      <SCard padding={22}>
         <div
           style={{
             display: 'flex',
@@ -303,19 +303,22 @@ export const CenterGroupDetailSection = ({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
               {activeGroup.subjectAr && (
-                <SBadge tone="primary" size="sm">
+                <SBadge variant="primary" size="xs">
                   {activeGroup.subjectAr}
                 </SBadge>
               )}
 
               {activeGroup.gradeAr && (
-                <SBadge tone="neutral" size="sm">
+                <SBadge variant="default" size="xs">
                   {activeGroup.gradeAr}
                 </SBadge>
               )}
 
-              <SBadge tone="neutral" size="sm" icon={<Building2 size={11} />}>
-                {activeGroupRoom.nameAr} ({activeGroupRoom.capacity} {isAr ? 'مقعد' : 'seats'})
+              <SBadge variant="default" size="xs">
+                <Building2 size={11} />
+                <span>
+                  {activeGroupRoom.nameAr} ({activeGroupRoom.capacity} {isAr ? 'مقعد' : 'seats'})
+                </span>
               </SBadge>
 
               {activeGroup.joinCode && (
@@ -518,7 +521,7 @@ export const CenterGroupDetailSection = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-            <SBadge tone="warning" size="sm">
+            <SBadge variant="warning" size="xs">
               {pendingStudentsList.length} {isAr ? 'معلق' : 'Pending'}
             </SBadge>
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)' }}>
@@ -667,7 +670,7 @@ export const CenterGroupDetailSection = ({
             </div>
           </div>
 
-          <SBadge tone="success" size="sm">
+          <SBadge variant="success" size="sm">
             {scannerMode === 'camera' && isCameraActive
               ? isAr
                 ? 'الكاميرا نشطة'
@@ -755,7 +758,7 @@ export const CenterGroupDetailSection = ({
                   </SButton>
 
                   <SButton
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
                     icon={<Scan size={14} />}
                     onClick={() => fileSnapRef.current?.click()}
@@ -873,7 +876,7 @@ export const CenterGroupDetailSection = ({
       </div>
 
       {/* ── 5. Enrolled Students Roster Section ── */}
-      <SCard padding="md">
+      <SCard padding={22}>
         <div
           style={{
             display: 'flex',
@@ -1143,7 +1146,7 @@ export const CenterGroupDetailSection = ({
 
                       <td>
                         <SButton
-                          variant="secondary"
+                          variant="ghost"
                           size="sm"
                           icon={<QrCode size={13} />}
                           onClick={() => onOpenStudentCard?.(std)}
@@ -1391,7 +1394,7 @@ export const CenterGroupDetailSection = ({
                     </button>
 
                     <SButton
-                      variant="secondary"
+                      variant="ghost"
                       size="sm"
                       fullWidth
                       icon={<QrCode size={14} />}

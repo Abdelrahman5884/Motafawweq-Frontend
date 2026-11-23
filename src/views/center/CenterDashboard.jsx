@@ -172,39 +172,6 @@ export const CenterDashboard = () => {
     refreshUser,
   ]);
 
-  const handleRenameCenter = useCallback(
-    async (newCenterName) => {
-      const trimmed = String(newCenterName || '').trim();
-      if (trimmed.length < 2) return false;
-      setError('');
-      try {
-        await centerApi.settings.update({
-          name_ar: trimmed,
-          name_en: trimmed,
-        });
-        await fetchDashboard({ silent: true });
-        await refreshUser?.();
-        if (mountedRef.current) {
-          showToastMessage(
-            isAr
-              ? `تم تحديث اسم السنتر إلى «${trimmed}»`
-              : `Center name updated to "${trimmed}"`
-          );
-        }
-        return true;
-      } catch (err) {
-        if (mountedRef.current) {
-          setError(
-            err?.message ||
-              (isAr ? 'تعذر تحديث اسم السنتر.' : 'Failed to update center name.')
-          );
-        }
-        return false;
-      }
-    },
-    [fetchDashboard, refreshUser, isAr, showToastMessage]
-  );
-
   const handleCompleteQueueItem = useCallback(
     async (item) => {
       if (!item?.groupId || !item?.slotId || busyItemId) return;
@@ -372,7 +339,6 @@ export const CenterDashboard = () => {
       <CenterDashboardHeader
         center={centerInfo}
         managerName={centerInfo.managerName || currentUser?.name || ''}
-        onRenameCenter={handleRenameCenter}
         branches={branches}
         selectedBranchId={branchId}
         onSelectBranch={setBranchId}

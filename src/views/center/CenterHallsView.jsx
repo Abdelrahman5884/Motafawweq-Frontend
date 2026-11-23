@@ -76,8 +76,21 @@ export const CenterHallsView = () => {
 
   const currentBranchRooms = useMemo(() => {
     if (!selectedBranchId || selectedBranchId === 'all') return rooms;
+    if (selectedBranchId === 'main') return rooms.filter((r) => !r.branchId);
     return rooms.filter((r) => String(r.branchId) === String(selectedBranchId));
   }, [rooms, selectedBranchId]);
+
+  const formatBranchLabel = useCallback(
+    (branch) => {
+      const base = isAr ? branch.nameAr : branch.nameEn || branch.nameAr;
+      if (!branch.isMain) return base;
+      if (String(base).includes('رئيسي') || String(base).toLowerCase().includes('main')) {
+        return base;
+      }
+      return isAr ? `${base} (الرئيسي)` : `${base} (Main)`;
+    },
+    [isAr]
+  );
 
   const weeklySessionsCount = useMemo(() => {
     let count = 0;
@@ -334,7 +347,7 @@ export const CenterHallsView = () => {
                   </option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {isAr ? b.nameAr : b.nameEn || b.nameAr}
+                      {formatBranchLabel(b)}
                     </option>
                   ))}
                 </select>

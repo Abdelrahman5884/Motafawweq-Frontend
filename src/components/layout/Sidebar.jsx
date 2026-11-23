@@ -177,19 +177,19 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       case 'center':
         return [
           {
-            group: lang === 'ar' ? 'القيادة والتشغيل اليومي' : 'Command & Daily Operations',
+            group: lang === 'ar' ? 'التشغيل اليومي' : 'Operations',
             items: [
               { id: 'center-portal', path: '/center/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: Building2 },
-              { id: 'center-groups', path: '/center/groups', label: lang === 'ar' ? 'المجموعات والصفوف الدراسية' : 'Cohorts & Groups', icon: Users },
-              { id: 'center-halls', path: '/center/halls', label: lang === 'ar' ? 'القاعات وجداول التشغيل' : 'Rooms & Schedule', icon: Calendar },
+              { id: 'center-groups', path: '/center/groups', label: lang === 'ar' ? 'المجموعات' : 'Cohorts', icon: Users },
+              { id: 'center-halls', path: '/center/halls', label: lang === 'ar' ? 'القاعات والجدول' : 'Halls & Schedule', icon: Calendar },
             ]
           },
           {
-            group: lang === 'ar' ? 'الفروع وشبكة المعلمين' : 'Branches & Teachers',
+            group: lang === 'ar' ? 'الإدارة' : 'Management',
             items: [
-              { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'إدارة الفروع وشبكة المعلمين' : 'Branches & Teachers', icon: Layers },
-              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الاشتراك وباقات السنتر' : 'Plans & Pricing', icon: CreditCard, badge: lang === 'ar' ? 'الأسعار' : 'Pricing' },
-              { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'إعدادات السنتر' : 'Center Settings', icon: Settings },
+              { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'الفروع والمعلمون' : 'Branches & Faculty', icon: Layers },
+              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الباقات والاشتراك' : 'Plans & Billing', icon: CreditCard },
+              { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings },
             ]
           }
         ];
@@ -223,7 +223,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
     const currentFullPath = location.pathname + (location.search || '');
     const isActive = item.path.includes('?')
       ? (currentFullPath === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.endsWith('?tab=overview')))
-      : location.pathname === item.path;
+      : (location.pathname === item.path || (item.path === '/center/groups' && location.pathname.startsWith('/center/groups/')));
 
     const isStudentLocked =
       effectiveRole === 'student' &&

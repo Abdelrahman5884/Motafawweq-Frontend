@@ -33,13 +33,13 @@ import {
 } from './centerHallsUtils';
 
 const DAY_SHORT_AR = {
-  saturday: 'سبت',
-  sunday: 'أحد',
-  monday: 'اثنين',
-  tuesday: 'ثلاثاء',
-  wednesday: 'أربعاء',
-  thursday: 'خميس',
-  friday: 'جمعة',
+  saturday: 'السبت',
+  sunday: 'الأحد',
+  monday: 'الاثنين',
+  tuesday: 'الثلاثاء',
+  wednesday: 'الأربعاء',
+  thursday: 'الخميس',
+  friday: 'الجمعة',
 };
 
 const DAY_SHORT_EN = {
@@ -72,21 +72,23 @@ export const CenterMasterScheduleSection = ({
   const todayKey = useMemo(() => getTodayWeekdayKey(), []);
   const normalizedDayKey = String(selectedDay || todayKey).toLowerCase();
 
-  // Teacher-style 3 view modes: 'grid' (7-day week), 'focus' (expanded day + free room slots), 'agenda' (chronological list)
+  // Teacher-style 3 view modes: 'grid' (7-day week), 'focus' (day view + open room slots), 'agenda' (chronological list)
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCode, setCopiedCode] = useState(null);
   const [apiSchedule, setApiSchedule] = useState(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
-  // Sync live backend schedule for the focused day (useful when local groups are still hydrating)
+  // Sync live backend schedule for the focused day (fallback when local groups are still hydrating)
   useEffect(() => {
     if (!isBackendCenter) return undefined;
 
     let cancelled = false;
     const params = {
       day: normalizedDayKey,
-      ...(selectedBranchId && selectedBranchId !== 'all' ? { branch_id: selectedBranchId } : {}),
+      ...(selectedBranchId && selectedBranchId !== 'all' && selectedBranchId !== 'main'
+        ? { branch_id: selectedBranchId }
+        : {}),
     };
 
     Promise.resolve().then(() => {
@@ -134,16 +136,17 @@ export const CenterMasterScheduleSection = ({
         const dayKey = String(slot.day || '').toLowerCase();
         if (!map[dayKey]) return;
 
-        // Match room in current branch
         const matchedRoom = rooms.find((r) => doesSlotMatchRoom(slot, group, r)) || null;
 
-        // Branch filter guard
         if (selectedBranchId && selectedBranchId !== 'all') {
-          const groupMatchesBranch = String(group.branchId || '') === String(selectedBranchId);
-          if (!matchedRoom && !groupMatchesBranch) return;
+          if (selectedBranchId === 'main') {
+            if (group.branchId) return;
+          } else {
+            const groupMatchesBranch = String(group.branchId || '') === String(selectedBranchId);
+            if (!matchedRoom && !groupMatchesBranch) return;
+          }
         }
 
-        // Focused room filter guard
         if (focusedRoom && !doesSlotMatchRoom(slot, group, focusedRoom)) {
           return;
         }
@@ -152,7 +155,6 @@ export const CenterMasterScheduleSection = ({
           matchedRoom?.nameAr || slot.hall || group.hallName || (isAr ? 'القاعة الرئيسية' : 'Main Hall');
         const teacherName = group.teacherNameAr || (isAr ? 'معلم السنتر' : 'Center Teacher');
 
-        // Search filter
         if (q) {
           const hay = [
             group.nameAr,
@@ -186,7 +188,7 @@ export const CenterMasterScheduleSection = ({
       });
     });
 
-    // Backend fallback for selectedDay if local groups are empty/still loading
+    // Backend fallback for selectedDay if local groups are empty/still hydrating
     if (map[normalizedDayKey]?.length === 0 && Array.isArray(apiSchedule?.halls)) {
       apiSchedule.halls.forEach((hall) => {
         if (focusedRoom && String(hall.roomId) !== String(focusedRoom.id)) return;
@@ -226,7 +228,6 @@ export const CenterMasterScheduleSection = ({
       });
     }
 
-    // Sort chronologically inside every day column
     Object.keys(map).forEach((dayKey) => {
       map[dayKey].sort((a, b) =>
         String(a.startTime || '').localeCompare(String(b.startTime || ''))
@@ -246,7 +247,6 @@ export const CenterMasterScheduleSection = ({
     isAr,
   ]);
 
-  // Summary metrics matching TeacherWeeklySchedule top KPIs
   const metrics = useMemo(() => {
     const allSessions = Object.values(sessionsByDay).flat();
     const uniqueCohortIds = new Set(allSessions.map((s) => s.groupId).filter(Boolean));
@@ -378,7 +378,7 @@ export const CenterMasterScheduleSection = ({
         <div className="ch-seg-group" role="group" aria-label={isAr ? 'طريقة عرض الجدول' : 'Schedule view mode'}>
           {[
             { id: 'grid', labelAr: 'الجدول الأسبوعي', labelEn: 'Weekly Grid', icon: LayoutGrid },
-            { id: 'focus', labelAr: 'اليوم والإتاحة', labelEn: 'Day & Slots', icon: Calendar },
+            { id: 'focus', labelAr: 'اليوم', labelEn: 'Day View', icon: Calendar },
             { id: 'agenda', labelAr: 'الأجندة', labelEn: 'Agenda', icon: List },
           ].map((mode) => {
             const Icon = mode.icon;
@@ -437,14 +437,21 @@ export const CenterMasterScheduleSection = ({
             ))}
           </select>
 
-          <SBadge tone="success" size="sm" icon={loadingSchedule ? <RefreshCw size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}>
-            {loadingSchedule
-              ? isAr
-                ? 'جاري المزامنة...'
-                : 'Syncing...'
-              : isAr
-                ? 'خالٍ من التعارض'
-                : 'Conflict-Free'}
+          <SBadge variant="success" size="sm">
+            {loadingSchedule ? (
+              <RefreshCw size={12} className="animate-spin" />
+            ) : (
+              <CheckCircle2 size={12} />
+            )}
+            <span>
+              {loadingSchedule
+                ? isAr
+                  ? 'جاري المزامنة...'
+                  : 'Syncing...'
+                : isAr
+                  ? 'خالٍ من التعارض'
+                  : 'Conflict-Free'}
+            </span>
           </SBadge>
         </div>
       </div>
@@ -499,7 +506,7 @@ export const CenterMasterScheduleSection = ({
         </div>
       )}
 
-      {/* Day Pills Bar (Visible in Day Focus mode) */}
+      {/* Day Pills Bar (Visible in Day View) */}
       {viewMode === 'focus' && (
         <div className="ch-day-pills">
           {WEEKDAYS.map((day) => {
@@ -514,14 +521,27 @@ export const CenterMasterScheduleSection = ({
                 onClick={() => onSelectDay?.(day.key)}
                 className={`ch-day-pill ${isSelected ? 'active' : ''} ${isToday ? 'is-today' : ''}`}
               >
-                <span style={{ fontSize: '12.5px', fontWeight: '800' }}>
-                  {isAr ? DAY_SHORT_AR[day.key] : DAY_SHORT_EN[day.key]}
+                <span style={{ fontSize: '12.5px', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <span>{isAr ? DAY_SHORT_AR[day.key] : DAY_SHORT_EN[day.key]}</span>
+                  {isToday && (
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: isSelected ? '#ffffff' : 'var(--primary)',
+                      }}
+                    />
+                  )}
                 </span>
                 <span
                   style={{
-                    fontSize: '10.5px',
+                    fontSize: '11px',
                     fontWeight: '700',
-                    opacity: isSelected ? 0.92 : 0.72,
+                    padding: '1px 8px',
+                    borderRadius: '999px',
+                    backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : 'var(--bg-subtle)',
+                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
                   }}
                 >
                   {count} {isAr ? 'حصة' : 'cls'}
@@ -581,7 +601,7 @@ export const CenterMasterScheduleSection = ({
                       onSelectDay?.(day.key);
                       setViewMode('focus');
                     }}
-                    title={isAr ? 'تكبير هذا اليوم وعرض المواعيد الشاغرة' : 'Expand day & free slots'}
+                    title={isAr ? 'عرض حصص اليوم والمواعيد الشاغرة' : 'Open day view'}
                     style={{
                       fontSize: '11px',
                       fontWeight: '800',
@@ -842,28 +862,28 @@ export const CenterMasterScheduleSection = ({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
-          VIEW 2: EXPANDED DAY FOCUS + AVAILABLE ROOM SLOTS
+          VIEW 2: EXPANDED DAY VIEW + AVAILABLE ROOM SLOTS
       ═══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'focus' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Day Navigation Card */}
-          <SCard padding="md">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Day Navigation Banner */}
+          <SCard padding={18} style={{ boxShadow: 'var(--shadow-xs)' }}>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '12px',
+                gap: '14px',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div
                   style={{
-                    width: '42px',
-                    height: '42px',
+                    width: '44px',
+                    height: '44px',
                     borderRadius: '12px',
-                    backgroundColor: 'var(--primary)',
+                    background: 'linear-gradient(135deg, var(--primary), #0D69A0)',
                     color: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
@@ -881,20 +901,20 @@ export const CenterMasterScheduleSection = ({
                         : `${selectedDayMeta.labelEn} Schedule`}
                     </h2>
                     {normalizedDayKey === todayKey && (
-                      <SBadge tone="primary" size="sm">
-                        {isAr ? 'اليوم' : 'Today'}
+                      <SBadge variant="primary" size="xs">
+                        {isAr ? 'اليوم الحالي' : 'Today'}
                       </SBadge>
                     )}
                   </div>
-                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '3px 0 0 0' }}>
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
                     {isAr
-                      ? `${selectedDaySessions.length} حصة مجدولة في هذا اليوم عبر ${focusedRoom ? focusedRoom.nameAr : `${rooms.length} قاعات`}`
+                      ? `${selectedDaySessions.length} حصة مجدولة عبر ${focusedRoom ? focusedRoom.nameAr : `${rooms.length} قاعات`}`
                       : `${selectedDaySessions.length} sessions scheduled across ${focusedRoom ? focusedRoom.nameAr : `${rooms.length} rooms`}`}
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
                   className="ch-icon-btn"
@@ -905,7 +925,7 @@ export const CenterMasterScheduleSection = ({
                 </button>
 
                 <SButton
-                  variant={normalizedDayKey === todayKey ? 'primary' : 'secondary'}
+                  variant={normalizedDayKey === todayKey ? 'primary' : 'ghost'}
                   size="sm"
                   onClick={() => onSelectDay?.(todayKey)}
                 >
@@ -926,35 +946,41 @@ export const CenterMasterScheduleSection = ({
 
           {/* Expanded Session Cards */}
           {selectedDaySessions.length === 0 ? (
-            <SCard padding="lg">
-              <div style={{ textAlign: 'center', padding: '24px 12px' }}>
-                <Calendar size={38} color="var(--primary)" style={{ opacity: 0.4, marginBottom: '10px' }} />
-                <h3 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px' }}>
-                  {isAr ? `لا توجد حصص مجدولة يوم ${selectedDayMeta.labelAr}` : 'No sessions scheduled for this day'}
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px' }}>
-                  {isAr
-                    ? 'يمكنك حجز أي فترة زمنية شاغرة من جدول القاعات أدناه أو إنشاء مجموعة جديدة.'
-                    : 'Pick any open time slot from the rooms panel below or schedule a new cohort.'}
-                </p>
-                <SButton
-                  variant="primary"
-                  size="sm"
-                  icon={<Plus size={14} />}
-                  onClick={() => onBookSlot?.(defaultBookRoom, normalizedDayKey, null)}
-                >
-                  {isAr ? 'حجز حصة في هذا اليوم' : 'Schedule Session'}
-                </SButton>
+            <SCard padding={36} style={{ textAlign: 'center', boxShadow: 'var(--shadow-xs)' }}>
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--primary-surface)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px',
+                }}
+              >
+                <Calendar size={24} />
               </div>
+              <h3 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px' }}>
+                {isAr ? `لا توجد حصص مجدولة يوم ${selectedDayMeta.labelAr}` : 'No sessions scheduled for this day'}
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 auto 18px', maxWidth: '400px', lineHeight: 1.6 }}>
+                {isAr
+                  ? 'يمكنك حجز أي فترة زمنية شاغرة من بطاقات القاعات أدناه أو إنشاء مجموعة جديدة مباشرة.'
+                  : 'Pick any open time slot from the rooms panel below or schedule a new cohort.'}
+              </p>
+              <SButton
+                variant="primary"
+                size="sm"
+                icon={<Plus size={14} />}
+                onClick={() => onBookSlot?.(defaultBookRoom, normalizedDayKey, null)}
+              >
+                {isAr ? 'حجز حصة في هذا اليوم' : 'Schedule Session'}
+              </SButton>
             </SCard>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))',
-                gap: '16px',
-              }}
-            >
+            <div className="ch-focus-grid">
               {selectedDaySessions.map((session) => {
                 const group = session.group;
                 return (
@@ -970,11 +996,11 @@ export const CenterMasterScheduleSection = ({
                           alignItems: 'center',
                           gap: '6px',
                           padding: '5px 12px',
-                          borderRadius: '9px',
+                          borderRadius: '8px',
                           backgroundColor: 'var(--primary)',
                           color: '#ffffff',
                           fontSize: '12.5px',
-                          fontWeight: '900',
+                          fontWeight: '800',
                         }}
                       >
                         <Clock size={13} />
@@ -984,8 +1010,9 @@ export const CenterMasterScheduleSection = ({
                         </span>
                       </span>
 
-                      <SBadge tone="neutral" size="sm" icon={<Building2 size={12} />}>
-                        {session.hallName}
+                      <SBadge variant="default" size="sm">
+                        <Building2 size={12} />
+                        <span>{session.hallName}</span>
                       </SBadge>
                     </div>
 
@@ -996,12 +1023,12 @@ export const CenterMasterScheduleSection = ({
                       </h3>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         {group.subjectAr && (
-                          <SBadge tone="primary" size="sm">
+                          <SBadge variant="primary" size="xs">
                             {group.subjectAr}
                           </SBadge>
                         )}
                         {group.gradeAr && (
-                          <SBadge tone="neutral" size="sm">
+                          <SBadge variant="default" size="xs">
                             {group.gradeAr}
                           </SBadge>
                         )}
@@ -1012,7 +1039,7 @@ export const CenterMasterScheduleSection = ({
                     <div
                       style={{
                         backgroundColor: 'var(--bg-app)',
-                        padding: '12px',
+                        padding: '12px 14px',
                         borderRadius: '11px',
                         border: '1px solid var(--border-subtle)',
                         display: 'grid',
@@ -1023,7 +1050,7 @@ export const CenterMasterScheduleSection = ({
                     >
                       <div>
                         <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', marginBottom: '2px' }}>
-                          {isAr ? 'المعلم المسؤول:' : 'Teacher:'}
+                          {isAr ? 'المعلم المسؤول' : 'Teacher'}
                         </span>
                         <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
                           {session.teacherName}
@@ -1032,7 +1059,7 @@ export const CenterMasterScheduleSection = ({
 
                       <div>
                         <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', marginBottom: '2px' }}>
-                          {isAr ? 'إشغال القاعة:' : 'Occupancy:'}
+                          {isAr ? 'إشغال القاعة' : 'Occupancy'}
                         </span>
                         <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
                           {session.enrolledCount} / {session.capacity} {isAr ? 'طالب' : 'students'}
@@ -1040,24 +1067,25 @@ export const CenterMasterScheduleSection = ({
                       </div>
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions (Clean Flex — Zero Squishing) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 'auto' }}>
                       <SButton
                         variant="primary"
                         size="sm"
-                        fullWidth
                         icon={<Users size={14} />}
                         onClick={() => onOpenGroupDetail?.(session.groupId)}
+                        style={{ flex: 1 }}
                       >
                         {isAr ? 'سجل الطلاب والباركود' : 'Student Roster'}
                       </SButton>
 
                       {group.joinCode && (
                         <SButton
-                          variant="secondary"
+                          variant="ghost"
                           size="sm"
-                          icon={copiedCode === group.joinCode ? <Check size={14} /> : <Copy size={14} />}
+                          icon={copiedCode === group.joinCode ? <Check size={13} /> : <Copy size={13} />}
                           onClick={(e) => handleCopyCode(group.joinCode, e)}
+                          style={{ fontFamily: 'monospace' }}
                         >
                           {group.joinCode}
                         </SButton>
@@ -1071,7 +1099,7 @@ export const CenterMasterScheduleSection = ({
 
           {/* Available Free Room Slots for One-Click Booking */}
           {roomAvailabilityForSelectedDay.length > 0 && (
-            <SCard padding="md">
+            <SCard padding={20} style={{ boxShadow: 'var(--shadow-xs)' }}>
               <div
                 style={{
                   display: 'flex',
@@ -1080,6 +1108,8 @@ export const CenterMasterScheduleSection = ({
                   flexWrap: 'wrap',
                   gap: '8px',
                   marginBottom: '14px',
+                  paddingBottom: '12px',
+                  borderBottom: '1px solid var(--border-subtle)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1090,64 +1120,54 @@ export const CenterMasterScheduleSection = ({
                       : `Open Room Slots — ${selectedDayMeta.labelEn}`}
                   </h3>
                 </div>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
                   {isAr ? 'اضغط على أي فترة شاغرة لحجزها فوراً' : 'Click any open slot to schedule immediately'}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="ch-free-rooms-grid">
                 {roomAvailabilityForSelectedDay.map(({ room, isAvailable, bookedCount, freeSlots }) => (
-                  <div
-                    key={room.id}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: '12px',
-                      backgroundColor: 'var(--bg-app)',
-                      border: '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
-                    }}
-                  >
+                  <div key={room.id} className="ch-free-room-box">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '14px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '900', color: 'var(--text-primary)' }}>
                           {room.nameAr}
-                        </span>
-                        <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '700' }}>
-                          ({room.capacity} {isAr ? 'مقعد' : 'seats'} • {room.floor || (isAr ? 'الطابق الأول' : 'Floor 1')})
-                        </span>
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '2px' }}>
+                          {room.capacity} {isAr ? 'مقعد' : 'seats'} • {room.floor || (isAr ? 'الطابق الأول' : 'Floor 1')}
+                        </div>
                       </div>
 
                       {!isAvailable ? (
-                        <SBadge tone="warning" size="sm" icon={<Wrench size={11} />}>
-                          {isAr ? 'في الصيانة' : 'Maintenance'}
+                        <SBadge variant="warning" size="xs">
+                          <Wrench size={11} />
+                          <span>{isAr ? 'صيانة' : 'Maint.'}</span>
                         </SBadge>
                       ) : (
-                        <SBadge tone={bookedCount > 0 ? 'primary' : 'success'} size="sm">
+                        <SBadge variant={bookedCount > 0 ? 'primary' : 'success'} size="xs">
                           {bookedCount > 0
                             ? isAr
-                              ? `${bookedCount} حصة محجوزة • ${freeSlots.length} فترة متاحة`
+                              ? `${bookedCount} محجوزة • ${freeSlots.length} متاحة`
                               : `${bookedCount} booked • ${freeSlots.length} open`
                             : isAr
                               ? 'متاحة بالكامل'
-                              : 'Fully Available'}
+                              : 'Available'}
                         </SBadge>
                       )}
                     </div>
 
                     {!isAvailable ? (
-                      <div style={{ fontSize: '12px', color: '#b45309', fontWeight: '700' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--warning, #D97706)', fontWeight: '700' }}>
                         {isAr
-                          ? 'هذه القاعة في وضع الصيانة حالياً. قم بتفعيلها من تبويب القاعات لإتاحة الحجز.'
-                          : 'This classroom is under maintenance. Activate it from the Rooms tab to allow booking.'}
+                          ? 'هذه القاعة في وضع الصيانة حالياً.'
+                          : 'This classroom is under maintenance.'}
                       </div>
                     ) : freeSlots.length === 0 ? (
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700' }}>
-                        {isAr ? 'جميع الفترات القياسية محجوزة لهذا اليوم.' : 'All standard slots are booked for this day.'}
+                        {isAr ? 'جميع الفترات القياسية محجوزة لهذا اليوم.' : 'All standard slots are booked.'}
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
                         {freeSlots.map((slot) => (
                           <button
                             key={slot.label}
@@ -1173,16 +1193,30 @@ export const CenterMasterScheduleSection = ({
           VIEW 3: CHRONOLOGICAL AGENDA VIEW (Matching TeacherWeeklySchedule)
       ═══════════════════════════════════════════════════════════════════════ */}
       {viewMode === 'agenda' && (
-        <SCard padding="md">
+        <SCard padding={22} style={{ boxShadow: 'var(--shadow-xs)' }}>
           {metrics.totalWeeklySessions === 0 ? (
-            <div style={{ textAlign: 'center', padding: '44px 16px', color: 'var(--text-secondary)' }}>
-              <Calendar size={38} color="var(--primary)" style={{ opacity: 0.45, marginBottom: '10px' }} />
+            <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-secondary)' }}>
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '14px',
+                  backgroundColor: 'var(--primary-surface)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px',
+                }}
+              >
+                <Calendar size={24} />
+              </div>
               <div style={{ fontSize: '15.5px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '6px' }}>
                 {isAr ? 'لا توجد حصص مجدولة مطابقة حالياً' : 'No matching scheduled sessions'}
               </div>
-              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '18px' }}>
                 {isAr
-                  ? 'أنشئ مجموعة جديدة أو احجز موعداً شاغراً لتظهر الحصص في الجدول الأسبوعي فوراً.'
+                  ? 'أنشئ مجموعة جديدة أو احجز موعداً شاغراً لتظهر الحصص في الأجندة الأسبوعية فوراً.'
                   : 'Create a cohort or schedule an open slot to populate the weekly agenda.'}
               </p>
               <SButton
@@ -1195,28 +1229,27 @@ export const CenterMasterScheduleSection = ({
               </SButton>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
               {WEEKDAYS.map((day) => {
                 const daySessions = sessionsByDay[day.key] || [];
                 if (daySessions.length === 0) return null;
                 const isToday = day.key === todayKey;
 
                 return (
-                  <div key={day.key} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '8px',
-                        paddingBottom: '8px',
-                        borderBottom: '2px solid var(--border-subtle)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div key={day.key} className="ch-agenda-day">
+                    <div className="ch-agenda-day-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span
                           style={{
-                            fontSize: '15px',
+                            width: '4px',
+                            height: '18px',
+                            borderRadius: '99px',
+                            backgroundColor: isToday ? 'var(--primary)' : 'var(--border-medium)',
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: '15.5px',
                             fontWeight: '900',
                             color: isToday ? 'var(--primary)' : 'var(--text-primary)',
                           }}
@@ -1224,49 +1257,41 @@ export const CenterMasterScheduleSection = ({
                           {isAr ? day.labelAr : day.labelEn}
                         </span>
                         {isToday && (
-                          <SBadge tone="primary" size="sm">
+                          <SBadge variant="primary" size="xs">
                             {isAr ? 'اليوم' : 'Today'}
                           </SBadge>
                         )}
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '700' }}>
-                          ({daySessions.length} {isAr ? 'حصة' : 'sessions'})
-                        </span>
+                        <SBadge variant="default" size="xs">
+                          {daySessions.length} {isAr ? 'حصة' : 'sessions'}
+                        </SBadge>
                       </div>
 
-                      <button
-                        type="button"
+                      <SButton
+                        variant="subtle"
+                        size="sm"
+                        icon={<Plus size={13} />}
                         onClick={() => onBookSlot?.(defaultBookRoom, day.key, null)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--primary)',
-                          fontSize: '12px',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          fontFamily: 'inherit',
-                        }}
+                        style={{ height: '30px', padding: '0 10px', fontSize: '12px' }}
                       >
-                        <Plus size={13} />
-                        <span>{isAr ? 'حجز حصة' : 'Add'}</span>
-                      </button>
+                        {isAr ? 'حجز حصة' : 'Book'}
+                      </SButton>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {daySessions.map((session) => (
                         <div key={session.id} className="ch-agenda-row">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', flex: '1 1 320px', minWidth: 0 }}>
                             <span
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px',
-                                padding: '5px 11px',
-                                borderRadius: '8px',
-                                backgroundColor: 'var(--primary-surface)',
-                                color: 'var(--primary)',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                minWidth: '156px',
+                                padding: '6px 12px',
+                                borderRadius: '9px',
+                                backgroundColor: 'var(--primary)',
+                                color: '#ffffff',
                                 fontSize: '12px',
                                 fontWeight: '800',
                                 whiteSpace: 'nowrap',
@@ -1279,25 +1304,53 @@ export const CenterMasterScheduleSection = ({
                               </span>
                             </span>
 
-                            <div>
-                              <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '14.5px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '4px' }}>
                                 {isAr ? session.group.nameAr : session.group.nameEn || session.group.nameAr}
                               </div>
-                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                {session.hallName} • {session.teacherName} • {session.enrolledCount}/
-                                {session.capacity} {isAr ? 'طالب' : 'students'}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Building2 size={12} color="var(--primary)" />
+                                  <span>{session.hallName}</span>
+                                </span>
+                                <span style={{ opacity: 0.4 }}>•</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <GraduationCap size={12} color="var(--primary)" />
+                                  <span>{session.teacherName}</span>
+                                </span>
+                                <span style={{ opacity: 0.4 }}>•</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--text-primary)', fontWeight: '800' }}>
+                                  <Users size={12} color="var(--primary)" />
+                                  <span>
+                                    {session.enrolledCount}/{session.capacity} {isAr ? 'طالب' : 'st.'}
+                                  </span>
+                                </span>
                               </div>
                             </div>
                           </div>
 
-                          <SButton
-                            variant="primary"
-                            size="sm"
-                            icon={<Users size={13} />}
-                            onClick={() => onOpenGroupDetail?.(session.groupId)}
-                          >
-                            {isAr ? 'سجل الطلاب' : 'Roster'}
-                          </SButton>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                            {session.group.joinCode && (
+                              <SButton
+                                variant="ghost"
+                                size="sm"
+                                icon={copiedCode === session.group.joinCode ? <Check size={12} /> : <Copy size={12} />}
+                                onClick={(e) => handleCopyCode(session.group.joinCode, e)}
+                                style={{ fontFamily: 'monospace' }}
+                              >
+                                {session.group.joinCode}
+                              </SButton>
+                            )}
+
+                            <SButton
+                              variant="primary"
+                              size="sm"
+                              icon={<Users size={13} />}
+                              onClick={() => onOpenGroupDetail?.(session.groupId)}
+                            >
+                              {isAr ? 'سجل الطلاب' : 'Roster'}
+                            </SButton>
+                          </div>
                         </div>
                       ))}
                     </div>

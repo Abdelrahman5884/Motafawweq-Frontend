@@ -439,7 +439,7 @@ export const CenterOperationsView = () => {
               </SButton>
 
               <SButton
-                variant="secondary"
+                variant="ghost"
                 size="sm"
                 icon={<FileText size={14} />}
                 onClick={() => setIsReportModalOpen(true)}

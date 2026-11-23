@@ -170,7 +170,7 @@ export const CenterGroupsListSection = ({
 
             {onOpenSchedule && (
               <SButton
-                variant="secondary"
+                variant="ghost"
                 size="sm"
                 icon={<Calendar size={14} />}
                 onClick={onOpenSchedule}
@@ -229,7 +229,7 @@ export const CenterGroupsListSection = ({
                 {metrics.totalEnrolled.toLocaleString()}
               </span>
               {metrics.totalPending > 0 && (
-                <SBadge tone="warning" size="sm">
+                <SBadge variant="warning" size="xs">
                   +{metrics.totalPending} {isAr ? 'معلق' : 'pending'}
                 </SBadge>
               )}
@@ -294,7 +294,7 @@ export const CenterGroupsListSection = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {branches.length > 1 && (
+            {branches.length > 0 && (
               <select
                 aria-label={isAr ? 'الفرع' : 'Branch'}
                 className="cg-select"
@@ -302,11 +302,22 @@ export const CenterGroupsListSection = ({
                 onChange={(e) => setSelectedBranch(e.target.value)}
               >
                 <option value="ALL">{isAr ? 'جميع الفروع' : 'All Branches'}</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.nameAr}
-                  </option>
-                ))}
+                {branches.map((b) => {
+                  const base = isAr ? b.nameAr : b.nameEn || b.nameAr;
+                  const label =
+                    b.isMain &&
+                    !String(base).includes('رئيسي') &&
+                    !String(base).toLowerCase().includes('main')
+                      ? isAr
+                        ? `${base} (الرئيسي)`
+                        : `${base} (Main)`
+                      : base;
+                  return (
+                    <option key={b.id} value={b.id}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             )}
 
@@ -353,14 +364,14 @@ export const CenterGroupsListSection = ({
 
       {/* ── 4. Cohorts Catalog Grid (Teacher ClassCard Style) ── */}
       {loadingGroups && groups.length === 0 ? (
-        <SCard padding="lg">
-          <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+        <SCard padding={32}>
+          <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
             {isAr ? 'جاري تحميل المجموعات الدراسية...' : 'Loading cohorts...'}
           </div>
         </SCard>
       ) : groups.length === 0 ? (
-        <SCard padding="lg">
-          <div style={{ textAlign: 'center', padding: '36px 16px' }}>
+        <SCard padding={36}>
+          <div style={{ textAlign: 'center', padding: '16px' }}>
             <div
               style={{
                 width: '56px',
@@ -398,15 +409,15 @@ export const CenterGroupsListSection = ({
           </div>
         </SCard>
       ) : filteredGroups.length === 0 ? (
-        <SCard padding="lg">
-          <div style={{ textAlign: 'center', padding: '28px 16px' }}>
+        <SCard padding={32}>
+          <div style={{ textAlign: 'center', padding: '16px' }}>
             <div style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
               {isAr ? 'لا توجد مجموعات تطابق معايير البحث الحالية' : 'No cohorts match your filters'}
             </div>
             <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
               {isAr ? 'جرّب تعديل كلمات البحث أو إعادة تعيين الفلاتر.' : 'Try adjusting search terms or clearing active filters.'}
             </p>
-            <SButton variant="secondary" size="sm" onClick={resetFilters}>
+            <SButton variant="ghost" size="sm" onClick={resetFilters}>
               {isAr ? 'إعادة عرض كل المجموعات' : 'Show All Cohorts'}
             </SButton>
           </div>
@@ -457,12 +468,12 @@ export const CenterGroupsListSection = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       {group.subjectAr && (
-                        <SBadge tone="primary" size="sm">
+                        <SBadge variant="primary" size="xs">
                           {group.subjectAr}
                         </SBadge>
                       )}
                       {group.gradeAr && (
-                        <SBadge tone="neutral" size="sm">
+                        <SBadge variant="default" size="xs">
                           {group.gradeAr}
                         </SBadge>
                       )}
@@ -676,7 +687,7 @@ export const CenterGroupsListSection = ({
 
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         {groupPendingCount > 0 && (
-                          <SBadge tone="warning" size="sm">
+                          <SBadge variant="warning" size="xs">
                             +{groupPendingCount} {isAr ? 'معلق' : 'pending'}
                           </SBadge>
                         )}
