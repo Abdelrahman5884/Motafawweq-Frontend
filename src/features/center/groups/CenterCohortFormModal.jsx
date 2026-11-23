@@ -22,6 +22,7 @@ export const CenterCohortFormModal = ({
   lang = 'ar',
 }) => {
   const isAr = lang === 'ar';
+  const isEditMode = Boolean(editingCohort?.id);
   const firstRoom = rooms[0] || null;
   const firstTeacher = centerTeachers[0] || null;
 
@@ -34,7 +35,7 @@ export const CenterCohortFormModal = ({
       ) || null
     : firstRoom;
 
-  const matchedInitTeacher = editingCohort
+  const matchedInitTeacher = isEditMode
     ? centerTeachers.find(
         (t) =>
           (editingCohort.teacherId && t.id === editingCohort.teacherId) ||
@@ -46,16 +47,13 @@ export const CenterCohortFormModal = ({
     () => (editingCohort ? editingCohort.nameAr || editingCohort.nameEn || '' : '')
   );
   const [subject, setSubject] = useState(
-    () =>
-      editingCohort
-        ? editingCohort.subjectAr || ''
-        : firstTeacher?.subjectAr || ''
+    () => editingCohort?.subjectAr || firstTeacher?.subjectAr || ''
   );
   const [gradeAr, setGradeAr] = useState(
     () => editingCohort?.gradeAr || GRADE_OPTIONS[5]
   );
   const [teacherMode, setTeacherMode] = useState(() => {
-    if (editingCohort) {
+    if (isEditMode) {
       return matchedInitTeacher ? 'select' : 'custom';
     }
     return firstTeacher ? 'select' : 'custom';
@@ -87,7 +85,9 @@ export const CenterCohortFormModal = ({
     return firstRoom ? '' : 'القاعة الرئيسية';
   });
   const [cohortPrice, setCohortPrice] = useState(() =>
-    editingCohort ? String(editingCohort.priceEgp ?? 0) : '350'
+    editingCohort && editingCohort.priceEgp !== undefined
+      ? String(editingCohort.priceEgp)
+      : '350'
   );
   const [cohortMaxStudents, setCohortMaxStudents] = useState(() =>
     editingCohort
@@ -309,7 +309,7 @@ export const CenterCohortFormModal = ({
             </div>
             <div>
               <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                {editingCohort
+                {isEditMode
                   ? isAr
                     ? 'تعديل بيانات المجموعة والمواعيد'
                     : 'Edit Cohort & Schedule'
@@ -1098,7 +1098,7 @@ export const CenterCohortFormModal = ({
                 ? isAr
                   ? 'جاري الحفظ...'
                   : 'Saving...'
-                : editingCohort
+                : isEditMode
                 ? isAr
                   ? 'حفظ التعديلات'
                   : 'Save Changes'

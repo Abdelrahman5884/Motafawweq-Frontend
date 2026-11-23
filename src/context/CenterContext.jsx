@@ -494,18 +494,23 @@ export const CenterProvider = ({ children }) => {
   };
 
   // ─── 3. Rooms CRUD & Schedule Conflict Engine ───────────────────────────────
+  const isUuidLike = (val) =>
+    typeof val === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
   const addRoom = async (roomData) => {
     assertBackendCenter();
     try {
-      const validBranchId =
+      const candidateBranch =
         roomData.branchId && roomData.branchId !== 'all'
           ? roomData.branchId
           : branches[0]?.id || undefined;
+      const validBranchId = isUuidLike(candidateBranch) ? candidateBranch.trim() : undefined;
 
       const res = await centerApi.rooms.create({
         name_ar: roomData.nameAr,
         name_en: roomData.nameEn || roomData.nameAr,
-        branch_id: validBranchId,
+        ...(validBranchId ? { branch_id: validBranchId } : {}),
         capacity: Number(roomData.capacity) || 40,
         floor: roomData.floor || 'الطابق الأول',
         equipped: Array.isArray(roomData.equipped) ? roomData.equipped : [],
@@ -513,13 +518,14 @@ export const CenterProvider = ({ children }) => {
       });
       const created = res?.data;
       if (created) {
-        setRooms((prev) => [...prev, created]);
+        setRooms((prev) => [created, ...prev]);
         loadCoreCenterData();
         refreshAuditLogs();
       }
       return created;
     } catch (err) {
-      if (showToast) showToast(err?.message || 'فشل إضافة القاعة.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل إضافة القاعة.', 'warning');
       throw err;
     }
   };
@@ -527,17 +533,26 @@ export const CenterProvider = ({ children }) => {
   const updateRoom = async (roomId, updatedData) => {
     assertBackendCenter();
     try {
-      const validBranchId =
-        updatedData.branchId && updatedData.branchId !== 'all' ? updatedData.branchId : undefined;
+      const validBranchId = isUuidLike(updatedData.branchId)
+        ? updatedData.branchId.trim()
+        : undefined;
 
       const res = await centerApi.rooms.update(roomId, {
-        name_ar: updatedData.nameAr,
-        name_en: updatedData.nameEn || updatedData.nameAr,
-        branch_id: validBranchId,
-        capacity: Number(updatedData.capacity) || 40,
-        floor: updatedData.floor,
-        equipped: updatedData.equipped,
-        is_available: updatedData.isAvailable,
+        ...(updatedData.nameAr !== undefined
+          ? {
+              name_ar: updatedData.nameAr,
+              name_en: updatedData.nameEn || updatedData.nameAr,
+            }
+          : {}),
+        ...(validBranchId ? { branch_id: validBranchId } : {}),
+        ...(updatedData.capacity !== undefined
+          ? { capacity: Number(updatedData.capacity) || 40 }
+          : {}),
+        ...(updatedData.floor !== undefined ? { floor: updatedData.floor } : {}),
+        ...(updatedData.equipped !== undefined ? { equipped: updatedData.equipped } : {}),
+        ...(updatedData.isAvailable !== undefined
+          ? { is_available: Boolean(updatedData.isAvailable) }
+          : {}),
       });
       const updated = res?.data;
       if (updated) {
@@ -546,7 +561,8 @@ export const CenterProvider = ({ children }) => {
       }
       return updated;
     } catch (err) {
-      if (showToast) showToast(err?.message || 'فشل تحديث بيانات القاعة.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل تحديث بيانات القاعة.', 'warning');
       throw err;
     }
   };
