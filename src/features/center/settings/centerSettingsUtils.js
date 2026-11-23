@@ -237,3 +237,9 @@ export function formatDateTimeLabel(isoStr, lang = 'ar') {
     return String(isoStr);
   }
 }
+
+
+export const errorText = (err, fallback) => {
+  const first = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+  return first || err?.message || fallback;
+};
