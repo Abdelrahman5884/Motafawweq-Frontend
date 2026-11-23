@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../../../components/common/Avatar';
 import { CameraBarcodeScanner } from '../../../components/common/CameraBarcodeScanner';
+import { CenterSubscriptionGate } from '../../../components/center/CenterSubscriptionGate';
 import { SBadge, SButton, SCard } from '../../../components/student/ui';
 import { formatTimeTo12h, playScannerBeep } from './centerGroupsUtils';
 
@@ -630,8 +631,9 @@ export const CenterGroupDetailSection = ({
         </div>
       )}
 
-      {/* ── 4. Interactive Barcode Scanner Terminal (RTL-Safe) ── */}
-      <div className="cg-scanner-box">
+      {/* ── 4. Interactive Barcode Scanner Terminal (Plus & Pro Gated) ── */}
+      <CenterSubscriptionGate feature="qr_scanner" inline compact>
+        <div className="cg-scanner-box">
         <div
           style={{
             display: 'flex',
@@ -874,6 +876,7 @@ export const CenterGroupDetailSection = ({
           </div>
         )}
       </div>
+      </CenterSubscriptionGate>
 
       {/* ── 5. Enrolled Students Roster Section ── */}
       <SCard padding={22}>

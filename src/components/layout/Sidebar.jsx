@@ -49,10 +49,12 @@ import {
   getTeacherFeatureGate,
   TEACHER_PLANS
 } from '../../constants/teacherPlanFeatures';
+import { CENTER_PLANS, normalizeCenterPlanTier } from '../../constants/centerPlanFeatures';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { currentRole, currentUser, studentPlanTier, teacherPlanTier } = useAuth();
+  const { currentRole, currentUser, studentPlanTier, teacherPlanTier, centerPlanTier } = useAuth();
+  const activeCenterPlan = CENTER_PLANS[normalizeCenterPlanTier(centerPlanTier)] || CENTER_PLANS.free;
   const { streakDays: liveStreakDays } = useStudentActivity();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
@@ -188,7 +190,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             group: lang === 'ar' ? 'الإدارة' : 'Management',
             items: [
               { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'الفروع والمعلمون' : 'Branches & Faculty', icon: Layers },
-              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الباقات والاشتراك' : 'Plans & Billing', icon: CreditCard },
+              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الباقات والاشتراك' : 'Plans & Billing', icon: CreditCard, badge: lang === 'ar' ? activeCenterPlan.shortAr : activeCenterPlan.shortEn },
               { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings },
             ]
           }

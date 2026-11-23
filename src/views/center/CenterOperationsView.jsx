@@ -8,6 +8,7 @@ import {
   Download,
   FileText,
   GraduationCap,
+  Lock,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -18,6 +19,14 @@ import { useCenter } from '../../context/CenterContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { SButton, SPage, SPageHeader, SSkeleton } from '../../components/student/ui';
+import {
+  CenterQuotaLimitBanner,
+  CenterSubscriptionGate,
+} from '../../components/center/CenterSubscriptionGate';
+import {
+  getCenterPlanQuotas,
+  hasCenterFeatureAccess,
+} from '../../constants/centerPlanFeatures';
 import {
   CenterAuditLogSection,
   CenterBranchesSection,
@@ -33,9 +42,13 @@ const VALID_TABS = ['branches', 'teachers', 'staff', 'audit'];
 export const CenterOperationsView = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { authLoading, isAuthenticated, hasActiveToken, currentUser } = useAuth();
+  const { authLoading, isAuthenticated, hasActiveToken, currentUser, centerPlanTier, centerPlanQuotas } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
+  const activeQuotas = centerPlanQuotas || getCenterPlanQuotas(centerPlanTier);
+  const hasStaffAccess = hasCenterFeatureAccess(centerPlanTier, 'staff_management');
+  const hasAuditAccess = hasCenterFeatureAccess(centerPlanTier, 'audit_logs');
+  const hasExecutiveReportAccess = hasCenterFeatureAccess(centerPlanTier, 'executive_reports');
 
   const {
     isBackendCenter,
@@ -349,18 +362,20 @@ export const CenterOperationsView = () => {
         id: 'staff',
         labelAr: 'الموظفون والصلاحيات',
         labelEn: 'Staff & Roles',
-        icon: ShieldCheck,
-        count: metrics.staffCount,
+        icon: hasStaffAccess ? ShieldCheck : Lock,
+        count: hasStaffAccess ? metrics.staffCount : 0,
+        lockedTier: hasStaffAccess ? null : 'Plus',
       },
       {
         id: 'audit',
         labelAr: 'سجل العمليات',
         labelEn: 'Audit Log',
-        icon: Activity,
-        count: Number(auditLogsMeta?.total ?? auditLogs.length),
+        icon: hasAuditAccess ? Activity : Lock,
+        count: hasAuditAccess ? Number(auditLogsMeta?.total ?? auditLogs.length) : 0,
+        lockedTier: hasAuditAccess ? null : 'Pro',
       },
     ],
-    [metrics, centerTeachers.length, auditLogsMeta?.total, auditLogs.length]
+    [metrics, centerTeachers.length, auditLogsMeta?.total, auditLogs.length, hasStaffAccess, hasAuditAccess]
   );
 
   const activeTabMeta = tabs.find((t) => t.id === activeTab);
@@ -443,10 +458,22 @@ export const CenterOperationsView = () => {
               <SButton
                 variant="ghost"
                 size="sm"
-                icon={<FileText size={14} />}
-                onClick={() => setIsReportModalOpen(true)}
+                icon={hasExecutiveReportAccess ? <FileText size={14} /> : <Lock size={13} />}
+                onClick={() => {
+                  if (!hasExecutiveReportAccess) {
+                    navigate('/center/billing?plan=pro');
+                    return;
+                  }
+                  setIsReportModalOpen(true);
+                }}
               >
-                {isAr ? 'التقرير التنفيذي' : 'Executive Report'}
+                {hasExecutiveReportAccess
+                  ? isAr
+                    ? 'التقرير التنفيذي'
+                    : 'Executive Report'
+                  : isAr
+                    ? 'التقرير التنفيذي (Pro)'
+                    : 'Executive Report (Pro)'}
               </SButton>
 
               <SButton
@@ -574,6 +601,20 @@ export const CenterOperationsView = () => {
                 <Icon size={16} />
                 <span>{isAr ? tab.labelAr : tab.labelEn}</span>
                 {tab.count > 0 && <span className="co-tab-count">{tab.count}</span>}
+                {tab.lockedTier && (
+                  <span
+                    className="co-tab-count"
+                    style={{
+                      backgroundColor:
+                        tab.lockedTier === 'Pro'
+                          ? 'rgba(21, 136, 199, 0.14)'
+                          : 'rgba(245, 158, 11, 0.16)',
+                      color: tab.lockedTier === 'Pro' ? 'var(--primary)' : '#B45309',
+                    }}
+                  >
+                    {tab.lockedTier}
+                  </span>
+                )}
                 {tab.pendingCount > 0 && (
                   <span className="co-tab-count pending">
                     {tab.pendingCount} {isAr ? 'معلق' : 'pending'}
@@ -585,60 +626,95 @@ export const CenterOperationsView = () => {
         </div>
 
         {/* ── 4. Active Tab Content ── */}
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {activeTab === 'branches' && (
-            <CenterBranchesSection
-              branches={branches}
-              rooms={rooms}
-              centerTeachers={centerTeachers}
-              onAddBranch={handleAddBranch}
-              onUpdateBranch={handleUpdateBranch}
-              onDeleteBranch={handleDeleteBranch}
-              onOpenBranchHalls={handleOpenBranchHalls}
-              lang={lang}
-            />
+            <>
+              <CenterQuotaLimitBanner
+                resourceLabelAr="الفروع"
+                resourceLabelEn="Branches"
+                used={branches.length}
+                limit={activeQuotas?.maxBranches}
+                planTier={centerPlanTier}
+                lang={lang}
+                isRtl={isRtl}
+              />
+              <CenterBranchesSection
+                branches={branches}
+                rooms={rooms}
+                centerTeachers={centerTeachers}
+                onAddBranch={handleAddBranch}
+                onUpdateBranch={handleUpdateBranch}
+                onDeleteBranch={handleDeleteBranch}
+                onOpenBranchHalls={handleOpenBranchHalls}
+                lang={lang}
+              />
+            </>
           )}
 
           {activeTab === 'teachers' && (
-            <CenterTeachersNetworkSection
-              centerTeachers={centerTeachers}
-              branches={branches}
-              connectedUsers={connectedUsers}
-              searchGlobalUsers={searchGlobalUsers}
-              searchGlobalUsersRemote={searchGlobalUsersRemote}
-              onConnectUser={connectUserToCenter}
-              onDisconnectUser={handleDisconnectUser}
-              onAddTeacher={handleAddTeacher}
-              onUpdateTeacher={handleUpdateTeacher}
-              onDeleteTeacher={handleDeleteTeacher}
-              onResendInvite={handleResendTeacherInvite}
-              isBackendCenter={isBackendCenter}
-              lang={lang}
-              isRtl={isRtl}
-            />
+            <>
+              <CenterQuotaLimitBanner
+                resourceLabelAr="المعلمون"
+                resourceLabelEn="Teachers"
+                used={centerTeachers.length}
+                limit={activeQuotas?.maxTeachers}
+                planTier={centerPlanTier}
+                lang={lang}
+                isRtl={isRtl}
+              />
+              <CenterTeachersNetworkSection
+                centerTeachers={centerTeachers}
+                branches={branches}
+                connectedUsers={connectedUsers}
+                searchGlobalUsers={searchGlobalUsers}
+                searchGlobalUsersRemote={searchGlobalUsersRemote}
+                onConnectUser={connectUserToCenter}
+                onDisconnectUser={handleDisconnectUser}
+                onAddTeacher={handleAddTeacher}
+                onUpdateTeacher={handleUpdateTeacher}
+                onDeleteTeacher={handleDeleteTeacher}
+                onResendInvite={handleResendTeacherInvite}
+                isBackendCenter={isBackendCenter}
+                lang={lang}
+                isRtl={isRtl}
+              />
+            </>
           )}
 
           {activeTab === 'staff' && (
-            <CenterStaffSection
-              staff={staff}
-              branches={branches}
-              onAddStaff={handleAddStaff}
-              onUpdateStaff={handleUpdateStaff}
-              onDeleteStaff={handleDeleteStaff}
-              lang={lang}
-              isRtl={isRtl}
-            />
+            <CenterSubscriptionGate feature="staff_management" inline>
+              <CenterQuotaLimitBanner
+                resourceLabelAr="الموظفون الإداريون"
+                resourceLabelEn="Admin Staff"
+                used={staff.length}
+                limit={activeQuotas?.maxStaff}
+                planTier={centerPlanTier}
+                lang={lang}
+                isRtl={isRtl}
+              />
+              <CenterStaffSection
+                staff={staff}
+                branches={branches}
+                onAddStaff={handleAddStaff}
+                onUpdateStaff={handleUpdateStaff}
+                onDeleteStaff={handleDeleteStaff}
+                lang={lang}
+                isRtl={isRtl}
+              />
+            </CenterSubscriptionGate>
           )}
 
           {activeTab === 'audit' && (
-            <CenterAuditLogSection
-              auditLogs={auditLogs}
-              auditLogsMeta={auditLogsMeta}
-              loading={auditLogsLoading}
-              onRefreshAuditLogs={refreshAuditLogs}
-              lang={lang}
-              isRtl={isRtl}
-            />
+            <CenterSubscriptionGate feature="audit_logs" inline>
+              <CenterAuditLogSection
+                auditLogs={auditLogs}
+                auditLogsMeta={auditLogsMeta}
+                loading={auditLogsLoading}
+                onRefreshAuditLogs={refreshAuditLogs}
+                lang={lang}
+                isRtl={isRtl}
+              />
+            </CenterSubscriptionGate>
           )}
         </div>
 

@@ -7,6 +7,8 @@ import { useGroups } from '../../context/GroupsContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { SButton, SCard, SPage, SSkeleton } from '../../components/student/ui';
+import { CenterQuotaLimitBanner } from '../../components/center/CenterSubscriptionGate';
+import { getCenterPlanQuotas } from '../../constants/centerPlanFeatures';
 import {
   CenterAddStudentModal,
   CenterCohortFormModal,
@@ -20,15 +22,17 @@ import '../../features/center/groups/groups.css';
 export const CenterGroupsView = () => {
   const navigate = useNavigate();
   const { groupId: routeGroupId } = useParams();
-  const { authLoading, isAuthenticated, hasActiveToken, currentUser } = useAuth();
+  const { authLoading, isAuthenticated, hasActiveToken, currentUser, centerPlanTier, centerPlanQuotas } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
+  const activeQuotas = centerPlanQuotas || getCenterPlanQuotas(centerPlanTier);
 
   const {
     isBackendCenter,
     branches = [],
     rooms = [],
     centerTeachers = [],
+    staff = [],
     centerSettings,
     checkScheduleConflict,
     loadCoreCenterData,
@@ -123,9 +127,20 @@ export const CenterGroupsView = () => {
   useSetBreadcrumbs(breadcrumbs);
 
   const handleOpenAddCohort = useCallback(() => {
+    const maxGroups = activeQuotas?.maxGroups;
+    if (maxGroups !== null && maxGroups !== undefined && groups.length >= maxGroups) {
+      showToast?.(
+        isAr
+          ? `وصلت للحد الأقصى للمجموعات (${maxGroups}) في باقتك الحالية. قم بالترقية لإضافة مجموعات جديدة.`
+          : `You reached the maximum cohorts limit (${maxGroups}). Upgrade your plan to add more.`,
+        'warning'
+      );
+      navigate('/center/billing?plan=plus');
+      return;
+    }
     setEditingCohort(null);
     setIsAddCohortOpen(true);
-  }, []);
+  }, [activeQuotas?.maxGroups, groups.length, showToast, isAr, navigate]);
 
   const handleOpenEditCohort = useCallback((cohort, e) => {
     if (e) e.stopPropagation();
@@ -219,6 +234,12 @@ export const CenterGroupsView = () => {
   const activeGroupStudents = activeGroup ? enrolledStudents[activeGroup.id] || [] : [];
   const activeGroupPending = activeGroup ? pendingStudents[activeGroup.id] || [] : [];
 
+  const totalEnrolledAllGroups = groups.reduce(
+    (sum, g) => sum + (enrolledStudents[g.id]?.length ?? g.enrolledCount ?? 0),
+    0
+  );
+  const estimatedActiveUsers = totalEnrolledAllGroups + centerTeachers.length + staff.length;
+
   return (
     <SPage maxWidth={1240}>
       <div
@@ -233,6 +254,27 @@ export const CenterGroupsView = () => {
             : 'var(--font-heading), "Outfit", sans-serif',
         }}
       >
+        <CenterQuotaLimitBanner
+          resourceLabelAr="المستخدمون النشطون"
+          resourceLabelEn="Active Users"
+          used={estimatedActiveUsers}
+          limit={activeQuotas?.maxUsers}
+          planTier={centerPlanTier}
+          lang={lang}
+          isRtl={isRtl}
+        />
+
+        {!routeGroupId && (
+          <CenterQuotaLimitBanner
+            resourceLabelAr="المجموعات الدراسية"
+            resourceLabelEn="Study Cohorts"
+            used={groups.length}
+            limit={activeQuotas?.maxGroups}
+            planTier={centerPlanTier}
+            lang={lang}
+            isRtl={isRtl}
+          />
+        )}
         {groupsError && (
           <div
             role="alert"

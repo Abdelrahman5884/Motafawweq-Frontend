@@ -1,12 +1,20 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { Building2, Calendar, Plus, RefreshCw } from 'lucide-react';
+import { Building2, Calendar, Lock, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCenter } from '../../context/CenterContext';
 import { useGroups } from '../../context/GroupsContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { SButton, SPage, SPageHeader, SSkeleton } from '../../components/student/ui';
+import {
+  CenterQuotaLimitBanner,
+  CenterSubscriptionGate,
+} from '../../components/center/CenterSubscriptionGate';
+import {
+  getCenterPlanQuotas,
+  hasCenterFeatureAccess,
+} from '../../constants/centerPlanFeatures';
 import { CenterCohortFormModal } from '../../features/center/groups';
 import {
   CenterDeleteRoomModal,
@@ -23,9 +31,11 @@ const VALID_TABS = ['rooms', 'schedule'];
 export const CenterHallsView = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { authLoading, isAuthenticated, hasActiveToken, currentUser } = useAuth();
+  const { authLoading, isAuthenticated, hasActiveToken, currentUser, centerPlanTier, centerPlanQuotas } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
+  const hasMasterSchedule = hasCenterFeatureAccess(centerPlanTier, 'master_schedule');
+  const activeQuotas = centerPlanQuotas || getCenterPlanQuotas(centerPlanTier);
 
   const {
     isBackendCenter,
@@ -124,9 +134,20 @@ export const CenterHallsView = () => {
   useSetBreadcrumbs(breadcrumbs);
 
   const handleOpenAddRoom = useCallback(() => {
+    const maxRooms = activeQuotas?.maxRooms;
+    if (maxRooms !== null && maxRooms !== undefined && rooms.length >= maxRooms) {
+      showToast?.(
+        isAr
+          ? `وصلت للحد الأقصى لعدد القاعات (${maxRooms}) في باقتك الحالية. قم بالترقية لإضافة قاعات إضافية.`
+          : `You reached the maximum classrooms limit (${maxRooms}). Upgrade your plan to add more.`,
+        'warning'
+      );
+      navigate('/center/billing?plan=plus');
+      return;
+    }
     setEditingRoom(null);
     setIsRoomModalOpen(true);
-  }, []);
+  }, [activeQuotas?.maxRooms, rooms.length, showToast, isAr, navigate]);
 
   const handleOpenEditRoom = useCallback((room, e) => {
     if (e) e.stopPropagation();
@@ -396,11 +417,33 @@ export const CenterHallsView = () => {
             className={`ch-tab-btn ${activeTab === 'schedule' ? 'active' : ''}`}
             onClick={() => setActiveTab('schedule')}
           >
-            <Calendar size={16} />
+            {hasMasterSchedule ? <Calendar size={16} /> : <Lock size={15} />}
             <span>{isAr ? 'الجدول الأسبوعي' : 'Weekly Schedule'}</span>
-            <span className="ch-tab-count">{weeklySessionsCount}</span>
+            {hasMasterSchedule ? (
+              <span className="ch-tab-count">{weeklySessionsCount}</span>
+            ) : (
+              <span
+                className="ch-tab-count"
+                style={{ backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#B45309' }}
+              >
+                Plus
+              </span>
+            )}
           </button>
         </div>
+
+        {/* Rooms Quota Limit Banner */}
+        {activeTab === 'rooms' && (
+          <CenterQuotaLimitBanner
+            resourceLabelAr="القاعات الدراسية"
+            resourceLabelEn="Classrooms"
+            used={rooms.length}
+            limit={activeQuotas?.maxRooms}
+            planTier={centerPlanTier}
+            lang={lang}
+            isRtl={isRtl}
+          />
+        )}
 
         {/* ── 3. Active Tab Content ── */}
         {activeTab === 'rooms' ? (
@@ -418,22 +461,24 @@ export const CenterHallsView = () => {
             lang={lang}
           />
         ) : (
-          <CenterMasterScheduleSection
-            rooms={currentBranchRooms}
-            groups={groups}
-            enrolledStudents={enrolledStudents}
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            selectedBranchId={selectedBranchId}
-            focusedRoomId={focusedRoomId}
-            onSelectFocusedRoom={setFocusedRoomId}
-            onClearFocusedRoom={() => setFocusedRoomId(null)}
-            onOpenGroupDetail={handleOpenGroupDetail}
-            onBookSlot={handleScheduleCohortInRoom}
-            isBackendCenter={isBackendCenter}
-            lang={lang}
-            isRtl={isRtl}
-          />
+          <CenterSubscriptionGate feature="master_schedule" inline>
+            <CenterMasterScheduleSection
+              rooms={currentBranchRooms}
+              groups={groups}
+              enrolledStudents={enrolledStudents}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+              selectedBranchId={selectedBranchId}
+              focusedRoomId={focusedRoomId}
+              onSelectFocusedRoom={setFocusedRoomId}
+              onClearFocusedRoom={() => setFocusedRoomId(null)}
+              onOpenGroupDetail={handleOpenGroupDetail}
+              onBookSlot={handleScheduleCohortInRoom}
+              isBackendCenter={isBackendCenter}
+              lang={lang}
+              isRtl={isRtl}
+            />
+          </CenterSubscriptionGate>
         )}
 
         {/* Create / Edit Room Modal */}

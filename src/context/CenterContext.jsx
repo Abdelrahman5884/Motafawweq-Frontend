@@ -3,6 +3,7 @@ import { useGroups } from './GroupsContext';
 import { useAuth } from './AuthContext';
 import { tokenStorage } from '../services/api';
 import { centerApi } from '../services/centerApi';
+import { hasCenterFeatureAccess } from '../constants/centerPlanFeatures';
 
 const CenterContext = createContext(null);
 
@@ -240,7 +241,7 @@ export const CenterProvider = ({ children }) => {
 
   const refreshAuditLogs = useCallback(
     async ({ page = 1, perPage = 15, level = 'all', search = '' } = {}) => {
-      if (!isBackendCenter) return null;
+      if (!isBackendCenter || !hasCenterFeatureAccess(centerPlanTier, 'audit_logs')) return null;
       const seq = ++auditSeqRef.current;
       setAuditLogsLoading(true);
       try {
@@ -276,7 +277,7 @@ export const CenterProvider = ({ children }) => {
         }
       }
     },
-    [isBackendCenter, centerSettings?.nameAr, currentUser?.nameAr]
+    [isBackendCenter, centerPlanTier, centerSettings, currentUser]
   );
 
   // ─── Lightweight Core Hydration (Only 4 safe endpoints on mount — zero 403s) ─
@@ -298,20 +299,30 @@ export const CenterProvider = ({ children }) => {
   // ─── On-Demand Section Loaders ──────────────────────────────────────────────
   const loadOperationsData = useCallback(async () => {
     if (!isBackendCenter) return;
+    const canViewStaff = hasCenterFeatureAccess(centerPlanTier, 'staff_management');
+    const canViewAudit = hasCenterFeatureAccess(centerPlanTier, 'audit_logs');
+
     const [connectedRes, staffRes, auditRes] = await Promise.all([
       centerApi.connect.listUsers().catch(() => null),
-      centerApi.staff.list().catch(() => null),
-      centerApi.staff.listAuditLogs({ page: 1, per_page: 15 }).catch(() => null),
+      canViewStaff ? centerApi.staff.list().catch(() => null) : Promise.resolve(null),
+      canViewAudit ? centerApi.staff.listAuditLogs({ page: 1, per_page: 15 }).catch(() => null) : Promise.resolve(null),
     ]);
     if (Array.isArray(connectedRes?.data)) setConnectedUsers(connectedRes.data);
-    if (Array.isArray(staffRes?.data)) setStaff(staffRes.data);
-    if (Array.isArray(auditRes?.data)) {
+    if (canViewStaff && Array.isArray(staffRes?.data)) {
+      setStaff(staffRes.data);
+    } else if (!canViewStaff) {
+      setStaff([]);
+    }
+    if (canViewAudit && Array.isArray(auditRes?.data)) {
       const cName = centerSettings?.nameAr || currentUser?.nameAr || 'إدارة السنتر';
       const formatted = auditRes.data.map((l) => formatAuditLogItem(l, cName));
       setAuditLogs(formatted);
       setAuditLogsMeta(normalizeAuditMeta(auditRes?.meta, formatted.length));
+    } else if (!canViewAudit) {
+      setAuditLogs([]);
+      setAuditLogsMeta(EMPTY_AUDIT_META);
     }
-  }, [isBackendCenter, centerSettings?.nameAr, currentUser?.nameAr]);
+  }, [isBackendCenter, centerPlanTier, centerSettings, currentUser]);
 
   const loadAttendanceData = useCallback(async () => {
     if (!isBackendCenter) return;
