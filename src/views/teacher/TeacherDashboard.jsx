@@ -8,6 +8,7 @@ import { teacherApi } from '../../services/teacherApi';
 import { hasTeacherFeatureAccess } from '../../constants/teacherPlanFeatures';
 import {
   TeacherWelcomeBanner,
+  TeacherCenterInvitationsBanner,
   TeacherStatCards,
   TeacherAnalyticsCharts,
   RecentProcessedLessons,
@@ -75,6 +76,7 @@ export const TeacherDashboard = () => {
   const isAr = lang === 'ar';
 
   const [dashboardData, setDashboardData] = useState(null);
+  const [centerInvitations, setCenterInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -88,7 +90,10 @@ export const TeacherDashboard = () => {
     setError('');
 
     try {
-      const res = await teacherApi.dashboard.get();
+      const [res, invRes] = await Promise.all([
+        teacherApi.dashboard.get(),
+        teacherApi.centerInvitations.list().catch(() => null),
+      ]);
       if (res?.data) {
         setDashboardData(res.data);
       } else {
@@ -97,6 +102,9 @@ export const TeacherDashboard = () => {
             ? 'تعذر تحميل بيانات لوحة المعلم حالياً.'
             : 'Unable to load teacher dashboard data right now.'
         );
+      }
+      if (Array.isArray(invRes?.data?.invitations)) {
+        setCenterInvitations(invRes.data.invitations);
       }
     } catch (err) {
       setError(
@@ -117,9 +125,15 @@ export const TeacherDashboard = () => {
       setLoading(true);
       setError('');
       try {
-        const res = await teacherApi.dashboard.get();
+        const [res, invRes] = await Promise.all([
+          teacherApi.dashboard.get(),
+          teacherApi.centerInvitations.list().catch(() => null),
+        ]);
         if (active && res?.data) {
           setDashboardData(res.data);
+        }
+        if (active && Array.isArray(invRes?.data?.invitations)) {
+          setCenterInvitations(invRes.data.invitations);
         }
       } catch (err) {
         if (active) {
@@ -138,6 +152,16 @@ export const TeacherDashboard = () => {
     loadInitial();
     return () => { active = false; };
   }, [isAr]);
+
+  const handleAcceptCenterInvitation = useCallback(async (uuid) => {
+    await teacherApi.centerInvitations.accept(uuid);
+    setCenterInvitations((prev) => prev.filter((item) => item.id !== uuid));
+  }, []);
+
+  const handleDeclineCenterInvitation = useCallback(async (uuid) => {
+    await teacherApi.centerInvitations.decline(uuid);
+    setCenterInvitations((prev) => prev.filter((item) => item.id !== uuid));
+  }, []);
 
   const handleOpenLesson = useCallback((lessonId) => {
     if (!lessonId) {
@@ -215,6 +239,14 @@ export const TeacherDashboard = () => {
         lang={lang}
         refreshing={refreshing}
         onRefresh={() => fetchDashboard({ silent: true })}
+      />
+
+      {/* 1.5 Incoming Educational Center Invitations (Requires Teacher Approval) */}
+      <TeacherCenterInvitationsBanner
+        invitations={centerInvitations}
+        onAccept={handleAcceptCenterInvitation}
+        onDecline={handleDeclineCenterInvitation}
+        lang={lang}
       />
 
       {/* 2. Executive KPI Indicators */}

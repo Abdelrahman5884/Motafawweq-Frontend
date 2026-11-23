@@ -524,13 +524,30 @@ export const CenterProvider = ({ children }) => {
     try {
       const res = await centerApi.teachers.resendInvite(teacherId);
       const link = res?.data?.activationLink;
-      if (link) {
-        setCenterTeachers((prev) =>
-          prev.map((t) => (t.id === teacherId ? { ...t, activationLink: link } : t))
-        );
-      }
+      const nextStatus = res?.data?.status;
+      setCenterTeachers((prev) =>
+        prev.map((t) =>
+          t.id === teacherId
+            ? {
+                ...t,
+                ...(link ? { activationLink: link } : {}),
+                ...(nextStatus
+                  ? {
+                      status: nextStatus,
+                      statusAr:
+                        nextStatus === 'invited' && t.isPlatformLinked
+                          ? 'بانتظار موافقة المعلم'
+                          : t.statusAr,
+                      awaitingTeacherApproval: Boolean(t.isPlatformLinked && nextStatus === 'invited'),
+                    }
+                  : {}),
+              }
+            : t
+        )
+      );
+      await loadOperationsData();
       refreshAuditLogs();
-      return { success: true, link };
+      return { success: true, link, status: nextStatus };
     } catch (err) {
       if (showToast) showToast(err?.message || 'تعذر تجديد رابط الدعوة.', 'warning');
       return { success: false, error: err?.message };
@@ -962,9 +979,13 @@ export const CenterProvider = ({ children }) => {
         setConnectedUsers((prev) => [created, ...prev]);
         await Promise.all([loadCoreCenterData(), loadOperationsData()]);
       }
+      const isPendingTeacher = Boolean(created?.awaitingTeacherApproval || user?.role === 'teacher');
       return {
         success: true,
-        messageAr: res?.message || `تم ربط حساب «${user.nameAr}» بالسنتر بنجاح!`,
+        awaitingApproval: isPendingTeacher,
+        messageAr: isPendingTeacher
+          ? `تم إرسال دعوة الانضمام للمعلم «${user.nameAr}» — سيُعتمد تلقائياً فور موافقته من حسابه.`
+          : res?.message || `تم ربط حساب «${user.nameAr}» بالسنتر بنجاح!`,
       };
     } catch (err) {
       const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
@@ -979,7 +1000,7 @@ export const CenterProvider = ({ children }) => {
     assertBackendCenter();
     await centerApi.connect.disconnectUser(connectionId);
     setConnectedUsers((prev) => prev.filter((c) => c.id !== connectionId));
-    refreshAuditLogs();
+    await Promise.all([loadCoreCenterData(), loadOperationsData(), refreshAuditLogs()]);
     return true;
   };
 

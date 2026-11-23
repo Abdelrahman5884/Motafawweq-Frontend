@@ -1,19 +1,23 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity,
   Building2,
+  Clock,
+  DoorOpen,
   Download,
   FileText,
   GraduationCap,
-  Layers,
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCenter } from '../../context/CenterContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import { SButton, SPage, SPageHeader, SSkeleton } from '../../components/student/ui';
 import {
   CenterAuditLogSection,
   CenterBranchesSection,
@@ -21,10 +25,14 @@ import {
   CenterStaffSection,
   CenterTeachersNetworkSection,
 } from '../../features/center/operations';
+import '../../features/center/operations/operations.css';
 import { centerApi } from '../../services/centerApi';
+
+const VALID_TABS = ['branches', 'teachers', 'staff', 'audit'];
 
 export const CenterOperationsView = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { authLoading, isAuthenticated, hasActiveToken, currentUser } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
@@ -61,55 +69,77 @@ export const CenterOperationsView = () => {
     exportToCsv,
   } = useCenter();
 
-  const [activeTab, setActiveTab] = useState('branches'); // 'branches' | 'teachers' | 'staff' | 'audit'
+  const rawTab = searchParams.get('tab');
+  const activeTab = VALID_TABS.includes(rawTab) ? rawTab : 'branches';
+
+  const setActiveTab = useCallback(
+    (nextTab) => {
+      if (nextTab === 'branches') {
+        const next = new URLSearchParams(searchParams);
+        next.delete('tab');
+        setSearchParams(next, { replace: true });
+      } else {
+        setSearchParams({ tab: nextTab }, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams]
+  );
+
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
 
   const showToast = useCallback((msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), 4000);
   }, []);
 
   useEffect(() => {
-    loadOperationsData?.();
-  }, [loadOperationsData]);
+    if (!isBackendCenter) return;
+    loadOperationsData();
+  }, [isBackendCenter, loadOperationsData]);
 
   const handleRefreshAll = useCallback(async () => {
-    if (refreshing) return;
+    if (!isBackendCenter || refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadCoreCenterData?.(),
-        loadOperationsData?.(),
-      ]);
+      await Promise.all([loadCoreCenterData(), loadOperationsData()]);
+      showToast(isAr ? 'تم تحديث بيانات الفروع والمعلمين بنجاح.' : 'Operations data refreshed.');
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing, loadCoreCenterData, loadOperationsData]);
+  }, [isBackendCenter, refreshing, loadCoreCenterData, loadOperationsData, showToast, isAr]);
 
   const handleAddBranch = useCallback(
     async (payload) => {
       await addBranch(payload);
-      showToast(`تم إنشاء وتدشين الفرع «${payload.nameAr}» بنجاح!`);
+      showToast(
+        isAr
+          ? `تم تدشين فرع «${payload.nameAr}» بنجاح!`
+          : `Branch "${payload.nameAr}" created successfully!`
+      );
     },
-    [addBranch, showToast]
+    [addBranch, showToast, isAr]
   );
 
   const handleUpdateBranch = useCallback(
     async (branchId, payload) => {
       await updateBranch(branchId, payload);
-      showToast(`تم تحديث بيانات الفرع «${payload.nameAr}» بنجاح!`);
+      showToast(
+        isAr
+          ? `تم حفظ تعديلات فرع «${payload.nameAr}» بنجاح!`
+          : `Branch "${payload.nameAr}" updated.`
+      );
     },
-    [updateBranch, showToast]
+    [updateBranch, showToast, isAr]
   );
 
   const handleDeleteBranch = useCallback(
     async (branch) => {
       await deleteBranch(branch.id);
-      showToast(`تم حذف الفرع «${branch.nameAr}».`);
+      showToast(isAr ? `تم حذف الفرع «${branch.nameAr}».` : `Branch "${branch.nameAr}" deleted.`);
     },
-    [deleteBranch, showToast]
+    [deleteBranch, showToast, isAr]
   );
 
   const handleOpenBranchHalls = useCallback(
@@ -125,81 +155,125 @@ export const CenterOperationsView = () => {
   const handleAddTeacher = useCallback(
     async (payload) => {
       const res = await addCenterTeacher(payload);
-      if (res?.teacher?.activationLink) {
-        navigator.clipboard?.writeText?.(res.teacher.activationLink).catch(() => {});
+      const created = res?.teacher;
+      if (created?.awaitingTeacherApproval) {
+        showToast(
+          isAr
+            ? `تم إرسال دعوة انضمام رسمية للمعلم «${payload.nameAr}» — سيُعتمد تلقائياً فور موافقته من حسابه.`
+            : `Invitation sent to "${payload.nameAr}". Waiting for teacher approval.`
+        );
+        return;
+      }
+      if (created?.activationLink) {
+        navigator.clipboard?.writeText?.(created.activationLink).catch(() => {});
       }
       showToast(
-        `تمت إضافة المعلم «${payload.nameAr}» ونسخ رابط التفعيل لمنصة متفوّق بنجاح!`
+        isAr
+          ? `تمت إضافة المعلم «${payload.nameAr}» ونسخ رابط التفعيل بنجاح!`
+          : `Teacher "${payload.nameAr}" added and invite link copied!`
       );
     },
-    [addCenterTeacher, showToast]
+    [addCenterTeacher, showToast, isAr]
   );
 
   const handleUpdateTeacher = useCallback(
     async (teacherId, payload) => {
       await updateCenterTeacher(teacherId, payload);
-      showToast(`تم حفظ تعديلات المعلم «${payload.nameAr}» بنجاح!`);
+      showToast(
+        isAr
+          ? `تم حفظ تعديلات المعلم «${payload.nameAr}» بنجاح!`
+          : `Teacher "${payload.nameAr}" updated.`
+      );
     },
-    [updateCenterTeacher, showToast]
+    [updateCenterTeacher, showToast, isAr]
   );
 
   const handleDeleteTeacher = useCallback(
     async (teacher) => {
       await deleteCenterTeacher(teacher.id);
-      showToast(`تم حذف وفك اعتماد المعلم «${teacher.nameAr}» من السنتر.`);
+      showToast(
+        isAr
+          ? `تم حذف المعلم «${teacher.nameAr}» من شبكة السنتر.`
+          : `Teacher "${teacher.nameAr}" removed.`
+      );
     },
-    [deleteCenterTeacher, showToast]
+    [deleteCenterTeacher, showToast, isAr]
   );
 
   const handleResendTeacherInvite = useCallback(
     async (tch) => {
       const res = await resendTeacherInvite(tch.id);
+      if (!res?.success) return;
+
+      if (tch.isPlatformLinked) {
+        showToast(
+          isAr
+            ? `تم إعادة إرسال دعوة الانضمام لحساب المعلم «${tch.nameAr}» على منصة متفوّق.`
+            : `Platform invitation re-sent to "${tch.nameAr}".`
+        );
+        return;
+      }
+
       const link = res?.link || tch.activationLink || '';
       if (link) {
         navigator.clipboard?.writeText?.(link).catch(() => {});
       }
-      showToast(`تم تجديد ونسخ رابط تفعيل المنصة للمعلم «${tch.nameAr}»!`);
+      showToast(
+        isAr
+          ? `تم تجديد ونسخ رابط التفعيل للمعلم «${tch.nameAr}»!`
+          : `Invite link regenerated & copied for "${tch.nameAr}".`
+      );
     },
-    [resendTeacherInvite, showToast]
+    [resendTeacherInvite, showToast, isAr]
   );
 
   const handleDisconnectUser = useCallback(
     async (conn) => {
       await disconnectUserFromCenter(conn.id);
-      showToast(`تم فك ربط حساب «${conn.nameAr}» من السنتر.`);
+      showToast(
+        isAr
+          ? conn.status === 'pending'
+            ? `تم إلغاء دعوة «${conn.nameAr}».`
+            : `تم فك ربط حساب «${conn.nameAr}» من السنتر.`
+          : `Disconnected "${conn.nameAr}".`
+      );
     },
-    [disconnectUserFromCenter, showToast]
+    [disconnectUserFromCenter, showToast, isAr]
   );
 
   const handleAddStaff = useCallback(
     async (payload) => {
       await addStaff(payload);
-      showToast(`تم تعيين الموظف «${payload.nameAr}» بنجاح!`);
+      showToast(isAr ? `تم تعيين الموظف «${payload.nameAr}» بنجاح!` : `Staff "${payload.nameAr}" added.`);
     },
-    [addStaff, showToast]
+    [addStaff, showToast, isAr]
   );
 
   const handleUpdateStaff = useCallback(
     async (staffId, payload) => {
       await updateStaff(staffId, payload);
-      showToast(`تم تحديث بيانات وصلاحيات الموظف «${payload.nameAr}» بنجاح!`);
+      showToast(
+        isAr
+          ? `تم تحديث بيانات وصلاحيات «${payload.nameAr}» بنجاح!`
+          : `Staff "${payload.nameAr}" updated.`
+      );
     },
-    [updateStaff, showToast]
+    [updateStaff, showToast, isAr]
   );
 
   const handleDeleteStaff = useCallback(
     async (member) => {
       await deleteStaff(member.id);
-      showToast(`تم إلغاء تعيين الموظف «${member.nameAr}».`);
+      showToast(isAr ? `تم حذف الموظف «${member.nameAr}».` : `Staff "${member.nameAr}" removed.`);
     },
-    [deleteStaff, showToast]
+    [deleteStaff, showToast, isAr]
   );
 
   const handleExportBranchesCsv = useCallback(async () => {
     if (isBackendCenter) {
       try {
         await centerApi.branches.exportCsv('مقارنة_فروع_السنتر_التشغيلية.csv');
-        showToast('تم تحميل ملف مقارنة الفروع بنجاح!');
+        showToast(isAr ? 'تم تحميل ملف مقارنة الفروع بنجاح!' : 'Branches CSV downloaded!');
         return;
       } catch {
         // fallback to client export
@@ -216,7 +290,9 @@ export const CenterOperationsView = () => {
       'نسبة الإشغال',
     ];
     const rows = branches.map((b) => {
-      const rCount = rooms.filter((r) => String(r.branchId) === String(b.id)).length || Number(b.roomsCount ?? 0);
+      const rCount =
+        rooms.filter((r) => String(r.branchId) === String(b.id)).length ||
+        Number(b.roomsCount ?? 0);
       const tCount =
         centerTeachers.filter((t) => String(t.branchId) === String(b.id)).length ||
         Number(b.teachersCount ?? 0);
@@ -232,20 +308,88 @@ export const CenterOperationsView = () => {
       ];
     });
     exportToCsv('مقارنة_فروع_السنتر_التشغيلية', headers, rows);
-  }, [isBackendCenter, branches, rooms, centerTeachers, exportToCsv, showToast]);
+  }, [isBackendCenter, branches, rooms, centerTeachers, exportToCsv, showToast, isAr]);
+
+  const metrics = useMemo(() => {
+    const activeTeachers = centerTeachers.filter((t) => t.status === 'active').length;
+    const pendingTeachers = centerTeachers.filter(
+      (t) => t.status === 'invited' && t.isPlatformLinked
+    ).length;
+    const totalCapacity = rooms.reduce((sum, r) => sum + (Number(r.capacity) || 0), 0);
+    return {
+      branchesCount: branches.length,
+      activeTeachers,
+      pendingTeachers,
+      roomsCount: rooms.length,
+      totalCapacity,
+      staffCount: staff.length,
+    };
+  }, [branches.length, centerTeachers, rooms, staff.length]);
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: 'branches',
+        labelAr: 'الفروع',
+        labelEn: 'Branches',
+        icon: Building2,
+        count: metrics.branchesCount,
+      },
+      {
+        id: 'teachers',
+        labelAr: 'شبكة المعلمين',
+        labelEn: 'Teachers Network',
+        icon: GraduationCap,
+        count: centerTeachers.length,
+        pendingCount: metrics.pendingTeachers,
+      },
+      {
+        id: 'staff',
+        labelAr: 'الموظفون والصلاحيات',
+        labelEn: 'Staff & Roles',
+        icon: ShieldCheck,
+        count: metrics.staffCount,
+      },
+      {
+        id: 'audit',
+        labelAr: 'سجل العمليات',
+        labelEn: 'Audit Log',
+        icon: Activity,
+        count: auditLogs.length,
+      },
+    ],
+    [metrics, centerTeachers.length, auditLogs.length]
+  );
+
+  const activeTabMeta = tabs.find((t) => t.id === activeTab);
+  const breadcrumbs = useMemo(
+    () =>
+      activeTab !== 'branches' && activeTabMeta
+        ? [
+            {
+              labelAr: activeTabMeta.labelAr,
+              labelEn: activeTabMeta.labelEn,
+              onClick: () => setActiveTab('branches'),
+            },
+          ]
+        : [],
+    [activeTab, activeTabMeta, setActiveTab]
+  );
+  useSetBreadcrumbs(breadcrumbs);
 
   if (authLoading) {
     return (
-      <div className="center-dashboard-container executive-dashboard" aria-busy="true">
-        <div
-          className="executive-skeleton"
-          style={{ height: '96px', borderRadius: 'var(--radius-xl)' }}
-        />
-        <div
-          className="executive-skeleton"
-          style={{ height: '380px', borderRadius: 'var(--radius-xl)' }}
-        />
-      </div>
+      <SPage maxWidth={1240}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <SSkeleton height={88} radius={16} />
+          <div className="co-kpi-grid">
+            {[1, 2, 3, 4].map((i) => (
+              <SSkeleton key={i} height={82} radius={16} />
+            ))}
+          </div>
+          <SSkeleton height={340} radius={16} />
+        </div>
+      </SPage>
     );
   }
 
@@ -255,317 +399,290 @@ export const CenterOperationsView = () => {
 
   const centerNameAr =
     centerSettings?.nameAr ||
+    centerSettings?.centerNameAr ||
     currentUser?.centerNameAr ||
     currentUser?.center ||
     (isAr ? 'السنتر التعليمي' : 'Educational Center');
 
   return (
-    <div
-      dir={isRtl ? 'rtl' : 'ltr'}
-      style={{
-        maxWidth: '1240px',
-        margin: '0 auto',
-        padding: '24px 20px 80px',
-        fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)',
-      }}
-    >
-      {/* Header */}
+    <SPage maxWidth={1240}>
       <div
+        dir={isRtl ? 'rtl' : 'ltr'}
         style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '22px',
-          backgroundColor: 'var(--bg-surface)',
-          padding: '18px 24px',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-sm)',
+          flexDirection: 'column',
+          gap: '20px',
+          paddingBottom: '48px',
+          fontFamily: isRtl
+            ? 'var(--font-arabic), "Cairo", system-ui, sans-serif'
+            : 'var(--font-heading), "Outfit", sans-serif',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(21, 136, 199, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary)',
-            }}
-          >
-            <Layers size={24} />
-          </div>
-          <div>
+        {/* ── 1. Unified Page Header ── */}
+        <SPageHeader
+          title={isAr ? 'الفروع وشبكة المعلمين' : 'Branches & Teachers Network'}
+          subtitle={
+            isAr
+              ? `إدارة فروع «${centerNameAr}»، دعوة واعتماد معلمي منصة متفوّق، وصلاحيات الفريق الإداري.`
+              : `Manage branches, invite & approve Motafawweq teachers, and control staff roles.`
+          }
+          action={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  color: 'var(--primary)',
-                  letterSpacing: '0.6px',
-                  textTransform: 'uppercase',
-                }}
+              <SButton
+                variant="ghost"
+                size="sm"
+                icon={<RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />}
+                onClick={handleRefreshAll}
+                disabled={refreshing}
               >
-                {isAr ? 'العمليات والانتشار وشبكة المعلمين' : 'Operations & Teachers Network'}
-              </span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  padding: '2px 8px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                  color: 'var(--success, #10B981)',
-                  fontWeight: '800',
-                }}
+                {isAr ? 'تحديث' : 'Refresh'}
+              </SButton>
+
+              <SButton
+                variant="secondary"
+                size="sm"
+                icon={<FileText size={14} />}
+                onClick={() => setIsReportModalOpen(true)}
               >
-                {branches.length} {isAr ? 'فروع نشطة' : 'Branches'} • {centerTeachers.length}{' '}
-                {isAr ? 'معلمين معتمدين' : 'Teachers'}
-              </span>
+                {isAr ? 'التقرير التنفيذي' : 'Executive Report'}
+              </SButton>
+
+              <SButton
+                variant="ghost"
+                size="sm"
+                icon={<Download size={14} />}
+                onClick={handleExportBranchesCsv}
+              >
+                {isAr ? 'تصدير CSV' : 'Export CSV'}
+              </SButton>
             </div>
-            <h1 style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
-              {isAr
-                ? 'مقارنة وإدارة الفروع، وشبكة المعلمين المعتمدين'
-                : 'Branches Management & Certified Teachers Network'}
-            </h1>
+          }
+        />
+
+        {/* ── 2. Live Overview KPI Strip ── */}
+        <div className="co-kpi-grid">
+          <div className="co-kpi-card">
+            <div
+              className="co-kpi-icon"
+              style={{ backgroundColor: 'rgba(21, 136, 199, 0.12)', color: 'var(--primary)' }}
+            >
+              <Building2 size={21} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                {isAr ? 'الفروع النشطة' : 'Active Branches'}
+              </div>
+              <div style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '2px' }}>
+                {metrics.branchesCount}
+              </div>
+            </div>
+          </div>
+
+          <div className="co-kpi-card">
+            <div
+              className="co-kpi-icon"
+              style={{ backgroundColor: 'rgba(22, 163, 74, 0.12)', color: 'var(--success)' }}
+            >
+              <GraduationCap size={21} />
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                {isAr ? 'المعلمون المعتمدون' : 'Active Teachers'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                <span style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                  {metrics.activeTeachers}
+                </span>
+                {metrics.pendingTeachers > 0 && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                      color: '#B45309',
+                    }}
+                  >
+                    <Clock size={11} />
+                    <span>
+                      +{metrics.pendingTeachers} {isAr ? 'بانتظار الموافقة' : 'pending'}
+                    </span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="co-kpi-card">
+            <div
+              className="co-kpi-icon"
+              style={{ backgroundColor: 'rgba(139, 92, 246, 0.12)', color: '#7C3AED' }}
+            >
+              <DoorOpen size={21} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                {isAr ? 'القاعات والسعة' : 'Rooms & Capacity'}
+              </div>
+              <div style={{ fontSize: '19px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '2px' }}>
+                {metrics.roomsCount}{' '}
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                  {isAr ? `قاعة • ${metrics.totalCapacity} مقعد` : `rooms • ${metrics.totalCapacity} seats`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="co-kpi-card">
+            <div
+              className="co-kpi-icon"
+              style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#D97706' }}
+            >
+              <Users size={21} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                {isAr ? 'الفريق الإداري' : 'Administrative Staff'}
+              </div>
+              <div style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '2px' }}>
+                {metrics.staffCount}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={handleRefreshAll}
-            disabled={refreshing}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 14px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: refreshing ? 'wait' : 'pointer',
-            }}
-          >
-            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-            <span>{isAr ? 'تحديث' : 'Refresh'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsReportModalOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 15px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(21, 136, 199, 0.1)',
-              color: 'var(--primary)',
-              border: '1px solid rgba(21, 136, 199, 0.25)',
-              fontSize: '13px',
-              fontWeight: '800',
-              cursor: 'pointer',
-            }}
-          >
-            <FileText size={16} />
-            <span>{isAr ? 'التقرير الإداري التنفيذي' : 'Executive Report'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportBranchesCsv}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 15px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '13px',
-              fontWeight: '800',
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={16} />
-            <span>{isAr ? 'تصدير Excel' : 'Export CSV'}</span>
-          </button>
+        {/* ── 3. Clean Underline Tabs ── */}
+        <div role="tablist" className="co-tabs">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
+                className={`co-tab-btn${isActive ? ' active' : ''}`}
+              >
+                <Icon size={16} />
+                <span>{isAr ? tab.labelAr : tab.labelEn}</span>
+                {tab.count > 0 && <span className="co-tab-count">{tab.count}</span>}
+                {tab.pendingCount > 0 && (
+                  <span className="co-tab-count pending">
+                    {tab.pendingCount} {isAr ? 'معلق' : 'pending'}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-      </div>
 
-      {/* Tabs Navigation */}
-      <div
-        style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--border-subtle)',
-          marginBottom: '22px',
-          gap: '24px',
-          overflowX: 'auto',
-          paddingBottom: '4px',
-        }}
-      >
-        {[
-          {
-            id: 'branches',
-            labelAr: 'مقارنة وإدارة الفروع',
-            labelEn: 'Branch Benchmarks & Management',
-            icon: Building2,
-          },
-          {
-            id: 'teachers',
-            labelAr: 'شبكة وإدارة المعلمين والربط بالمنصة',
-            labelEn: 'Teachers Network & Connect',
-            icon: GraduationCap,
-          },
-          {
-            id: 'staff',
-            labelAr: 'إدارة الموظفين والصلاحيات',
-            labelEn: 'Staff & Roles',
-            icon: ShieldCheck,
-          },
-          {
-            id: 'audit',
-            labelAr: 'سجل العمليات والأمان (Audit Log)',
-            labelEn: 'Audit Trail',
-            icon: Activity,
-          },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 4px',
-                border: 'none',
-                background: 'none',
-                fontSize: '14px',
-                fontWeight: '800',
-                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Icon size={16} />
-              <span>{isAr ? tab.labelAr : tab.labelEn}</span>
-            </button>
-          );
-        })}
-      </div>
+        {/* ── 4. Active Tab Content ── */}
+        <div>
+          {activeTab === 'branches' && (
+            <CenterBranchesSection
+              branches={branches}
+              rooms={rooms}
+              centerTeachers={centerTeachers}
+              onAddBranch={handleAddBranch}
+              onUpdateBranch={handleUpdateBranch}
+              onDeleteBranch={handleDeleteBranch}
+              onOpenBranchHalls={handleOpenBranchHalls}
+              lang={lang}
+            />
+          )}
 
-      {/* Tab Content */}
-      {activeTab === 'branches' && (
-        <CenterBranchesSection
+          {activeTab === 'teachers' && (
+            <CenterTeachersNetworkSection
+              centerTeachers={centerTeachers}
+              branches={branches}
+              connectedUsers={connectedUsers}
+              searchGlobalUsers={searchGlobalUsers}
+              searchGlobalUsersRemote={searchGlobalUsersRemote}
+              onConnectUser={connectUserToCenter}
+              onDisconnectUser={handleDisconnectUser}
+              onAddTeacher={handleAddTeacher}
+              onUpdateTeacher={handleUpdateTeacher}
+              onDeleteTeacher={handleDeleteTeacher}
+              onResendInvite={handleResendTeacherInvite}
+              isBackendCenter={isBackendCenter}
+              lang={lang}
+              isRtl={isRtl}
+            />
+          )}
+
+          {activeTab === 'staff' && (
+            <CenterStaffSection
+              staff={staff}
+              branches={branches}
+              onAddStaff={handleAddStaff}
+              onUpdateStaff={handleUpdateStaff}
+              onDeleteStaff={handleDeleteStaff}
+              lang={lang}
+              isRtl={isRtl}
+            />
+          )}
+
+          {activeTab === 'audit' && (
+            <CenterAuditLogSection
+              auditLogs={auditLogs}
+              onRefreshAuditLogs={refreshAuditLogs}
+              lang={lang}
+              isRtl={isRtl}
+            />
+          )}
+        </div>
+
+        {/* Executive Operational Report Modal */}
+        <CenterExecutiveReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          centerNameAr={centerNameAr}
           branches={branches}
           rooms={rooms}
           centerTeachers={centerTeachers}
-          onAddBranch={handleAddBranch}
-          onUpdateBranch={handleUpdateBranch}
-          onDeleteBranch={handleDeleteBranch}
-          onOpenBranchHalls={handleOpenBranchHalls}
-          lang={lang}
-        />
-      )}
-
-      {activeTab === 'teachers' && (
-        <CenterTeachersNetworkSection
-          centerTeachers={centerTeachers}
-          branches={branches}
-          connectedUsers={connectedUsers}
-          searchGlobalUsers={searchGlobalUsers}
-          searchGlobalUsersRemote={searchGlobalUsersRemote}
-          onConnectUser={connectUserToCenter}
-          onDisconnectUser={handleDisconnectUser}
-          onAddTeacher={handleAddTeacher}
-          onUpdateTeacher={handleUpdateTeacher}
-          onDeleteTeacher={handleDeleteTeacher}
-          onResendInvite={handleResendTeacherInvite}
+          staff={staff}
+          executiveReport={executiveReport}
+          fetchExecutiveReport={fetchExecutiveReport}
           isBackendCenter={isBackendCenter}
           lang={lang}
-          isRtl={isRtl}
         />
-      )}
 
-      {activeTab === 'staff' && (
-        <CenterStaffSection
-          staff={staff}
-          branches={branches}
-          onAddStaff={handleAddStaff}
-          onUpdateStaff={handleUpdateStaff}
-          onDeleteStaff={handleDeleteStaff}
-          lang={lang}
-          isRtl={isRtl}
-        />
-      )}
-
-      {activeTab === 'audit' && (
-        <CenterAuditLogSection
-          auditLogs={auditLogs}
-          onRefreshAuditLogs={refreshAuditLogs}
-          lang={lang}
-          isRtl={isRtl}
-        />
-      )}
-
-      {/* Executive Operational Report Modal */}
-      <CenterExecutiveReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        centerNameAr={centerNameAr}
-        branches={branches}
-        rooms={rooms}
-        centerTeachers={centerTeachers}
-        staff={staff}
-        executiveReport={executiveReport}
-        fetchExecutiveReport={fetchExecutiveReport}
-        isBackendCenter={isBackendCenter}
-        lang={lang}
-      />
-
-      {/* Floating Toast */}
-      {toastMessage && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: isRtl ? '24px' : 'auto',
-            left: isRtl ? 'auto' : '24px',
-            zIndex: 100000,
-            backgroundColor: '#0F172A',
-            color: '#FFFFFF',
-            padding: '12px 20px',
-            borderRadius: '12px',
-            boxShadow: '0 12px 30px rgba(0,0,0,0.3), 0 0 0 1px rgba(21, 136, 199, 0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            fontSize: '13px',
-            fontWeight: '700',
-          }}
-        >
-          <Sparkles size={16} style={{ color: '#38BDF8' }} />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-    </div>
+        {/* Floating Toast */}
+        {toastMessage && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              insetInlineStart: '24px',
+              zIndex: 100000,
+              backgroundColor: 'var(--color-brand-dark, #06254E)',
+              color: '#FFFFFF',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              boxShadow: '0 12px 30px rgba(6, 37, 78, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '13px',
+              fontWeight: '700',
+              maxWidth: '460px',
+            }}
+          >
+            <Sparkles size={16} style={{ color: '#5CB6DB', flexShrink: 0 }} />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </div>
+    </SPage>
   );
 };
+
+export default CenterOperationsView;

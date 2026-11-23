@@ -431,6 +431,12 @@ export const teacherApi = {
     cancel: () => apiPost('/teacher/billing/cancel', {}),
   },
 
+  centerInvitations: {
+    list: () => apiGet('/teacher/center-invitations'),
+    accept: (uuid) => apiPost(`/teacher/center-invitations/${uuid}/accept`, {}),
+    decline: (uuid) => apiPost(`/teacher/center-invitations/${uuid}/decline`, {}),
+  },
+
   // Centralized Supabase Storage
   storage: storageService,
 };

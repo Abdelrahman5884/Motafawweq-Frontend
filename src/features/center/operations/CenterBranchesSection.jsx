@@ -12,6 +12,7 @@ import {
   UserCheck,
   X,
 } from 'lucide-react';
+import { SBadge, SButton, SCard } from '../../../components/student/ui';
 
 export const CenterBranchesSection = ({
   branches = [],
@@ -25,14 +26,14 @@ export const CenterBranchesSection = ({
 }) => {
   const isAr = lang === 'ar';
   const [searchTerm, setSearchTerm] = useState('');
-  const [modalBranch, setModalBranch] = useState(null); // null | { mode: 'create' | 'edit', branch }
+  const [modalBranch, setModalBranch] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const enrichedBranches = useMemo(() => {
     return branches.map((branch) => {
       const localRooms = rooms.filter((r) => String(r.branchId) === String(branch.id));
       const localTeachers = centerTeachers.filter(
-        (t) => String(t.branchId) === String(branch.id)
+        (t) => String(t.branchId) === String(branch.id) && t.status === 'active'
       );
 
       const roomsCount =
@@ -44,10 +45,7 @@ export const CenterBranchesSection = ({
       const teachersCount =
         localTeachers.length > 0 ? localTeachers.length : Number(branch.teachersCount ?? 0);
       const activeStudents = Number(branch.activeStudents ?? 0);
-      const utilizationRate = Math.min(
-        100,
-        Math.max(0, Number(branch.utilizationRate ?? 0))
-      );
+      const utilizationRate = Math.min(100, Math.max(0, Number(branch.utilizationRate ?? 0)));
 
       return {
         ...branch,
@@ -74,85 +72,65 @@ export const CenterBranchesSection = ({
   }, [enrichedBranches, searchTerm]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Search & New Branch Bar */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/* Search & New Branch Toolbar */}
       {enrichedBranches.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            backgroundColor: 'var(--bg-surface)',
-            padding: '12px 16px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '380px' }}>
-            <input
-              type="text"
-              placeholder={
-                isAr
-                  ? 'ابحث باسم الفرع أو العنوان أو مدير الفرع...'
-                  : 'Search by branch name, address, or manager...'
-              }
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                height: '38px',
-                padding: '0 14px 0 36px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: '700',
-              }}
-            />
-            <Search
-              size={15}
-              color="var(--text-secondary)"
-              style={{ position: 'absolute', left: '12px', top: '11px' }}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setModalBranch({ mode: 'create', branch: null })}
+        <SCard padding={14} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
+          <div
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
             }}
           >
-            <Plus size={15} />
-            <span>{isAr ? '+ إنشاء فرع جديد' : '+ New Branch'}</span>
-          </button>
-        </div>
+            <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '380px' }}>
+              <input
+                type="text"
+                className="co-input"
+                placeholder={
+                  isAr
+                    ? 'ابحث باسم الفرع أو العنوان أو المدير...'
+                    : 'Search by branch name, address, or manager...'
+                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ paddingInlineStart: '36px' }}
+              />
+              <Search
+                size={15}
+                color="var(--text-muted)"
+                style={{
+                  position: 'absolute',
+                  insetInlineStart: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+
+            <SButton
+              variant="primary"
+              size="sm"
+              icon={<Plus size={15} />}
+              onClick={() => setModalBranch({ mode: 'create', branch: null })}
+            >
+              {isAr ? 'إنشاء فرع جديد' : 'New Branch'}
+            </SButton>
+          </div>
+        </SCard>
       )}
 
       {/* Branches Grid */}
       {enrichedBranches.length === 0 ? (
-        <div
+        <SCard
+          padding={48}
           style={{
             textAlign: 'center',
-            padding: '60px 24px',
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px dashed var(--border-subtle)',
-            boxShadow: 'var(--shadow-xs)',
+            border: '1.5px dashed var(--border-medium)',
+            boxShadow: 'none',
           }}
         >
           <div
@@ -160,73 +138,43 @@ export const CenterBranchesSection = ({
               width: '54px',
               height: '54px',
               borderRadius: '14px',
-              backgroundColor: 'rgba(21, 136, 199, 0.1)',
+              backgroundColor: 'var(--primary-surface)',
+              color: 'var(--primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--primary)',
-              margin: '0 auto 16px',
+              margin: '0 auto 14px',
             }}
           >
-            <Building2 size={28} />
+            <Building2 size={26} />
           </div>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>
+          <h3 style={{ fontSize: '16.5px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px' }}>
             {isAr ? 'لم يتم تسجيل أي فروع للسنتر حتى الآن' : 'No center branches created yet'}
           </h3>
-          <p
-            style={{
-              fontSize: '13px',
-              color: 'var(--text-secondary)',
-              maxWidth: '440px',
-              margin: '0 auto 20px',
-              lineHeight: 1.6,
-            }}
-          >
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 18px', lineHeight: 1.6 }}>
             {isAr
-              ? 'قم بإنشاء الفرع الرئيسي للسنتر الآن لتنظيم القاعات الدراسية والمعلمين والموظفين وتتبع نسب الإشغال.'
-              : 'Create your main branch now to organize classrooms, teachers, staff, and track utilization.'}
+              ? 'أنشئ الفرع الرئيسي لتنظيم القاعات والمعلمين والموظفين وتتبع نسب الإشغال.'
+              : 'Create your main branch to organize classrooms, teachers, staff, and utilization.'}
           </p>
-          <button
-            type="button"
+          <SButton
+            variant="primary"
+            size="sm"
+            icon={<Plus size={15} />}
             onClick={() => setModalBranch({ mode: 'create', branch: null })}
-            style={{
-              padding: '10px 22px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
           >
-            <Plus size={16} />
-            <span>{isAr ? '+ إنشاء الفرع الرئيسي الآن' : '+ Create Main Branch'}</span>
-          </button>
-        </div>
+            {isAr ? 'إنشاء الفرع الرئيسي' : 'Create Main Branch'}
+          </SButton>
+        </SCard>
       ) : filteredBranches.length === 0 ? (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '40px 24px',
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            fontSize: '13px',
-          }}
-        >
+        <SCard padding={32} style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
           {isAr ? 'لا توجد فروع تطابق البحث الحالي.' : 'No branches match your search.'}
-        </div>
+        </SCard>
       ) : (
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))',
-            gap: '20px',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+            gap: '16px',
           }}
         >
           {filteredBranches.map((branch) => {
@@ -235,140 +183,131 @@ export const CenterBranchesSection = ({
             return (
               <div
                 key={branch.id}
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  borderRadius: 'var(--radius-xl)',
-                  border: branch.isMain
-                    ? '1.5px solid rgba(21, 136, 199, 0.45)'
-                    : '1px solid var(--border-subtle)',
-                  padding: '22px',
-                  boxShadow: 'var(--shadow-sm)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '16px',
-                }}
+                className={`co-branch-card${branch.isMain ? ' is-main' : ''}`}
               >
                 <div>
-                  {/* Top Row: Address & Utilization Badge */}
+                  {/* Top Row: Badges */}
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: '8px',
-                      marginBottom: '8px',
+                      marginBottom: '10px',
                       flexWrap: 'wrap',
                     }}
                   >
-                    <span
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      {branch.isMain && (
+                        <SBadge variant="primary" size="xs">
+                          <Star size={10} />
+                          <span>{isAr ? 'الفرع الرئيسي' : 'Main'}</span>
+                        </SBadge>
+                      )}
+                      <SBadge variant={utilization > 0 ? 'success' : 'neutral'} size="xs">
+                        {utilization}% {isAr ? 'إشغال' : 'utilized'}
+                      </SBadge>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onOpenBranchHalls?.(branch)}
                       style={{
-                        fontSize: '11.5px',
-                        color: 'var(--text-secondary)',
-                        fontWeight: '700',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px',
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        color: 'var(--primary)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontFamily: 'inherit',
                       }}
                     >
-                      <MapPin size={12} color="var(--primary)" />
-                      <span>{branch.addressAr || (isAr ? 'لم يحدد العنوان بعد' : 'Address not set')}</span>
-                    </span>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {branch.isMain && (
-                        <span
-                          style={{
-                            fontSize: '10.5px',
-                            padding: '2px 8px',
-                            borderRadius: 'var(--radius-full)',
-                            backgroundColor: 'rgba(21, 136, 199, 0.12)',
-                            color: 'var(--primary)',
-                            fontWeight: '800',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                          }}
-                        >
-                          <Star size={10} />
-                          <span>{isAr ? 'الفرع الرئيسي' : 'Main'}</span>
-                        </span>
-                      )}
-
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          padding: '3px 9px',
-                          borderRadius: 'var(--radius-full)',
-                          backgroundColor:
-                            utilization > 0
-                              ? 'rgba(16, 185, 129, 0.12)'
-                              : 'var(--bg-subtle)',
-                          color:
-                            utilization > 0
-                              ? 'var(--success, #10B981)'
-                              : 'var(--text-secondary)',
-                          fontWeight: '800',
-                        }}
-                      >
-                        {utilization}% {isAr ? 'إشغال' : 'utilized'}
-                      </span>
-                    </div>
+                      <span>{isAr ? 'قاعات الفرع' : 'Halls'}</span>
+                      <ExternalLink size={12} />
+                    </button>
                   </div>
 
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                  {/* Branch Name */}
+                  <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px' }}>
                     {isAr ? branch.nameAr : branch.nameEn || branch.nameAr}
                   </h3>
 
+                  {/* Address & Contact Meta */}
                   <div
                     style={{
                       fontSize: '12px',
                       color: 'var(--text-secondary)',
-                      marginBottom: '16px',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      flexWrap: 'wrap',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      marginBottom: '14px',
                     }}
                   >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <UserCheck size={13} color="var(--primary)" />
-                      <span>
-                        {isAr ? 'مدير الفرع:' : 'Manager:'}{' '}
-                        <strong style={{ color: 'var(--text-primary)' }}>
-                          {branch.managerNameAr || (isAr ? 'إدارة السنتر' : 'Center Admin')}
-                        </strong>
-                      </span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <MapPin size={13} color="var(--primary)" />
+                      <span>{branch.addressAr || (isAr ? 'لم يحدد العنوان بعد' : 'Address not set')}</span>
                     </span>
-                    {branch.phone && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        • <Phone size={12} color="var(--primary)" />
-                        <strong dir="ltr" style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                          {branch.phone}
-                        </strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <UserCheck size={13} color="var(--primary)" />
+                        <span>{branch.managerNameAr || (isAr ? 'إدارة السنتر' : 'Center Admin')}</span>
                       </span>
-                    )}
+                      {branch.phone && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={12} color="var(--primary)" />
+                          <span dir="ltr" style={{ fontFamily: 'monospace', fontWeight: '600' }}>
+                            {branch.phone}
+                          </span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* 3 Comparison Metrics */}
+                  {/* Utilization Bar */}
+                  <div style={{ marginBottom: '14px' }}>
+                    <div
+                      style={{
+                        height: '6px',
+                        borderRadius: '999px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${utilization}%`,
+                          height: '100%',
+                          borderRadius: '999px',
+                          backgroundColor: utilization >= 80 ? 'var(--success)' : 'var(--primary)',
+                          transition: 'width 0.3s ease',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3 Stat Tiles */}
                   <div
                     style={{
                       display: 'grid',
                       gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: '10px',
+                      gap: '8px',
                       backgroundColor: 'var(--bg-app)',
-                      padding: '14px 10px',
-                      borderRadius: 'var(--radius-lg)',
+                      padding: '12px 8px',
+                      borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--border-subtle)',
                       textAlign: 'center',
                     }}
                   >
                     <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: '700', marginBottom: '3px' }}>
-                        {isAr ? 'عدد القاعات' : 'Classrooms'}
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        {isAr ? 'القاعات' : 'Rooms'}
                       </div>
-                      <div style={{ fontSize: '15.5px', fontWeight: '900', color: 'var(--primary)' }}>
-                        {branch.roomsCount} {isAr ? 'قاعات' : 'rooms'}
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--primary)', marginTop: '2px' }}>
+                        {branch.roomsCount}
                       </div>
                     </div>
 
@@ -378,101 +317,53 @@ export const CenterBranchesSection = ({
                         borderInlineEnd: '1px solid var(--border-subtle)',
                       }}
                     >
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: '700', marginBottom: '3px' }}>
-                        {isAr ? 'عدد الطلاب' : 'Students'}
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        {isAr ? 'الطلاب' : 'Students'}
                       </div>
-                      <div style={{ fontSize: '15.5px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                        {branch.activeStudents} {isAr ? 'طالب' : 'students'}
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '2px' }}>
+                        {branch.activeStudents}
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: '700', marginBottom: '3px' }}>
-                        {isAr ? 'عدد المدرسين' : 'Teachers'}
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        {isAr ? 'المعلمون' : 'Teachers'}
                       </div>
-                      <div style={{ fontSize: '15.5px', fontWeight: '900', color: 'var(--success, #10B981)' }}>
-                        {branch.teachersCount} {isAr ? 'مدرس' : 'teachers'}
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--success)', marginTop: '2px' }}>
+                        {branch.teachersCount}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Branch Action Buttons */}
+                {/* Footer Actions */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingTop: '14px',
-                    borderTop: '1px solid var(--border-subtle)',
+                    justifyContent: 'flex-end',
                     gap: '8px',
+                    paddingTop: '12px',
+                    borderTop: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setModalBranch({ mode: 'edit', branch })}
-                      title={isAr ? 'تعديل بيانات الفرع' : 'Edit Branch'}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        padding: '7px 12px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-subtle)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '12px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Pencil size={13} style={{ color: 'var(--primary)' }} />
-                      <span>{isAr ? 'تعديل' : 'Edit'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(branch)}
-                      title={isAr ? 'حذف الفرع' : 'Delete Branch'}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        padding: '7px 12px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        backgroundColor: 'rgba(239, 68, 68, 0.06)',
-                        color: 'var(--danger, #EF4444)',
-                        fontSize: '12px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Trash2 size={13} />
-                      <span>{isAr ? 'حذف' : 'Delete'}</span>
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => onOpenBranchHalls?.(branch)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      background: 'none',
-                      border: 'none',
-                      fontSize: '12px',
-                      fontWeight: '800',
-                      color: 'var(--primary)',
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
+                  <SButton
+                    variant="ghost"
+                    size="sm"
+                    icon={<Pencil size={13} />}
+                    onClick={() => setModalBranch({ mode: 'edit', branch })}
                   >
-                    <span>{isAr ? 'قاعات الفرع' : 'Branch Halls'}</span>
-                    <ExternalLink size={13} />
-                  </button>
+                    {isAr ? 'تعديل' : 'Edit'}
+                  </SButton>
+
+                  <SButton
+                    variant="danger"
+                    size="sm"
+                    icon={<Trash2 size={13} />}
+                    onClick={() => setDeleteTarget(branch)}
+                  >
+                    {isAr ? 'حذف' : 'Delete'}
+                  </SButton>
                 </div>
               </div>
             );
@@ -523,78 +414,55 @@ export const CenterBranchesSection = ({
             style={{
               backgroundColor: 'var(--bg-surface)',
               borderRadius: 'var(--radius-xl)',
-              border: '1.5px solid rgba(239, 68, 68, 0.4)',
-              maxWidth: '440px',
+              border: '1px solid var(--border-medium)',
+              maxWidth: '420px',
               width: '100%',
               padding: '24px',
-              boxShadow: 'var(--shadow-xl)',
+              boxShadow: 'var(--shadow-lg)',
               textAlign: 'center',
             }}
           >
             <div
               style={{
-                width: '52px',
-                height: '52px',
+                width: '48px',
+                height: '48px',
                 borderRadius: '50%',
-                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                color: 'var(--danger, #EF4444)',
+                backgroundColor: 'var(--error-light)',
+                color: 'var(--danger, #DC2626)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 14px auto',
+                margin: '0 auto 14px',
               }}
             >
-              <Trash2 size={26} />
+              <Trash2 size={22} />
             </div>
 
-            <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
+            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
               {isAr ? 'تأكيد حذف الفرع' : 'Delete Branch'}
             </h3>
 
-            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.55 }}>
               {isAr
                 ? `هل أنت متأكد من حذف الفرع «${deleteTarget.nameAr}»؟ لن يتم حذف القاعات أو الحصص المسجلة.`
                 : `Are you sure you want to delete branch "${deleteTarget.nameAr}"?`}
             </p>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <SButton
+                variant="danger"
+                size="sm"
                 onClick={async () => {
                   const target = deleteTarget;
                   setDeleteTarget(null);
                   await onDeleteBranch(target);
                 }}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--danger, #EF4444)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                }}
               >
                 {isAr ? 'نعم، احذف الفرع' : 'Yes, Delete'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                style={{
-                  padding: '12px 20px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
+              </SButton>
+              <SButton variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
                 {isAr ? 'إلغاء' : 'Cancel'}
-              </button>
+              </SButton>
             </div>
           </div>
         </div>
@@ -616,9 +484,7 @@ const BranchFormModal = ({
   const [addressAr, setAddressAr] = useState(branch?.addressAr || '');
   const [managerNameAr, setManagerNameAr] = useState(branch?.managerNameAr || '');
   const [phone, setPhone] = useState(branch?.phone || '');
-  const [isMain, setIsMain] = useState(
-    branch ? Boolean(branch.isMain) : !hasExistingBranches
-  );
+  const [isMain, setIsMain] = useState(branch ? Boolean(branch.isMain) : !hasExistingBranches);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -647,7 +513,7 @@ const BranchFormModal = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.68)',
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
@@ -661,11 +527,11 @@ const BranchFormModal = ({
         style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          maxWidth: '520px',
+          border: '1px solid var(--border-medium)',
+          maxWidth: '500px',
           width: '100%',
           padding: '24px',
-          boxShadow: 'var(--shadow-xl)',
+          boxShadow: 'var(--shadow-lg)',
           maxHeight: '90vh',
           overflowY: 'auto',
         }}
@@ -679,14 +545,14 @@ const BranchFormModal = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Building2 size={20} color="var(--primary)" />
-            <h3 style={{ fontSize: '17px', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
+            <Building2 size={19} color="var(--primary)" />
+            <h3 style={{ fontSize: '16.5px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
               {mode === 'edit'
                 ? isAr
-                  ? `تعديل بيانات «${branch?.nameAr}»`
+                  ? `تعديل فرع «${branch?.nameAr}»`
                   : 'Edit Branch'
                 : isAr
-                  ? 'إنشاء وتدشين فرع جديد للسنتر'
+                  ? 'إنشاء فرع جديد'
                   : 'Create New Branch'}
             </h3>
           </div>
@@ -695,96 +561,64 @@ const BranchFormModal = ({
             onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
           >
-            <X size={20} />
+            <X size={19} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
               {isAr ? 'اسم الفرع *' : 'Branch Name *'}
             </label>
             <input
               type="text"
+              className="co-input"
               required
               autoFocus
               placeholder={isAr ? 'مثال: الفرع الرئيسي — الدقي' : 'e.g. Main Branch'}
               value={nameAr}
               onChange={(e) => setNameAr(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '11px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                fontWeight: '700',
-              }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-              {isAr ? 'العنوان والموقع الجغرافي' : 'Address'}
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+              {isAr ? 'العنوان' : 'Address'}
             </label>
             <input
               type="text"
-              placeholder={isAr ? 'مثال: شارع التحرير، بجوار محطة المترو' : 'Street address...'}
+              className="co-input"
+              placeholder={isAr ? 'الشارع، الحي، المدينة...' : 'Street address...'}
               value={addressAr}
               onChange={(e) => setAddressAr(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '11px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-              }}
             />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                {isAr ? 'مدير الفرع المسؤول' : 'Branch Manager'}
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+                {isAr ? 'مدير الفرع' : 'Branch Manager'}
               </label>
               <input
                 type="text"
-                placeholder={isAr ? 'اسم مدير الفرع...' : 'Manager name...'}
+                className="co-input"
+                placeholder={isAr ? 'اسم المدير...' : 'Manager name...'}
                 value={managerNameAr}
                 onChange={(e) => setManagerNameAr(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                {isAr ? 'رقم هاتف الفرع' : 'Branch Phone'}
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+                {isAr ? 'هاتف الفرع' : 'Branch Phone'}
               </label>
               <input
                 type="tel"
+                dir="ltr"
+                className="co-input"
                 placeholder="010XXXXXXXX"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                }}
               />
             </div>
           </div>
@@ -800,7 +634,6 @@ const BranchFormModal = ({
               border: '1px solid var(--border-subtle)',
               fontSize: '12.5px',
               fontWeight: '700',
-              color: 'var(--text-primary)',
               cursor: 'pointer',
             }}
           >
@@ -808,26 +641,16 @@ const BranchFormModal = ({
               type="checkbox"
               checked={isMain}
               onChange={(e) => setIsMain(e.target.checked)}
+              style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
             />
-            <span>{isAr ? 'تعيين كفرع رئيسي للسنتر' : 'Set as Main Center Branch'}</span>
+            <span>{isAr ? 'تعيين كفرع رئيسي للسنتر' : 'Set as Main Branch'}</span>
           </label>
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <button
-              type="submit"
-              disabled={submitting || !nameAr.trim()}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontWeight: '800',
-                fontSize: '13px',
-                cursor: submitting ? 'wait' : 'pointer',
-              }}
-            >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+            <SButton type="button" variant="ghost" size="sm" onClick={onClose}>
+              {isAr ? 'إلغاء' : 'Cancel'}
+            </SButton>
+            <SButton type="submit" variant="primary" size="sm" disabled={submitting || !nameAr.trim()}>
               {submitting
                 ? isAr
                   ? 'جاري الحفظ...'
@@ -837,25 +660,9 @@ const BranchFormModal = ({
                     ? 'حفظ التعديلات'
                     : 'Save Changes'
                   : isAr
-                    ? 'تدشين الفرع وحفظه'
+                    ? 'إنشاء الفرع'
                     : 'Create Branch'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '12px 18px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-subtle)',
-                fontWeight: '700',
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              {isAr ? 'إلغاء' : 'Cancel'}
-            </button>
+            </SButton>
           </div>
         </form>
       </div>

@@ -8,6 +8,8 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
+import { Avatar } from '../../../components/common/Avatar';
+import { SBadge, SButton, SCard } from '../../../components/student/ui';
 import { ALL_STAFF_PERMISSIONS, STAFF_ROLE_OPTIONS } from './centerOperationsUtils';
 
 export const CenterStaffSection = ({
@@ -21,7 +23,7 @@ export const CenterStaffSection = ({
 }) => {
   const isAr = lang === 'ar';
   const [searchTerm, setSearchTerm] = useState('');
-  const [modalStaff, setModalStaff] = useState(null); // null | { mode: 'create' | 'edit', member }
+  const [modalStaff, setModalStaff] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const filteredStaff = useMemo(() => {
@@ -37,95 +39,70 @@ export const CenterStaffSection = ({
   }, [staff, searchTerm]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          backgroundColor: 'var(--bg-surface)',
-          padding: '16px 20px',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-xs)',
-        }}
-      >
-        <div>
-          <h3 style={{ fontSize: '15.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-            {isAr ? 'إدارة الموظفين الإداريين وفريق الاستقبال' : 'Administrative Staff & Reception Roles'}
-          </h3>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {staff.length} {isAr ? 'موظفين معينين بالفروع' : 'active staff members'}
-          </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <SCard padding={16} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+              {isAr ? 'الفريق الإداري وصلاحيات الاستقبال' : 'Administrative Staff & Permissions'}
+            </h3>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {staff.length} {isAr ? 'موظفين معينين بالفروع' : 'assigned staff members'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {staff.length > 0 && (
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  className="co-input"
+                  placeholder={isAr ? 'بحث في الموظفين...' : 'Search staff...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ height: '36px', paddingInlineStart: '34px', width: '210px', fontSize: '12.5px' }}
+                />
+                <Search
+                  size={14}
+                  color="var(--text-muted)"
+                  style={{
+                    position: 'absolute',
+                    insetInlineStart: '11px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
+            )}
+
+            <SButton
+              variant="primary"
+              size="sm"
+              icon={<UserPlus size={14} />}
+              onClick={() => setModalStaff({ mode: 'create', member: null })}
+            >
+              {isAr ? 'إضافة موظف' : 'Add Staff'}
+            </SButton>
+          </div>
         </div>
+      </SCard>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {staff.length > 0 && (
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder={isAr ? 'بحث في الموظفين...' : 'Search staff...'}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  height: '36px',
-                  padding: '0 12px 0 32px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                }}
-              />
-              <Search
-                size={14}
-                color="var(--text-secondary)"
-                style={{ position: 'absolute', left: '10px', top: '11px' }}
-              />
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setModalStaff({ mode: 'create', member: null })}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
-            }}
-          >
-            <UserPlus size={14} />
-            <span>{isAr ? '+ إضافة موظف جديد' : '+ Add Staff Member'}</span>
-          </button>
-        </div>
-      </div>
-
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          overflow: 'hidden',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
+      <SCard padding={0} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)', overflow: 'hidden' }}>
         {staff.length === 0 ? (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <ShieldCheck
-              size={36}
+              size={34}
               color="var(--primary)"
-              style={{ margin: '0 auto 12px', display: 'block', opacity: 0.8 }}
+              style={{ margin: '0 auto 12px', display: 'block', opacity: 0.85 }}
             />
             <h4 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px' }}>
               {isAr ? 'لم يتم إضافة موظفين إداريين حتى الآن' : 'No administrative staff added yet'}
@@ -135,22 +112,14 @@ export const CenterStaffSection = ({
                 ? 'أضف موظفي الاستقبال ومشرفي القاعات ومديري الفروع وحدد صلاحيات كل موظف بدقة.'
                 : 'Add receptionists, hall supervisors, and branch managers with role-based permissions.'}
             </p>
-            <button
-              type="button"
+            <SButton
+              variant="primary"
+              size="sm"
+              icon={<UserPlus size={14} />}
               onClick={() => setModalStaff({ mode: 'create', member: null })}
-              style={{
-                padding: '9px 18px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '12.5px',
-                fontWeight: '800',
-                cursor: 'pointer',
-              }}
             >
-              {isAr ? '+ تعيين أول موظف بالسنتر' : '+ Add First Staff Member'}
-            </button>
+              {isAr ? 'تعيين أول موظف بالسنتر' : 'Add First Staff Member'}
+            </SButton>
           </div>
         ) : filteredStaff.length === 0 ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
@@ -158,53 +127,40 @@ export const CenterStaffSection = ({
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: '720px', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
+            <table className="co-table" style={{ minWidth: '720px', textAlign: isRtl ? 'right' : 'left' }}>
               <thead>
-                <tr
-                  style={{
-                    backgroundColor: 'var(--bg-subtle)',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  <th style={{ padding: '12px 18px' }}>{isAr ? 'الاسم' : 'Name'}</th>
-                  <th style={{ padding: '12px 18px' }}>{isAr ? 'المسمى الوظيفي' : 'Role'}</th>
-                  <th style={{ padding: '12px 18px' }}>{isAr ? 'الفرع المخصص' : 'Branch'}</th>
-                  <th style={{ padding: '12px 18px' }}>{isAr ? 'الهاتف' : 'Phone'}</th>
-                  <th style={{ padding: '12px 18px' }}>{isAr ? 'الصلاحيات الرئيسية' : 'Permissions'}</th>
-                  <th style={{ padding: '12px 18px', textAlign: 'center' }}>{isAr ? 'إجراءات' : 'Actions'}</th>
+                <tr>
+                  <th>{isAr ? 'الموظف' : 'Staff'}</th>
+                  <th>{isAr ? 'الدور الوظيفي' : 'Role'}</th>
+                  <th>{isAr ? 'الفرع' : 'Branch'}</th>
+                  <th>{isAr ? 'الهاتف' : 'Phone'}</th>
+                  <th>{isAr ? 'الصلاحيات' : 'Permissions'}</th>
+                  <th style={{ textAlign: 'center' }}>{isAr ? 'إجراءات' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStaff.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid var(--border-subtle)', fontSize: '13px' }}>
-                    <td style={{ padding: '14px 18px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      {s.nameAr}
+                  <tr key={s.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Avatar name={s.nameAr || 'موظف'} size={34} />
+                        <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                          {s.nameAr}
+                        </span>
+                      </div>
                     </td>
-                    <td style={{ padding: '14px 18px' }}>
-                      <span
-                        style={{
-                          fontSize: '11.5px',
-                          padding: '3px 9px',
-                          borderRadius: 'var(--radius-full)',
-                          backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                          color: 'var(--primary)',
-                          fontWeight: '800',
-                        }}
-                      >
-                        {s.roleAr}
-                      </span>
+                    <td>
+                      <SBadge variant="primary" size="xs">{s.roleAr}</SBadge>
                     </td>
-                    <td style={{ padding: '14px 18px', color: 'var(--text-primary)', fontWeight: '700' }}>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: '700' }}>
                       {s.branchNameAr || (isAr ? 'الفرع الرئيسي' : 'Main Branch')}
                     </td>
-                    <td style={{ padding: '14px 18px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                    <td style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                       <span dir="ltr" style={{ display: 'inline-block' }}>
                         {s.phone || '—'}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 18px' }}>
+                    <td>
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                         {(Array.isArray(s.permissions) ? s.permissions : []).map((p, i) => (
                           <span
@@ -213,9 +169,8 @@ export const CenterStaffSection = ({
                               fontSize: '10.5px',
                               fontWeight: '700',
                               padding: '2px 7px',
-                              borderRadius: '4px',
-                              backgroundColor: 'var(--bg-app)',
-                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--bg-subtle)',
                               color: 'var(--text-secondary)',
                             }}
                           >
@@ -224,18 +179,22 @@ export const CenterStaffSection = ({
                         ))}
                       </div>
                     </td>
-                    <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <button
                           type="button"
                           onClick={() => setModalStaff({ mode: 'edit', member: s })}
                           title={isAr ? 'تعديل الموظف والصلاحيات' : 'Edit Staff'}
                           style={{
-                            padding: '6px 8px',
-                            borderRadius: 'var(--radius-md)',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: 'var(--radius-sm)',
                             border: '1px solid var(--border-subtle)',
-                            backgroundColor: 'var(--bg-app)',
-                            color: 'var(--text-primary)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--text-secondary)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             cursor: 'pointer',
                           }}
                         >
@@ -246,15 +205,19 @@ export const CenterStaffSection = ({
                           onClick={() => setDeleteTarget(s)}
                           title={isAr ? 'حذف الموظف' : 'Remove Staff'}
                           style={{
-                            padding: '6px 8px',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            backgroundColor: 'rgba(239, 68, 68, 0.06)',
-                            color: 'var(--danger, #EF4444)',
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid rgba(220, 38, 38, 0.25)',
+                            backgroundColor: 'var(--error-light)',
+                            color: 'var(--danger, #DC2626)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             cursor: 'pointer',
                           }}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </td>
@@ -264,7 +227,7 @@ export const CenterStaffSection = ({
             </table>
           </div>
         )}
-      </div>
+      </SCard>
 
       {/* Add / Edit Staff Modal */}
       {modalStaff && (
@@ -295,7 +258,7 @@ export const CenterStaffSection = ({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.68)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -309,60 +272,37 @@ export const CenterStaffSection = ({
             style={{
               backgroundColor: 'var(--bg-surface)',
               borderRadius: 'var(--radius-xl)',
-              border: '1.5px solid rgba(239, 68, 68, 0.4)',
+              border: '1px solid var(--border-medium)',
               maxWidth: '420px',
               width: '100%',
               padding: '24px',
-              boxShadow: 'var(--shadow-xl)',
+              boxShadow: 'var(--shadow-lg)',
               textAlign: 'center',
             }}
           >
-            <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
               {isAr ? 'تأكيد إلغاء تعيين الموظف' : 'Remove Staff Member'}
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px', lineHeight: 1.55 }}>
               {isAr
                 ? `هل أنت متأكد من حذف الموظف «${deleteTarget.nameAr}» (${deleteTarget.roleAr})؟`
                 : `Are you sure you want to remove "${deleteTarget.nameAr}"?`}
             </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <SButton
+                variant="danger"
+                size="sm"
                 onClick={async () => {
                   const target = deleteTarget;
                   setDeleteTarget(null);
                   await onDeleteStaff(target);
                 }}
-                style={{
-                  flex: 1,
-                  padding: '11px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--danger, #EF4444)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                }}
               >
                 {isAr ? 'نعم، حذف الموظف' : 'Yes, Remove'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                style={{
-                  padding: '11px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
+              </SButton>
+              <SButton variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
                 {isAr ? 'إلغاء' : 'Cancel'}
-              </button>
+              </SButton>
             </div>
           </div>
         </div>
@@ -434,7 +374,7 @@ const StaffFormModal = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.68)',
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
         backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
@@ -448,11 +388,11 @@ const StaffFormModal = ({
         style={{
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
+          border: '1px solid var(--border-medium)',
           maxWidth: '500px',
           width: '100%',
           padding: '24px',
-          boxShadow: 'var(--shadow-xl)',
+          boxShadow: 'var(--shadow-lg)',
           maxHeight: '90vh',
           overflowY: 'auto',
         }}
@@ -465,13 +405,13 @@ const StaffFormModal = ({
             marginBottom: '18px',
           }}
         >
-          <h3 style={{ fontSize: '16.5px', fontWeight: '900', margin: 0, color: 'var(--text-primary)' }}>
+          <h3 style={{ fontSize: '16.5px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
             {mode === 'edit'
               ? isAr
-                ? `تعديل بيانات وصلاحيات «${member?.nameAr}»`
+                ? `تعديل بيانات «${member?.nameAr}»`
                 : 'Edit Staff Member'
               : isAr
-                ? 'إضافة موظف وتحديد صلاحياته'
+                ? 'إضافة موظف جديد'
                 : 'Add Staff Member'}
           </h3>
           <button
@@ -479,53 +419,35 @@ const StaffFormModal = ({
             onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
           >
-            <X size={20} />
+            <X size={19} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
               {isAr ? 'اسم الموظف بالكامل *' : 'Staff Full Name *'}
             </label>
             <input
               type="text"
+              className="co-input"
               required
               autoFocus
               placeholder={isAr ? 'اكتب اسم الموظف...' : 'Enter staff name...'}
               value={nameAr}
               onChange={(e) => setNameAr(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                fontWeight: '700',
-              }}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                {isAr ? 'المسمى الوظيفي والدور' : 'Role'}
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+                {isAr ? 'المسمى الوظيفي' : 'Role'}
               </label>
               <select
+                className="co-input"
                 value={roleAr}
                 onChange={(e) => handleRoleChange(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                }}
               >
                 {STAFF_ROLE_OPTIONS.map((opt) => (
                   <option key={opt.role} value={opt.roleAr}>
@@ -536,22 +458,13 @@ const StaffFormModal = ({
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                {isAr ? 'الفرع المخصص له' : 'Assigned Branch'}
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+                {isAr ? 'الفرع المخصص' : 'Assigned Branch'}
               </label>
               <select
+                className="co-input"
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                }}
               >
                 {branches.length === 0 ? (
                   <option value="">{isAr ? 'الفرع الرئيسي' : 'Main Branch'}</option>
@@ -567,29 +480,22 @@ const StaffFormModal = ({
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-              {isAr ? 'رقم هاتف الموظف' : 'Phone Number'}
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+              {isAr ? 'رقم الهاتف' : 'Phone Number'}
             </label>
             <input
               type="tel"
+              dir="ltr"
+              className="co-input"
               placeholder="010XXXXXXXX"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-              }}
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '6px' }}>
-              {isAr ? 'صلاحيات الموظف داخل المنظومة' : 'Permissions'}
+            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
+              {isAr ? 'الصلاحيات داخل المنظومة' : 'Permissions'}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {ALL_STAFF_PERMISSIONS.map((perm) => {
@@ -599,23 +505,7 @@ const StaffFormModal = ({
                     key={perm}
                     type="button"
                     onClick={() => togglePermission(perm)}
-                    style={{
-                      padding: '5px 10px',
-                      borderRadius: 'var(--radius-full)',
-                      border: active
-                        ? '1px solid var(--primary)'
-                        : '1px solid var(--border-subtle)',
-                      backgroundColor: active
-                        ? 'rgba(21, 136, 199, 0.12)'
-                        : 'var(--bg-app)',
-                      color: active ? 'var(--primary)' : 'var(--text-secondary)',
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
+                    className={`co-pill-filter${active ? ' active' : ''}`}
                   >
                     {active && <Check size={11} />}
                     <span>{perm}</span>
@@ -625,50 +515,23 @@ const StaffFormModal = ({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <button
-              type="submit"
-              disabled={submitting || !nameAr.trim()}
-              style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontWeight: '800',
-                fontSize: '13px',
-                cursor: submitting ? 'wait' : 'pointer',
-              }}
-            >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+            <SButton type="button" variant="ghost" size="sm" onClick={onClose}>
+              {isAr ? 'إلغاء' : 'Cancel'}
+            </SButton>
+            <SButton type="submit" variant="primary" size="sm" disabled={submitting || !nameAr.trim()}>
               {submitting
                 ? isAr
                   ? 'جاري الحفظ...'
                   : 'Saving...'
                 : mode === 'edit'
                   ? isAr
-                    ? 'حفظ تعديلات الموظف'
+                    ? 'حفظ التعديلات'
                     : 'Save Changes'
                   : isAr
                     ? 'حفظ الموظف'
                     : 'Save Staff'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '12px 18px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-subtle)',
-                fontWeight: '700',
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              {isAr ? 'إلغاء' : 'Cancel'}
-            </button>
+            </SButton>
           </div>
         </form>
       </div>
