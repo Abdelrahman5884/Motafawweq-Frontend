@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
   Check,
   CheckCircle2,
-  ClipboardList,
   Clock,
   Edit3,
   Plus,
@@ -10,6 +9,7 @@ import {
   UserCheck,
   X,
 } from 'lucide-react';
+import { errorText } from './centerSettingsUtils';
 
 export const CenterTasksTab = ({
   lang,
@@ -22,6 +22,8 @@ export const CenterTasksTab = ({
   deleteCenterTask,
   showToast,
 }) => {
+  const isAr = lang === 'ar';
+
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
@@ -71,25 +73,23 @@ export const CenterTasksTab = ({
       await addCenterTask({
         title_ar: newTaskTitle.trim(),
         assignee_name:
-          newTaskAssignee.trim() ||
-          (lang === 'ar' ? 'الإدارة العامة' : 'General Admin'),
+          newTaskAssignee.trim() || (isAr ? 'الإدارة العامة' : 'General Admin'),
         deadline_label:
-          newTaskDeadline.trim() ||
-          (lang === 'ar' ? 'نهاية الشيفت اليومي' : 'End of daily shift'),
+          newTaskDeadline.trim() || (isAr ? 'نهاية الشيفت اليومي' : 'End of daily shift'),
       });
       setNewTaskTitle('');
       setNewTaskAssignee('');
       setNewTaskDeadline('');
       if (showToast) {
         showToast(
-          lang === 'ar' ? 'تمت إضافة المهمة التشغيلية بنجاح.' : 'Operational task created.',
+          isAr ? 'تمت إضافة المهمة بنجاح.' : 'Task created successfully.',
           'success'
         );
       }
     } catch (err) {
       if (showToast) {
         showToast(
-          err?.message || (lang === 'ar' ? 'تعذر إضافة المهمة.' : 'Failed to create task.'),
+          errorText(err, isAr ? 'تعذر إضافة المهمة.' : 'Failed to create task.'),
           'warning'
         );
       }
@@ -104,49 +104,49 @@ export const CenterTasksTab = ({
     } catch (err) {
       if (showToast) {
         showToast(
-          err?.message || (lang === 'ar' ? 'تعذر تحديث حالة المهمة.' : 'Failed to toggle task.'),
+          errorText(err, isAr ? 'تعذر تحديث حالة المهمة.' : 'Failed to toggle task.'),
           'warning'
         );
       }
     }
   };
 
-  const handleStartEditTask = (task) => {
+  const handleStartEdit = (task) => {
     setEditingTaskId(task.id);
     setEditTaskTitle(task.titleAr || '');
     setEditTaskAssignee(task.assignee || '');
     setEditTaskDeadline(task.deadline || '');
   };
 
-  const handleCancelEditTask = () => {
+  const handleCancelEdit = () => {
     setEditingTaskId(null);
     setEditTaskTitle('');
     setEditTaskAssignee('');
     setEditTaskDeadline('');
   };
 
-  const handleSaveEditTask = async (id) => {
+  const handleSaveEdit = async (id) => {
     if (!editTaskTitle.trim()) return;
     setIsUpdating(true);
     try {
       await updateCenterTask(id, {
         title_ar: editTaskTitle.trim(),
         assignee_name:
-          editTaskAssignee.trim() || (lang === 'ar' ? 'الإدارة العامة' : 'General Admin'),
+          editTaskAssignee.trim() || (isAr ? 'الإدارة العامة' : 'General Admin'),
         deadline_label:
-          editTaskDeadline.trim() || (lang === 'ar' ? 'نهاية الشيفت اليومي' : 'End of Shift'),
+          editTaskDeadline.trim() || (isAr ? 'نهاية الشيفت' : 'End of shift'),
       });
-      handleCancelEditTask();
+      handleCancelEdit();
       if (showToast) {
         showToast(
-          lang === 'ar' ? 'تم تحديث بيانات المهمة بنجاح.' : 'Task updated.',
+          isAr ? 'تم تحديث المهمة بنجاح.' : 'Task updated successfully.',
           'success'
         );
       }
     } catch (err) {
       if (showToast) {
         showToast(
-          err?.message || (lang === 'ar' ? 'تعذر حفظ تعديل المهمة.' : 'Failed to update task.'),
+          errorText(err, isAr ? 'تعذر حفظ تعديل المهمة.' : 'Failed to update task.'),
           'warning'
         );
       }
@@ -155,23 +155,20 @@ export const CenterTasksTab = ({
     }
   };
 
-  const handleConfirmDeleteTask = async () => {
+  const handleConfirmDelete = async () => {
     if (!taskToDelete) return;
-    const targetId = taskToDelete.id;
+    const id = taskToDelete.id;
     setTaskToDelete(null);
-    if (editingTaskId === targetId) handleCancelEditTask();
+    if (editingTaskId === id) handleCancelEdit();
     try {
-      await deleteCenterTask(targetId);
+      await deleteCenterTask(id);
       if (showToast) {
-        showToast(
-          lang === 'ar' ? 'تم حذف المهمة بنجاح.' : 'Task deleted.',
-          'info'
-        );
+        showToast(isAr ? 'تم حذف المهمة.' : 'Task deleted.', 'info');
       }
     } catch (err) {
       if (showToast) {
         showToast(
-          err?.message || (lang === 'ar' ? 'تعذر حذف المهمة.' : 'Failed to delete task.'),
+          errorText(err, isAr ? 'تعذر حذف المهمة.' : 'Failed to delete task.'),
           'warning'
         );
       }
@@ -179,226 +176,98 @@ export const CenterTasksTab = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Add Task Card */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '22px',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            marginBottom: '16px',
-          }}
-        >
-          <h3
-            style={{
-              fontSize: '16px',
-              fontWeight: '800',
-              color: 'var(--text-primary)',
-              margin: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <ClipboardList size={18} style={{ color: 'var(--primary)' }} />
-            <span>
-              {lang === 'ar' ? 'إسناد مهمة تشغيلية جديدة' : 'Assign New Operational Task'}
-            </span>
+    <div>
+      {/* 1. Add Task Card */}
+      <div className="cs-card">
+        <div className="cs-card-header">
+          <h3 className="cs-card-title">
+            <Plus size={18} />
+            <span>{isAr ? 'إسناد مهمة تشغيلية جديدة' : 'New Operational Task'}</span>
           </h3>
-
-          <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: '700' }}>
-            <span
-              style={{
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              {lang === 'ar'
-                ? `قيد التنفيذ: ${taskStats.pending}`
-                : `Pending: ${taskStats.pending}`}
-            </span>
-            <span
-              style={{
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                color: 'var(--success)',
-              }}
-            >
-              {lang === 'ar'
-                ? `مكتملة: ${taskStats.completed}`
-                : `Completed: ${taskStats.completed}`}
-            </span>
-          </div>
         </div>
 
-        <form
-          onSubmit={handleAddTask}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '12px',
-          }}
-        >
-          <input
-            type="text"
-            required
-            maxLength={500}
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder={
-              lang === 'ar'
-                ? 'وصف المهمة (مثال: مراجعة إيصالات الفترة المسائية)'
-                : 'Task description...'
-            }
-            style={{
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-            }}
-          />
-          <div>
+        <form onSubmit={handleAddTask} className="cs-grid">
+          <div className="cs-field span-all">
             <input
               type="text"
-              list="center-staff-Assignees"
+              required
+              maxLength={500}
+              className="cs-input"
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              placeholder={
+                isAr
+                  ? 'وصف المهمة (مثال: مراجعة إيصالات الفترة المسائية وتوريد الخزينة)'
+                  : 'Task description...'
+              }
+            />
+          </div>
+
+          <div className="cs-field">
+            <input
+              type="text"
+              list="center-staff-suggestions"
               maxLength={150}
+              className="cs-input"
               value={newTaskAssignee}
               onChange={(e) => setNewTaskAssignee(e.target.value)}
-              placeholder={lang === 'ar' ? 'الموظف المسؤول' : 'Assignee'}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-              }}
+              placeholder={isAr ? 'الموظف المسؤول (اختياري)' : 'Assignee (Optional)'}
             />
-            <datalist id="center-staff-Assignees">
-              {assigneeSuggestions.map((name) => (
-                <option key={name} value={name} />
+            <datalist id="center-staff-suggestions">
+              {assigneeSuggestions.map((n) => (
+                <option key={n} value={n} />
               ))}
             </datalist>
           </div>
-          <input
-            type="text"
-            maxLength={150}
-            value={newTaskDeadline}
-            onChange={(e) => setNewTaskDeadline(e.target.value)}
-            placeholder={
-              lang === 'ar' ? 'الموعد النهائي (مثال: 09:00 م)' : 'Deadline (e.g. 09:00 PM)'
-            }
-            style={{
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-            }}
-          />
-          <button
-            type="submit"
-            disabled={isCreating}
-            style={{
-              padding: '10px 18px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: isCreating ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}
-          >
-            <Plus size={15} />
-            <span>{lang === 'ar' ? 'إضافة المهمة' : 'Add Task'}</span>
-          </button>
+
+          <div className="cs-field">
+            <input
+              type="text"
+              maxLength={150}
+              className="cs-input"
+              value={newTaskDeadline}
+              onChange={(e) => setNewTaskDeadline(e.target.value)}
+              placeholder={isAr ? 'الموعد النهائي (مثال: 09:00 م)' : 'Deadline'}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              type="submit"
+              disabled={isCreating}
+              className="cs-btn cs-btn-primary"
+              style={{ width: '100%', height: '42px' }}
+            >
+              <Plus size={15} />
+              <span>{isAr ? 'إضافة المهمة' : 'Add Task'}</span>
+            </button>
+          </div>
         </form>
       </div>
 
-      {/* Filter Pills */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {/* 2. Filter Pills */}
+      <div className="cs-pills-bar">
         {[
-          { id: 'all', labelAr: `الكل (${taskStats.total})`, labelEn: `All (${taskStats.total})` },
-          {
-            id: 'pending',
-            labelAr: `قيد التنفيذ (${taskStats.pending})`,
-            labelEn: `Pending (${taskStats.pending})`,
-          },
-          {
-            id: 'completed',
-            labelAr: `مكتملة (${taskStats.completed})`,
-            labelEn: `Completed (${taskStats.completed})`,
-          },
-        ].map((f) => {
-          const active = statusFilter === f.id;
-          return (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setStatusFilter(f.id)}
-              style={{
-                padding: '7px 14px',
-                borderRadius: 'var(--radius-full)',
-                border: active ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
-                backgroundColor: active ? 'var(--primary-subtle)' : 'var(--bg-surface)',
-                color: active ? 'var(--primary)' : 'var(--text-secondary)',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              {lang === 'ar' ? f.labelAr : f.labelEn}
-            </button>
-          );
-        })}
+          { id: 'all', label: isAr ? `الكل (${taskStats.total})` : `All (${taskStats.total})` },
+          { id: 'pending', label: isAr ? `قيد التنفيذ (${taskStats.pending})` : `Pending (${taskStats.pending})` },
+          { id: 'completed', label: isAr ? `مكتملة (${taskStats.completed})` : `Completed (${taskStats.completed})` },
+        ].map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className={`cs-pill ${statusFilter === f.id ? 'active' : ''}`}
+            onClick={() => setStatusFilter(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
-      {/* Tasks List */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          overflow: 'hidden',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
+      {/* 3. Tasks List Card */}
+      <div className="cs-card" style={{ padding: '8px 16px' }}>
         {filteredTasks.length === 0 ? (
-          <div
-            style={{
-              padding: '36px 24px',
-              textAlign: 'center',
-              color: 'var(--text-secondary)',
-              fontSize: '13.5px',
-            }}
-          >
-            {lang === 'ar'
-              ? 'لا توجد مهام مسجلة ضمن هذا التصنيف حالياً.'
-              : 'No operational tasks found for this filter.'}
+          <div className="cs-empty">
+            {isAr ? 'لا توجد مهام مسجلة ضمن هذا التصنيف.' : 'No tasks found.'}
           </div>
         ) : (
           filteredTasks.map((task) => {
@@ -407,127 +276,56 @@ export const CenterTasksTab = ({
               <div
                 key={task.id}
                 style={{
-                  padding: '16px 22px',
+                  padding: '14px 8px',
                   borderBottom: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: isEditing ? 'stretch' : 'center',
                   justifyContent: 'space-between',
                   flexDirection: isEditing ? 'column' : 'row',
                   gap: '12px',
-                  backgroundColor: task.completed
-                    ? 'rgba(22, 163, 74, 0.04)'
-                    : 'transparent',
                 }}
               >
                 {isEditing ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-                    <div>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: '11.5px',
-                          fontWeight: '700',
-                          color: 'var(--text-secondary)',
-                          marginBottom: '6px',
-                        }}
-                      >
-                        {lang === 'ar' ? 'وصف المهمة التشغيلية' : 'Task Description'}
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={editTaskTitle}
-                        onChange={(e) => setEditTaskTitle(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '10px 14px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--primary)',
-                          backgroundColor: 'var(--bg-app)',
-                          color: 'var(--text-primary)',
-                          fontSize: '13.5px',
-                          fontFamily: 'inherit',
-                          resize: 'vertical',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    </div>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                        gap: '10px',
-                      }}
-                    >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                    <input
+                      type="text"
+                      className="cs-input"
+                      value={editTaskTitle}
+                      onChange={(e) => setEditTaskTitle(e.target.value)}
+                    />
+                    <div className="cs-grid">
                       <input
                         type="text"
+                        className="cs-input"
                         value={editTaskAssignee}
                         onChange={(e) => setEditTaskAssignee(e.target.value)}
-                        placeholder={lang === 'ar' ? 'المسؤول' : 'Assignee'}
-                        style={{
-                          padding: '9px 12px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border-subtle)',
-                          backgroundColor: 'var(--bg-app)',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                        }}
+                        placeholder={isAr ? 'المسؤول' : 'Assignee'}
                       />
                       <input
                         type="text"
+                        className="cs-input"
                         value={editTaskDeadline}
                         onChange={(e) => setEditTaskDeadline(e.target.value)}
-                        placeholder={lang === 'ar' ? 'الموعد النهائي' : 'Deadline'}
-                        style={{
-                          padding: '9px 12px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border-subtle)',
-                          backgroundColor: 'var(--bg-app)',
-                          color: 'var(--text-primary)',
-                          fontSize: '13px',
-                        }}
+                        placeholder={isAr ? 'الموعد النهائي' : 'Deadline'}
                       />
                     </div>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button
                         type="button"
                         disabled={isUpdating}
-                        onClick={() => handleSaveEditTask(task.id)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '8px 16px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--primary)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          fontSize: '12.5px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                        }}
+                        onClick={() => handleSaveEdit(task.id)}
+                        className="cs-btn cs-btn-primary"
                       >
                         <Check size={14} />
-                        <span>{lang === 'ar' ? 'حفظ التعديل' : 'Save'}</span>
+                        <span>{isAr ? 'حفظ' : 'Save'}</span>
                       </button>
                       <button
                         type="button"
-                        onClick={handleCancelEditTask}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '8px 14px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'transparent',
-                          color: 'var(--text-secondary)',
-                          border: '1px solid var(--border-subtle)',
-                          fontSize: '12.5px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                        }}
+                        onClick={handleCancelEdit}
+                        className="cs-btn"
                       >
                         <X size={14} />
-                        <span>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</span>
+                        <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
                       </button>
                     </div>
                   </div>
@@ -551,21 +349,19 @@ export const CenterTasksTab = ({
                           accentColor: 'var(--success)',
                           width: '18px',
                           height: '18px',
-                          marginTop: '3px',
+                          marginTop: '2px',
                           flexShrink: 0,
                         }}
                       />
-                      <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ minWidth: 0 }}>
                         <div
                           style={{
-                            fontSize: '14px',
+                            fontSize: '13.5px',
                             fontWeight: '700',
                             color: 'var(--text-primary)',
                             textDecoration: task.completed ? 'line-through' : 'none',
-                            opacity: task.completed ? 0.65 : 1,
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                            lineHeight: '1.5',
+                            opacity: task.completed ? 0.6 : 1,
+                            lineHeight: '1.4',
                           }}
                         >
                           {task.titleAr}
@@ -576,95 +372,36 @@ export const CenterTasksTab = ({
                             color: 'var(--text-secondary)',
                             marginTop: '4px',
                             display: 'flex',
+                            gap: '14px',
                             flexWrap: 'wrap',
-                            gap: '12px',
                           }}
                         >
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <UserCheck size={13} />
-                            <span>
-                              {lang === 'ar' ? 'المسؤول:' : 'Assignee:'} {task.assignee || '—'}
-                            </span>
+                            <UserCheck size={12} />
+                            <span>{task.assignee || '—'}</span>
                           </span>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Clock size={13} />
-                            <span>
-                              {lang === 'ar' ? 'الموعد:' : 'Due:'} {task.deadline || '—'}
-                            </span>
+                            <Clock size={12} />
+                            <span>{task.deadline || '—'}</span>
                           </span>
                         </div>
                       </div>
                     </label>
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <span
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          backgroundColor: task.completed
-                            ? 'rgba(22, 163, 74, 0.12)'
-                            : 'rgba(217, 119, 6, 0.12)',
-                          color: task.completed ? 'var(--success)' : 'var(--warning)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        {task.completed && <CheckCircle2 size={12} />}
-                        {task.completed
-                          ? lang === 'ar'
-                            ? 'مكتملة'
-                            : 'Completed'
-                          : lang === 'ar'
-                            ? 'قيد التنفيذ'
-                            : 'Pending'}
-                      </span>
-
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       <button
                         type="button"
-                        onClick={() => handleStartEditTask(task)}
-                        title={lang === 'ar' ? 'تعديل المهمة' : 'Edit Task'}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border-subtle)',
-                          backgroundColor: 'var(--bg-app)',
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer',
-                        }}
+                        onClick={() => handleStartEdit(task)}
+                        className="cs-btn cs-icon-btn"
+                        title={isAr ? 'تعديل المهمة' : 'Edit Task'}
                       >
                         <Edit3 size={14} />
                       </button>
-
                       <button
                         type="button"
                         onClick={() => setTaskToDelete(task)}
-                        title={lang === 'ar' ? 'حذف المهمة' : 'Delete Task'}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid rgba(220, 38, 38, 0.25)',
-                          backgroundColor: 'rgba(220, 38, 38, 0.06)',
-                          color: 'var(--color-danger, #DC2626)',
-                          cursor: 'pointer',
-                        }}
+                        className="cs-btn cs-btn-danger cs-icon-btn"
+                        title={isAr ? 'حذف المهمة' : 'Delete Task'}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -677,115 +414,58 @@ export const CenterTasksTab = ({
         )}
       </div>
 
-      {/* Delete Task Confirmation Modal */}
+      {/* 4. Delete Confirmation Modal */}
       {taskToDelete && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(3px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
-          }}
-          onClick={() => setTaskToDelete(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              padding: '26px 28px',
-              maxWidth: '440px',
-              width: '100%',
-              boxShadow: 'var(--shadow-xl)',
-              textAlign: 'center',
-            }}
-          >
+        <div className="cs-modal-overlay" onClick={() => setTaskToDelete(null)}>
+          <div className="cs-modal-box" onClick={(e) => e.stopPropagation()}>
             <div
               style={{
-                width: '52px',
-                height: '52px',
+                width: '46px',
+                height: '46px',
                 borderRadius: '50%',
                 backgroundColor: 'rgba(220, 38, 38, 0.1)',
                 color: 'var(--color-danger, #DC2626)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px auto',
+                display: 'grid',
+                placeItems: 'center',
+                margin: '0 auto 12px',
               }}
             >
-              <Trash2 size={24} />
+              <Trash2 size={22} />
             </div>
 
-            <h4
-              style={{
-                fontSize: '18px',
-                fontWeight: '800',
-                color: 'var(--text-primary)',
-                margin: '0 0 10px 0',
-              }}
-            >
-              {lang === 'ar' ? 'هل تريد حذف هذه المهمة؟' : 'Delete this task?'}
+            <h4 style={{ fontSize: '17px', fontWeight: '800', margin: '0 0 8px' }}>
+              {isAr ? 'هل أنت متأكد من حذف هذه المهمة؟' : 'Delete this task?'}
             </h4>
-
             <p
               style={{
-                fontSize: '13.5px',
+                fontSize: '13px',
                 color: 'var(--text-secondary)',
-                margin: '0 0 20px 0',
-                lineHeight: '1.6',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
                 backgroundColor: 'var(--bg-app)',
-                padding: '12px 14px',
+                padding: '10px 14px',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
+                margin: '0 0 18px',
                 textAlign: 'start',
               }}
             >
               {taskToDelete.titleAr}
             </p>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button
                 type="button"
-                onClick={handleConfirmDeleteTask}
-                style={{
-                  flex: 1,
-                  padding: '11px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--color-danger, #DC2626)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13.5px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
+                onClick={handleConfirmDelete}
+                className="cs-btn cs-btn-danger"
+                style={{ flex: 1 }}
               >
-                {lang === 'ar' ? 'نعم، حذف' : 'Yes, Delete'}
+                {isAr ? 'نعم، حذف' : 'Yes, Delete'}
               </button>
-
               <button
                 type="button"
                 onClick={() => setTaskToDelete(null)}
-                style={{
-                  flex: 1,
-                  padding: '11px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  fontSize: '13.5px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
+                className="cs-btn"
+                style={{ flex: 1 }}
               >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                {isAr ? 'إلغاء' : 'Cancel'}
               </button>
             </div>
           </div>

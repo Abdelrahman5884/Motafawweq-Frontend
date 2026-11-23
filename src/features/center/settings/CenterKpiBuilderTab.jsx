@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Save, Target, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Save, Target } from 'lucide-react';
+import { errorText } from './centerSettingsUtils';
 
 export const CenterKpiBuilderTab = ({
   lang,
@@ -11,42 +12,29 @@ export const CenterKpiBuilderTab = ({
   updateKpiTargets,
   showToast,
 }) => {
+  const isAr = lang === 'ar';
   const kpiObj = centerSettings?.kpiTargets || {};
 
   const [targetAttendance, setTargetAttendance] = useState(
-    () =>
-      Number(
-        kpiObj.targetAttendancePct ??
-          kpiObj.targetAttendance ??
-          95
-      )
+    () => Number(kpiObj.targetAttendancePct ?? kpiObj.targetAttendance ?? 95)
   );
   const [targetRevenue, setTargetRevenue] = useState(
-    () =>
-      Number(
-        kpiObj.targetMonthlyRevenueEgp ??
-          kpiObj.targetRevenue ??
-          200000
-      )
+    () => Number(kpiObj.targetMonthlyRevenueEgp ?? kpiObj.targetRevenue ?? 200000)
   );
   const [targetUtilization, setTargetUtilization] = useState(
-    () =>
-      Number(
-        kpiObj.targetRoomUtilizationPct ??
-          kpiObj.targetUtilization ??
-          85
-      )
+    () => Number(kpiObj.targetRoomUtilizationPct ?? kpiObj.targetUtilization ?? 85)
   );
 
   const [isSaving, setIsSaving] = useState(false);
   const [kpiSavedSuccess, setKpiSavedSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  // Live Actual Metrics Comparison from real backend context
+  // Live Actual Metrics Comparison
   const liveMetrics = useMemo(() => {
     const actualAttendancePct = Number(
       dashboardData?.summary?.attendanceRatePct ??
-        dashboardData?.attendanceTrend?.commitmentRatePct ??
-        0
+      dashboardData?.attendanceTrend?.commitmentRatePct ??
+      0
     );
 
     const totalCapacity = rooms.reduce((acc, r) => acc + (Number(r.capacity) || 0), 0);
@@ -61,8 +49,8 @@ export const CenterKpiBuilderTab = ({
 
     const actualRevenueEgp = Number(
       financialSummary?.grossCollectedRevenue ??
-        dashboardData?.summary?.monthlyRevenueEgp ??
-        0
+      dashboardData?.summary?.monthlyRevenueEgp ??
+      0
     );
 
     return {
@@ -76,345 +64,194 @@ export const CenterKpiBuilderTab = ({
     e.preventDefault();
     setIsSaving(true);
     setKpiSavedSuccess(false);
+    setErrorMessage(null);
+
     try {
       await updateKpiTargets({
         target_attendance_pct: Math.min(100, Math.max(50, Number(targetAttendance) || 95)),
         target_monthly_revenue_egp: Math.max(1000, Number(targetRevenue) || 200000),
         target_room_utilization_pct: Math.min(100, Math.max(30, Number(targetUtilization) || 85)),
       });
+
       setKpiSavedSuccess(true);
       if (showToast) {
         showToast(
-          lang === 'ar'
+          isAr
             ? 'تم اعتماد مستهدفات مؤشرات الأداء بنجاح.'
-            : 'KPI target thresholds saved successfully.',
+            : 'KPI targets saved successfully.',
           'success'
         );
       }
       setTimeout(() => setKpiSavedSuccess(false), 3500);
     } catch (err) {
-      if (showToast) {
-        showToast(
-          err?.message ||
-            (lang === 'ar' ? 'تعذر حفظ مؤشرات الأداء.' : 'Failed to save KPI targets.'),
-          'warning'
-        );
-      }
+      const msg = errorText(
+        err,
+        isAr ? 'تعذر حفظ مؤشرات الأداء.' : 'Failed to save KPI targets.'
+      );
+      setErrorMessage(msg);
+      if (showToast) showToast(msg, 'warning');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const attendanceRatio = Math.min(
+    100,
+    Math.round((liveMetrics.actualAttendancePct / Math.max(1, Number(targetAttendance))) * 100)
+  );
+  const utilizationRatio = Math.min(
+    100,
+    Math.round((liveMetrics.actualUtilizationPct / Math.max(1, Number(targetUtilization))) * 100)
+  );
+  const revenueRatio = Math.min(
+    100,
+    Math.round((liveMetrics.actualRevenueEgp / Math.max(1, Number(targetRevenue))) * 100)
+  );
+
   return (
-    <div
-      style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--border-subtle)',
-        padding: '24px',
-        boxShadow: 'var(--shadow-sm)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-      }}
-    >
-      <div>
-        <h3
-          style={{
-            fontSize: '17px',
-            fontWeight: '800',
-            color: 'var(--text-primary)',
-            margin: '0 0 6px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <Target size={19} style={{ color: 'var(--primary)' }} />
-          <span>
-            {lang === 'ar'
-              ? 'تخصيص مؤشرات الأداء والحدود المستهدفة'
-              : 'Custom KPI Target Builder'}
-          </span>
-        </h3>
-        <p
-          style={{
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            margin: 0,
-            lineHeight: '1.5',
-          }}
-        >
-          {lang === 'ar'
-            ? 'حدد المستهدفات الشهرية للسنتر، وتنعكس هذه الحدود مباشرة على مؤشرات لوحة التحكم والتنبيهات التشغيلية.'
-            : 'Define monthly target thresholds that directly drive your dashboard KPIs and operational alerts.'}
-        </p>
+    <div className="cs-card">
+      <div className="cs-card-header">
+        <div>
+          <h3 className="cs-card-title">
+            <Target size={18} />
+            <span>{isAr ? 'تخصيص مؤشرات الأداء والمستهدفات الشهرية' : 'Custom KPI Targets'}</span>
+          </h3>
+          <p className="cs-card-subtitle">
+            {isAr
+              ? 'تحدد هذه المستهدفات نسب الإشغال والتحصيل المستهدفة في لوحة التحكم والتقارير التنفيذية.'
+              : 'These thresholds directly drive dashboard gauges and executive reports.'}
+          </p>
+        </div>
       </div>
 
-      {/* Live Actual vs Target Comparison Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '14px',
-        }}
-      >
-        <div
-          style={{
-            padding: '14px 16px',
-            borderRadius: 'var(--radius-lg)',
-            backgroundColor: 'var(--bg-app)',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700' }}>
-            {lang === 'ar' ? 'الحضور الفعلي مقابل المستهدف' : 'Actual vs Target Attendance'}
+      {/* 1. Comparison Cards with Live Progress */}
+      <div className="cs-kpi-grid">
+        <div className="cs-kpi-card">
+          <span className="cs-kpi-label">{isAr ? 'نسبة الحضور الفعلي' : 'Actual Attendance'}</span>
+          <div className="cs-kpi-val-row">
+            <span className="cs-kpi-value">{liveMetrics.actualAttendancePct}%</span>
+            <span className="cs-kpi-target">
+              {isAr ? `المستهدف: ${targetAttendance}%` : `Target: ${targetAttendance}%`}
+            </span>
           </div>
-          <div
-            style={{
-              marginTop: '6px',
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>
-              {liveMetrics.actualAttendancePct}%
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>
-              {lang === 'ar' ? `المستهدف: ${targetAttendance}%` : `Target: ${targetAttendance}%`}
-            </span>
+          <div className="cs-progress-bar">
+            <div className="cs-progress-fill" style={{ width: `${attendanceRatio}%` }} />
           </div>
         </div>
 
-        <div
-          style={{
-            padding: '14px 16px',
-            borderRadius: 'var(--radius-lg)',
-            backgroundColor: 'var(--bg-app)',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700' }}>
-            {lang === 'ar'
-              ? 'إشغال القاعات الفعلي مقابل المستهدف'
-              : 'Actual vs Target Room Utilization'}
+        <div className="cs-kpi-card">
+          <span className="cs-kpi-label">{isAr ? 'إشغال القاعات الفعلي' : 'Room Utilization'}</span>
+          <div className="cs-kpi-val-row">
+            <span className="cs-kpi-value">{liveMetrics.actualUtilizationPct}%</span>
+            <span className="cs-kpi-target">
+              {isAr ? `المستهدف: ${targetUtilization}%` : `Target: ${targetUtilization}%`}
+            </span>
           </div>
-          <div
-            style={{
-              marginTop: '6px',
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>
-              {liveMetrics.actualUtilizationPct}%
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>
-              {lang === 'ar'
-                ? `المستهدف: ${targetUtilization}%`
-                : `Target: ${targetUtilization}%`}
-            </span>
+          <div className="cs-progress-bar">
+            <div className="cs-progress-fill" style={{ width: `${utilizationRatio}%` }} />
           </div>
         </div>
 
-        <div
-          style={{
-            padding: '14px 16px',
-            borderRadius: 'var(--radius-lg)',
-            backgroundColor: 'var(--bg-app)',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700' }}>
-            {lang === 'ar' ? 'الإيراد المحصل مقابل المستهدف' : 'Collected vs Target Revenue'}
-          </div>
-          <div
-            style={{
-              marginTop: '6px',
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-              gap: '8px',
-            }}
-          >
-            <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)' }}>
+        <div className="cs-kpi-card">
+          <span className="cs-kpi-label">{isAr ? 'الإيراد المحصل هذا الشهر' : 'Collected Revenue'}</span>
+          <div className="cs-kpi-val-row">
+            <span className="cs-kpi-value">
               {liveMetrics.actualRevenueEgp.toLocaleString()}{' '}
-              <small style={{ fontSize: '11px' }}>{lang === 'ar' ? 'ج.م' : 'EGP'}</small>
+              <small style={{ fontSize: '12px' }}>{isAr ? 'ج.م' : 'EGP'}</small>
             </span>
-            <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>
-              <TrendingUp size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} />
-              {Number(targetRevenue || 0).toLocaleString()}
+            <span className="cs-kpi-target">
+              {isAr
+                ? `المستهدف: ${Number(targetRevenue || 0).toLocaleString()} ج.م`
+                : `Target: ${Number(targetRevenue || 0).toLocaleString()}`}
             </span>
+          </div>
+          <div className="cs-progress-bar">
+            <div className="cs-progress-fill" style={{ width: `${revenueRatio}%` }} />
           </div>
         </div>
       </div>
 
-      <form
-        onSubmit={handleSaveKpiTargets}
-        style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '16px',
-          }}
-        >
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: '700',
-                marginBottom: '6px',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {lang === 'ar' ? 'نسبة الحضور المستهدفة (%)' : 'Target Attendance (%)'}
+      {/* 2. Target Adjustment Form */}
+      <form onSubmit={handleSaveKpiTargets}>
+        <div className="cs-grid">
+          <div className="cs-field">
+            <label className="cs-label">
+              {isAr ? 'نسبة الحضور المستهدفة (%)' : 'Target Attendance (%)'}
             </label>
             <input
               type="number"
               min="50"
               max="100"
               required
+              className="cs-input"
               value={targetAttendance}
               onChange={(e) => setTargetAttendance(e.target.value)}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '11px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-              }}
             />
           </div>
 
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: '700',
-                marginBottom: '6px',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {lang === 'ar'
-                ? 'الإيراد الشهري المستهدف (ج.م)'
-                : 'Target Monthly Revenue (EGP)'}
+          <div className="cs-field">
+            <label className="cs-label">
+              {isAr ? 'الإيراد الشهري المستهدف (ج.م)' : 'Target Monthly Revenue (EGP)'}
             </label>
             <input
               type="number"
               min="1000"
               required
+              className="cs-input"
               value={targetRevenue}
               onChange={(e) => setTargetRevenue(e.target.value)}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '11px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-              }}
             />
           </div>
 
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: '700',
-                marginBottom: '6px',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {lang === 'ar'
-                ? 'معدل إشغال القاعات المستهدف (%)'
-                : 'Target Room Utilization (%)'}
+          <div className="cs-field">
+            <label className="cs-label">
+              {isAr ? 'معدل إشغال القاعات المستهدف (%)' : 'Target Room Utilization (%)'}
             </label>
             <input
               type="number"
               min="30"
               max="100"
               required
+              className="cs-input"
               value={targetUtilization}
               onChange={(e) => setTargetUtilization(e.target.value)}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '11px 14px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-              }}
             />
           </div>
         </div>
 
+        {errorMessage && (
+          <div className="cs-alert cs-alert-danger">{errorMessage}</div>
+        )}
+
         {kpiSavedSuccess && (
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(22, 163, 74, 0.1)',
-              border: '1px solid rgba(22, 163, 74, 0.25)',
-              color: 'var(--success)',
-              fontSize: '13px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
+          <div className="cs-alert cs-alert-success">
             <CheckCircle2 size={16} />
             <span>
-              {lang === 'ar'
-                ? 'تم اعتماد أهداف مؤشرات الأداء بنجاح.'
-                : 'KPI thresholds saved successfully.'}
+              {isAr
+                ? 'تم حفظ واعتماد مستهدفات مؤشرات الأداء بنجاح.'
+                : 'KPI target thresholds saved.'}
             </span>
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSaving}
-          style={{
-            alignSelf: 'flex-start',
-            padding: '12px 24px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--primary)',
-            color: '#FFFFFF',
-            border: 'none',
-            fontSize: '13px',
-            fontWeight: '700',
-            cursor: isSaving ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <Save size={15} />
-          <span>
-            {isSaving
-              ? lang === 'ar'
-                ? 'جاري الحفظ...'
-                : 'Saving...'
-              : lang === 'ar'
-                ? 'حفظ مستهدفات مؤشرات الأداء'
-                : 'Save KPI Targets'}
-          </span>
-        </button>
+        <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="cs-btn cs-btn-primary"
+          >
+            <Save size={15} />
+            <span>
+              {isSaving
+                ? isAr
+                  ? 'جاري الحفظ...'
+                  : 'Saving...'
+                : isAr
+                  ? 'حفظ المستهدفات'
+                  : 'Save Targets'}
+            </span>
+          </button>
+        </div>
       </form>
     </div>
   );

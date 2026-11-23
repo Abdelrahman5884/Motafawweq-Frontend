@@ -13,6 +13,7 @@ import {
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
 import { useAuth } from '../../context/AuthContext';
+import { useGroups } from '../../context/GroupsContext';
 import {
   CenterAnnouncementsTab,
   CenterCloudBackupTab,
@@ -22,6 +23,7 @@ import {
   CenterTasksTab,
   SETTINGS_TABS,
 } from '../../features/center/settings';
+import '../../features/center/settings/settings.css';
 
 const TAB_ICONS = {
   policies: Settings,
@@ -34,42 +36,38 @@ const TAB_ICONS = {
 
 export const CenterSettingsView = () => {
   const { lang } = useLanguage();
-  const isRtl = lang === 'ar';
+  const isAr = lang === 'ar';
+  const isRtl = isAr;
   const navigate = useNavigate();
-  const {
-    isAuthenticated,
-    currentUser,
-    activeViewRole,
-    switchRole,
-    centerPlanTier,
-    showToast,
-  } = useAuth();
+
+  const { isAuthenticated, currentUser, activeViewRole, switchRole, centerPlanTier } = useAuth();
+  const { showToast } = useGroups();
 
   const {
     isBackendCenter,
     loadSettingsData,
     loadOperationsData,
     exportToCsv,
-    branches,
-    groups,
-    rooms,
-    staff,
-    centerTeachers,
+    branches = [],
+    groups = [],
+    rooms = [],
+    staff = [],
+    centerTeachers = [],
     centerSettings,
     dashboardData,
     financialSummary,
     updateCenterSettings,
     updateKpiTargets,
-    tasks,
+    tasks = [],
     addCenterTask,
     updateCenterTask,
     toggleCenterTask,
     deleteCenterTask,
-    announcements,
+    announcements = [],
     addCenterAnnouncement,
     deleteCenterAnnouncement,
     importCenterStudents,
-    backups,
+    backups = [],
     createCenterBackup,
   } = useCenter();
 
@@ -86,235 +84,124 @@ export const CenterSettingsView = () => {
 
   if (!isAuthenticated) {
     return (
-      <div
-        style={{
-          direction: isRtl ? 'rtl' : 'ltr',
-          padding: '48px 24px',
-          maxWidth: '540px',
-          margin: '40px auto',
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-2xl)',
-          border: '1px solid var(--border-subtle)',
-          textAlign: 'center',
-          boxShadow: 'var(--shadow-md)',
-        }}
-      >
-        <div
-          style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            color: 'var(--primary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px',
-          }}
-        >
-          <Lock size={26} />
+      <div className="cs-container" style={{ textAlign: 'center', paddingTop: '60px' }}>
+        <div className="cs-card" style={{ maxWidth: '480px', margin: '0 auto', padding: '36px 24px' }}>
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(21, 136, 199, 0.1)',
+              color: 'var(--primary)',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 16px',
+            }}
+          >
+            <Lock size={26} />
+          </div>
+          <h2 style={{ fontSize: '19px', fontWeight: '800', margin: '0 0 8px' }}>
+            {isAr ? 'تسجيل الدخول مطلوب لإدارة السنتر' : 'Sign In Required'}
+          </h2>
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px' }}>
+            {isAr
+              ? 'يرجى تسجيل الدخول بحساب سنتر للوصول إلى إعدادات المنظومة والمهام.'
+              : 'Please sign in with a center account to access operational settings.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="cs-btn cs-btn-primary"
+            style={{ width: '100%' }}
+          >
+            {isAr ? 'تسجيل الدخول الآن' : 'Sign In'}
+          </button>
         </div>
-        <h2
-          style={{
-            fontSize: '20px',
-            fontWeight: '800',
-            color: 'var(--text-primary)',
-            margin: '0 0 8px',
-          }}
-        >
-          {lang === 'ar'
-            ? 'تسجيل الدخول مطلوب لإدارة إعدادات السنتر'
-            : 'Sign In Required for Center Settings'}
-        </h2>
-        <p
-          style={{
-            fontSize: '14px',
-            color: 'var(--text-secondary)',
-            margin: '0 0 24px',
-            lineHeight: 1.6,
-          }}
-        >
-          {lang === 'ar'
-            ? 'يرجى تسجيل الدخول بحساب إدارة السنتر للوصول إلى السياسات التشغيلية والمهام والنسخ الاحتياطي السحابي.'
-            : 'Please sign in with an authorized Center account to manage policies, tasks, and cloud backups.'}
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/login')}
-          style={{
-            padding: '11px 24px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--primary)',
-            color: '#fff',
-            border: 'none',
-            fontSize: '14px',
-            fontWeight: '700',
-            cursor: 'pointer',
-          }}
-        >
-          {lang === 'ar' ? 'تسجيل الدخول الآن' : 'Sign In Now'}
-        </button>
       </div>
     );
   }
 
   if (!isBackendCenter) {
-    const canSwitchToCenter =
+    const canSwitch =
       Array.isArray(currentUser?.roles) && currentUser.roles.includes('center');
+
     return (
-      <div
-        style={{
-          direction: isRtl ? 'rtl' : 'ltr',
-          padding: '48px 24px',
-          maxWidth: '560px',
-          margin: '40px auto',
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-2xl)',
-          border: '1px solid var(--border-subtle)',
-          textAlign: 'center',
-          boxShadow: 'var(--shadow-md)',
-        }}
-      >
-        <div
-          style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            backgroundColor: 'rgba(245, 158, 11, 0.12)',
-            color: '#d97706',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px',
-          }}
-        >
-          <ShieldAlert size={26} />
-        </div>
-        <h2
-          style={{
-            fontSize: '20px',
-            fontWeight: '800',
-            color: 'var(--text-primary)',
-            margin: '0 0 8px',
-          }}
-        >
-          {lang === 'ar'
-            ? 'هذه الصفحة مخصصة لحسابات إدارة السنتر فقط'
-            : 'Center Account Required'}
-        </h2>
-        <p
-          style={{
-            fontSize: '14px',
-            color: 'var(--text-secondary)',
-            margin: '0 0 24px',
-            lineHeight: 1.6,
-          }}
-        >
-          {lang === 'ar'
-            ? `أنت مسجل الدخول حالياً بدور (${activeViewRole || currentUser?.role}). لإدارة إعدادات السنتر، يرجى التبديل إلى حساب سنتر معتمد.`
-            : `You are currently signed in with role (${activeViewRole || currentUser?.role}). Switch to an authorized Center account to continue.`}
-        </p>
-        {canSwitchToCenter && (
-          <button
-            type="button"
-            onClick={() => switchRole('center')}
+      <div className="cs-container" style={{ textAlign: 'center', paddingTop: '60px' }}>
+        <div className="cs-card" style={{ maxWidth: '480px', margin: '0 auto', padding: '36px 24px' }}>
+          <div
             style={{
-              padding: '11px 24px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#fff',
-              border: 'none',
-              fontSize: '14px',
-              fontWeight: '700',
-              cursor: 'pointer',
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              color: '#d97706',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 16px',
             }}
           >
-            {lang === 'ar' ? 'التبديل إلى بوابة السنتر' : 'Switch to Center Portal'}
-          </button>
-        )}
+            <ShieldAlert size={26} />
+          </div>
+          <h2 style={{ fontSize: '19px', fontWeight: '800', margin: '0 0 8px' }}>
+            {isAr ? 'هذه الصفحة مخصصة لإدارة السنتر فقط' : 'Center Account Required'}
+          </h2>
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px' }}>
+            {isAr
+              ? `أنت مسجل حالياً بدور (${activeViewRole || currentUser?.role}). يرجى التبديل لحساب السنتر المعتمد.`
+              : `Current role: ${activeViewRole || currentUser?.role}. Switch to center.`}
+          </p>
+          {canSwitch && (
+            <button
+              type="button"
+              onClick={() => switchRole('center')}
+              className="cs-btn cs-btn-primary"
+              style={{ width: '100%' }}
+            >
+              {isAr ? 'التبديل إلى بوابة السنتر' : 'Switch to Center'}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
+  const centerDisplayTitle =
+    centerSettings?.nameAr ||
+    centerSettings?.centerNameAr ||
+    currentUser?.centerNameAr ||
+    (isAr ? 'السنتر التعليمي' : 'Center Portal');
+
   return (
-    <div
-      style={{
-        direction: isRtl ? 'rtl' : 'ltr',
-        paddingBottom: '48px',
-        maxWidth: '1400px',
-        margin: '0 auto',
-      }}
-    >
-      {/* Header Banner */}
-      <div
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '22px 26px',
-          marginBottom: '22px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          boxShadow: 'var(--shadow-sm)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: 'var(--radius-lg)',
-              backgroundColor: 'var(--primary-subtle)',
-              color: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+    <div className="cs-container" dir={isRtl ? 'rtl' : 'ltr'}>
+      {/* 1. Header Banner */}
+      <div className="cs-header">
+        <div className="cs-header-start">
+          <div className="cs-header-icon">
             <Settings size={24} />
           </div>
           <div>
-            <h1
-              style={{
-                fontSize: '21px',
-                fontWeight: '800',
-                color: 'var(--text-primary)',
-                margin: 0,
-              }}
-            >
-              {lang === 'ar'
-                ? 'إعدادات السنتر، السياسات، والمهام اليومية'
-                : 'Center Settings, Policies & Operations'}
+            <h1 className="cs-header-title">
+              {isAr
+                ? `إعدادات منظومة السنتر والمهام اليومية — ${centerDisplayTitle}`
+                : `Center Settings & Daily Operations — ${centerDisplayTitle}`}
             </h1>
-            <p
-              style={{
-                fontSize: '13px',
-                color: 'var(--text-secondary)',
-                margin: '4px 0 0 0',
-              }}
-            >
-              {lang === 'ar'
-                ? 'تخصيص هوية السنتر، السياسات المالية، المهام اليومية، التعميمات، استيراد الطلاب، والنسخ الاحتياطي السحابي'
-                : 'Configure center identity, financial rules, daily tasks, announcements, CSV import, and cloud backup'}
+            <p className="cs-header-desc">
+              {isAr
+                ? 'إدارة الهوية الرسمية، سياسات التحصيل، المهام اليومية، التعميمات، واستيراد الطلاب'
+                : 'Manage official identity, cash policies, daily tasks, announcements, and imports'}
             </p>
           </div>
         </div>
+
+        {centerSettings?.planNameAr && (
+          <div className="cs-header-badge">
+            <span>{isAr ? centerSettings.planNameAr : centerSettings.planNameEn || centerSettings.planTier}</span>
+          </div>
+        )}
       </div>
 
-      {/* Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          marginBottom: '22px',
-          borderBottom: '1px solid var(--border-subtle)',
-          paddingBottom: '12px',
-          overflowX: 'auto',
-        }}
-      >
+      {/* 2. Navigation Tabs Bar */}
+      <nav className="cs-tabs-nav" role="tablist">
         {SETTINGS_TABS.map((t) => {
           const Icon = TAB_ICONS[t.id] || Settings;
           const isActive = activeTab === t.id;
@@ -322,32 +209,22 @@ export const CenterSettingsView = () => {
             <button
               key={t.id}
               type="button"
+              role="tab"
+              aria-selected={isActive}
+              className={`cs-tab-btn ${isActive ? 'active' : ''}`}
               onClick={() => setActiveTab(t.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 18px',
-                borderRadius: 'var(--radius-md)',
-                border: isActive ? 'none' : '1px solid var(--border-subtle)',
-                backgroundColor: isActive ? 'var(--primary)' : 'var(--bg-surface)',
-                color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
             >
               <Icon size={16} />
-              <span>{lang === 'ar' ? t.labelAr : t.labelEn}</span>
+              <span>{isAr ? t.labelAr : t.labelEn}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
+      {/* 3. Tab Contents */}
       {activeTab === 'policies' && (
         <CenterPoliciesTab
-          key={centerSettings?.id || 'center-policies'}
+          key={centerSettings?.id || 'policies'}
           lang={lang}
           centerSettings={centerSettings}
           updateCenterSettings={updateCenterSettings}
@@ -405,7 +282,7 @@ export const CenterSettingsView = () => {
 
       {activeTab === 'kpis' && (
         <CenterKpiBuilderTab
-          key={`${centerSettings?.id || 'kpi'}-${centerSettings?.kpiTargets?.targetAttendance ?? ''}`}
+          key={`${centerSettings?.id || 'kpis'}-${centerSettings?.kpiTargets?.targetAttendance ?? ''}`}
           lang={lang}
           centerSettings={centerSettings}
           dashboardData={dashboardData}
