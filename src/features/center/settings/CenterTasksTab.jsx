@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   Check,
-  CheckCircle2,
   Clock,
   Edit3,
   Plus,
