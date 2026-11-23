@@ -376,6 +376,7 @@ export const CenterGroupsView = () => {
           onClose={() => setIsAddStudentOpen(false)}
           activeGroup={activeGroup}
           activeGroupStudents={activeGroupStudents}
+          activeGroupPending={activeGroupPending}
           onEnrollExisting={handleEnrollExisting}
           onEnrollManual={handleEnrollManual}
           isBackendCenter={isBackendCenter}

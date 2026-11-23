@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Mail, Search, UserPlus, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Clock, Loader2, Mail, Search, Send, UserCheck, UserPlus, X } from 'lucide-react';
 import { Avatar } from '../../../components/common/Avatar';
 import { centerApi } from '../../../services/centerApi';
 import { GRADE_OPTIONS } from './centerGroupsUtils';
@@ -9,6 +9,7 @@ export const CenterAddStudentModal = ({
   onClose,
   activeGroup,
   activeGroupStudents = [],
+  activeGroupPending = [],
   onEnrollExisting,
   onEnrollManual,
   isBackendCenter = true,
@@ -20,6 +21,8 @@ export const CenterAddStudentModal = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [invitingStudentId, setInvitingStudentId] = useState(null);
+  const seqRef = useRef(0);
 
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
@@ -31,40 +34,94 @@ export const CenterAddStudentModal = ({
   const [dueAmountEgp, setDueAmountEgp] = useState(() => String(activeGroup?.priceEgp || ''));
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const q = searchQuery.trim();
-    if (!isBackendCenter || q.length < 2) {
-      return undefined;
-    }
+  const enrolledLookup = useMemo(() => {
+    const set = new Set();
+    activeGroupStudents.forEach((s) => {
+      if (s.studentId) set.add(`id:${s.studentId}`);
+      if (s.studentCode) set.add(`code:${String(s.studentCode).toLowerCase()}`);
+      const digits = String(s.phone || '').replace(/\D/g, '');
+      if (digits) set.add(`phone:${digits}`);
+    });
+    return set;
+  }, [activeGroupStudents]);
 
-    let cancelled = false;
+  const pendingLookup = useMemo(() => {
+    const map = new Map();
+    activeGroupPending.forEach((s) => {
+      const method = s.joinMethod || (s.isTeacherInvite ? 'teacher_invite' : 'join_code');
+      if (s.studentId) map.set(`id:${s.studentId}`, method);
+      if (s.studentCode) map.set(`code:${String(s.studentCode).toLowerCase()}`, method);
+      const digits = String(s.phone || '').replace(/\D/g, '');
+      if (digits) map.set(`phone:${digits}`, method);
+    });
+    return map;
+  }, [activeGroupPending]);
+
+  useEffect(() => {
+    if (!isOpen || !isBackendCenter || tab !== 'search') return undefined;
+
+    const seq = ++seqRef.current;
+    const q = searchQuery.trim();
     const timer = setTimeout(() => {
       setSearching(true);
       centerApi.groups
         .searchStudents(q)
         .then((res) => {
-          if (!cancelled) {
-            setSearchResults(Array.isArray(res?.data) ? res.data : []);
-          }
+          if (seq !== seqRef.current) return;
+          setSearchResults(Array.isArray(res?.data) ? res.data : []);
         })
         .catch(() => {
-          if (!cancelled) setSearchResults([]);
+          if (seq !== seqRef.current) return;
+          setSearchResults([]);
         })
         .finally(() => {
-          if (!cancelled) setSearching(false);
+          if (seq === seqRef.current) {
+            setSearching(false);
+          }
         });
-    }, 250);
+    }, q ? 250 : 0);
 
     return () => {
-      cancelled = true;
       clearTimeout(timer);
     };
-  }, [isOpen, isBackendCenter, searchQuery]);
+  }, [isOpen, isBackendCenter, tab, searchQuery]);
 
   if (!isOpen || !activeGroup) return null;
 
-  const displayedResults = searchQuery.trim().length >= 2 ? searchResults : [];
+  const getStudentEnrollmentState = (std) => {
+    const digits = String(std.phone || '').replace(/\D/g, '');
+    const codeKey = std.studentCode ? `code:${String(std.studentCode).toLowerCase()}` : '';
+
+    if (
+      (std.id && enrolledLookup.has(`id:${std.id}`)) ||
+      (codeKey && enrolledLookup.has(codeKey)) ||
+      (digits && enrolledLookup.has(`phone:${digits}`))
+    ) {
+      return { status: 'enrolled', method: null };
+    }
+
+    const pendingMethod =
+      (std.id && pendingLookup.get(`id:${std.id}`)) ||
+      (codeKey && pendingLookup.get(codeKey)) ||
+      (digits && pendingLookup.get(`phone:${digits}`)) ||
+      null;
+
+    if (pendingMethod) {
+      return { status: 'pending', method: pendingMethod };
+    }
+
+    return { status: 'none', method: null };
+  };
+
+  const handleInvitePlatformStudent = async (std) => {
+    if (invitingStudentId) return;
+    setInvitingStudentId(std.id);
+    try {
+      await onEnrollExisting(std);
+    } finally {
+      setInvitingStudentId(null);
+    }
+  };
 
   const handleManualSubmit = async (e) => {
     e.preventDefault();
@@ -112,7 +169,7 @@ export const CenterAddStudentModal = ({
           backgroundColor: 'var(--bg-surface)',
           borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--border-subtle)',
-          maxWidth: '560px',
+          maxWidth: '580px',
           width: '100%',
           padding: '24px',
           maxHeight: '90vh',
@@ -125,8 +182,8 @@ export const CenterAddStudentModal = ({
             <UserPlus size={20} color="var(--primary)" />
             <h3 style={{ fontSize: '16.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
               {isAr
-                ? `إضافة طالب لمجموعة: ${activeGroup.nameAr}`
-                : `Add Student to: ${activeGroup.nameAr}`}
+                ? `دعوة وإضافة طالب لمجموعة: ${activeGroup.nameAr}`
+                : `Invite or Add Student to: ${activeGroup.nameAr}`}
             </h3>
           </div>
           <button
@@ -144,7 +201,7 @@ export const CenterAddStudentModal = ({
             backgroundColor: 'var(--bg-app)',
             padding: '4px',
             borderRadius: 'var(--radius-lg)',
-            marginBottom: '18px',
+            marginBottom: '16px',
             gap: '4px',
           }}
         >
@@ -164,7 +221,7 @@ export const CenterAddStudentModal = ({
               boxShadow: tab === 'search' ? 'var(--shadow-xs)' : 'none',
             }}
           >
-            {isAr ? '1. البحث في قاعدة بيانات متفوّق' : '1. Search Platform Students'}
+            {isAr ? '1. طالب مسجل بالمنصة (إرسال دعوة)' : '1. Platform Student (Send Invite)'}
           </button>
           <button
             type="button"
@@ -182,23 +239,34 @@ export const CenterAddStudentModal = ({
               boxShadow: tab === 'manual' ? 'var(--shadow-xs)' : 'none',
             }}
           >
-            {isAr ? '2. تسجيل طالب جديد وإصدار باركود' : '2. Register Walk-in Student'}
+            {isAr ? '2. طالب خارجي جديد (قيد مباشر وباركود)' : '2. Walk-in Student (Direct Enroll)'}
           </button>
         </div>
 
         {tab === 'search' ? (
           <div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+            <div
+              style={{
+                padding: '9px 12px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(21, 136, 199, 0.08)',
+                border: '1px solid rgba(21, 136, 199, 0.2)',
+                fontSize: '11.5px',
+                color: 'var(--text-secondary)',
+                marginBottom: '12px',
+                lineHeight: 1.55,
+              }}
+            >
               {isAr
-                ? 'ابحث عن الطالب بالاسم أو رقم الهاتف أو الكود لقيده فوراً وتوليد باركود السنتر:'
-                : 'Search by student name, phone, or student code:'}
-            </p>
+                ? 'عند اختيار طالب مسجل في المنصة، يتم إرسال دعوة انضمام لحسابه؛ وبمجرد قبول الطالب للدعوة من عنده ينضم للمجموعة تلقائياً ويُصدر له باركود الحضور.'
+                : 'Selecting a registered platform student sends an invitation to their account. Once accepted by the student, they join automatically.'}
+            </div>
 
-            <div style={{ position: 'relative', marginBottom: '16px' }}>
+            <div style={{ position: 'relative', marginBottom: '14px' }}>
               <input
                 type="text"
                 autoFocus
-                placeholder={isAr ? 'اكتب اسم الطالب أو رقم الهاتف أو الكود...' : 'Name, phone, or code...'}
+                placeholder={isAr ? 'ابحث باسم الطالب أو رقم الهاتف أو الكود الموحد...' : 'Search by name, phone, or student code...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -219,84 +287,200 @@ export const CenterAddStudentModal = ({
               />
             </div>
 
-            {searchQuery.trim().length >= 2 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '290px', overflowY: 'auto' }}>
-                {searching ? (
-                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    {isAr ? 'جاري البحث...' : 'Searching...'}
-                  </div>
-                ) : displayedResults.length === 0 ? (
-                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto' }}>
+              {searching ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  {isAr ? 'جاري البحث في طلاب المنصة...' : 'Searching platform students...'}
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div style={{ padding: '22px 14px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  <div style={{ marginBottom: '10px' }}>
                     {isAr
-                      ? 'لم يتم العثور على طالب مطابق. يمكنك التبديل إلى تبويب «تسجيل طالب جديد» لإضافته فوراً.'
-                      : 'No matching student found. Switch to "Register Walk-in Student" to enroll them.'}
+                      ? 'لم يتم العثور على طالب مسجل في المنصة بهذا البحث.'
+                      : 'No matching platform student found.'}
                   </div>
-                ) : (
-                  displayedResults.map((std) => {
-                    const alreadyIn = activeGroupStudents.some(
-                      (s) =>
-                        (s.studentId && String(s.studentId) === String(std.id)) ||
-                        (s.phone && std.phone && s.phone === std.phone)
-                    );
-                    return (
-                      <div
-                        key={std.id}
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--bg-app)',
-                          border: '1px solid var(--border-subtle)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '12px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                          <Avatar src={std.avatar} name={std.nameAr || 'طالب'} size={38} />
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                              {std.nameAr}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                              {std.phone || std.studentCode || ''} • {std.gradeAr || ''}
-                            </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab('manual');
+                      if (searchQuery.trim()) setManualName(searchQuery.trim());
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                      color: 'var(--primary)',
+                      border: '1px solid rgba(21, 136, 199, 0.25)',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isAr ? '+ تسجيل كطالب خارجي جديد وإصدار باركود فوراً' : '+ Register as Walk-in Student'}
+                  </button>
+                </div>
+              ) : (
+                searchResults.map((std) => {
+                  const state = getStudentEnrollmentState(std);
+                  const isInvitingThis = invitingStudentId === std.id;
+                  const displayName = std.nameAr || std.name || 'طالب';
+
+                  return (
+                    <div
+                      key={std.id}
+                      style={{
+                        padding: '11px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-app)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <Avatar
+                          src={std.avatar}
+                          name={displayName}
+                          size={42}
+                          border="1.5px solid var(--primary)"
+                        />
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: '13.5px',
+                              fontWeight: '800',
+                              color: 'var(--text-primary)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {displayName}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '11.5px',
+                              color: 'var(--text-secondary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              flexWrap: 'wrap',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {std.studentCode && (
+                              <span style={{ fontFamily: 'monospace', fontWeight: '700', color: 'var(--primary)' }}>
+                                {std.studentCode}
+                              </span>
+                            )}
+                            {std.gradeAr && <span>• {std.gradeAr}</span>}
+                            {std.phone && <span style={{ direction: 'ltr' }}>• {std.phone}</span>}
                           </div>
                         </div>
-
-                        <button
-                          type="button"
-                          disabled={alreadyIn}
-                          onClick={() => onEnrollExisting(std)}
-                          style={{
-                            padding: '7px 14px',
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: alreadyIn ? 'var(--bg-subtle)' : 'var(--primary)',
-                            color: alreadyIn ? 'var(--text-secondary)' : '#FFFFFF',
-                            border: 'none',
-                            fontSize: '12px',
-                            fontWeight: '800',
-                            cursor: alreadyIn ? 'not-allowed' : 'pointer',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {alreadyIn
-                            ? isAr
-                              ? 'مقيد بالفعل'
-                              : 'Enrolled'
-                            : isAr
-                            ? '+ قيد الطالب'
-                            : '+ Enroll'}
-                        </button>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
+
+                      <div style={{ flexShrink: 0 }}>
+                        {state.status === 'enrolled' ? (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '6px 11px',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                              color: '#10B981',
+                              fontSize: '11.5px',
+                              fontWeight: '800',
+                            }}
+                          >
+                            <UserCheck size={13} />
+                            <span>{isAr ? 'مقيد بالمجموعة' : 'Enrolled'}</span>
+                          </span>
+                        ) : state.status === 'pending' ? (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '6px 11px',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                              color: '#D97706',
+                              fontSize: '11.5px',
+                              fontWeight: '800',
+                            }}
+                          >
+                            <Clock size={13} />
+                            <span>
+                              {state.method === 'teacher_invite'
+                                ? isAr
+                                  ? 'تم إرسال الدعوة (بانتظار الطالب)'
+                                  : 'Invite Sent'
+                                : isAr
+                                  ? 'طلب انضمام معلق'
+                                  : 'Pending Request'}
+                            </span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={Boolean(invitingStudentId)}
+                            onClick={() => handleInvitePlatformStudent(std)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '7px 14px',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: 'var(--primary)',
+                              color: '#FFFFFF',
+                              border: 'none',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              cursor: isInvitingThis ? 'wait' : 'pointer',
+                              opacity: invitingStudentId && !isInvitingThis ? 0.65 : 1,
+                            }}
+                          >
+                            {isInvitingThis ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                            <span>
+                              {isInvitingThis
+                                ? isAr
+                                  ? 'جاري الإرسال...'
+                                  : 'Sending...'
+                                : isAr
+                                  ? 'إرسال دعوة انضمام'
+                                  : 'Send Invite'}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         ) : (
           <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div
+              style={{
+                padding: '9px 12px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                fontSize: '11.5px',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.55,
+              }}
+            >
+              {isAr
+                ? 'تسجيل طالب عادي غير موجود بالمنصة: يتم قيد الطالب مباشرةً في المجموعة وإصدار بطاقة الباركود والكود السريع له فوراً.'
+                : 'Walk-in non-platform student: directly enrolls the student and generates their barcode & PIN pass immediately.'}
+            </div>
+
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
                 {isAr ? 'اسم الطالب بالكامل *' : 'Student Full Name *'}
@@ -505,8 +689,8 @@ export const CenterAddStudentModal = ({
                   ? 'جاري التسجيل...'
                   : 'Enrolling...'
                 : isAr
-                ? 'تسجيل الطالب وإصدار الباركود فوراً'
-                : 'Enroll Student & Generate Barcode'}
+                  ? 'تسجيل الطالب وإصدار الباركود فوراً'
+                  : 'Enroll Student & Generate Barcode'}
             </button>
           </form>
         )}

@@ -14,6 +14,14 @@ const SIZE_MAP = {
   '2xl': 80,
 };
 
+const normalizeAvatarUrl = (raw) => {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  // Rewrite default Laravel APP_URL without port (http://localhost/storage/...) to relative /storage/... so Vite proxy or backend resolves it
+  return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1)\/storage\//i, '/storage/');
+};
+
 export const Avatar = ({
   src,
   name = '',
@@ -29,7 +37,7 @@ export const Avatar = ({
 }) => {
   const [failedSrc, setFailedSrc] = useState('');
   const px = typeof size === 'number' ? size : (SIZE_MAP[size] || SIZE_MAP.md);
-  const cleanSrc = typeof src === 'string' ? src.trim() : '';
+  const cleanSrc = normalizeAvatarUrl(src);
   const showImage = Boolean(cleanSrc) && failedSrc !== cleanSrc;
   const initials = getInitials(name);
   const bgColor = getAvatarColor(name);

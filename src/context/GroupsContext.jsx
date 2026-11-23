@@ -859,8 +859,14 @@ export const GroupsProvider = ({ children }) => {
       const res = await centerApi.groups.enrollStudent(groupId, body);
       await fetchGroupRoster(groupId);
       const enrolledName = res?.data?.nameAr || body.name_ar || 'الطالب';
-      showToast(`تم قيد الطالب «${enrolledName}» في المجموعة وتوليد بطاقة الباركود بنجاح!`);
-      return { success: true, data: res?.data };
+      const isInvitation = Boolean(res?.data?.isInvitation || res?.data?.enrollmentStatus === 'pending');
+      showToast(
+        res?.message ||
+          (isInvitation
+            ? `تم إرسال دعوة الانضمام للطالب «${enrolledName}» بنجاح! بانتظار قبول الطالب من حسابه.`
+            : `تم قيد الطالب «${enrolledName}» في المجموعة وتوليد بطاقة الباركود بنجاح!`)
+      );
+      return { success: true, data: res?.data, isInvitation };
     } catch (err) {
       const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
       const msg = firstErr || err?.message || 'فشل تسجيل الطالب في المجموعة.';

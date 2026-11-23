@@ -626,7 +626,7 @@ export const CenterGroupDetailSection = ({
         </div>
       </div>
 
-      {/* Pending Join Requests Section */}
+      {/* Pending Join Requests & Sent Invitations Section */}
       {pendingStudentsList.length > 0 && (
         <div
           style={{
@@ -638,7 +638,7 @@ export const CenterGroupDetailSection = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span
                 style={{
                   padding: '3px 9px',
@@ -649,19 +649,22 @@ export const CenterGroupDetailSection = ({
                   fontWeight: '800',
                 }}
               >
-                {pendingStudentsList.length} {isAr ? 'طلب معلق' : 'Pending'}
+                {pendingStudentsList.length} {isAr ? 'طلب / دعوة معلقة' : 'Pending'}
               </span>
               <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: '900', color: 'var(--text-primary)' }}>
                 {isAr
-                  ? 'طلبات الانضمام للمجموعة عبر الكود (بانتظار موافقة السنتر)'
-                  : 'Pending Student Join Requests'}
+                  ? 'طلبات الانضمام والدعوات المرسلة للطلاب'
+                  : 'Pending Join Requests & Sent Student Invitations'}
               </h3>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))', gap: '10px' }}>
             {pendingStudentsList.map((pend) => {
               const pendId = pend.enrollmentId || pend.id;
+              const isSentInvite =
+                pend.joinMethod === 'teacher_invite' || Boolean(pend.isTeacherInvite);
+
               return (
                 <div
                   key={pendId}
@@ -677,41 +680,71 @@ export const CenterGroupDetailSection = ({
                     flexWrap: 'wrap',
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      {pend.nameAr || 'طالب'}
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                      {pend.phone || pend.studentCode || ''}{' '}
-                      {pend.parentPhone ? `• ولي الأمر: ${pend.parentPhone}` : ''}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <Avatar
+                      src={pend.avatar}
+                      name={pend.nameAr || pend.name || 'طالب'}
+                      size={38}
+                      border="1.5px solid var(--primary)"
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                        {pend.nameAr || pend.name || 'طالب'}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                        {pend.phone || pend.studentCode || ''}{' '}
+                        {pend.parentPhone ? `• ولي الأمر: ${pend.parentPhone}` : ''}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '10.5px',
+                          fontWeight: '800',
+                          color: isSentInvite ? '#D97706' : 'var(--primary)',
+                          marginTop: '2px',
+                        }}
+                      >
+                        {isSentInvite
+                          ? isAr
+                            ? 'دعوة مرسلة من السنتر — بانتظار قبول الطالب من حسابه'
+                            : 'Invite sent — Awaiting student acceptance'
+                          : isAr
+                            ? 'طلب انضمام عبر كود المجموعة — بانتظار موافقة السنتر'
+                            : 'Join code request — Awaiting center approval'}
+                      </div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => onAcceptPending?.(activeGroup.id, pendId)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: 'none',
-                        backgroundColor: 'var(--success, #10B981)',
-                        color: '#FFFFFF',
-                        fontSize: '11.5px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Check size={13} />
-                      <span>{isAr ? 'قبول' : 'Accept'}</span>
-                    </button>
+                    {!isSentInvite && (
+                      <button
+                        type="button"
+                        onClick={() => onAcceptPending?.(activeGroup.id, pendId)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: 'none',
+                          backgroundColor: 'var(--success, #10B981)',
+                          color: '#FFFFFF',
+                          fontSize: '11.5px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Check size={13} />
+                        <span>{isAr ? 'قبول' : 'Accept'}</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"
-                      onClick={() => onRejectPending?.(activeGroup.id, pendId)}
+                      onClick={() =>
+                        onRejectPending?.(activeGroup.id, pendId, '', {
+                          isInviteCancel: isSentInvite,
+                        })
+                      }
                       style={{
                         padding: '6px 10px',
                         borderRadius: 'var(--radius-sm)',
@@ -723,7 +756,13 @@ export const CenterGroupDetailSection = ({
                         cursor: 'pointer',
                       }}
                     >
-                      {isAr ? 'رفض' : 'Reject'}
+                      {isSentInvite
+                        ? isAr
+                          ? 'إلغاء الدعوة'
+                          : 'Cancel Invite'
+                        : isAr
+                          ? 'رفض'
+                          : 'Reject'}
                     </button>
                   </div>
                 </div>
