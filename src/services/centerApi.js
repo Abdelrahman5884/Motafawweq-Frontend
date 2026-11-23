@@ -197,6 +197,31 @@ export const centerApi = {
   settings: {
     get: () => apiGet('/center/settings'),
     update: (data) => apiPut('/center/settings', data),
+    uploadAvatar: async (file) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const token = tokenStorage.getAccessToken();
+      const res = await fetch(`${API_BASE_URL}/center/settings/avatar`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || payload?.success === false) {
+        const firstFieldErr =
+          payload?.errors && typeof payload.errors === 'object'
+            ? Object.values(payload.errors).flat().find(Boolean)
+            : null;
+        throw new Error(firstFieldErr || payload?.message || 'فشل رفع صورة السنتر.');
+      }
+      return payload;
+    },
+    deleteAvatar: () => apiDelete('/center/settings/avatar'),
     updateKpis: (data) => apiPut('/center/settings/kpis', data),
 
     listTasks: (params = {}) => apiGet(`/center/tasks${buildQuery(params)}`),
