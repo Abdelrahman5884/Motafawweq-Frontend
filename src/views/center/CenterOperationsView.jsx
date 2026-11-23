@@ -57,6 +57,8 @@ export const CenterOperationsView = () => {
     updateStaff,
     deleteStaff,
     auditLogs = [],
+    auditLogsMeta,
+    auditLogsLoading = false,
     refreshAuditLogs,
     connectedUsers = [],
     searchGlobalUsers,
@@ -355,10 +357,10 @@ export const CenterOperationsView = () => {
         labelAr: 'سجل العمليات',
         labelEn: 'Audit Log',
         icon: Activity,
-        count: auditLogs.length,
+        count: Number(auditLogsMeta?.total ?? auditLogs.length),
       },
     ],
-    [metrics, centerTeachers.length, auditLogs.length]
+    [metrics, centerTeachers.length, auditLogsMeta?.total, auditLogs.length]
   );
 
   const activeTabMeta = tabs.find((t) => t.id === activeTab);
@@ -631,6 +633,8 @@ export const CenterOperationsView = () => {
           {activeTab === 'audit' && (
             <CenterAuditLogSection
               auditLogs={auditLogs}
+              auditLogsMeta={auditLogsMeta}
+              loading={auditLogsLoading}
               onRefreshAuditLogs={refreshAuditLogs}
               lang={lang}
               isRtl={isRtl}

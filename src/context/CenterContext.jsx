@@ -14,9 +14,12 @@ const AUDIT_EVENT_LABELS = {
   'center.room.updated': 'تعديل بيانات قاعة دراسية',
   'center.room.deleted': 'حذف قاعة دراسية',
   'center.teacher.created': 'إضافة مدرس جديد واعتماده',
+  'center.teacher.invited': 'إرسال دعوة لمعلم منصة متفوّق',
+  'center.teacher.invite_accepted': 'قبول معلم المنصة لدعوة الانضمام',
+  'center.teacher.invite_declined': 'رفض معلم المنصة لدعوة الانضمام',
   'center.teacher.updated': 'تحديث بيانات مدرس',
   'center.teacher.deleted': 'فك ارتباط مدرس بالسنتر',
-  'center.teacher.invite_resent': 'إعادة إرسال رابط تفعيل مدرس',
+  'center.teacher.invite_resent': 'إعادة إرسال دعوة لمعلم',
   'center.connect.user_linked': 'ربط حساب مستخدم بالسنتر (Motafawweq Connect)',
   'center.connect.user_unlinked': 'فك ربط حساب مستخدم من السنتر',
   'center.staff.created': 'تعيين موظف جديد بالسنتر',
@@ -43,6 +46,8 @@ const AUDIT_EVENT_LABELS = {
   'center.billing.subscribed': 'تفعيل أو ترقية باقة اشتراك السنتر',
   'center.billing.cancelled': 'إلغاء باقة اشتراك السنتر المدفوعة',
   'center.settings.updated': 'تحديث بيانات وسياسات السنتر',
+  'center.settings.avatar_updated': 'تحديث شعار السنتر',
+  'center.settings.avatar_deleted': 'حذف شعار السنتر',
   'center.settings.kpis_updated': 'تحديث مستهدفات مؤشرات الأداء (KPIs)',
   'center.settings.task_created': 'إسناد مهمة إدارية جديدة',
   'center.settings.task_updated': 'تحديث مهمة إدارية',
@@ -70,6 +75,42 @@ const EMPTY_DUES_STATE = {
   count: 0,
   items: [],
 };
+
+const EMPTY_AUDIT_META = {
+  currentPage: 1,
+  perPage: 15,
+  total: 0,
+  lastPage: 1,
+  from: 0,
+  to: 0,
+  hasMore: false,
+};
+
+function normalizeAuditMeta(meta, itemCount = 0) {
+  if (!meta || typeof meta !== 'object') {
+    return {
+      ...EMPTY_AUDIT_META,
+      total: itemCount,
+      from: itemCount > 0 ? 1 : 0,
+      to: itemCount,
+    };
+  }
+  const currentPage = Number(meta.current_page ?? meta.currentPage ?? 1) || 1;
+  const perPage = Number(meta.per_page ?? meta.perPage ?? 15) || 15;
+  const total = Number(meta.total ?? itemCount) || 0;
+  const lastPage = Math.max(1, Number(meta.last_page ?? meta.lastPage ?? Math.ceil(total / perPage)) || 1);
+  const from = Number(meta.from ?? (total > 0 ? (currentPage - 1) * perPage + 1 : 0)) || 0;
+  const to = Number(meta.to ?? (total > 0 ? Math.min(total, from + Math.max(0, itemCount - 1)) : 0)) || 0;
+  return {
+    currentPage,
+    perPage,
+    total,
+    lastPage,
+    from,
+    to,
+    hasMore: Boolean(meta.has_more ?? meta.hasMore ?? currentPage < lastPage),
+  };
+}
 
 const AUTH_REQUIRED_MESSAGE = 'يرجى تسجيل الدخول بحساب سنتر مفعل أولاً.';
 
@@ -132,6 +173,8 @@ export const CenterProvider = ({ children }) => {
   const [connectedUsers, setConnectedUsers] = useState([]);
   const [staff, setStaff] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLogsMeta, setAuditLogsMeta] = useState(EMPTY_AUDIT_META);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [attendanceSummary, setAttendanceSummary] = useState(EMPTY_ATTENDANCE_SUMMARY);
   const [globalPlatformUsers, setGlobalPlatformUsers] = useState([]);
@@ -156,6 +199,7 @@ export const CenterProvider = ({ children }) => {
   const [backups, setBackups] = useState([]);
 
   const dashboardSeqRef = useRef(0);
+  const auditSeqRef = useRef(0);
 
   const resetAllCenterState = useCallback(() => {
     setSelectedBranchId('all');
@@ -165,6 +209,8 @@ export const CenterProvider = ({ children }) => {
     setConnectedUsers([]);
     setStaff([]);
     setAuditLogs([]);
+    setAuditLogsMeta(EMPTY_AUDIT_META);
+    setAuditLogsLoading(false);
     setAttendanceRecords([]);
     setAttendanceSummary(EMPTY_ATTENDANCE_SUMMARY);
     setGlobalPlatformUsers([]);
@@ -192,18 +238,46 @@ export const CenterProvider = ({ children }) => {
     }
   }, [isBackendCenter]);
 
-  const refreshAuditLogs = useCallback(async () => {
-    if (!isBackendCenter) return;
-    try {
-      const res = await centerApi.staff.listAuditLogs({ per_page: 30 });
-      if (Array.isArray(res?.data)) {
-        const cName = centerSettings?.nameAr || currentUser?.nameAr || 'إدارة السنتر';
-        setAuditLogs(res.data.map((l) => formatAuditLogItem(l, cName)));
+  const refreshAuditLogs = useCallback(
+    async ({ page = 1, perPage = 15, level = 'all', search = '' } = {}) => {
+      if (!isBackendCenter) return null;
+      const seq = ++auditSeqRef.current;
+      setAuditLogsLoading(true);
+      try {
+        const queryParams = {
+          page: Math.max(1, Number(page) || 1),
+          per_page: Math.min(100, Math.max(5, Number(perPage) || 15)),
+        };
+        if (level && level !== 'all') {
+          queryParams.level = level;
+        }
+        const trimmedSearch = String(search || '').trim();
+        if (trimmedSearch) {
+          queryParams.search = trimmedSearch;
+        }
+
+        const res = await centerApi.staff.listAuditLogs(queryParams);
+        if (seq !== auditSeqRef.current) return null;
+
+        if (Array.isArray(res?.data)) {
+          const cName = centerSettings?.nameAr || currentUser?.nameAr || 'إدارة السنتر';
+          const formatted = res.data.map((l) => formatAuditLogItem(l, cName));
+          const normalizedMeta = normalizeAuditMeta(res?.meta, formatted.length);
+          setAuditLogs(formatted);
+          setAuditLogsMeta(normalizedMeta);
+          return { items: formatted, meta: normalizedMeta };
+        }
+        return null;
+      } catch {
+        return null;
+      } finally {
+        if (seq === auditSeqRef.current) {
+          setAuditLogsLoading(false);
+        }
       }
-    } catch {
-      // ignore non-critical audit log refresh failures
-    }
-  }, [isBackendCenter, centerSettings?.nameAr, currentUser?.nameAr]);
+    },
+    [isBackendCenter, centerSettings?.nameAr, currentUser?.nameAr]
+  );
 
   // ─── Lightweight Core Hydration (Only 4 safe endpoints on mount — zero 403s) ─
   const loadCoreCenterData = useCallback(async () => {
@@ -227,13 +301,15 @@ export const CenterProvider = ({ children }) => {
     const [connectedRes, staffRes, auditRes] = await Promise.all([
       centerApi.connect.listUsers().catch(() => null),
       centerApi.staff.list().catch(() => null),
-      centerApi.staff.listAuditLogs({ per_page: 30 }).catch(() => null),
+      centerApi.staff.listAuditLogs({ page: 1, per_page: 15 }).catch(() => null),
     ]);
     if (Array.isArray(connectedRes?.data)) setConnectedUsers(connectedRes.data);
     if (Array.isArray(staffRes?.data)) setStaff(staffRes.data);
     if (Array.isArray(auditRes?.data)) {
       const cName = centerSettings?.nameAr || currentUser?.nameAr || 'إدارة السنتر';
-      setAuditLogs(auditRes.data.map((l) => formatAuditLogItem(l, cName)));
+      const formatted = auditRes.data.map((l) => formatAuditLogItem(l, cName));
+      setAuditLogs(formatted);
+      setAuditLogsMeta(normalizeAuditMeta(auditRes?.meta, formatted.length));
     }
   }, [isBackendCenter, centerSettings?.nameAr, currentUser?.nameAr]);
 
@@ -1310,6 +1386,8 @@ export const CenterProvider = ({ children }) => {
         processSmartStudentQrScan,
         sendAbsenceAlert,
         auditLogs,
+        auditLogsMeta,
+        auditLogsLoading,
         refreshAuditLogs,
         financialSummary,
         checkScheduleConflict,
