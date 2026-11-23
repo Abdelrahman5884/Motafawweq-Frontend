@@ -567,18 +567,30 @@ export const CenterProvider = ({ children }) => {
 
   // Synchronous client-side conflict check mirroring backend CenterScheduleService for instant form feedback
   const checkScheduleConflict = useCallback(
-    (candidateSlot, _existingSlots, excludeGroupId = null) => {
+    (candidateSlot, _existingSlots, excludeGroupId = null, candidateTeacher = null) => {
       const candidateDay = (candidateSlot.day || '').toLowerCase();
       const candidateHall = (candidateSlot.hall || '').trim();
       const candidateStart = candidateSlot.startTime || '16:00';
       const candidateEnd = candidateSlot.endTime || '18:00';
+
+      if (candidateEnd <= candidateStart) {
+        return {
+          hasConflict: true,
+          type: 'invalid_time_range',
+          messageAr: `وقت انتهاء الحصة (${candidateEnd}) يجب أن يكون بعد وقت البداية (${candidateStart}).`,
+        };
+      }
+
+      const teacherHint = candidateTeacher ? String(candidateTeacher).trim() : '';
 
       for (const group of groups) {
         if (excludeGroupId && group.id === excludeGroupId) continue;
         const slots = group.scheduleSlots || [];
         for (const slot of slots) {
           if ((slot.day || '').toLowerCase() === candidateDay) {
-            const isSameHall = (slot.hall || group.hallName || '').trim() === candidateHall;
+            const isSameHall =
+              Boolean(candidateHall) &&
+              (slot.hall || group.hallName || '').trim() === candidateHall;
             const overlap =
               candidateStart < (slot.endTime || '20:00') &&
               candidateEnd > (slot.startTime || '10:00');
@@ -588,6 +600,21 @@ export const CenterProvider = ({ children }) => {
                 hasConflict: true,
                 type: 'hall_overlap',
                 messageAr: `تعارض قاعات: القاعة «${candidateHall}» محجوزة بالفعل يوم ${candidateSlot.dayAr || candidateDay} في نفس التوقيت لمجموعة «${group.nameAr}»!`,
+                conflictingGroup: group,
+                conflictingSlot: slot,
+              };
+            }
+
+            if (
+              overlap &&
+              teacherHint &&
+              ((group.teacherId && String(group.teacherId) === teacherHint) ||
+                (group.teacherNameAr && group.teacherNameAr.trim() === teacherHint))
+            ) {
+              return {
+                hasConflict: true,
+                type: 'teacher_overlap',
+                messageAr: `تعارض مواعيد المعلم: المعلم «${group.teacherNameAr || teacherHint}» لديه حصة أخرى في نفس التوقيت بمجموعة «${group.nameAr}»!`,
                 conflictingGroup: group,
                 conflictingSlot: slot,
               };

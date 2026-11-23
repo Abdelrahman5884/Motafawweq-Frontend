@@ -178,7 +178,7 @@ export const GroupsProvider = ({ children }) => {
             scheduleEn: g.scheduleEn || g.schedule_en || '',
             branchId: g.branchId || g.branch_id || null,
             branchNameAr: g.branchNameAr || g.branch_name_ar || g.centerName || 'الفرع الرئيسي',
-            centerName: g.centerName || g.branchNameAr || 'سنتر الرواد التعليمي',
+            centerName: g.centerName || g.branchNameAr || currentUser?.centerNameAr || currentUser?.center || 'السنتر التعليمي',
             roomId: g.roomId || g.room_id || null,
             hallName: g.hallName || g.hall_name || 'القاعة الرئيسية',
             teacherId: g.teacherId || g.teacher_id || null,
@@ -362,7 +362,7 @@ export const GroupsProvider = ({ children }) => {
     } finally {
       setLoadingGroups(false);
     }
-  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, isCenterRole, currentUser?.name, currentUser?.nameAr, currentUser?.phone]);
+  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, isCenterRole, currentUser?.name, currentUser?.nameAr, currentUser?.centerNameAr, currentUser?.center, currentUser?.phone]);
 
   // Fetch Roster for active group (Teacher or Center) with stale-request guard and optional session date
   const fetchGroupRoster = useCallback(async (groupId, date = null) => {
@@ -595,6 +595,7 @@ export const GroupsProvider = ({ children }) => {
           branch_id: groupData.branchId || undefined,
           room_id: groupData.roomId || undefined,
           teacher_id: groupData.teacherId || undefined,
+          teacher_name_ar: groupData.teacherNameAr || undefined,
           teacher_name_override: groupData.teacherNameAr || undefined,
           hall_name: groupData.hallName || 'القاعة الرئيسية',
           schedule_ar: groupData.scheduleAr || 'الأحد والأربعاء 4:00 عصراً',
@@ -672,6 +673,7 @@ export const GroupsProvider = ({ children }) => {
           branch_id: updatedData.branchId !== undefined ? updatedData.branchId : existing?.branchId,
           room_id: updatedData.roomId !== undefined ? updatedData.roomId : existing?.roomId,
           teacher_id: updatedData.teacherId !== undefined ? updatedData.teacherId : existing?.teacherId,
+          teacher_name_ar: updatedData.teacherNameAr || existing?.teacherNameAr,
           teacher_name_override: updatedData.teacherNameAr || existing?.teacherNameAr,
           hall_name: updatedData.hallName || existing?.hallName,
           price_egp: updatedData.priceEgp !== undefined && updatedData.priceEgp !== '' && !isNaN(Number(updatedData.priceEgp))
@@ -867,6 +869,24 @@ export const GroupsProvider = ({ children }) => {
     }
   };
 
+  // Update a student enrollment's payment status & due balance (Center Portal)
+  const updateStudentPayment = async (groupId, enrollmentId, paymentData = {}) => {
+    if (!isCenterRole || !groupId || !enrollmentId) {
+      return { success: false, error: 'غير مصرح بتحديث حالة السداد.' };
+    }
+    try {
+      const res = await centerApi.groups.updatePayment(groupId, enrollmentId, paymentData);
+      await fetchGroupRoster(groupId);
+      showToast('تم تحديث حالة السداد للطالب بنجاح.');
+      return { success: true, data: res?.data };
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const msg = firstErr || err?.message || 'تعذر تحديث حالة السداد.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
+    }
+  };
+
   // Invite student directly by teacher search or manual registration
   const inviteStudentToGroup = async (groupId, studentOrPayload) => {
     try {
@@ -984,7 +1004,7 @@ export const GroupsProvider = ({ children }) => {
         : await teacherApi.attendance.toggleManual(groupId, payload);
       await fetchGroupRoster(groupId, date);
       const finalStatus = res?.data?.status || targetStatus;
-      const studentName = res?.data?.nameAr || '';
+      const studentName = res?.data?.studentNameAr || res?.data?.nameAr || '';
       if (finalStatus === 'absent') {
         showToast(studentName ? `تم تسجيل غياب الطالب: ${studentName}` : 'تم تسجيل غياب الطالب.', 'warning');
       } else {
@@ -1016,17 +1036,23 @@ export const GroupsProvider = ({ children }) => {
         : await teacherApi.attendance.scan(groupId, rawCode, 'barcode_input', date);
       await fetchGroupRoster(groupId, date);
       const alreadyRecorded = Boolean(res?.data?.alreadyRecorded);
-      const record = res?.data?.record || null;
-      const studentName = record?.nameAr || '';
-      const msg = alreadyRecorded
-        ? (studentName ? `الطالب «${studentName}» مسجل حضوره بالفعل في هذه الحصة.` : 'الطالب مسجل حضوره بالفعل.')
-        : (studentName ? `تم تسجيل حضور الطالب «${studentName}» بنجاح!` : 'تم تسجيل الحضور بنجاح!');
+      const studentData = res?.data?.student || res?.data?.record || null;
+      const studentName = studentData?.nameAr || res?.data?.studentNameAr || '';
+      const msg =
+        res?.data?.messageAr ||
+        (alreadyRecorded
+          ? studentName
+            ? `الطالب «${studentName}» مسجل حضوره بالفعل في هذه الحصة.`
+            : 'الطالب مسجل حضوره بالفعل.'
+          : studentName
+          ? `تم تسجيل حضور الطالب «${studentName}» بنجاح!`
+          : 'تم تسجيل الحضور بنجاح!');
       showToast(msg, alreadyRecorded ? 'warning' : 'success');
       return {
         success: true,
         alreadyRecorded,
-        record,
-        student: record || { nameAr: studentName || 'الطالب' },
+        record: studentData,
+        student: studentData || { nameAr: studentName || 'الطالب' },
         session: res?.data?.session || null,
         message: msg,
       };
@@ -1302,6 +1328,7 @@ export const GroupsProvider = ({ children }) => {
         removeStudentFromGroup,
         inviteStudentToGroup,
         enrollStudentDirectly,
+        updateStudentPayment,
         studentJoinByCode,
         studentAcceptInvitation,
         studentDeclineInvitation,
