@@ -367,15 +367,23 @@ export const CenterProvider = ({ children }) => {
         address_ar: branchData.addressAr || '',
         phone: branchData.phone || '',
         manager_name_ar: branchData.managerNameAr || '',
+        ...(branchData.isMain !== undefined ? { is_main: Boolean(branchData.isMain) } : {}),
+        ...(branchData.isActive !== undefined ? { is_active: Boolean(branchData.isActive) } : {}),
       });
       const created = res?.data;
       if (created) {
-        setBranches((prev) => [created, ...prev]);
+        setBranches((prev) => {
+          const next = created.isMain
+            ? prev.map((b) => ({ ...b, isMain: false }))
+            : prev;
+          return [created, ...next];
+        });
         refreshAuditLogs();
       }
       return created;
     } catch (err) {
-      if (showToast) showToast(err?.message || 'فشل إنشاء الفرع.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل إنشاء الفرع.', 'warning');
       throw err;
     }
   };
@@ -389,15 +397,23 @@ export const CenterProvider = ({ children }) => {
         address_ar: branchData.addressAr,
         phone: branchData.phone,
         manager_name_ar: branchData.managerNameAr,
+        ...(branchData.isMain !== undefined ? { is_main: Boolean(branchData.isMain) } : {}),
+        ...(branchData.isActive !== undefined ? { is_active: Boolean(branchData.isActive) } : {}),
       });
       const updated = res?.data;
       if (updated) {
-        setBranches((prev) => prev.map((b) => (b.id === branchId ? updated : b)));
+        setBranches((prev) =>
+          prev.map((b) => {
+            if (b.id === branchId) return updated;
+            return updated.isMain ? { ...b, isMain: false } : b;
+          })
+        );
         refreshAuditLogs();
       }
       return updated;
     } catch (err) {
-      if (showToast) showToast(err?.message || 'فشل تحديث بيانات الفرع.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل تحديث بيانات الفرع.', 'warning');
       throw err;
     }
   };
@@ -408,7 +424,7 @@ export const CenterProvider = ({ children }) => {
       await centerApi.branches.delete(branchId);
       setBranches((prev) => prev.filter((b) => b.id !== branchId));
       if (selectedBranchId === branchId) setSelectedBranchId('all');
-      refreshAuditLogs();
+      await Promise.all([loadCoreCenterData(), refreshAuditLogs()]);
       return true;
     } catch (err) {
       if (showToast) showToast(err?.message || 'فشل حذف الفرع.', 'warning');
@@ -417,19 +433,26 @@ export const CenterProvider = ({ children }) => {
   };
 
   // ─── 2. Center Teachers CRUD & Invites ──────────────────────────────────────
+  const isUuidString = (val) =>
+    typeof val === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
   const addCenterTeacher = async (teacherData) => {
     assertBackendCenter();
     try {
+      const candidateBranch =
+        teacherData.branchId && teacherData.branchId !== 'all'
+          ? teacherData.branchId
+          : branches[0]?.id || undefined;
+      const validBranchId = isUuidString(candidateBranch) ? candidateBranch.trim() : undefined;
+
       const res = await centerApi.teachers.create({
         name_ar: teacherData.nameAr,
         name_en: teacherData.nameEn || teacherData.nameAr,
         subject_ar: teacherData.subjectAr,
         phone: teacherData.phone,
         email: teacherData.email,
-        branch_id:
-          teacherData.branchId && teacherData.branchId !== 'all'
-            ? teacherData.branchId
-            : branches[0]?.id || undefined,
+        ...(validBranchId ? { branch_id: validBranchId } : {}),
         settlement_rate: teacherData.settlementRate ?? 0.75,
       });
       const created = res?.data;
@@ -440,7 +463,8 @@ export const CenterProvider = ({ children }) => {
       }
       return { success: true, teacher: created };
     } catch (err) {
-      if (showToast) showToast(err?.message || 'فشل إضافة المدرس.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل إضافة المدرس.', 'warning');
       throw err;
     }
   };
@@ -448,15 +472,35 @@ export const CenterProvider = ({ children }) => {
   const updateCenterTeacher = async (teacherId, teacherData) => {
     assertBackendCenter();
     try {
-      const res = await centerApi.teachers.update(teacherId, teacherData);
+      const validBranchId = isUuidString(teacherData.branchId)
+        ? teacherData.branchId.trim()
+        : undefined;
+
+      const res = await centerApi.teachers.update(teacherId, {
+        ...(teacherData.nameAr !== undefined
+          ? {
+              name_ar: teacherData.nameAr,
+              name_en: teacherData.nameEn || teacherData.nameAr,
+            }
+          : {}),
+        ...(teacherData.subjectAr !== undefined ? { subject_ar: teacherData.subjectAr } : {}),
+        ...(teacherData.phone !== undefined ? { phone: teacherData.phone } : {}),
+        ...(teacherData.email !== undefined ? { email: teacherData.email } : {}),
+        ...(validBranchId ? { branch_id: validBranchId } : {}),
+        ...(teacherData.settlementRate !== undefined
+          ? { settlement_rate: Number(teacherData.settlementRate) }
+          : {}),
+        ...(teacherData.status !== undefined ? { status: teacherData.status } : {}),
+      });
       const updated = res?.data;
       if (updated) {
         setCenterTeachers((prev) => prev.map((t) => (t.id === teacherId ? updated : t)));
-        refreshAuditLogs();
+        await Promise.all([loadCoreCenterData(), refreshGroups(), refreshAuditLogs()]);
       }
       return updated;
     } catch (err) {
-      if (showToast) showToast(err?.message || 'فشل تحديث بيانات المعلم.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل تحديث بيانات المعلم.', 'warning');
       throw err;
     }
   };
@@ -782,19 +826,20 @@ export const CenterProvider = ({ children }) => {
         'مشرف قاعات': 'supervisor',
       };
       const resolvedRole = staffData.role || roleMap[staffData.roleAr] || 'receptionist';
-      const validBranchId =
+      const candidateBranch =
         staffData.branchId && staffData.branchId !== 'all'
           ? staffData.branchId
           : branches[0]?.id || undefined;
+      const validBranchId = isUuidString(candidateBranch) ? candidateBranch.trim() : undefined;
 
       const res = await centerApi.staff.create({
         name_ar: staffData.nameAr,
         name_en: staffData.nameEn || staffData.nameAr,
         role: resolvedRole,
         role_ar: staffData.roleAr,
-        branch_id: validBranchId,
-        phone: staffData.phone,
-        email: staffData.email,
+        ...(validBranchId ? { branch_id: validBranchId } : {}),
+        phone: staffData.phone || undefined,
+        email: staffData.email || undefined,
         salary_egp: Number(staffData.salaryEgp) || 0,
         permissions: Array.isArray(staffData.permissions)
           ? staffData.permissions
@@ -803,11 +848,57 @@ export const CenterProvider = ({ children }) => {
       const created = res?.data;
       if (created) {
         setStaff((prev) => [created, ...prev]);
+        loadCoreCenterData();
         refreshAuditLogs();
       }
       return created;
     } catch (err) {
-      if (showToast) showToast(err?.message || 'فشل إضافة الموظف.', 'warning');
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل إضافة الموظف.', 'warning');
+      throw err;
+    }
+  };
+
+  const updateStaff = async (staffId, staffData) => {
+    assertBackendCenter();
+    try {
+      const roleMap = {
+        'مدير فرع': 'manager',
+        'مدير الفرع العام': 'manager',
+        'سكرتارية واستقبال': 'receptionist',
+        'محاسب مالي': 'accountant',
+        'مشرف قاعات': 'supervisor',
+      };
+      const resolvedRole = staffData.role || roleMap[staffData.roleAr] || undefined;
+      const validBranchId = isUuidString(staffData.branchId)
+        ? staffData.branchId.trim()
+        : undefined;
+
+      const res = await centerApi.staff.update(staffId, {
+        ...(staffData.nameAr !== undefined
+          ? { name_ar: staffData.nameAr, name_en: staffData.nameEn || staffData.nameAr }
+          : {}),
+        ...(resolvedRole ? { role: resolvedRole } : {}),
+        ...(staffData.roleAr !== undefined ? { role_ar: staffData.roleAr } : {}),
+        ...(validBranchId ? { branch_id: validBranchId } : {}),
+        ...(staffData.phone !== undefined ? { phone: staffData.phone } : {}),
+        ...(staffData.email !== undefined ? { email: staffData.email } : {}),
+        ...(staffData.salaryEgp !== undefined
+          ? { salary_egp: Number(staffData.salaryEgp) || 0 }
+          : {}),
+        ...(Array.isArray(staffData.permissions) ? { permissions: staffData.permissions } : {}),
+        ...(staffData.status !== undefined ? { status: staffData.status } : {}),
+      });
+      const updated = res?.data;
+      if (updated) {
+        setStaff((prev) => prev.map((s) => (s.id === staffId ? updated : s)));
+        loadCoreCenterData();
+        refreshAuditLogs();
+      }
+      return updated;
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      if (showToast) showToast(firstErr || err?.message || 'فشل تحديث بيانات الموظف.', 'warning');
       throw err;
     }
   };
@@ -816,6 +907,7 @@ export const CenterProvider = ({ children }) => {
     assertBackendCenter();
     await centerApi.staff.delete(staffId);
     setStaff((prev) => prev.filter((s) => s.id !== staffId));
+    loadCoreCenterData();
     refreshAuditLogs();
     return true;
   };
@@ -857,12 +949,13 @@ export const CenterProvider = ({ children }) => {
     }
     try {
       const targetUserId = Number(user?.userId || user?.id);
-      const validBranchId =
+      const candidateBranch =
         branchId && branchId !== 'all' ? branchId : branches[0]?.id || undefined;
+      const validBranchId = isUuidString(candidateBranch) ? candidateBranch.trim() : undefined;
 
       const res = await centerApi.connect.connectUser({
         user_id: targetUserId,
-        branch_id: validBranchId,
+        ...(validBranchId ? { branch_id: validBranchId } : {}),
       });
       const created = res?.data;
       if (created) {
@@ -874,11 +967,20 @@ export const CenterProvider = ({ children }) => {
         messageAr: res?.message || `تم ربط حساب «${user.nameAr}» بالسنتر بنجاح!`,
       };
     } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
       return {
         success: false,
-        messageAr: err?.message || 'المستخدم مربوط بالفعل بهذا السنتر أو تعذر الربط.',
+        messageAr: firstErr || err?.message || 'المستخدم مربوط بالفعل بهذا السنتر أو تعذر الربط.',
       };
     }
+  };
+
+  const disconnectUserFromCenter = async (connectionId) => {
+    assertBackendCenter();
+    await centerApi.connect.disconnectUser(connectionId);
+    setConnectedUsers((prev) => prev.filter((c) => c.id !== connectionId));
+    refreshAuditLogs();
+    return true;
   };
 
   // ─── 8. Dashboard, Queue & Executive Report Actions ─────────────────────────
@@ -1155,6 +1257,7 @@ export const CenterProvider = ({ children }) => {
         markStudentDuePaid,
         staff,
         addStaff,
+        updateStaff,
         deleteStaff,
         attendanceRecords,
         attendanceSummary,
@@ -1168,6 +1271,7 @@ export const CenterProvider = ({ children }) => {
         searchGlobalUsers,
         searchGlobalUsersRemote,
         connectUserToCenter,
+        disconnectUserFromCenter,
         dashboardData,
         fetchDashboard,
         completeQueueItemRemote,
