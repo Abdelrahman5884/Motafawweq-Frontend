@@ -13,6 +13,7 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
+import { SBadge, SButton, SCard } from '../../../components/student/ui';
 import { computeRoomCohortsAndEfficiency } from './centerHallsUtils';
 
 export const CenterRoomsCatalogSection = ({
@@ -107,188 +108,95 @@ export const CenterRoomsCatalogSection = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Live Rooms KPIs Strip */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: '14px',
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/* ── Live Rooms KPIs Strip ── */}
+      <div className="ch-kpi-grid">
+        <div className="ch-kpi-card">
+          <div
+            className="ch-kpi-icon"
+            style={{ backgroundColor: 'var(--primary-surface)', color: 'var(--primary)' }}
+          >
+            <Building2 size={21} />
+          </div>
           <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-              {isAr ? 'القاعات الدراسية المتاحة' : 'Active Classrooms'}
+            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {isAr ? 'القاعات المتاحة' : 'Active Classrooms'}
             </div>
-            <div style={{ fontSize: '23px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '4px' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '2px' }}>
               {kpis.availableRooms}{' '}
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-muted)' }}>
                 / {kpis.totalRooms}
               </span>
             </div>
           </div>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(21, 136, 199, 0.12)',
-              color: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Building2 size={21} />
-          </div>
         </div>
 
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
+        <div className="ch-kpi-card">
+          <div
+            className="ch-kpi-icon"
+            style={{ backgroundColor: 'rgba(16, 185, 129, 0.12)', color: 'var(--success, #10B981)' }}
+          >
+            <Users size={21} />
+          </div>
           <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-              {isAr ? 'إجمالي السعة الاستيعابية' : 'Total Seating Capacity'}
+            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {isAr ? 'السعة الاستيعابية' : 'Total Capacity'}
             </div>
-            <div style={{ fontSize: '23px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '4px' }}>
-              {kpis.totalSeats}{' '}
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '2px' }}>
+              {kpis.totalSeats.toLocaleString()}{' '}
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
                 {isAr ? 'مقعد' : 'seats'}
               </span>
             </div>
           </div>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-              color: 'var(--success, #10B981)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Users size={21} />
-          </div>
         </div>
 
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
+        <div className="ch-kpi-card">
+          <div
+            className="ch-kpi-icon"
+            style={{ backgroundColor: 'rgba(139, 92, 246, 0.12)', color: '#8B5CF6' }}
+          >
+            <Layers size={21} />
+          </div>
           <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-              {isAr ? 'المجموعات المسندة للقاعات' : 'Assigned Cohorts'}
+            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {isAr ? 'المجموعات المسندة' : 'Assigned Cohorts'}
             </div>
-            <div style={{ fontSize: '23px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '4px' }}>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '2px' }}>
               {kpis.totalAssignedCohorts}{' '}
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
                 {isAr ? 'مجموعة' : 'cohorts'}
               </span>
             </div>
           </div>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(139, 92, 246, 0.12)',
-              color: '#8B5CF6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Layers size={21} />
-          </div>
         </div>
 
-        <div
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-              {isAr ? 'متوسط إشغال المقاعد الفعلي' : 'Average Seat Utilization'}
-            </div>
-            <div style={{ fontSize: '23px', fontWeight: '900', color: 'var(--primary)', marginTop: '4px' }}>
-              {kpis.avgEfficiency}%
-            </div>
-          </div>
+        <div className="ch-kpi-card">
           <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(245, 158, 11, 0.12)',
-              color: '#D97706',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className="ch-kpi-icon"
+            style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#D97706' }}
           >
             <Activity size={21} />
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+              {isAr ? 'متوسط إشغال المقاعد' : 'Avg. Utilization'}
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--primary)', marginTop: '2px' }}>
+              {kpis.avgEfficiency}%
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
+      {/* ── Filter & Search Toolbar (RTL-Safe) ── */}
       {enrichedRooms.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            backgroundColor: 'var(--bg-surface)',
-            padding: '12px 16px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '380px' }}>
+        <div className="ch-toolbar">
+          <div className="ch-search-wrap">
+            <Search size={15} className="ch-search-icon" />
             <input
               type="text"
+              className="ch-search-input"
               placeholder={
                 isAr
                   ? 'ابحث باسم القاعة أو الطابق أو التجهيزات...'
@@ -296,62 +204,28 @@ export const CenterRoomsCatalogSection = ({
               }
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                height: '38px',
-                padding: '0 14px 0 36px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: '700',
-              }}
-            />
-            <Search
-              size={15}
-              color="var(--text-secondary)"
-              style={{ position: 'absolute', left: '12px', top: '11px' }}
             />
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              backgroundColor: 'var(--bg-app)',
-              padding: '4px',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
+          <div className="ch-seg-group">
             {[
               { id: 'all', labelAr: `الكل (${enrichedRooms.length})`, labelEn: `All (${enrichedRooms.length})` },
               {
                 id: 'available',
-                labelAr: `متاحة للتشغيل (${kpis.availableRooms})`,
-                labelEn: `Available (${kpis.availableRooms})`,
+                labelAr: `متاحة (${kpis.availableRooms})`,
+                labelEn: `Active (${kpis.availableRooms})`,
               },
               {
                 id: 'maintenance',
-                labelAr: `في الصيانة (${kpis.totalRooms - kpis.availableRooms})`,
-                labelEn: `Maintenance (${kpis.totalRooms - kpis.availableRooms})`,
+                labelAr: `صيانة (${kpis.totalRooms - kpis.availableRooms})`,
+                labelEn: `Maint. (${kpis.totalRooms - kpis.availableRooms})`,
               },
             ].map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setAvailabilityFilter(item.id)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  backgroundColor: availabilityFilter === item.id ? 'var(--bg-surface)' : 'transparent',
-                  color: availabilityFilter === item.id ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontSize: '11.5px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                }}
+                className={`ch-seg-btn ${availabilityFilter === item.id ? 'subtle-active' : ''}`}
               >
                 {isAr ? item.labelAr : item.labelEn}
               </button>
@@ -360,453 +234,333 @@ export const CenterRoomsCatalogSection = ({
         </div>
       )}
 
-      {/* Rooms Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))',
-          gap: '20px',
-        }}
-      >
-        {enrichedRooms.length === 0 ? (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              textAlign: 'center',
-              padding: '60px 24px',
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px dashed var(--border-subtle)',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
+      {/* ── Rooms Grid ── */}
+      {enrichedRooms.length === 0 ? (
+        <SCard padding="lg">
+          <div style={{ textAlign: 'center', padding: '32px 16px' }}>
             <div
               style={{
                 width: '54px',
                 height: '54px',
                 borderRadius: '14px',
-                backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                backgroundColor: 'var(--primary-surface)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--primary)',
-                margin: '0 auto 16px',
+                margin: '0 auto 14px',
               }}
             >
-              <Building2 size={28} />
+              <Building2 size={26} />
             </div>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>
-              {isAr ? 'لم يتم إضافة قاعات دراسية في هذا الفرع بعد' : 'No classrooms added to this branch yet'}
+            <h3 style={{ fontSize: '16.5px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+              {isAr ? 'لم يتم إضافة قاعات دراسية في هذا الفرع بعد' : 'No classrooms added yet'}
             </h3>
             <p
               style={{
                 fontSize: '13px',
                 color: 'var(--text-secondary)',
                 maxWidth: '420px',
-                margin: '0 auto 20px',
+                margin: '0 auto 18px',
                 lineHeight: 1.6,
               }}
             >
               {isAr
-                ? 'يمكنك إضافة قاعة دراسية جديدة وتحديد سعتها المجهزة بالشاشات والتكييف ونظام الصوتيات الآن.'
-                : 'You can add a classroom, define its seating capacity and multimedia equipment now.'}
+                ? 'أضف أول قاعة دراسية وحدد سعتها الاستيعابية وتجهيزاتها لبدء جدولة المجموعات بدون تعارض.'
+                : 'Add your first classroom, seating capacity, and equipment to start scheduling cohorts.'}
             </p>
-            <button
-              type="button"
-              onClick={onOpenAddRoom}
-              style={{
-                padding: '10px 22px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <Plus size={16} />
-              <span>{isAr ? 'إضافة قاعة جديدة الآن' : 'Add Classroom Now'}</span>
-            </button>
+            <SButton variant="primary" size="md" icon={<Plus size={15} />} onClick={onOpenAddRoom}>
+              {isAr ? 'إضافة قاعة جديدة' : 'Add Classroom'}
+            </SButton>
           </div>
-        ) : filteredRooms.length === 0 ? (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              textAlign: 'center',
-              padding: '44px 24px',
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-secondary)',
-              fontSize: '13px',
-            }}
-          >
-            {isAr ? 'لا توجد قاعات تطابق معايير البحث الحالية.' : 'No rooms match the current search filter.'}
+        </SCard>
+      ) : filteredRooms.length === 0 ? (
+        <SCard padding="lg">
+          <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-secondary)', fontSize: '13.5px', fontWeight: '700' }}>
+            {isAr ? 'لا توجد قاعات تطابق معايير البحث الحالية.' : 'No classrooms match the current filter.'}
           </div>
-        ) : (
-          filteredRooms.map((room) => {
-            const { assignedCohorts, efficiencyPct } = room;
-            const isAvailable = room.isAvailable !== false;
+        </SCard>
+      ) : (
+        <div className="ch-rooms-grid">
+          {filteredRooms.map((room) => {
             const isToggling = togglingRoomId === room.id;
+            const fillColor =
+              room.efficiencyPct >= 90
+                ? 'var(--danger, #EF4444)'
+                : room.efficiencyPct >= 70
+                  ? '#F59E0B'
+                  : 'var(--primary)';
 
             return (
               <div
                 key={room.id}
-                className="center-interactive-card"
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  borderRadius: 'var(--radius-xl)',
-                  border: isAvailable
-                    ? '1px solid var(--border-subtle)'
-                    : '1.5px solid rgba(245, 158, 11, 0.4)',
-                  padding: '22px',
-                  boxShadow: 'var(--shadow-sm)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '16px',
-                }}
+                className={`ch-room-card ${!room.isAvailable ? 'is-maintenance' : ''}`}
               >
                 <div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    <div>
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '700' }}>
-                        {room.branchNameAr || (isAr ? 'الفرع الرئيسي' : 'Main Branch')} • {room.floor || (isAr ? 'الطابق الأول' : '1st Floor')}
-                      </span>
-                      <h3 style={{ fontSize: '16.5px', fontWeight: '900', color: 'var(--text-primary)', margin: '3px 0 0 0' }}>
+                  {/* Room Header */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                        <SBadge
+                          tone={room.isAvailable ? 'success' : 'warning'}
+                          size="sm"
+                          icon={room.isAvailable ? <Check size={11} /> : <Wrench size={11} />}
+                        >
+                          {room.isAvailable
+                            ? isAr
+                              ? 'متاحة للتشغيل'
+                              : 'Available'
+                            : isAr
+                              ? 'في الصيانة'
+                              : 'Maintenance'}
+                        </SBadge>
+
+                        {room.branchNameAr && (
+                          <SBadge tone="neutral" size="sm">
+                            {room.branchNameAr}
+                          </SBadge>
+                        )}
+                      </div>
+
+                      <h3 style={{ fontSize: '16.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
                         {isAr ? room.nameAr : room.nameEn || room.nameAr}
                       </h3>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px', fontWeight: '600' }}>
+                        {room.floor || (isAr ? 'الطابق الأول' : 'Floor 1')} •{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>
+                          {room.capacity} {isAr ? 'مقعد' : 'seats'}
+                        </strong>
+                      </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          fontSize: '11.5px',
-                          fontWeight: '800',
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                          color: 'var(--primary)',
-                        }}
-                      >
-                        {room.capacity} {isAr ? 'مقعد' : 'seats'}
-                      </span>
-
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                       <button
                         type="button"
+                        className="ch-icon-btn"
                         disabled={isToggling}
                         onClick={() => handleToggleAvailability(room)}
                         title={
-                          isAr
-                            ? 'اضغط لتبديل حالة القاعة (متاحة للتشغيل / في الصيانة)'
-                            : 'Toggle room availability'
-                        }
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          padding: '4px 9px',
-                          borderRadius: 'var(--radius-full)',
-                          border: isAvailable
-                            ? '1px solid rgba(16, 185, 129, 0.35)'
-                            : '1px solid rgba(245, 158, 11, 0.4)',
-                          backgroundColor: isAvailable
-                            ? 'rgba(16, 185, 129, 0.12)'
-                            : 'rgba(245, 158, 11, 0.14)',
-                          color: isAvailable ? 'var(--success, #10B981)' : '#D97706',
-                          cursor: isToggling ? 'wait' : 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        {isAvailable ? <Check size={11} /> : <Wrench size={11} />}
-                        <span>
-                          {isAvailable
+                          room.isAvailable
                             ? isAr
-                              ? 'متاحة'
-                              : 'Active'
+                              ? 'تحويل القاعة لوضع الصيانة'
+                              : 'Set to maintenance'
                             : isAr
-                              ? 'صيانة'
-                              : 'Maintenance'}
-                        </span>
+                              ? 'إعادة تفعيل القاعة'
+                              : 'Activate room'
+                        }
+                      >
+                        {room.isAvailable ? <Wrench size={14} /> : <Check size={14} />}
                       </button>
 
                       <button
                         type="button"
-                        onClick={(e) => onOpenEditRoom(room, e)}
-                        title={isAr ? 'تعديل بيانات القاعة' : 'Edit Room'}
-                        aria-label={isAr ? 'تعديل القاعة' : 'Edit Room'}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '31px',
-                          height: '31px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border-subtle)',
-                          backgroundColor: 'var(--bg-subtle)',
-                          color: 'var(--text-primary)',
-                          cursor: 'pointer',
-                        }}
+                        className="ch-icon-btn"
+                        onClick={(e) => onOpenEditRoom?.(room, e)}
+                        title={isAr ? 'تعديل بيانات القاعة' : 'Edit room'}
                       >
                         <Pencil size={14} />
                       </button>
 
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteRoom(room);
-                        }}
-                        title={isAr ? 'حذف القاعة' : 'Delete Room'}
-                        aria-label={isAr ? 'حذف القاعة' : 'Delete Room'}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '31px',
-                          height: '31px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border-subtle)',
-                          backgroundColor: 'var(--bg-subtle)',
-                          color: 'var(--danger, #EF4444)',
-                          cursor: 'pointer',
-                        }}
+                        className="ch-icon-btn danger"
+                        onClick={() => onDeleteRoom?.(room)}
+                        title={isAr ? 'حذف القاعة' : 'Delete room'}
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
 
-                  {/* Room Equipment Pills */}
-                  {room.equipped.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
-                      {room.equipped.map((eq, i) => (
-                        <span
-                          key={`${eq}-${i}`}
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            padding: '3px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            backgroundColor: 'var(--bg-subtle)',
-                            color: 'var(--text-secondary)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <Check size={11} color="var(--success)" />
-                          <span>{eq}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Cohorts using this room */}
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: '8px',
-                      }}
-                    >
-                      <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                        {isAr ? 'المجموعات المرتبطة بالقاعة:' : 'Assigned Cohorts:'} ({assignedCohorts.length})
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => onScheduleCohortInRoom?.(room)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--primary)',
-                          fontSize: '11.5px',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          padding: 0,
-                        }}
-                      >
-                        <Plus size={12} />
-                        <span>{isAr ? 'تسكين مجموعة' : 'Assign Cohort'}</span>
-                      </button>
-                    </div>
-
-                    {assignedCohorts.length === 0 ? (
-                      <div
-                        style={{
-                          padding: '12px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--bg-app)',
-                          border: '1px dashed var(--border-subtle)',
-                          fontSize: '12px',
-                          color: 'var(--text-secondary)',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {isAr
-                          ? 'لا توجد مجموعات مجدولة حالياً في هذه القاعة'
-                          : 'No cohorts assigned to this classroom yet'}
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {assignedCohorts.map((c) => {
-                          const enrolled = Number(c.enrolledCount ?? 0);
-                          const cap = Math.max(1, Number(room.capacity) || 40);
-                          const fillRatio =
-                            typeof c.fillRatio === 'number'
-                              ? c.fillRatio
-                              : Math.min(100, Math.round((enrolled / cap) * 100));
-
-                          return (
-                            <div
-                              key={c.id}
-                              onClick={() => onOpenGroupDetail?.(c.id)}
-                              title={isAr ? 'اضغط لفتح سجل طلاب المجموعة' : 'Open cohort roster'}
-                              style={{
-                                padding: '9px 11px',
-                                borderRadius: 'var(--radius-md)',
-                                backgroundColor: 'var(--bg-app)',
-                                border: '1px solid var(--border-subtle)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '8px',
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                  <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
-                                    {c.nameAr}
-                                  </span>
-                                  <ExternalLink size={11} color="var(--primary)" />
-                                </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                  {c.teacherNameAr || (isAr ? 'معلم معتمد' : 'Assigned Teacher')}
-                                  {c.scheduleAr ? ` • ${c.scheduleAr}` : ''}
-                                </div>
-                              </div>
-
-                              <span
-                                style={{
-                                  fontWeight: '800',
-                                  flexShrink: 0,
-                                  color:
-                                    fillRatio >= 90
-                                      ? 'var(--danger)'
-                                      : fillRatio >= 70
-                                        ? 'var(--warning)'
-                                        : 'var(--success)',
-                                }}
-                              >
-                                {enrolled} / {cap} ({fillRatio}%)
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Live Capacity Progress Bar & Schedule Jump */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        fontSize: '11.5px',
-                        fontWeight: '800',
-                        marginBottom: '5px',
-                      }}
-                    >
+                  {/* Utilization Bar */}
+                  <div
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '11px',
+                      backgroundColor: 'var(--bg-app)',
+                      border: '1px solid var(--border-subtle)',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px', fontWeight: '800', marginBottom: '6px' }}>
                       <span style={{ color: 'var(--text-secondary)' }}>
-                        {isAr ? 'مؤشر الكفاءة وإشغال القاعة الفعلي' : 'Live Seat Utilization'}
+                        {isAr ? 'كفاءة إشغال المقاعد' : 'Seat Utilization'}
                       </span>
-                      <span
-                        style={{
-                          color:
-                            efficiencyPct >= 85
-                              ? 'var(--success, #10B981)'
-                              : efficiencyPct > 0
-                                ? 'var(--primary)'
-                                : 'var(--text-secondary)',
-                        }}
-                      >
-                        {efficiencyPct}%
-                      </span>
+                      <span style={{ color: fillColor }}>{room.efficiencyPct}%</span>
                     </div>
                     <div
                       style={{
                         height: '6px',
-                        borderRadius: '4px',
+                        width: '100%',
+                        borderRadius: '999px',
                         backgroundColor: 'var(--bg-subtle)',
                         overflow: 'hidden',
                       }}
                     >
                       <div
                         style={{
-                          width: `${Math.min(100, Math.max(0, efficiencyPct))}%`,
                           height: '100%',
-                          backgroundColor:
-                            efficiencyPct >= 85
-                              ? 'var(--success, #10B981)'
-                              : 'var(--primary)',
+                          width: `${Math.min(100, Math.max(0, room.efficiencyPct))}%`,
+                          backgroundColor: fillColor,
+                          borderRadius: '999px',
                           transition: 'width 0.3s ease',
                         }}
                       />
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onOpenRoomSchedule?.(room)}
+                  {/* Equipment Chips */}
+                  {room.equipped.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '12px' }}>
+                      {room.equipped.slice(0, 4).map((eq, idx) => (
+                        <span
+                          key={`${eq}-${idx}`}
+                          style={{
+                            fontSize: '10.5px',
+                            fontWeight: '700',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: 'var(--bg-subtle)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          {eq}
+                        </span>
+                      ))}
+                      {room.equipped.length > 4 && (
+                        <span
+                          style={{
+                            fontSize: '10.5px',
+                            fontWeight: '800',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            backgroundColor: 'var(--primary-surface)',
+                            color: 'var(--primary)',
+                          }}
+                        >
+                          +{room.equipped.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Assigned Cohorts Preview */}
+                  <div
                     style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
+                      padding: '10px 12px',
+                      borderRadius: '11px',
                       backgroundColor: 'var(--bg-app)',
                       border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
                     }}
                   >
-                    <Calendar size={14} color="var(--primary)" />
-                    <span>{isAr ? 'استعراض جدول مواعيد القاعة' : 'View Hall Schedule'}</span>
-                  </button>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: room.assignedCohorts.length > 0 ? '8px' : 0 }}>
+                      <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--text-secondary)' }}>
+                        {isAr ? 'المجموعات المسندة:' : 'Assigned Cohorts:'}
+                      </span>
+                      <span style={{ fontSize: '11.5px', fontWeight: '900', color: 'var(--primary)' }}>
+                        {room.assignedCohorts.length} {isAr ? 'مجموعة' : 'cohorts'}
+                      </span>
+                    </div>
+
+                    {room.assignedCohorts.length === 0 ? (
+                      <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        {isAr ? 'القاعة جاهزة ولم تُسند لها مجموعات بعد.' : 'No cohorts assigned yet.'}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {room.assignedCohorts.slice(0, 3).map((cohort) => (
+                          <button
+                            key={cohort.id}
+                            type="button"
+                            onClick={() => onOpenGroupDetail?.(cohort.id)}
+                            style={{
+                              width: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              padding: '6px 9px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                              textAlign: 'inherit',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: '12px',
+                                  fontWeight: '800',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {cohort.nameAr}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>
+                                {cohort.teacherNameAr} • {cohort.enrolledCount}/{cohort.capacity}{' '}
+                                {isAr ? 'طالب' : 'st.'}
+                              </div>
+                            </div>
+                            <ExternalLink size={12} color="var(--primary)" style={{ flexShrink: 0 }} />
+                          </button>
+                        ))}
+                        {room.assignedCohorts.length > 3 && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenRoomSchedule?.(room)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--primary)',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              padding: '2px 0',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {isAr
+                              ? `+${room.assignedCohorts.length - 3} مجموعات أخرى في جدول القاعة`
+                              : `+${room.assignedCohorts.length - 3} more in room schedule`}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <SButton
+                    variant="secondary"
+                    size="sm"
+                    icon={<Calendar size={14} />}
+                    onClick={() => onOpenRoomSchedule?.(room)}
+                  >
+                    {isAr ? 'جدول القاعة' : 'Schedule'}
+                  </SButton>
+
+                  <SButton
+                    variant="primary"
+                    size="sm"
+                    disabled={!room.isAvailable}
+                    icon={<Plus size={14} />}
+                    onClick={() => onScheduleCohortInRoom?.(room)}
+                  >
+                    {isAr ? 'تسكين مجموعة' : 'Book Cohort'}
+                  </SButton>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 };

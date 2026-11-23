@@ -24,7 +24,13 @@ export const CenterCohortFormModal = ({
   const isAr = lang === 'ar';
   const isEditMode = Boolean(editingCohort?.id);
   const firstRoom = rooms[0] || null;
-  const firstTeacher = centerTeachers[0] || null;
+  const assignableTeachers = centerTeachers.filter(
+    (t) =>
+      !t.status ||
+      t.status === 'active' ||
+      (isEditMode && editingCohort?.teacherId && String(t.id) === String(editingCohort.teacherId))
+  );
+  const firstTeacher = assignableTeachers[0] || null;
 
   const matchedInitRoom = editingCohort
     ? rooms.find(
@@ -36,7 +42,7 @@ export const CenterCohortFormModal = ({
     : firstRoom;
 
   const matchedInitTeacher = isEditMode
-    ? centerTeachers.find(
+    ? assignableTeachers.find(
         (t) =>
           (editingCohort.teacherId && t.id === editingCohort.teacherId) ||
           t.nameAr === editingCohort.teacherNameAr
@@ -130,7 +136,7 @@ export const CenterCohortFormModal = ({
   const matchedDefaultRoom = rooms.find((r) => r.id === defaultRoomId) || null;
   const matchedTeacher =
     teacherMode === 'select'
-      ? centerTeachers.find((t) => t.id === selectedTeacherId) || null
+      ? assignableTeachers.find((t) => t.id === selectedTeacherId) || null
       : null;
 
   const effectiveTeacherName =
@@ -416,7 +422,7 @@ export const CenterCohortFormModal = ({
                 <label style={{ fontSize: '12px', fontWeight: '800' }}>
                   {isAr ? 'المعلم المسؤول *' : 'Assigned Teacher *'}
                 </label>
-                {centerTeachers.length > 0 ? (
+                {assignableTeachers.length > 0 ? (
                   <button
                     type="button"
                     onClick={() =>
@@ -451,13 +457,13 @@ export const CenterCohortFormModal = ({
                 )}
               </div>
 
-              {centerTeachers.length > 0 && teacherMode === 'select' ? (
+              {assignableTeachers.length > 0 && teacherMode === 'select' ? (
                 <select
                   value={selectedTeacherId}
                   onChange={(e) => {
                     const id = e.target.value;
                     setSelectedTeacherId(id);
-                    const tch = centerTeachers.find((t) => t.id === id);
+                    const tch = assignableTeachers.find((t) => t.id === id);
                     if (tch) {
                       setCustomTeacherName(tch.nameAr || '');
                       if (tch.subjectAr && !subject.trim()) {
@@ -477,11 +483,28 @@ export const CenterCohortFormModal = ({
                     cursor: 'pointer',
                   }}
                 >
-                  {centerTeachers.map((tch) => (
-                    <option key={tch.id} value={tch.id}>
-                      {tch.nameAr} {tch.subjectAr ? `(${tch.subjectAr})` : ''}
-                    </option>
-                  ))}
+                  {centerTeachers.map((tch) => {
+                    const isPending = tch.status === 'invited';
+                    const isDeclined = tch.status === 'declined';
+                    const isDisabled =
+                      (isPending || isDeclined) &&
+                      !(isEditMode && String(tch.id) === String(editingCohort?.teacherId));
+                    const suffix = isPending
+                      ? isAr
+                        ? ' — بانتظار موافقة المعلم'
+                        : ' — Pending approval'
+                      : isDeclined
+                        ? isAr
+                          ? ' — تم رفض الدعوة'
+                          : ' — Declined'
+                        : '';
+                    return (
+                      <option key={tch.id} value={tch.id} disabled={isDisabled}>
+                        {tch.nameAr} {tch.subjectAr ? `(${tch.subjectAr})` : ''}
+                        {suffix}
+                      </option>
+                    );
+                  })}
                 </select>
               ) : (
                 <input

@@ -1,0 +1,486 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   Center Halls & Weekly Schedule — Unified Motafawweq Design System
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.ch-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 14px;
+}
+
+.ch-kpi-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.ch-kpi-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.ch-kpi-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-medium);
+}
+
+.ch-kpi-card.is-highlight {
+  background: linear-gradient(135deg, rgba(21, 136, 199, 0.08), rgba(21, 136, 199, 0.02));
+  border-color: rgba(21, 136, 199, 0.28);
+}
+
+.ch-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Underline Tabs (matching Center Operations & Settings) ── */
+.ch-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.ch-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ch-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border: none;
+  background-color: transparent;
+  border-bottom: 2.5px solid transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.ch-tab-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-subtle);
+}
+
+.ch-tab-btn.active {
+  background-color: var(--bg-surface);
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.ch-tab-count {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.ch-tab-btn.active .ch-tab-count {
+  background-color: var(--primary-surface);
+  color: var(--primary);
+}
+
+/* ── RTL-Safe Inputs & Controls ── */
+.ch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-xs);
+}
+
+.ch-search-wrap {
+  position: relative;
+  flex: 1 1 230px;
+  min-width: 200px;
+  max-width: 360px;
+}
+
+.ch-search-input {
+  width: 100%;
+  height: 38px;
+  padding-inline-start: 36px;
+  padding-inline-end: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.ch-search-input:focus {
+  border-color: var(--primary);
+  background-color: var(--bg-surface);
+  box-shadow: 0 0 0 3px rgba(21, 136, 199, 0.14);
+}
+
+.ch-search-icon {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.ch-select {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ch-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(21, 136, 199, 0.14);
+}
+
+.ch-seg-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-app);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.ch-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: none;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.ch-seg-btn:hover {
+  color: var(--text-primary);
+}
+
+.ch-seg-btn.active {
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-xs);
+}
+
+.ch-seg-btn.subtle-active {
+  background-color: var(--bg-surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── Room Cards ── */
+.ch-rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 345px), 1fr));
+  gap: 18px;
+}
+
+.ch-room-card {
+  background-color: var(--bg-surface);
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  padding: 20px;
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.ch-room-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-medium);
+}
+
+.ch-room-card.is-maintenance {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.ch-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-app);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ch-icon-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--primary-surface);
+}
+
+.ch-icon-btn.danger:hover {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: var(--danger, #ef4444);
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+/* ── Teacher-Style Weekly Schedule Grid ── */
+.ch-week-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.ch-day-col {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 410px;
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.ch-day-col.is-today {
+  border: 2px solid var(--primary);
+  box-shadow: 0 10px 26px rgba(21, 136, 199, 0.14);
+}
+
+.ch-day-head {
+  padding: 12px 14px;
+  background-color: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ch-day-head.is-today {
+  background: linear-gradient(135deg, var(--primary), #0d69a0);
+  color: #ffffff;
+  border-bottom: none;
+}
+
+.ch-day-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ch-session-card {
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.ch-session-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--primary);
+  background-color: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ch-day-footer-btn {
+  margin-top: auto;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px dashed var(--border-medium);
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 800;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ch-day-footer-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--primary-surface);
+}
+
+/* ── Focus Day Pills ── */
+.ch-day-pills {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.ch-day-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.ch-day-pill {
+  flex: 1 0 auto;
+  min-width: 82px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ch-day-pill:hover {
+  border-color: var(--primary);
+}
+
+.ch-day-pill.is-today {
+  border-color: rgba(21, 136, 199, 0.5);
+}
+
+.ch-day-pill.active {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(21, 136, 199, 0.24);
+}
+
+/* ── Expanded Focus Session Card ── */
+.ch-focus-card {
+  background-color: var(--bg-surface);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.ch-focus-card.is-today {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.ch-focus-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+/* ── Agenda Row ── */
+.ch-agenda-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ch-agenda-row:hover {
+  border-color: var(--primary);
+  background-color: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── Free Room Slot Pill ── */
+.ch-free-slot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 1px dashed rgba(16, 185, 129, 0.45);
+  background-color: rgba(16, 185, 129, 0.06);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ch-free-slot-btn:hover {
+  border-style: solid;
+  border-color: var(--success, #10b981);
+  background-color: rgba(16, 185, 129, 0.14);
+  transform: translateY(-1px);
+}

@@ -1,21 +1,28 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Building2, Calendar, Plus, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCenter } from '../../context/CenterContext';
 import { useGroups } from '../../context/GroupsContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import { SButton, SPage, SPageHeader, SSkeleton } from '../../components/student/ui';
 import { CenterCohortFormModal } from '../../features/center/groups';
 import {
   CenterDeleteRoomModal,
   CenterMasterScheduleSection,
   CenterRoomFormModal,
   CenterRoomsCatalogSection,
+  doesSlotMatchRoom,
   getTodayWeekdayKey,
 } from '../../features/center/halls';
+import '../../features/center/halls/halls.css';
+
+const VALID_TABS = ['rooms', 'schedule'];
 
 export const CenterHallsView = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { authLoading, isAuthenticated, hasActiveToken, currentUser } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
@@ -27,6 +34,7 @@ export const CenterHallsView = () => {
     setSelectedBranchId,
     rooms = [],
     centerTeachers = [],
+    centerSettings,
     addRoom,
     updateRoom,
     deleteRoom,
@@ -42,7 +50,22 @@ export const CenterHallsView = () => {
     showToast,
   } = useGroups();
 
-  const [activeTab, setActiveTab] = useState('rooms'); // 'rooms' | 'schedule'
+  const rawTab = searchParams.get('tab');
+  const activeTab = VALID_TABS.includes(rawTab) ? rawTab : 'rooms';
+
+  const setActiveTab = useCallback(
+    (nextTab) => {
+      if (nextTab === 'rooms') {
+        const next = new URLSearchParams(searchParams);
+        next.delete('tab');
+        setSearchParams(next, { replace: true });
+      } else {
+        setSearchParams({ tab: nextTab }, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams]
+  );
+
   const [selectedDay, setSelectedDay] = useState(() => getTodayWeekdayKey());
   const [focusedRoomId, setFocusedRoomId] = useState(null);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
@@ -55,6 +78,37 @@ export const CenterHallsView = () => {
     if (!selectedBranchId || selectedBranchId === 'all') return rooms;
     return rooms.filter((r) => String(r.branchId) === String(selectedBranchId));
   }, [rooms, selectedBranchId]);
+
+  const weeklySessionsCount = useMemo(() => {
+    let count = 0;
+    groups.forEach((g) => {
+      const slots = g.scheduleSlots || g.slots || [];
+      slots.forEach((s) => {
+        if (selectedBranchId && selectedBranchId !== 'all') {
+          const matchesBranchRoom = currentBranchRooms.some((r) => doesSlotMatchRoom(s, g, r));
+          const matchesGroupBranch = String(g.branchId || '') === String(selectedBranchId);
+          if (!matchesBranchRoom && !matchesGroupBranch) return;
+        }
+        count += 1;
+      });
+    });
+    return count;
+  }, [groups, selectedBranchId, currentBranchRooms]);
+
+  const breadcrumbs = useMemo(
+    () =>
+      activeTab === 'schedule'
+        ? [
+            {
+              labelAr: 'الجدول الأسبوعي',
+              labelEn: 'Weekly Schedule',
+              onClick: () => setActiveTab('rooms'),
+            },
+          ]
+        : [],
+    [activeTab, setActiveTab]
+  );
+  useSetBreadcrumbs(breadcrumbs);
 
   const handleOpenAddRoom = useCallback(() => {
     setEditingRoom(null);
@@ -71,15 +125,23 @@ export const CenterHallsView = () => {
     async (roomPayload) => {
       if (editingRoom) {
         await updateRoom(editingRoom.id, roomPayload);
-        showToast?.(`تم حفظ تعديلات القاعة «${roomPayload.nameAr}» بنجاح!`);
+        showToast?.(
+          isAr
+            ? `تم حفظ تعديلات القاعة «${roomPayload.nameAr}» بنجاح!`
+            : `Room "${roomPayload.nameAr}" updated!`
+        );
       } else {
         await addRoom(roomPayload);
-        showToast?.(`تمت إضافة القاعة «${roomPayload.nameAr}» بنجاح!`);
+        showToast?.(
+          isAr
+            ? `تمت إضافة القاعة «${roomPayload.nameAr}» بنجاح!`
+            : `Room "${roomPayload.nameAr}" added!`
+        );
       }
       setEditingRoom(null);
       setIsRoomModalOpen(false);
     },
-    [editingRoom, updateRoom, addRoom, showToast]
+    [editingRoom, updateRoom, addRoom, showToast, isAr]
   );
 
   const handleToggleRoomAvailability = useCallback(
@@ -95,12 +157,16 @@ export const CenterHallsView = () => {
       });
       showToast?.(
         nextIsAvailable
-          ? `تم تفعيل القاعة «${room.nameAr}» وإتاحتها للحجز.`
-          : `تم تحويل القاعة «${room.nameAr}» إلى وضع الصيانة.`,
+          ? isAr
+            ? `تم تفعيل القاعة «${room.nameAr}» وإتاحتها للحجز.`
+            : `Room "${room.nameAr}" is now active.`
+          : isAr
+            ? `تم تحويل القاعة «${room.nameAr}» إلى وضع الصيانة.`
+            : `Room "${room.nameAr}" set to maintenance.`,
         nextIsAvailable ? 'success' : 'warning'
       );
     },
-    [updateRoom, showToast]
+    [updateRoom, showToast, isAr]
   );
 
   const handleConfirmDeleteRoom = useCallback(async () => {
@@ -110,17 +176,23 @@ export const CenterHallsView = () => {
     try {
       await deleteRoom(deletedId);
       if (focusedRoomId === deletedId) setFocusedRoomId(null);
-      showToast?.(`تم حذف القاعة «${deletedName}» بنجاح.`, 'warning');
+      showToast?.(
+        isAr ? `تم حذف القاعة «${deletedName}» بنجاح.` : `Room "${deletedName}" deleted.`,
+        'warning'
+      );
     } finally {
       setDeleteConfirmRoom(null);
     }
-  }, [deleteConfirmRoom, deleteRoom, focusedRoomId, showToast]);
+  }, [deleteConfirmRoom, deleteRoom, focusedRoomId, showToast, isAr]);
 
-  const handleOpenRoomSchedule = useCallback((room) => {
-    if (!room?.id) return;
-    setFocusedRoomId(room.id);
-    setActiveTab('schedule');
-  }, []);
+  const handleOpenRoomSchedule = useCallback(
+    (room) => {
+      if (!room?.id) return;
+      setFocusedRoomId(room.id);
+      setActiveTab('schedule');
+    },
+    [setActiveTab]
+  );
 
   const handleOpenGroupDetail = useCallback(
     (groupId) => {
@@ -131,26 +203,34 @@ export const CenterHallsView = () => {
   );
 
   const handleScheduleCohortInRoom = useCallback(
-    (room, dayKey = null, slot = null) => {
-      if (!room) return;
+    (room = null, dayKey = null, slot = null) => {
+      const targetRoom =
+        room ||
+        currentBranchRooms.find((r) => String(r.id) === String(focusedRoomId)) ||
+        currentBranchRooms.find((r) => r.isAvailable !== false) ||
+        currentBranchRooms[0] ||
+        null;
+
       const targetDay = dayKey || selectedDay || 'saturday';
       setBookingCohortDraft({
-        branchId: room.branchId || (selectedBranchId !== 'all' ? selectedBranchId : branches[0]?.id || ''),
-        roomId: room.id,
-        hallName: room.nameAr,
-        maxStudents: room.capacity || 50,
+        branchId:
+          targetRoom?.branchId ||
+          (selectedBranchId !== 'all' ? selectedBranchId : branches[0]?.id || ''),
+        roomId: targetRoom?.id || '',
+        hallName: targetRoom?.nameAr || (isAr ? 'القاعة الرئيسية' : 'Main Hall'),
+        maxStudents: targetRoom?.capacity || 50,
         scheduleSlots: [
           {
             day: targetDay,
             startTime: slot?.startTime || '16:00',
             endTime: slot?.endTime || '18:00',
-            roomId: room.id,
-            hall: room.nameAr,
+            roomId: targetRoom?.id || undefined,
+            hall: targetRoom?.nameAr || (isAr ? 'القاعة الرئيسية' : 'Main Hall'),
           },
         ],
       });
     },
-    [selectedDay, selectedBranchId, branches]
+    [currentBranchRooms, focusedRoomId, selectedDay, selectedBranchId, branches, isAr]
   );
 
   const handleSaveBookedCohort = useCallback(
@@ -159,20 +239,21 @@ export const CenterHallsView = () => {
       setBookingCohortDraft(null);
       await loadCoreCenterData?.({ force: true });
       if (created?.id) {
-        showToast?.(`تم تسكين المجموعة «${created.nameAr}» في القاعة بنجاح!`);
+        showToast?.(
+          isAr
+            ? `تم تسكين المجموعة «${created.nameAr}» في الجدول بنجاح!`
+            : `Cohort "${created.nameAr}" scheduled successfully!`
+        );
       }
     },
-    [addGroup, loadCoreCenterData, showToast]
+    [addGroup, loadCoreCenterData, showToast, isAr]
   );
 
   const handleRefreshAll = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadCoreCenterData?.({ force: true }),
-        refreshGroups?.(),
-      ]);
+      await Promise.all([loadCoreCenterData?.({ force: true }), refreshGroups?.()]);
     } finally {
       setRefreshing(false);
     }
@@ -180,16 +261,17 @@ export const CenterHallsView = () => {
 
   if (authLoading) {
     return (
-      <div className="center-dashboard-container executive-dashboard" aria-busy="true">
-        <div
-          className="executive-skeleton"
-          style={{ height: '96px', borderRadius: 'var(--radius-xl)' }}
-        />
-        <div
-          className="executive-skeleton"
-          style={{ height: '380px', borderRadius: 'var(--radius-xl)' }}
-        />
-      </div>
+      <SPage maxWidth={1240}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <SSkeleton height={88} radius={16} />
+          <div className="ch-kpi-grid">
+            {[1, 2, 3, 4].map((i) => (
+              <SSkeleton key={i} height={82} radius={16} />
+            ))}
+          </div>
+          <SSkeleton height={360} radius={16} />
+        </div>
+      </SPage>
     );
   }
 
@@ -197,285 +279,194 @@ export const CenterHallsView = () => {
     return <Navigate to="/login" replace />;
   }
 
+  const centerNameAr =
+    centerSettings?.nameAr ||
+    currentUser?.centerNameAr ||
+    currentUser?.center ||
+    (isAr ? 'السنتر التعليمي' : 'Educational Center');
+
   return (
-    <div
-      dir={isRtl ? 'rtl' : 'ltr'}
-      style={{
-        maxWidth: '1240px',
-        margin: '0 auto',
-        padding: '24px 20px 80px',
-        fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)',
-      }}
-    >
-      {/* Top Header */}
+    <SPage maxWidth={1240}>
       <div
+        dir={isRtl ? 'rtl' : 'ltr'}
         style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '22px',
-          backgroundColor: 'var(--bg-surface)',
-          padding: '18px 24px',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-sm)',
+          flexDirection: 'column',
+          gap: '20px',
+          paddingBottom: '48px',
+          fontFamily: isRtl
+            ? 'var(--font-arabic), "Cairo", system-ui, sans-serif'
+            : 'var(--font-heading), "Outfit", sans-serif',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(21, 136, 199, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--primary)',
-            }}
-          >
-            <Building2 size={24} />
-          </div>
-          <div>
+        {/* ── 1. Unified Page Header ── */}
+        <SPageHeader
+          title={isAr ? 'القاعات والجدول الأسبوعي' : 'Halls & Weekly Schedule'}
+          subtitle={
+            isAr
+              ? `إدارة قاعات «${centerNameAr}» وسعاتها الاستيعابية والجدول الأسبوعي الشامل بدون تعارض.`
+              : `Manage classrooms, seating capacities, and the conflict-free weekly schedule.`
+          }
+          action={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  color: 'var(--primary)',
-                  letterSpacing: '0.6px',
-                  textTransform: 'uppercase',
-                }}
+              <SButton
+                variant="ghost"
+                size="sm"
+                icon={<RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />}
+                onClick={handleRefreshAll}
+                disabled={refreshing}
               >
-                {isAr ? 'إدارة المساحات والجدول الموحد' : 'Room & Capacity Logistics'}
-              </span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  padding: '2px 8px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                  color: 'var(--success, #10B981)',
-                  fontWeight: '800',
-                }}
+                {isAr ? 'تحديث' : 'Refresh'}
+              </SButton>
+
+              {branches.length > 0 && (
+                <select
+                  aria-label={isAr ? 'تصفية حسب الفرع' : 'Filter by branch'}
+                  className="ch-select"
+                  value={selectedBranchId}
+                  onChange={(e) => {
+                    setSelectedBranchId(e.target.value);
+                    setFocusedRoomId(null);
+                  }}
+                >
+                  <option value="all">
+                    {isAr ? 'جميع الفروع' : 'All Branches'}
+                  </option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {isAr ? b.nameAr : b.nameEn || b.nameAr}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <SButton
+                variant="primary"
+                size="sm"
+                icon={<Plus size={15} />}
+                onClick={
+                  activeTab === 'schedule'
+                    ? () => handleScheduleCohortInRoom()
+                    : handleOpenAddRoom
+                }
               >
-                {currentBranchRooms.length} {isAr ? 'قاعات مسجلة' : 'Rooms Configured'}
-              </span>
+                {activeTab === 'schedule'
+                  ? isAr
+                    ? 'حجز حصة جديدة'
+                    : 'Schedule Session'
+                  : isAr
+                    ? 'إضافة قاعة'
+                    : 'Add Room'}
+              </SButton>
             </div>
-            <h1 style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
-              {isAr
-                ? 'إدارة القاعات وجداول التشغيل ومنع التعارض'
-                : 'Rooms, Cohorts & Master Schedule'}
-            </h1>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        {/* ── 2. Underline Navigation Tabs ── */}
+        <div className="ch-tabs" role="tablist">
           <button
             type="button"
-            onClick={handleRefreshAll}
-            disabled={refreshing}
-            title={isAr ? 'تحديث بيانات القاعات والجدول' : 'Refresh rooms & schedule'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 14px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              cursor: refreshing ? 'wait' : 'pointer',
-            }}
+            role="tab"
+            aria-selected={activeTab === 'rooms'}
+            className={`ch-tab-btn ${activeTab === 'rooms' ? 'active' : ''}`}
+            onClick={() => setActiveTab('rooms')}
           >
-            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-            <span>{isAr ? 'تحديث' : 'Refresh'}</span>
+            <Building2 size={16} />
+            <span>{isAr ? 'القاعات والسعات' : 'Classrooms & Capacities'}</span>
+            <span className="ch-tab-count">{currentBranchRooms.length}</span>
           </button>
-
-          <select
-            value={selectedBranchId}
-            onChange={(e) => {
-              setSelectedBranchId(e.target.value);
-              setFocusedRoomId(null);
-            }}
-            style={{
-              padding: '9px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          >
-            <option value="all">
-              {isAr ? 'جميع الفروع (كافة القاعات)' : 'All Branches (All Rooms)'}
-            </option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {isAr ? b.nameAr : b.nameEn || b.nameAr}
-              </option>
-            ))}
-          </select>
 
           <button
             type="button"
-            onClick={handleOpenAddRoom}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 16px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-xs)',
-            }}
+            role="tab"
+            aria-selected={activeTab === 'schedule'}
+            className={`ch-tab-btn ${activeTab === 'schedule' ? 'active' : ''}`}
+            onClick={() => setActiveTab('schedule')}
           >
-            <Plus size={16} />
-            <span>{isAr ? '+ إضافة قاعة جديدة' : '+ Add New Room'}</span>
+            <Calendar size={16} />
+            <span>{isAr ? 'الجدول الأسبوعي' : 'Weekly Schedule'}</span>
+            <span className="ch-tab-count">{weeklySessionsCount}</span>
           </button>
         </div>
+
+        {/* ── 3. Active Tab Content ── */}
+        {activeTab === 'rooms' ? (
+          <CenterRoomsCatalogSection
+            rooms={currentBranchRooms}
+            groups={groups}
+            enrolledStudents={enrolledStudents}
+            onOpenAddRoom={handleOpenAddRoom}
+            onOpenEditRoom={handleOpenEditRoom}
+            onDeleteRoom={setDeleteConfirmRoom}
+            onToggleRoomAvailability={handleToggleRoomAvailability}
+            onOpenRoomSchedule={handleOpenRoomSchedule}
+            onOpenGroupDetail={handleOpenGroupDetail}
+            onScheduleCohortInRoom={(room) => handleScheduleCohortInRoom(room)}
+            lang={lang}
+          />
+        ) : (
+          <CenterMasterScheduleSection
+            rooms={currentBranchRooms}
+            groups={groups}
+            enrolledStudents={enrolledStudents}
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            selectedBranchId={selectedBranchId}
+            focusedRoomId={focusedRoomId}
+            onSelectFocusedRoom={setFocusedRoomId}
+            onClearFocusedRoom={() => setFocusedRoomId(null)}
+            onOpenGroupDetail={handleOpenGroupDetail}
+            onBookSlot={handleScheduleCohortInRoom}
+            isBackendCenter={isBackendCenter}
+            lang={lang}
+            isRtl={isRtl}
+          />
+        )}
+
+        {/* Create / Edit Room Modal */}
+        {isRoomModalOpen && (
+          <CenterRoomFormModal
+            key={editingRoom?.id || 'create-room'}
+            isOpen={isRoomModalOpen}
+            editingRoom={editingRoom}
+            branches={branches}
+            selectedBranchId={selectedBranchId}
+            onClose={() => {
+              setIsRoomModalOpen(false);
+              setEditingRoom(null);
+            }}
+            onSave={handleSaveRoom}
+            lang={lang}
+          />
+        )}
+
+        {/* Delete Room Confirmation Modal */}
+        {deleteConfirmRoom && (
+          <CenterDeleteRoomModal
+            room={deleteConfirmRoom}
+            groups={groups}
+            onConfirm={handleConfirmDeleteRoom}
+            onCancel={() => setDeleteConfirmRoom(null)}
+            lang={lang}
+          />
+        )}
+
+        {/* Quick Schedule New Cohort in Free Room Slot Modal */}
+        {bookingCohortDraft && (
+          <CenterCohortFormModal
+            key={`book-room-${bookingCohortDraft.roomId || 'any'}-${bookingCohortDraft.scheduleSlots?.[0]?.day}-${bookingCohortDraft.scheduleSlots?.[0]?.startTime}`}
+            isOpen={Boolean(bookingCohortDraft)}
+            editingCohort={bookingCohortDraft}
+            onClose={() => setBookingCohortDraft(null)}
+            onSave={handleSaveBookedCohort}
+            branches={branches}
+            rooms={rooms}
+            centerTeachers={centerTeachers}
+            checkScheduleConflict={checkScheduleConflict}
+            lang={lang}
+          />
+        )}
       </div>
-
-      {/* Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--border-subtle)',
-          marginBottom: '22px',
-          gap: '24px',
-        }}
-      >
-        {[
-          {
-            id: 'rooms',
-            labelAr: 'قاعات السنتر وسعاتها الاستيعابية',
-            labelEn: 'Rooms & Capacities',
-            icon: Building2,
-          },
-          {
-            id: 'schedule',
-            labelAr: 'الجدول الموحد واكتشاف التعارضات',
-            labelEn: 'Conflict-Free Master Schedule',
-            icon: Calendar,
-          },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 4px',
-                border: 'none',
-                background: 'none',
-                fontSize: '14px',
-                fontWeight: '800',
-                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Icon size={16} />
-              <span>{isAr ? tab.labelAr : tab.labelEn}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active Tab Content */}
-      {activeTab === 'rooms' ? (
-        <CenterRoomsCatalogSection
-          rooms={currentBranchRooms}
-          groups={groups}
-          enrolledStudents={enrolledStudents}
-          onOpenAddRoom={handleOpenAddRoom}
-          onOpenEditRoom={handleOpenEditRoom}
-          onDeleteRoom={setDeleteConfirmRoom}
-          onToggleRoomAvailability={handleToggleRoomAvailability}
-          onOpenRoomSchedule={handleOpenRoomSchedule}
-          onOpenGroupDetail={handleOpenGroupDetail}
-          onScheduleCohortInRoom={(room) => handleScheduleCohortInRoom(room)}
-          lang={lang}
-        />
-      ) : (
-        <CenterMasterScheduleSection
-          rooms={currentBranchRooms}
-          groups={groups}
-          enrolledStudents={enrolledStudents}
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
-          selectedBranchId={selectedBranchId}
-          focusedRoomId={focusedRoomId}
-          onClearFocusedRoom={() => setFocusedRoomId(null)}
-          onOpenGroupDetail={handleOpenGroupDetail}
-          onBookSlot={handleScheduleCohortInRoom}
-          isBackendCenter={isBackendCenter}
-          lang={lang}
-        />
-      )}
-
-      {/* Create / Edit Room Modal */}
-      {isRoomModalOpen && (
-        <CenterRoomFormModal
-          key={editingRoom?.id || 'create-room'}
-          isOpen={isRoomModalOpen}
-          editingRoom={editingRoom}
-          branches={branches}
-          selectedBranchId={selectedBranchId}
-          onClose={() => {
-            setIsRoomModalOpen(false);
-            setEditingRoom(null);
-          }}
-          onSave={handleSaveRoom}
-          lang={lang}
-        />
-      )}
-
-      {/* Delete Room Confirmation Modal */}
-      {deleteConfirmRoom && (
-        <CenterDeleteRoomModal
-          room={deleteConfirmRoom}
-          groups={groups}
-          onConfirm={handleConfirmDeleteRoom}
-          onCancel={() => setDeleteConfirmRoom(null)}
-          lang={lang}
-        />
-      )}
-
-      {/* Quick Schedule New Cohort in Free Room Slot Modal */}
-      {bookingCohortDraft && (
-        <CenterCohortFormModal
-          key={`book-room-${bookingCohortDraft.roomId}-${bookingCohortDraft.scheduleSlots?.[0]?.day}-${bookingCohortDraft.scheduleSlots?.[0]?.startTime}`}
-          isOpen={Boolean(bookingCohortDraft)}
-          editingCohort={bookingCohortDraft}
-          onClose={() => setBookingCohortDraft(null)}
-          onSave={handleSaveBookedCohort}
-          branches={branches}
-          rooms={rooms}
-          centerTeachers={centerTeachers}
-          checkScheduleConflict={checkScheduleConflict}
-          lang={lang}
-        />
-      )}
-    </div>
+    </SPage>
   );
 };
