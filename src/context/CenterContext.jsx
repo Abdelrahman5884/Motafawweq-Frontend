@@ -1057,6 +1057,22 @@ export const CenterProvider = ({ children }) => {
     const res = await centerApi.settings.update(payload);
     if (res?.data) {
       setCenterSettings(res.data);
+      const updatedNameAr = res.data.centerNameAr || res.data.nameAr;
+      const updatedNameEn = res.data.centerNameEn || res.data.nameEn;
+      if (updatedNameAr) {
+        setDashboardData((prev) =>
+          prev
+            ? {
+                ...prev,
+                centerNameAr: updatedNameAr,
+                centerNameEn: updatedNameEn || updatedNameAr,
+              }
+            : prev
+        );
+      }
+      if (typeof refreshUser === 'function') {
+        refreshUser().catch(() => null);
+      }
       refreshAuditLogs();
     }
     return res?.data;
@@ -1142,6 +1158,15 @@ export const CenterProvider = ({ children }) => {
     const res = await centerApi.settings.createBackup();
     if (res?.data) {
       setBackups((prev) => [res.data, ...prev]);
+      setCenterSettings((prev) =>
+        prev
+          ? {
+              ...prev,
+              lastBackupAt: res.data.completedAt || prev.lastBackupAt,
+              lastBackupChecksum: res.data.checksumSha256 || prev.lastBackupChecksum,
+            }
+          : prev
+      );
       refreshAuditLogs();
     }
     return res?.data;

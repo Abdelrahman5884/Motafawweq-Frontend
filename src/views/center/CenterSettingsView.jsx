@@ -1,1806 +1,423 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Bell,
+  ClipboardList,
+  Cloud,
+  FileSpreadsheet,
+  Lock,
+  Settings,
+  ShieldAlert,
+  Target,
+} from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
-import { centerApi } from '../../services/centerApi';
-import { 
-  Building2, 
-  Settings, 
-  CheckSquare, 
-  Bell, 
-  FileText, 
-  Upload, 
-  Database, 
-  Sliders, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
-  Plus, 
-  Download, 
-  Trash2, 
-  Save, 
-  ShieldCheck, 
-  CreditCard,
-  Send,
-  RefreshCw,
-  FolderOpen,
-  Sparkles,
-  Crown,
-  Check,
-  Zap,
-  Users,
-  Edit3,
-  X
-} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import {
+  CenterAnnouncementsTab,
+  CenterCloudBackupTab,
+  CenterDataImportTab,
+  CenterKpiBuilderTab,
+  CenterPoliciesTab,
+  CenterTasksTab,
+  SETTINGS_TABS,
+} from '../../features/center/settings';
+
+const TAB_ICONS = {
+  policies: Settings,
+  tasks: ClipboardList,
+  announcements: Bell,
+  import: FileSpreadsheet,
+  backup: Cloud,
+  kpis: Target,
+};
 
 export const CenterSettingsView = () => {
-  const { lang, isRtl } = useLanguage();
+  const { lang } = useLanguage();
+  const isRtl = lang === 'ar';
+  const navigate = useNavigate();
+  const {
+    isAuthenticated,
+    currentUser,
+    activeViewRole,
+    switchRole,
+    centerPlanTier,
+    showToast,
+  } = useAuth();
+
   const {
     isBackendCenter,
     loadSettingsData,
-    branches,
+    loadOperationsData,
     exportToCsv,
+    branches,
+    groups,
+    rooms,
+    staff,
+    centerTeachers,
     centerSettings,
+    dashboardData,
+    financialSummary,
     updateCenterSettings,
     updateKpiTargets,
-    tasks: ctxTasks = [],
+    tasks,
     addCenterTask,
     updateCenterTask,
     toggleCenterTask,
     deleteCenterTask,
-    announcements: ctxAnnouncements = [],
+    announcements,
     addCenterAnnouncement,
+    deleteCenterAnnouncement,
     importCenterStudents,
-    backups = [],
-    createCenterBackup
+    backups,
+    createCenterBackup,
   } = useCenter();
 
-  useEffect(() => {
-    loadSettingsData?.();
-  }, [loadSettingsData]);
-
-  const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'tasks' | 'announcements' | 'import' | 'backup' | 'kpis'
-
-  // Center Settings State (Feature 13)
-  const [centerNameAr, setCenterNameAr] = useState('');
-  const [centerPhone, setCenterPhone] = useState('');
-  const [centerAddress, setCenterAddress] = useState('');
-  const [workingHours, setWorkingHours] = useState('');
-  const [lateMarginMinutes, setLateMarginMinutes] = useState('15');
-  const [paymentMethods, setPaymentMethods] = useState({
-    cash: true,
-    vodafoneCash: true,
-    instaPay: true,
-    visa: true
-  });
-  const [saveSettingsSuccess, setSaveSettingsSuccess] = useState(false);
-
-  // Financial & Operational Policies
-  const [siblingDiscountPercent, setSiblingDiscountPercent] = useState('0');
-  const [mandatoryCashClose, setMandatoryCashClose] = useState(true);
-  const [refundPolicy, setRefundPolicy] = useState('credit'); // 'credit' | 'replacement' | 'cash'
-
-  // Task Management State (Feature 74)
-  const [tasks, setTasks] = useState([]);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskAssignee, setNewTaskAssignee] = useState('');
-  const [newTaskDeadline, setNewTaskDeadline] = useState('');
-
-  // Task Edit, Delete Dialog & Swipe State
-  const [editingTaskId, setEditingTaskId] = useState(null);
-  const [editTaskTitle, setEditTaskTitle] = useState('');
-  const [editTaskAssignee, setEditTaskAssignee] = useState('');
-  const [editTaskDeadline, setEditTaskDeadline] = useState('');
-  const [taskToDelete, setTaskToDelete] = useState(null);
-  const [swipedTaskId, setSwipedTaskId] = useState(null);
-  const [touchStartX, setTouchStartX] = useState(null);
-
-  // Internal Announcements State (Feature 75)
-  const [announcements, setAnnouncements] = useState([]);
-  const [newAnnouncementTitle, setNewAnnouncementTitle] = useState('');
-  const [newAnnouncementContent, setNewAnnouncementContent] = useState('');
-  const [newAnnouncementBranch, setNewAnnouncementBranch] = useState('جميع الفروع');
-
-  // Excel Import Simulation State (Feature 77)
-  const [importedRows, setImportedRows] = useState([]);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importSuccessMessage, setImportSuccessMessage] = useState(null);
-
-  // Backup State (Feature 79)
-  const [lastBackupTime, setLastBackupTime] = useState('');
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const [backupNotice, setBackupNotice] = useState(null);
-
-  // Custom KPI Builder State (Features 72, 94, 95)
-  const [targetAttendance, setTargetAttendance] = useState('95');
-  const [targetRevenue, setTargetRevenue] = useState('0');
-  const [targetUtilization, setTargetUtilization] = useState('85');
-  const [kpiSavedSuccess, setKpiSavedSuccess] = useState(false);
-
-  // Hydrate Settings, Tasks, Announcements & Backups from Backend
-  useEffect(() => {
-    if (!isBackendCenter) return;
-    if (centerSettings) {
-      if (centerSettings.nameAr) setCenterNameAr(centerSettings.nameAr);
-      if (centerSettings.phone !== undefined) setCenterPhone(centerSettings.phone || '');
-      if (centerSettings.addressAr !== undefined) setCenterAddress(centerSettings.addressAr || '');
-      if (centerSettings.workingHoursAr) setWorkingHours(centerSettings.workingHoursAr);
-      if (centerSettings.lateMarginMinutes !== undefined) setLateMarginMinutes(String(centerSettings.lateMarginMinutes));
-      if (centerSettings.siblingDiscountPercent !== undefined) setSiblingDiscountPercent(String(centerSettings.siblingDiscountPercent));
-      if (centerSettings.mandatoryCashClose !== undefined) setMandatoryCashClose(Boolean(centerSettings.mandatoryCashClose));
-      if (centerSettings.refundPolicy) setRefundPolicy(centerSettings.refundPolicy);
-      if (centerSettings.paymentMethods && typeof centerSettings.paymentMethods === 'object') {
-        setPaymentMethods((prev) => ({ ...prev, ...centerSettings.paymentMethods }));
-      }
-      if (centerSettings.kpiTargets) {
-        if (centerSettings.kpiTargets.targetAttendancePct) setTargetAttendance(String(centerSettings.kpiTargets.targetAttendancePct));
-        if (centerSettings.kpiTargets.targetMonthlyRevenueEgp) setTargetRevenue(String(centerSettings.kpiTargets.targetMonthlyRevenueEgp));
-        if (centerSettings.kpiTargets.targetRoomUtilizationPct) setTargetUtilization(String(centerSettings.kpiTargets.targetRoomUtilizationPct));
-      }
-    }
-  }, [isBackendCenter, centerSettings]);
+  const [activeTab, setActiveTab] = useState('policies');
 
   useEffect(() => {
-    if (isBackendCenter) setTasks(ctxTasks);
-  }, [isBackendCenter, ctxTasks]);
-
-  useEffect(() => {
-    if (isBackendCenter) setAnnouncements(ctxAnnouncements);
-  }, [isBackendCenter, ctxAnnouncements]);
-
-  useEffect(() => {
-    if (isBackendCenter && backups.length > 0 && backups[0]?.createdAt) {
-      const dt = new Date(backups[0].createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-      setLastBackupTime(dt);
-    } else if (isBackendCenter) {
-      setLastBackupTime('');
-    }
-  }, [isBackendCenter, backups]);
-
-  // Handle Save Settings
-  const handleSaveSettings = async (e) => {
-    e.preventDefault();
-    if (isBackendCenter && updateCenterSettings) {
-      try {
-        await updateCenterSettings({
-          nameAr: centerNameAr,
-          phone: centerPhone,
-          addressAr: centerAddress,
-          workingHoursAr: workingHours,
-          lateMarginMinutes: Number(lateMarginMinutes) || 15,
-          siblingDiscountPercent: Number(siblingDiscountPercent) || 0,
-          mandatoryCashClose: Boolean(mandatoryCashClose),
-          refundPolicy,
-          paymentMethods,
-        });
-      } catch (err) {
-        alert(err?.message || 'تعذر حفظ الإعدادات.');
-        return;
+    if (isBackendCenter) {
+      loadSettingsData();
+      if (staff.length === 0) {
+        loadOperationsData();
       }
     }
-    setSaveSettingsSuccess(true);
-    setTimeout(() => setSaveSettingsSuccess(false), 3000);
-  };
+  }, [isBackendCenter, loadSettingsData, loadOperationsData, staff.length]);
 
-  // Toggle Task Completion
-  const toggleTask = async (taskId) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
-    if (isBackendCenter && toggleCenterTask) {
-      await toggleCenterTask(taskId).catch(() => {});
-    }
-  };
-
-  const handleDeleteTask = async (taskId) => {
-    setTasks(prev => prev.filter(t => t.id !== taskId));
-    if (editingTaskId === taskId) setEditingTaskId(null);
-    if (isBackendCenter && deleteCenterTask) {
-      await deleteCenterTask(taskId).catch(() => {});
-    }
-  };
-
-  const handleStartEdit = (t) => {
-    setEditingTaskId(t.id);
-    setEditTaskTitle(t.titleAr);
-    setEditTaskAssignee(t.assignee);
-    setEditTaskDeadline(t.deadline);
-  };
-
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    if (!editTaskTitle.trim()) return;
-    if (isBackendCenter && updateCenterTask) {
-      const updated = await updateCenterTask(editingTaskId, {
-        titleAr: editTaskTitle.trim(),
-        assignee: editTaskAssignee,
-        deadline: editTaskDeadline,
-      }).catch(() => null);
-      if (updated) {
-        setTasks(prev => prev.map(t => t.id === editingTaskId ? updated : t));
-        setEditingTaskId(null);
-        return;
-      }
-    }
-    setTasks(prev => prev.map(t => t.id === editingTaskId ? {
-      ...t,
-      titleAr: editTaskTitle.trim(),
-      assignee: editTaskAssignee,
-      deadline: editTaskDeadline
-    } : t));
-    setEditingTaskId(null);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingTaskId(null);
-  };
-
-  // Add Task
-  const handleAddTask = async (e) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) return;
-
-    if (isBackendCenter && addCenterTask) {
-      const created = await addCenterTask({
-        titleAr: newTaskTitle.trim(),
-        assignee: newTaskAssignee,
-        deadline: newTaskDeadline,
-      }).catch(() => null);
-      if (created) {
-        setNewTaskTitle('');
-        return;
-      }
-    }
-
-    setTasks(prev => [
-      {
-        id: `tsk-${Date.now()}`,
-        titleAr: newTaskTitle.trim(),
-        assignee: newTaskAssignee,
-        deadline: newTaskDeadline,
-        completed: false
-      },
-      ...prev
-    ]);
-    setNewTaskTitle('');
-  };
-
-  // Add Announcement
-  const handleAddAnnouncement = async (e) => {
-    e.preventDefault();
-    if (!newAnnouncementTitle.trim() || !newAnnouncementContent.trim()) return;
-
-    if (isBackendCenter && addCenterAnnouncement) {
-      const created = await addCenterAnnouncement({
-        titleAr: newAnnouncementTitle.trim(),
-        contentAr: newAnnouncementContent.trim(),
-        branch: newAnnouncementBranch,
-        author: 'إدارة السنتر العامة',
-      }).catch(() => null);
-      if (created) {
-        setNewAnnouncementTitle('');
-        setNewAnnouncementContent('');
-        return;
-      }
-    }
-
-    setAnnouncements(prev => [
-      {
-        id: `anc-${Date.now()}`,
-        titleAr: newAnnouncementTitle.trim(),
-        contentAr: newAnnouncementContent.trim(),
-        author: 'إدارة السنتر العامة',
-        date: new Date().toISOString().split('T')[0],
-        branch: newAnnouncementBranch
-      },
-      ...prev
-    ]);
-    setNewAnnouncementTitle('');
-    setNewAnnouncementContent('');
-  };
-
-  // Simulate or Perform Batch Student Import
-  const handleSimulateExcelImport = async () => {
-    setIsImporting(true);
-    const sampleBatch = [
-      { name: 'حازم خالد مصطفى', phone: '01019283746', group: 'فيزياء الثانوية العامة', grade: '3 ثانوي' },
-      { name: 'رنا إبراهيم الشربيني', phone: '01128374655', group: 'كيمياء اللغات', grade: '3 ثانوي' },
-      { name: 'مروان أحمد توفيق', phone: '01239485761', group: 'الرياضيات البحتة', grade: '3 ثانوي' },
-      { name: 'سلمى وائل البغدادي', phone: '01558473629', group: 'الأحياء التفاعلية', grade: '2 ثانوي' }
-    ];
-
-    if (isBackendCenter && importCenterStudents) {
-      try {
-        const res = await importCenterStudents(sampleBatch);
-        const rows = Array.isArray(res?.importedRows) && res.importedRows.length > 0 ? res.importedRows : sampleBatch;
-        setImportedRows(rows);
-        setIsImporting(false);
-        setImportSuccessMessage(`تم استيراد ${res?.importedCount ?? rows.length} سجل طالب بنجاح في قاعدة البيانات وفحص عدم تكرار الأرقام.`);
-        setTimeout(() => setImportSuccessMessage(null), 4000);
-        return;
-      } catch (err) {
-        setIsImporting(false);
-        alert(err?.message || 'تعذر استيراد دفعة الطلاب.');
-        return;
-      }
-    }
-
-    setTimeout(() => {
-      setImportedRows(sampleBatch);
-      setIsImporting(false);
-      setImportSuccessMessage(`تم استيراد ${sampleBatch.length} سجل طالب بنجاح وفحص عدم تكرار الأرقام.`);
-      setTimeout(() => setImportSuccessMessage(null), 4000);
-    }, 700);
-  };
-
-  // Trigger Cloud Backup
-  const handleTriggerBackup = async () => {
-    setIsBackingUp(true);
-    if (isBackendCenter && createCenterBackup) {
-      try {
-        const created = await createCenterBackup();
-        setIsBackingUp(false);
-        const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-        setLastBackupTime(`اليوم، ${now}`);
-        setBackupNotice(`تم إنشاء نسخة احتياطية مشفرة (${created?.filename || 'SHA-256'}) وحفظها على الخادم السحابي بنجاح.`);
-        setTimeout(() => setBackupNotice(null), 4000);
-        return;
-      } catch (err) {
-        setIsBackingUp(false);
-        setBackupNotice(err?.message || 'يتطلب النسخ الاحتياطي السحابي باقة السنتر برو (Pro).');
-        setTimeout(() => setBackupNotice(null), 4000);
-        return;
-      }
-    }
-
-    setTimeout(() => {
-      setIsBackingUp(false);
-      const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-      setLastBackupTime(`اليوم، ${now}`);
-      setBackupNotice('تم إنشاء نسخة احتياطية مشفرة بنجاح ومزامنتها مع الخوادم السحابية الآمنة.');
-      setTimeout(() => setBackupNotice(null), 4000);
-    }, 900);
-  };
-
-  // Save KPI Targets
-  const handleSaveKpiTargets = async (e) => {
-    e.preventDefault();
-    if (isBackendCenter && updateKpiTargets) {
-      try {
-        await updateKpiTargets({
-          targetAttendance: Number(targetAttendance) || 95,
-          targetRevenue: Number(targetRevenue) || 300000,
-          targetUtilization: Number(targetUtilization) || 85,
-        });
-      } catch (err) {
-        alert(err?.message || 'تعذر حفظ مؤشرات الأداء.');
-        return;
-      }
-    }
-    setKpiSavedSuccess(true);
-    setTimeout(() => setKpiSavedSuccess(false), 3000);
-  };
-
-  return (
-    <div style={{
-      maxWidth: '1240px',
-      margin: '0 auto',
-      padding: '24px 20px 80px',
-      fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '24px',
-        backgroundColor: 'var(--bg-surface)',
-        padding: '18px 24px',
-        borderRadius: 'var(--radius-xl)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{
-            width: '46px',
-            height: '46px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(21, 136, 199, 0.1)',
+  if (!isAuthenticated) {
+    return (
+      <div
+        style={{
+          direction: isRtl ? 'rtl' : 'ltr',
+          padding: '48px 24px',
+          maxWidth: '540px',
+          margin: '40px auto',
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-2xl)',
+          border: '1px solid var(--border-subtle)',
+          textAlign: 'center',
+          boxShadow: 'var(--shadow-md)',
+        }}
+      >
+        <div
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            color: 'var(--primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--primary)'
-          }}>
+            margin: '0 auto 16px',
+          }}
+        >
+          <Lock size={26} />
+        </div>
+        <h2
+          style={{
+            fontSize: '20px',
+            fontWeight: '800',
+            color: 'var(--text-primary)',
+            margin: '0 0 8px',
+          }}
+        >
+          {lang === 'ar'
+            ? 'تسجيل الدخول مطلوب لإدارة إعدادات السنتر'
+            : 'Sign In Required for Center Settings'}
+        </h2>
+        <p
+          style={{
+            fontSize: '14px',
+            color: 'var(--text-secondary)',
+            margin: '0 0 24px',
+            lineHeight: 1.6,
+          }}
+        >
+          {lang === 'ar'
+            ? 'يرجى تسجيل الدخول بحساب إدارة السنتر للوصول إلى السياسات التشغيلية والمهام والنسخ الاحتياطي السحابي.'
+            : 'Please sign in with an authorized Center account to manage policies, tasks, and cloud backups.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/login')}
+          style={{
+            padding: '11px 24px',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--primary)',
+            color: '#fff',
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: '700',
+            cursor: 'pointer',
+          }}
+        >
+          {lang === 'ar' ? 'تسجيل الدخول الآن' : 'Sign In Now'}
+        </button>
+      </div>
+    );
+  }
+
+  if (!isBackendCenter) {
+    const canSwitchToCenter =
+      Array.isArray(currentUser?.roles) && currentUser.roles.includes('center');
+    return (
+      <div
+        style={{
+          direction: isRtl ? 'rtl' : 'ltr',
+          padding: '48px 24px',
+          maxWidth: '560px',
+          margin: '40px auto',
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-2xl)',
+          border: '1px solid var(--border-subtle)',
+          textAlign: 'center',
+          boxShadow: 'var(--shadow-md)',
+        }}
+      >
+        <div
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+            color: '#d97706',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px',
+          }}
+        >
+          <ShieldAlert size={26} />
+        </div>
+        <h2
+          style={{
+            fontSize: '20px',
+            fontWeight: '800',
+            color: 'var(--text-primary)',
+            margin: '0 0 8px',
+          }}
+        >
+          {lang === 'ar'
+            ? 'هذه الصفحة مخصصة لحسابات إدارة السنتر فقط'
+            : 'Center Account Required'}
+        </h2>
+        <p
+          style={{
+            fontSize: '14px',
+            color: 'var(--text-secondary)',
+            margin: '0 0 24px',
+            lineHeight: 1.6,
+          }}
+        >
+          {lang === 'ar'
+            ? `أنت مسجل الدخول حالياً بدور (${activeViewRole || currentUser?.role}). لإدارة إعدادات السنتر، يرجى التبديل إلى حساب سنتر معتمد.`
+            : `You are currently signed in with role (${activeViewRole || currentUser?.role}). Switch to an authorized Center account to continue.`}
+        </p>
+        {canSwitchToCenter && (
+          <button
+            type="button"
+            onClick={() => switchRole('center')}
+            style={{
+              padding: '11px 24px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '700',
+              cursor: 'pointer',
+            }}
+          >
+            {lang === 'ar' ? 'التبديل إلى بوابة السنتر' : 'Switch to Center Portal'}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        direction: isRtl ? 'rtl' : 'ltr',
+        paddingBottom: '48px',
+        maxWidth: '1400px',
+        margin: '0 auto',
+      }}
+    >
+      {/* Header Banner */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--border-subtle)',
+          padding: '22px 26px',
+          marginBottom: '22px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: 'var(--primary-subtle)',
+              color: 'var(--primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             <Settings size={24} />
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
-                {lang === 'ar' ? 'إعدادات المنظومة والتحكم المؤسسي' : 'System Governance & Settings'}
-              </span>
-              <span style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'rgba(22, 163, 74, 0.12)',
-                color: 'var(--success)',
-                fontWeight: '700'
-              }}>
-                {lang === 'ar' ? 'السياسات مفعلة' : 'Active Policies'}
-              </span>
-            </div>
-            <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
-              {lang === 'ar' ? 'إعدادات السنتر، المهام الداخلية، والنسخ السحابي' : 'Center Configuration, Tasks & Cloud Backup'}
+            <h1
+              style={{
+                fontSize: '21px',
+                fontWeight: '800',
+                color: 'var(--text-primary)',
+                margin: 0,
+              }}
+            >
+              {lang === 'ar'
+                ? 'إعدادات السنتر، السياسات، والمهام اليومية'
+                : 'Center Settings, Policies & Operations'}
             </h1>
+            <p
+              style={{
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                margin: '4px 0 0 0',
+              }}
+            >
+              {lang === 'ar'
+                ? 'تخصيص هوية السنتر، السياسات المالية، المهام اليومية، التعميمات، استيراد الطلاب، والنسخ الاحتياطي السحابي'
+                : 'Configure center identity, financial rules, daily tasks, announcements, CSV import, and cloud backup'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid var(--border-subtle)',
-        marginBottom: '24px',
-        gap: '20px',
-        overflowX: 'auto',
-        paddingBottom: '4px'
-      }}>
-        {[
-          { id: 'settings', labelAr: 'بيانات وسياسات السنتر', labelEn: 'Center Policies', icon: Settings },
-          { id: 'tasks', labelAr: 'إدارة المهام اليومية', labelEn: 'Daily Tasks', icon: CheckSquare },
-          { id: 'announcements', labelAr: 'التعليمات والإعلانات الداخلية', labelEn: 'Internal Announcements', icon: Bell },
-          { id: 'import', labelAr: 'استيراد البيانات', labelEn: 'Data Import', icon: Upload },
-          { id: 'backup', labelAr: 'النسخ الاحتياطي السحابي والأمان', labelEn: 'Cloud Backup & Security', icon: Database },
-          { id: 'kpis', labelAr: 'تخصيص مؤشرات الأداء', labelEn: 'KPI Performance Builder', icon: Sliders }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+      {/* Navigation Tabs */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '22px',
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingBottom: '12px',
+          overflowX: 'auto',
+        }}
+      >
+        {SETTINGS_TABS.map((t) => {
+          const Icon = TAB_ICONS[t.id] || Settings;
+          const isActive = activeTab === t.id;
           return (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '12px 4px',
-                border: 'none',
-                background: 'none',
-                fontSize: '14px',
+                padding: '10px 18px',
+                borderRadius: 'var(--radius-md)',
+                border: isActive ? 'none' : '1px solid var(--border-subtle)',
+                backgroundColor: isActive ? 'var(--primary)' : 'var(--bg-surface)',
+                color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
+                fontSize: '13px',
                 fontWeight: '700',
-                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
-                borderBottom: isActive ? '2px solid var(--primary)' : '2px solid transparent',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease'
               }}
             >
               <Icon size={16} />
-              <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
+              <span>{lang === 'ar' ? t.labelAr : t.labelEn}</span>
             </button>
           );
         })}
       </div>
 
-      {/* TAB 1: Center Settings & Policies (Feature 13) */}
-      {activeTab === 'settings' && (
-        <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          {/* SECTION 1: Center Profile & Identity */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
-                color: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Building2 size={18} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'بيانات السنتر والتواصل الرسمي' : 'Center Identity & Contacts'}
-                </h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                  {lang === 'ar' ? 'المعلومات المعروضة للطلاب وأولياء الأمور وعلى المنظومة' : 'Information visible to students & guardians'}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'اسم السنتر / الأكاديمية' : 'Center Name'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={centerNameAr}
-                  onChange={(e) => setCenterNameAr(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'رقم الهاتف الرئيسي وخدمة العملاء' : 'Primary Phone & Support'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={centerPhone}
-                  onChange={(e) => setCenterPhone(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'العنوان والمقر (الفرع الرئيسي)' : 'Branch Location & Address'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={centerAddress}
-                  onChange={(e) => setCenterAddress(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'أوقات التشغيل والعمل اليومي' : 'Operating Hours'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={workingHours}
-                  onChange={(e) => setWorkingHours(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 2: Operational & Financial Policies */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
-                color: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <CreditCard size={18} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'السياسات التشغيلية والمالية' : 'Operational & Financial Policies'}
-                </h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                  {lang === 'ar' ? 'مهلة التأخير، طرق الدفع المعتمدة، خصم الإخوة، وإغلاق الخزينة' : 'Grace period, payment methods, sibling discount, and cash drawer'}
-                </p>
-              </div>
-            </div>
-
-            {/* Approved Payment Methods with pure Arabic */}
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                {lang === 'ar' ? 'طرق الدفع والتحصيل المعتمدة في السنتر:' : 'Approved Payment Methods:'}
-              </label>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                {[
-                  { key: 'cash', labelAr: 'دفع نقدي بمكتب الاستقبال', labelEn: 'Cash at Reception Desk' },
-                  { key: 'vodafoneCash', labelAr: 'محافظ المحمول الإلكترونية', labelEn: 'Mobile Wallets' },
-                  { key: 'instaPay', labelAr: 'تحويل إنستاباي', labelEn: 'InstaPay Transfer' },
-                  { key: 'visa', labelAr: 'بطاقات الدفع البنكية', labelEn: 'Bank Cards' }
-                ].map(item => (
-                  <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={paymentMethods[item.key]}
-                      onChange={(e) => setPaymentMethods(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    <span>{lang === 'ar' ? item.labelAr : item.labelEn}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '18px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'مهلة التأخير المسموحة قبل احتساب الغياب (بالدقائق)' : 'Grace Period (Minutes)'}
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="5"
-                  max="60"
-                  value={lateMarginMinutes}
-                  onChange={(e) => setLateMarginMinutes(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'نسبة خصم الإخوة المعتمدة (%)' : 'Sibling Discount Percentage (%)'}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  value={siblingDiscountPercent}
-                  onChange={(e) => setSiblingDiscountPercent(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'سياسة استرداد الحصص الملغاة أو الغياب بعذر' : 'Refund & Cancellation Policy'}
-                </label>
-                <select
-                  value={refundPolicy}
-                  onChange={(e) => setRefundPolicy(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    boxSizing: 'border-box',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="credit">{lang === 'ar' ? 'إضافة رصيد تلقائي لمحفظة الطالب بالسنتر' : 'Credit to Student Center Wallet'}</option>
-                  <option value="replacement">{lang === 'ar' ? 'حضور حصة بديلة في نفس الأسبوع مجاناً' : 'Free Replacement Class in Same Week'}</option>
-                  <option value="cash">{lang === 'ar' ? 'استرداد نقدي من الخزينة' : 'Cash Refund at Reception Desk'}</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Mandatory Cash Close Toggle */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--bg-app)',
-              border: '1px solid var(--border-subtle)'
-            }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'الإغلاق الإجباري لدرج الخزينة اليومي بنهاية الوردية' : 'Mandatory daily cash drawer reconciliation'}
-                </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  {lang === 'ar' ? 'مطابقة المبالغ المحصلة نقدياً مع تقارير السيستم قبل تسجيل خروج الكاشير.' : 'Cashiers must reconcile physical cash with system ledger before clock-out.'}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setMandatoryCashClose(v => !v)}
-                style={{
-                  width: '44px',
-                  height: '24px',
-                  borderRadius: '9999px',
-                  backgroundColor: mandatoryCashClose ? 'var(--primary, #1588C7)' : 'var(--border-medium, #CBD5E1)',
-                  border: 'none',
-                  padding: '2px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: mandatoryCashClose ? 'flex-end' : 'flex-start',
-                  transition: 'all 0.2s ease',
-                  flexShrink: 0
-                }}
-              >
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: '#FFFFFF',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                }} />
-              </button>
-            </div>
-          </div>
-
-          {/* Success Message Banner */}
-          {saveSettingsSuccess && (
-            <div style={{
-              padding: '14px 18px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(22, 163, 74, 0.1)',
-              border: '1px solid rgba(22, 163, 74, 0.25)',
-              color: 'var(--color-success, #16A34A)',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <CheckCircle2 size={18} />
-              <span>{lang === 'ar' ? 'تم حفظ وتحديث كافة سياسات وإعدادات السنتر بنجاح.' : 'Center policies saved successfully.'}</span>
-            </div>
-          )}
-
-          {/* Save Button */}
-          <button
-            type="submit"
-            style={{
-              alignSelf: 'flex-start',
-              padding: '13px 28px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              fontSize: '13.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 14px rgba(21, 136, 199, 0.3)',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Save size={16} />
-            <span>{lang === 'ar' ? 'حفظ السياسات والإعدادات' : 'Save Policies'}</span>
-          </button>
-        </form>
+      {activeTab === 'policies' && (
+        <CenterPoliciesTab
+          key={centerSettings?.id || 'center-policies'}
+          lang={lang}
+          centerSettings={centerSettings}
+          updateCenterSettings={updateCenterSettings}
+          showToast={showToast}
+        />
       )}
 
-      {/* TAB 2: Task Management (Feature 74) */}
       {activeTab === 'tasks' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Add Task Card */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '22px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 14px 0' }}>
-              {lang === 'ar' ? 'إسناد مهمة إدارية جديدة' : 'Assign New Administrative Task'}
-            </h3>
-
-            <form onSubmit={handleAddTask} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Multi-line Task Title / Description */}
-              <div>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder={lang === 'ar' ? 'اكتب تفاصيل المهمة هنا...' : 'Write task details here...'}
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    lineHeight: '1.55',
-                    resize: 'vertical',
-                    minHeight: '75px',
-                    outline: 'none',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Assignee & Deadline Inputs */}
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ flex: 1, minWidth: '160px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    {lang === 'ar' ? 'المسؤول عن التنفيذ' : 'Assignee'}
-                  </label>
-                  <input
-                    type="text"
-                    value={newTaskAssignee}
-                    onChange={(e) => setNewTaskAssignee(e.target.value)}
-                    placeholder="المسؤول"
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-
-                <div style={{ flex: 1, minWidth: '160px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    {lang === 'ar' ? 'الموعد النهائي' : 'Deadline'}
-                  </label>
-                  <input
-                    type="text"
-                    value={newTaskDeadline}
-                    onChange={(e) => setNewTaskDeadline(e.target.value)}
-                    placeholder="الموعد النهائي"
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-
-                <div style={{ alignSelf: 'flex-end' }}>
-                  <button
-                    type="submit"
-                    style={{
-                      padding: '11px 22px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <Plus size={15} />
-                    <span>{lang === 'ar' ? 'إضافة المهمة' : 'Add Task'}</span>
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          {/* Tasks List */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{
-              padding: '16px 20px',
-              backgroundColor: 'var(--bg-app)',
-              borderBottom: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '10px'
-            }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? `قائمة المهام الداخلية للموظفين (${tasks.filter(t => t.completed).length} من ${tasks.length} مكتملة)` : 'Staff Daily Task Ledger'}
-              </h3>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {lang === 'ar' ? '💡 يمكنك التعديل والحذف أو السحب للحذف بالتمرير' : '💡 Swipe or use icons to edit/delete'}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {tasks.length === 0 ? (
-                <div style={{ padding: '36px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13.5px' }}>
-                  {lang === 'ar' ? 'لا توجد مهام حالية. أضف مهمة جديدة من النموذج أعلاه.' : 'No active tasks.'}
-                </div>
-              ) : (
-                tasks.map(t => {
-                  const isEditing = editingTaskId === t.id;
-                  const isSwiped = swipedTaskId === t.id;
-
-                  if (isEditing) {
-                    return (
-                      <div
-                        key={t.id}
-                        style={{
-                          padding: '18px 20px',
-                          borderBottom: '1px solid var(--border-subtle)',
-                          backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.06))'
-                        }}
-                      >
-                        <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <textarea
-                            required
-                            rows={3}
-                            value={editTaskTitle}
-                            onChange={(e) => setEditTaskTitle(e.target.value)}
-                            style={{
-                              width: '100%',
-                              boxSizing: 'border-box',
-                              padding: '10px 12px',
-                              borderRadius: 'var(--radius-md)',
-                              border: '1.5px solid var(--primary)',
-                              backgroundColor: 'var(--bg-surface)',
-                              color: 'var(--text-primary)',
-                              fontSize: '13px',
-                              lineHeight: '1.5',
-                              fontFamily: 'inherit',
-                              outline: 'none',
-                              resize: 'vertical'
-                            }}
-                          />
-                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <input
-                              type="text"
-                              value={editTaskAssignee}
-                              onChange={(e) => setEditTaskAssignee(e.target.value)}
-                              placeholder="المسؤول"
-                              style={{
-                                flex: 1,
-                                minWidth: '130px',
-                                padding: '8px 12px',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--border-subtle)',
-                                backgroundColor: 'var(--bg-surface)',
-                                color: 'var(--text-primary)',
-                                fontSize: '12.5px'
-                              }}
-                            />
-                            <input
-                              type="text"
-                              value={editTaskDeadline}
-                              onChange={(e) => setEditTaskDeadline(e.target.value)}
-                              placeholder="الموعد النهائي"
-                              style={{
-                                flex: 1,
-                                minWidth: '130px',
-                                padding: '8px 12px',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--border-subtle)',
-                                backgroundColor: 'var(--bg-surface)',
-                                color: 'var(--text-primary)',
-                                fontSize: '12.5px'
-                              }}
-                            />
-                            <button
-                              type="submit"
-                              style={{
-                                padding: '8px 16px',
-                                borderRadius: 'var(--radius-md)',
-                                backgroundColor: 'var(--primary)',
-                                color: '#FFFFFF',
-                                border: 'none',
-                                fontSize: '12.5px',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '5px'
-                              }}
-                            >
-                              <Check size={14} />
-                              <span>{lang === 'ar' ? 'حفظ التعديل' : 'Save'}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleCancelEdit}
-                              style={{
-                                padding: '8px 14px',
-                                borderRadius: 'var(--radius-md)',
-                                backgroundColor: 'transparent',
-                                color: 'var(--text-secondary)',
-                                border: '1px solid var(--border-subtle)',
-                                fontSize: '12.5px',
-                                fontWeight: '600',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={t.id}
-                      onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
-                      onTouchMove={(e) => {
-                        if (touchStartX === null) return;
-                        const diffX = e.touches[0].clientX - touchStartX;
-                        if (Math.abs(diffX) > 70) {
-                          setSwipedTaskId(t.id);
-                        }
-                      }}
-                      onTouchEnd={() => {
-                        if (swipedTaskId === t.id) {
-                          setTaskToDelete(t);
-                          setSwipedTaskId(null);
-                        }
-                        setTouchStartX(null);
-                      }}
-                      style={{
-                        padding: '16px 20px',
-                        borderBottom: '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'space-between',
-                        gap: '16px',
-                        backgroundColor: t.completed ? 'var(--bg-app)' : 'var(--bg-surface)',
-                        transform: isSwiped ? 'translateX(-30px)' : 'translateX(0)',
-                        opacity: isSwiped ? 0.3 : 1,
-                        transition: 'transform 0.2s ease, opacity 0.2s ease'
-                      }}
-                    >
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', cursor: 'pointer', flex: 1 }}>
-                        <input
-                          type="checkbox"
-                          checked={t.completed}
-                          onChange={() => toggleTask(t.id)}
-                          style={{ width: '17px', height: '17px', marginTop: '3px', cursor: 'pointer', flexShrink: 0 }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          {/* Multi-line Title with preserved line breaks */}
-                          <div style={{
-                            fontSize: '13.5px',
-                            fontWeight: '700',
-                            color: t.completed ? 'var(--text-secondary)' : 'var(--text-primary)',
-                            textDecoration: t.completed ? 'line-through' : 'none',
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                            lineHeight: 1.55
-                          }}>
-                            {t.titleAr}
-                          </div>
-                          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                            {lang === 'ar' ? 'المسؤول:' : 'Assignee:'}{' '}
-                            <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{t.assignee}</span> •{' '}
-                            {lang === 'ar' ? 'الموعد:' : 'Deadline:'} {t.deadline}
-                          </div>
-                        </div>
-                      </label>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                        {/* Status Badge */}
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          padding: '3px 8px',
-                          borderRadius: 'var(--radius-full)',
-                          backgroundColor: t.completed ? 'rgba(22, 163, 74, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                          color: t.completed ? 'var(--color-success, #16A34A)' : 'var(--color-warning, #F59E0B)'
-                        }}>
-                          {t.completed ? (lang === 'ar' ? 'مكتمل' : 'Completed') : (lang === 'ar' ? 'قيد التنفيذ' : 'Pending')}
-                        </span>
-
-                        {/* Edit Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(t)}
-                          title={lang === 'ar' ? 'تعديل المهمة' : 'Edit Task'}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border-subtle)',
-                            backgroundColor: 'transparent',
-                            color: 'var(--primary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <Edit3 size={15} />
-                        </button>
-
-                        {/* Delete Button (with smooth red styling) */}
-                        <button
-                          type="button"
-                          onClick={() => setTaskToDelete(t)}
-                          title={lang === 'ar' ? 'حذف المهمة' : 'Delete Task'}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            border: '1px solid rgba(220, 38, 38, 0.2)',
-                            backgroundColor: 'rgba(220, 38, 38, 0.08)',
-                            color: 'var(--color-danger, #DC2626)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
+        <CenterTasksTab
+          lang={lang}
+          tasks={tasks}
+          staff={staff}
+          centerTeachers={centerTeachers}
+          addCenterTask={addCenterTask}
+          updateCenterTask={updateCenterTask}
+          toggleCenterTask={toggleCenterTask}
+          deleteCenterTask={deleteCenterTask}
+          showToast={showToast}
+        />
       )}
 
-      {/* TAB 3: Internal Announcements (Feature 75) */}
       {activeTab === 'announcements' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Post New Announcement */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '22px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 14px 0' }}>
-              {lang === 'ar' ? 'إرسال تعميم أو إعلان داخلي لموظفي السنتر' : 'Publish Internal Staff Announcement'}
-            </h3>
-
-            <form onSubmit={handleAddAnnouncement} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
-                <input
-                  type="text"
-                  required
-                  placeholder={lang === 'ar' ? 'عنوان الإعلان أو التعميم...' : 'Announcement headline...'}
-                  value={newAnnouncementTitle}
-                  onChange={(e) => setNewAnnouncementTitle(e.target.value)}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                />
-
-                <select
-                  value={newAnnouncementBranch}
-                  onChange={(e) => setNewAnnouncementBranch(e.target.value)}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                >
-                  <option value="جميع الفروع">جميع الفروع</option>
-                  {branches.map(b => (
-                    <option key={b.id} value={b.nameAr}>{b.nameAr}</option>
-                  ))}
-                </select>
-              </div>
-
-              <textarea
-                required
-                rows="3"
-                placeholder={lang === 'ar' ? 'نص التعميم والتعليمات الموجهة للموظفين والسكرتارية...' : 'Content...'}
-                value={newAnnouncementContent}
-                onChange={(e) => setNewAnnouncementContent(e.target.value)}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  resize: 'vertical'
-                }}
-              />
-
-              <button
-                type="submit"
-                style={{
-                  alignSelf: 'flex-start',
-                  padding: '10px 20px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <Send size={15} />
-                <span>{lang === 'ar' ? 'نشر التعميم للموظفين' : 'Publish Memo'}</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Announcements Feed */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {announcements.map(anc => (
-              <div
-                key={anc.id}
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  borderRadius: 'var(--radius-xl)',
-                  border: '1px solid var(--border-subtle)',
-                  padding: '20px',
-                  boxShadow: 'var(--shadow-sm)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Bell size={16} color="var(--primary)" />
-                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                      {anc.titleAr}
-                    </h4>
-                  </div>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '2px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                    color: 'var(--primary)',
-                    fontWeight: '700'
-                  }}>
-                    {anc.branch}
-                  </span>
-                </div>
-
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 10px 0' }}>
-                  {anc.contentAr}
-                </p>
-
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                  الناشر: {anc.author} • التاريخ: {anc.date}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CenterAnnouncementsTab
+          lang={lang}
+          announcements={announcements}
+          branches={branches}
+          addCenterAnnouncement={addCenterAnnouncement}
+          deleteCenterAnnouncement={deleteCenterAnnouncement}
+          showToast={showToast}
+        />
       )}
 
-      {/* TAB 4: Excel Import (Feature 77) */}
       {activeTab === 'import' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-            {lang === 'ar' ? 'استيراد بيانات الطلاب والمجموعات من ملف إكسيل' : 'Import Center Data from Excel'}
-          </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
-            {lang === 'ar'
-              ? 'انقل بيانات طلابك ومجموعاتك الحالية إلى منصة متفوق بسهولة. قم بتحميل النموذج المعتمد ثم ارفع الملف لاستيراده تلقائياً.'
-              : 'Easily onboard your existing student rosters and groups via Excel spreadsheet.'}
-          </p>
-
-          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '20px' }}>
-            <button
-              onClick={async () => {
-                if (isBackendCenter) {
-                  try {
-                    await centerApi.settings.downloadImportTemplate('نموذج_استيراد_الطلاب.csv');
-                    return;
-                  } catch {
-                    // fallback
-                  }
-                }
-                const headers = ['اسم الطالب', 'رقم الهاتف', 'المجموعة', 'المرحلة الدراسية'];
-                const rows = [
-                  ['طالب تجريبي 1', '01000000001', 'فيزياء الثانوية العامة', '3 ثانوي'],
-                  ['طالب تجريبي 2', '01000000002', 'كيمياء اللغات', '3 ثانوي']
-                ];
-                exportToCsv('نموذج_استيراد_الطلاب', headers, rows);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '10px 16px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              <Download size={15} />
-              <span>{lang === 'ar' ? 'تحميل النموذج الفارغ' : 'Download Template'}</span>
-            </button>
-
-            <button
-              onClick={handleSimulateExcelImport}
-              disabled={isImporting}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '10px 20px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: isImporting ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <Upload size={15} />
-              <span>{isImporting ? (lang === 'ar' ? 'جاري الفحص والاستيراد...' : 'Processing...') : (lang === 'ar' ? 'رفع ملف البيانات وتدقيق السجلات' : 'Upload & Process Excel')}</span>
-            </button>
-          </div>
-
-          {importSuccessMessage && (
-            <div style={{
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(22, 163, 74, 0.1)',
-              border: '1px solid rgba(22, 163, 74, 0.25)',
-              color: 'var(--success)',
-              fontSize: '13px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '16px'
-            }}>
-              <CheckCircle2 size={16} />
-              <span>{importSuccessMessage}</span>
-            </div>
-          )}
-
-          {/* Imported Preview Table */}
-          {importedRows.length > 0 && (
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                {lang === 'ar' ? 'معاينة السجلات المستوردة بنجاح:' : 'Imported Rows Preview:'}
-              </div>
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left', fontSize: '12px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-subtle)' }}>
-                      <th style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>اسم الطالب</th>
-                      <th style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>الهاتف</th>
-                      <th style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>المجموعة</th>
-                      <th style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>المرحلة</th>
-                      <th style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>حالة التدقيق</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {importedRows.map((r, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--text-primary)' }}>{r.name}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{r.phone}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--primary)', fontWeight: '600' }}>{r.group}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{r.grade}</td>
-                        <td style={{ padding: '10px 14px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '700' }}>جاهز للمزامنة</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
+        <CenterDataImportTab
+          lang={lang}
+          isRtl={isRtl}
+          groups={groups}
+          importCenterStudents={importCenterStudents}
+          exportToCsv={exportToCsv}
+          showToast={showToast}
+        />
       )}
 
-      {/* TAB 5: Backup & Cloud Recovery (Feature 79) */}
       {activeTab === 'backup' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-            {lang === 'ar' ? 'النسخ الاحتياطي السحابي واسترجاع البيانات' : 'Cloud Backup & Data Recovery'}
-          </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
-            {lang === 'ar'
-              ? 'يتم تشفير وتأمين جميع بيانات السنتر، الحضور، السجلات المالية، والطلاب تلقائياً على خوادم متفوق السحابية الآمنة مع إمكانية أخذ نسخة فورية عند الطلب.'
-              : 'All center operations, attendance records, and financials are continuously encrypted and synchronized.'}
-          </p>
-
-          <div style={{
-            padding: '16px',
-            borderRadius: 'var(--radius-lg)',
-            backgroundColor: 'var(--bg-app)',
-            border: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            marginBottom: '16px'
-          }}>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? 'حالة المزامنة السحابية:' : 'Sync Status:'} <span style={{ color: 'var(--success)' }}>{lang === 'ar' ? 'نشط ومتزامن ومشفر بالكامل' : 'Active & Synchronized (256-bit AES)'}</span>
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                {lang === 'ar'
-                  ? `آخر نسخة احتياطية ناجحة: ${lastBackupTime || 'لا توجد نسخ احتياطية بعد'}`
-                  : `Last backup: ${lastBackupTime || 'No backups yet'}`}
-              </div>
-            </div>
-
-            <button
-              onClick={handleTriggerBackup}
-              disabled={isBackingUp}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '10px 18px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: isBackingUp ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <RefreshCw size={15} className={isBackingUp ? 'animate-spin' : ''} />
-              <span>{isBackingUp ? (lang === 'ar' ? 'جاري النسخ الآن...' : 'Backing up...') : (lang === 'ar' ? 'إنشاء نسخة احتياطية فورية' : 'Create Backup Now')}</span>
-            </button>
-          </div>
-
-          {backupNotice && (
-            <div style={{
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(22, 163, 74, 0.1)',
-              border: '1px solid rgba(22, 163, 74, 0.25)',
-              color: 'var(--success)',
-              fontSize: '13px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <CheckCircle2 size={16} />
-              <span>{backupNotice}</span>
-            </div>
-          )}
-        </div>
+        <CenterCloudBackupTab
+          lang={lang}
+          isRtl={isRtl}
+          centerSettings={centerSettings}
+          centerPlanTier={centerPlanTier}
+          backups={backups}
+          createCenterBackup={createCenterBackup}
+          showToast={showToast}
+        />
       )}
 
-      {/* TAB 6: Custom KPI Builder (Features 72, 94, 95) */}
       {activeTab === 'kpis' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px 0' }}>
-            {lang === 'ar' ? 'تخصيص مؤشرات الأداء والحدود المستهدفة' : 'Custom KPI Target Builder'}
-          </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0', lineHeight: '1.5' }}>
-            {lang === 'ar'
-              ? 'حدد المستهدفات الشهرية لسنترك وسيقوم النظام بتنبيهك تلقائياً عند تجاوز أو انخفاض أي مؤشر عن المستوى المحدد.'
-              : 'Define target thresholds for your center and receive automated alerts.'}
-          </p>
-
-          <form onSubmit={handleSaveKpiTargets} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'نسبة الحضور المستهدفة (%)' : 'Target Attendance %'}
-                </label>
-                <input
-                  type="number"
-                  min="50"
-                  max="100"
-                  required
-                  value={targetAttendance}
-                  onChange={(e) => setTargetAttendance(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'الإيراد الشهري المستهدف (ج.م)' : 'Target Monthly Revenue (EGP)'}
-                </label>
-                <input
-                  type="number"
-                  min="10000"
-                  required
-                  value={targetRevenue}
-                  onChange={(e) => setTargetRevenue(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'معدل إشغال القاعات المستهدف (%)' : 'Target Room Utilization %'}
-                </label>
-                <input
-                  type="number"
-                  min="30"
-                  max="100"
-                  required
-                  value={targetUtilization}
-                  onChange={(e) => setTargetUtilization(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-            </div>
-
-            {kpiSavedSuccess && (
-              <div style={{
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                border: '1px solid rgba(22, 163, 74, 0.25)',
-                color: 'var(--success)',
-                fontSize: '13px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <CheckCircle2 size={16} />
-                <span>{lang === 'ar' ? 'تم اعتماد أهداف مؤشرات الأداء بنجاح.' : 'KPI thresholds saved.'}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              style={{
-                alignSelf: 'flex-start',
-                padding: '12px 24px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Save size={15} />
-              <span>{lang === 'ar' ? 'حفظ مستهدفات مؤشرات الأداء' : 'Save Targets'}</span>
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Delete Task Confirmation Dialog Modal */}
-      {taskToDelete && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(3px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px'
-          }}
-          onClick={() => setTaskToDelete(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              padding: '26px 28px',
-              maxWidth: '440px',
-              width: '100%',
-              boxShadow: 'var(--shadow-xl)',
-              textAlign: 'center',
-              animation: 'fadeIn 0.15s ease'
-            }}
-          >
-            <div style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '50%',
-              backgroundColor: 'rgba(220, 38, 38, 0.1)',
-              color: 'var(--color-danger, #DC2626)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px auto'
-            }}>
-              <Trash2 size={24} />
-            </div>
-
-            <h4 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 10px 0' }}>
-              {lang === 'ar' ? 'هل تريد حذف هذه المهمة؟' : 'Delete this task?'}
-            </h4>
-
-            <p style={{
-              fontSize: '13.5px',
-              color: 'var(--text-secondary)',
-              margin: '0 0 20px 0',
-              lineHeight: '1.6',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              backgroundColor: 'var(--bg-app)',
-              padding: '12px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              textAlign: 'start'
-            }}>
-              {taskToDelete.titleAr}
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  handleDeleteTask(taskToDelete.id);
-                  setTaskToDelete(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '11px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--color-danger, #DC2626)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13.5px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                {lang === 'ar' ? 'نعم، حذف' : 'Yes, Delete'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTaskToDelete(null)}
-                style={{
-                  flex: 1,
-                  padding: '11px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'transparent',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  fontSize: '13.5px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CenterKpiBuilderTab
+          key={`${centerSettings?.id || 'kpi'}-${centerSettings?.kpiTargets?.targetAttendance ?? ''}`}
+          lang={lang}
+          centerSettings={centerSettings}
+          dashboardData={dashboardData}
+          groups={groups}
+          rooms={rooms}
+          financialSummary={financialSummary}
+          updateKpiTargets={updateKpiTargets}
+          showToast={showToast}
+        />
       )}
     </div>
   );
 };
+
+export default CenterSettingsView;
