@@ -90,7 +90,7 @@ function buildFrontendUser(apiUser, extras = {}) {
     : (Object.prototype.hasOwnProperty.call(extras, 'avatar') ? (extras.avatar || null) : (baseRole.avatar || null));
   const hasApiPlanField = Boolean(apiUser && Object.prototype.hasOwnProperty.call(apiUser, 'plan_tier'));
   const rawPlanTier = hasApiPlanField ? apiUser.plan_tier : (extras.plan_tier ?? baseRole.plan_tier ?? 'free');
-  const resolvedPlanTier = roleKey === 'teacher'
+  const resolvedPlanTier = (roleKey === 'teacher' || roleKey === 'center')
     ? normalizeTeacherPlanTier(rawPlanTier)
     : normalizeStudentPlanTier(rawPlanTier);
 
@@ -100,6 +100,9 @@ function buildFrontendUser(apiUser, extras = {}) {
     id: apiUser?.id ?? extras.id ?? baseRole.id,
     name: displayName,
     nameAr: apiUser?.name || extras.nameAr || displayName || baseRole.nameAr,
+    centerNameAr: apiUser?.center_name_ar || extras.centerNameAr || extras.center || '',
+    centerNameEn: apiUser?.center_name_en || apiUser?.center_name_ar || extras.centerNameEn || extras.center || '',
+    center: apiUser?.center_name_ar || extras.center || baseRole.center || '',
     email: apiUser?.email || extras.email || baseRole.email,
     phone: apiUser && Object.prototype.hasOwnProperty.call(apiUser, 'phone')
       ? (apiUser.phone || '')
@@ -289,7 +292,7 @@ export const AuthProvider = ({ children }) => {
       const rawTier = event?.detail?.planTier;
       setCurrentUser((prev) => {
         if (!prev) return prev;
-        const nextTier = prev.role === 'teacher'
+        const nextTier = (prev.role === 'teacher' || prev.role === 'center')
           ? normalizeTeacherPlanTier(rawTier)
           : normalizeStudentPlanTier(rawTier);
         if (prev.plan_tier === nextTier) return prev;
@@ -383,6 +386,13 @@ export const AuthProvider = ({ children }) => {
 
     if (role === 'parent') {
       payload.student_code = String(userData.studentCode || '').trim().toUpperCase();
+    }
+
+    if (role === 'center') {
+      const cleanCenterName = String(userData.centerName || '').trim();
+      const cleanGovernorate = String(userData.governorate || '').trim();
+      if (cleanCenterName) payload.center_name = cleanCenterName;
+      if (cleanGovernorate) payload.governorate = cleanGovernorate;
     }
 
     const response = await authService.register(payload);
@@ -586,6 +596,8 @@ export const AuthProvider = ({ children }) => {
         studentPlanTier: normalizeStudentPlanTier(currentUser?.plan_tier),
         teacherPlanTier: normalizeTeacherPlanTier(currentUser?.plan_tier),
         teacherPlanQuotas: currentUser?.plan_quotas || getTeacherPlanQuotas(currentUser?.plan_tier),
+        centerPlanTier: normalizeTeacherPlanTier(currentUser?.plan_tier),
+        centerPlanQuotas: currentUser?.plan_quotas || null,
         selectedLessonId,
         setSelectedLessonId,
         searchModalOpen,

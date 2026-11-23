@@ -116,7 +116,7 @@ export const CenterHallsView = () => {
     setIsAddRoomOpen(true);
   };
 
-  const handleSaveRoom = (e) => {
+  const handleSaveRoom = async (e) => {
     e.preventDefault();
     if (!roomNameAr.trim()) return;
 
@@ -132,25 +132,34 @@ export const CenterHallsView = () => {
       isAvailable: true
     };
 
-    if (editingRoom) {
-      updateRoom(editingRoom.id, roomPayload);
-      if (showToast) showToast(`تم حفظ تعديلات القاعة «${roomPayload.nameAr}» بنجاح!`);
-    } else {
-      addRoom(roomPayload);
-      if (showToast) showToast(`تمت إضافة القاعة «${roomPayload.nameAr}» بنجاح!`);
-    }
+    try {
+      if (editingRoom) {
+        await updateRoom(editingRoom.id, roomPayload);
+        if (showToast) showToast(`تم حفظ تعديلات القاعة «${roomPayload.nameAr}» بنجاح!`);
+      } else {
+        await addRoom(roomPayload);
+        if (showToast) showToast(`تمت إضافة القاعة «${roomPayload.nameAr}» بنجاح!`);
+      }
 
-    setRoomNameAr('');
-    setEditingRoom(null);
-    setIsAddRoomOpen(false);
+      setRoomNameAr('');
+      setEditingRoom(null);
+      setIsAddRoomOpen(false);
+    } catch {
+      // toast already shown by CenterContext
+    }
   };
 
-  const handleConfirmDeleteRoom = () => {
+  const handleConfirmDeleteRoom = async () => {
     if (!deleteConfirmRoom) return;
     const deletedName = deleteConfirmRoom.nameAr;
-    deleteRoom(deleteConfirmRoom.id);
-    setDeleteConfirmRoom(null);
-    if (showToast) showToast(`تم حذف القاعة «${deletedName}» بنجاح.`, 'warning');
+    try {
+      await deleteRoom(deleteConfirmRoom.id);
+      if (showToast) showToast(`تم حذف القاعة «${deletedName}» بنجاح.`, 'warning');
+    } catch {
+      // toast already shown by CenterContext
+    } finally {
+      setDeleteConfirmRoom(null);
+    }
   };
 
 

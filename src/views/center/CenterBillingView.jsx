@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { CENTER_SUBSCRIPTION_PLANS, MOCK_CENTER_INVOICES } from '../../data/centerData';
+import { useCenter } from '../../context/CenterContext';
+import { useAuth } from '../../context/AuthContext';
+import { CENTER_SUBSCRIPTION_PLANS } from '../../data/centerData';
 import { 
   Building2, 
   CreditCard, 
@@ -22,30 +24,94 @@ import {
 export const CenterBillingView = () => {
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
+  const { centerPlanTier } = useAuth();
+  const {
+    isBackendCenter,
+    loadBillingData,
+    billingData,
+    validateCenterCoupon,
+    subscribeCenterPlan,
+    cancelCenterSubscription
+  } = useCenter();
 
   // Active Center Subscription Details
-  const [activePlanId, setActivePlanId] = useState('plan-center-plus');
+  const [activePlanId, setActivePlanId] = useState(`plan-center-${centerPlanTier || 'free'}`);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly'); // 'monthly' | 'term' | 'annual'
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
-  const [invoices, setInvoices] = useState(MOCK_CENTER_INVOICES);
+  const [invoices, setInvoices] = useState([]);
   const [successToast, setSuccessToast] = useState('');
+
+  useEffect(() => {
+    loadBillingData?.();
+  }, [loadBillingData]);
+
+  useEffect(() => {
+    if (!isBackendCenter) return;
+    if (billingData?.activeSub?.planId) {
+      setActivePlanId(billingData.activeSub.planId);
+    } else if (centerPlanTier) {
+      setActivePlanId(`plan-center-${centerPlanTier}`);
+    }
+    if (Array.isArray(billingData?.invoices)) {
+      setInvoices(billingData.invoices);
+    }
+  }, [isBackendCenter, billingData, centerPlanTier]);
 
   const ActionArrow = isRtl ? ArrowLeft : ArrowRight;
 
-  const handleApplyCoupon = (e) => {
+  const handleApplyCoupon = async (e) => {
     e.preventDefault();
     const clean = couponCode.trim().toUpperCase();
-    if (clean === 'CENTER2026' || clean === 'MOTAFAWWEQ2026') {
-      setCouponApplied(true);
-      setSuccessToast(lang === 'ar' ? 'تم تطبيق خصم 20% بنجاح!' : '20% discount code applied!');
-      setTimeout(() => setSuccessToast(''), 3500);
-    } else {
-      alert(lang === 'ar' ? 'كود الخصم غير صحيح. جرب: CENTER2026' : 'Invalid code. Try: CENTER2026');
+    if (!clean) return;
+    try {
+      const res = await validateCenterCoupon(clean, 200);
+      if (res?.isValid) {
+        setCouponApplied(true);
+        setSuccessToast(res.messageAr || (lang === 'ar' ? 'تم تطبيق خصم 20% بنجاح!' : '20% discount code applied!'));
+        setTimeout(() => setSuccessToast(''), 3500);
+      }
+    } catch (err) {
+      alert(err?.message || (lang === 'ar' ? 'كود الخصم غير صحيح. جرب: CENTER2026' : 'Invalid code. Try: CENTER2026'));
     }
   };
 
-  const handleSelectPlan = (plan) => {
+  const handleSelectPlan = async (plan) => {
+    if (isBackendCenter) {
+      try {
+        if (plan.tier === 'free') {
+          const res = await cancelCenterSubscription();
+          setActivePlanId('plan-center-free');
+          setSuccessToast(res?.message || 'تم إلغاء الاشتراك المدفوع والعودة للباقة المجانية.');
+          setTimeout(() => setSuccessToast(''), 4000);
+          return;
+        }
+
+        // If switching between paid plans (e.g. Plus -> Pro), auto-cancel current paid subscription first if required
+        if (activePlanId !== 'plan-center-free' && activePlanId !== plan.id) {
+          await cancelCenterSubscription().catch(() => {});
+        }
+
+        const res = await subscribeCenterPlan({
+          plan_tier: plan.tier,
+          period: selectedPeriod,
+          payment_method: 'instapay',
+          ...(couponApplied && couponCode.trim() ? { coupon_code: couponCode.trim().toUpperCase() } : {}),
+        });
+        setActivePlanId(plan.id);
+        setSuccessToast(
+          res?.message ||
+            (lang === 'ar'
+              ? `تم ترقية اشتراك السنتر بنجاح إلى "${plan.nameAr}".`
+              : `Center subscription successfully updated to "${plan.nameEn}".`)
+        );
+        setTimeout(() => setSuccessToast(''), 4000);
+      } catch (err) {
+        alert(err?.message || 'تعذر تحديث الباقة حالياً.');
+      }
+      return;
+    }
+
     setActivePlanId(plan.id);
     const pricing = plan.pricing[selectedPeriod];
     const basePrice = pricing.priceEgp;
@@ -532,7 +598,14 @@ export const CenterBillingView = () => {
               </tr>
             </thead>
             <tbody>
-              {invoices.map(inv => (
+              {invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    {lang === 'ar' ? 'لا توجد فواتير اشتراك مسجلة بعد.' : 'No subscription invoices recorded yet.'}
+                  </td>
+                </tr>
+              ) : (
+                invoices.map(inv => (
                 <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <td style={{ padding: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>{inv.id}</td>
                   <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{inv.date}</td>
@@ -552,7 +625,8 @@ export const CenterBillingView = () => {
                     </span>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

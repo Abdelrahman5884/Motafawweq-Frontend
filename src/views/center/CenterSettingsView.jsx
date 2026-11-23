@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
+import { centerApi } from '../../services/centerApi';
 import { 
   Building2, 
   Settings, 
@@ -33,15 +34,37 @@ import {
 
 export const CenterSettingsView = () => {
   const { lang, isRtl } = useLanguage();
-  const { branches, exportToCsv } = useCenter();
+  const {
+    isBackendCenter,
+    loadSettingsData,
+    branches,
+    exportToCsv,
+    centerSettings,
+    updateCenterSettings,
+    updateKpiTargets,
+    tasks: ctxTasks = [],
+    addCenterTask,
+    updateCenterTask,
+    toggleCenterTask,
+    deleteCenterTask,
+    announcements: ctxAnnouncements = [],
+    addCenterAnnouncement,
+    importCenterStudents,
+    backups = [],
+    createCenterBackup
+  } = useCenter();
+
+  useEffect(() => {
+    loadSettingsData?.();
+  }, [loadSettingsData]);
 
   const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'tasks' | 'announcements' | 'import' | 'backup' | 'kpis'
 
   // Center Settings State (Feature 13)
-  const [centerNameAr, setCenterNameAr] = useState('أكاديمية الرواد التعليمية');
-  const [centerPhone, setCenterPhone] = useState('+20 2 3345 6789');
-  const [centerAddress, setCenterAddress] = useState('ميدان الدقي، الجيزة، مصر');
-  const [workingHours, setWorkingHours] = useState('08:00 ص - 10:00 م');
+  const [centerNameAr, setCenterNameAr] = useState('');
+  const [centerPhone, setCenterPhone] = useState('');
+  const [centerAddress, setCenterAddress] = useState('');
+  const [workingHours, setWorkingHours] = useState('');
   const [lateMarginMinutes, setLateMarginMinutes] = useState('15');
   const [paymentMethods, setPaymentMethods] = useState({
     cash: true,
@@ -52,20 +75,15 @@ export const CenterSettingsView = () => {
   const [saveSettingsSuccess, setSaveSettingsSuccess] = useState(false);
 
   // Financial & Operational Policies
-  const [siblingDiscountPercent, setSiblingDiscountPercent] = useState('10');
+  const [siblingDiscountPercent, setSiblingDiscountPercent] = useState('0');
   const [mandatoryCashClose, setMandatoryCashClose] = useState(true);
   const [refundPolicy, setRefundPolicy] = useState('credit'); // 'credit' | 'replacement' | 'cash'
 
   // Task Management State (Feature 74)
-  const [tasks, setTasks] = useState([
-    { id: 'tsk-1', titleAr: 'مراجعة كشوفات حضور القاعة الكبرى ومطابقة الباركود', assignee: 'أ. ياسمين نبيل', deadline: 'اليوم 04:00 م', completed: true },
-    { id: 'tsk-2', titleAr: 'تسوية مستحقات الأسبوع الماضي لدكتور سلمى السيد', assignee: 'أ. مصطفى الجيار', deadline: 'اليوم 06:00 م', completed: false },
-    { id: 'tsk-3', titleAr: 'الاتصال بأولياء أمور الطلاب المتغيبين في مجموعة الفيزياء', assignee: 'خدمة العملاء', deadline: 'غداً 11:00 ص', completed: false },
-    { id: 'tsk-4', titleAr: 'فحص وصيانة التكييف المركزي بقاعة أينشتاين', assignee: 'أ. سامح عبدالحميد', deadline: 'الخميس 02:00 م', completed: false }
-  ]);
+  const [tasks, setTasks] = useState([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskAssignee, setNewTaskAssignee] = useState('أ. ياسمين نبيل');
-  const [newTaskDeadline, setNewTaskDeadline] = useState('اليوم 06:00 م');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskDeadline, setNewTaskDeadline] = useState('');
 
   // Task Edit, Delete Dialog & Swipe State
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -77,24 +95,7 @@ export const CenterSettingsView = () => {
   const [touchStartX, setTouchStartX] = useState(null);
 
   // Internal Announcements State (Feature 75)
-  const [announcements, setAnnouncements] = useState([
-    {
-      id: 'anc-1',
-      titleAr: 'تحديث سياسة فحص الباركود الذكي على البوابات',
-      contentAr: 'يرجى من جميع مسؤولي الاستقبال التأكد من تمرير بطاقات الطلاب الذكية فور الدخول لتفعيل المطابقة الآلية للمواعيد والقاعات.',
-      author: 'إدارة السنتر العامة',
-      date: '2026-09-28',
-      branch: 'جميع الفروع'
-    },
-    {
-      id: 'anc-2',
-      titleAr: 'مواعيد حصص المراجعة النهائية لشهر أكتوبر',
-      contentAr: 'تم اعتماد جدول القاعات والمدرجات الإضافية للفترة المسائية، يرجى التنسيق مع المدرسين لتوزيع الطلاب.',
-      author: 'أ. سامح عبدالحميد (مدير التشغيل)',
-      date: '2026-09-25',
-      branch: 'فرع الدقي'
-    }
-  ]);
+  const [announcements, setAnnouncements] = useState([]);
   const [newAnnouncementTitle, setNewAnnouncementTitle] = useState('');
   const [newAnnouncementContent, setNewAnnouncementContent] = useState('');
   const [newAnnouncementBranch, setNewAnnouncementBranch] = useState('جميع الفروع');
@@ -105,31 +106,95 @@ export const CenterSettingsView = () => {
   const [importSuccessMessage, setImportSuccessMessage] = useState(null);
 
   // Backup State (Feature 79)
-  const [lastBackupTime, setLastBackupTime] = useState('اليوم، 02:30 م');
+  const [lastBackupTime, setLastBackupTime] = useState('');
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupNotice, setBackupNotice] = useState(null);
 
   // Custom KPI Builder State (Features 72, 94, 95)
   const [targetAttendance, setTargetAttendance] = useState('95');
-  const [targetRevenue, setTargetRevenue] = useState('300000');
+  const [targetRevenue, setTargetRevenue] = useState('0');
   const [targetUtilization, setTargetUtilization] = useState('85');
   const [kpiSavedSuccess, setKpiSavedSuccess] = useState(false);
 
+  // Hydrate Settings, Tasks, Announcements & Backups from Backend
+  useEffect(() => {
+    if (!isBackendCenter) return;
+    if (centerSettings) {
+      if (centerSettings.nameAr) setCenterNameAr(centerSettings.nameAr);
+      if (centerSettings.phone !== undefined) setCenterPhone(centerSettings.phone || '');
+      if (centerSettings.addressAr !== undefined) setCenterAddress(centerSettings.addressAr || '');
+      if (centerSettings.workingHoursAr) setWorkingHours(centerSettings.workingHoursAr);
+      if (centerSettings.lateMarginMinutes !== undefined) setLateMarginMinutes(String(centerSettings.lateMarginMinutes));
+      if (centerSettings.siblingDiscountPercent !== undefined) setSiblingDiscountPercent(String(centerSettings.siblingDiscountPercent));
+      if (centerSettings.mandatoryCashClose !== undefined) setMandatoryCashClose(Boolean(centerSettings.mandatoryCashClose));
+      if (centerSettings.refundPolicy) setRefundPolicy(centerSettings.refundPolicy);
+      if (centerSettings.paymentMethods && typeof centerSettings.paymentMethods === 'object') {
+        setPaymentMethods((prev) => ({ ...prev, ...centerSettings.paymentMethods }));
+      }
+      if (centerSettings.kpiTargets) {
+        if (centerSettings.kpiTargets.targetAttendancePct) setTargetAttendance(String(centerSettings.kpiTargets.targetAttendancePct));
+        if (centerSettings.kpiTargets.targetMonthlyRevenueEgp) setTargetRevenue(String(centerSettings.kpiTargets.targetMonthlyRevenueEgp));
+        if (centerSettings.kpiTargets.targetRoomUtilizationPct) setTargetUtilization(String(centerSettings.kpiTargets.targetRoomUtilizationPct));
+      }
+    }
+  }, [isBackendCenter, centerSettings]);
+
+  useEffect(() => {
+    if (isBackendCenter) setTasks(ctxTasks);
+  }, [isBackendCenter, ctxTasks]);
+
+  useEffect(() => {
+    if (isBackendCenter) setAnnouncements(ctxAnnouncements);
+  }, [isBackendCenter, ctxAnnouncements]);
+
+  useEffect(() => {
+    if (isBackendCenter && backups.length > 0 && backups[0]?.createdAt) {
+      const dt = new Date(backups[0].createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      setLastBackupTime(dt);
+    } else if (isBackendCenter) {
+      setLastBackupTime('');
+    }
+  }, [isBackendCenter, backups]);
+
   // Handle Save Settings
-  const handleSaveSettings = (e) => {
+  const handleSaveSettings = async (e) => {
     e.preventDefault();
+    if (isBackendCenter && updateCenterSettings) {
+      try {
+        await updateCenterSettings({
+          nameAr: centerNameAr,
+          phone: centerPhone,
+          addressAr: centerAddress,
+          workingHoursAr: workingHours,
+          lateMarginMinutes: Number(lateMarginMinutes) || 15,
+          siblingDiscountPercent: Number(siblingDiscountPercent) || 0,
+          mandatoryCashClose: Boolean(mandatoryCashClose),
+          refundPolicy,
+          paymentMethods,
+        });
+      } catch (err) {
+        alert(err?.message || 'تعذر حفظ الإعدادات.');
+        return;
+      }
+    }
     setSaveSettingsSuccess(true);
     setTimeout(() => setSaveSettingsSuccess(false), 3000);
   };
 
   // Toggle Task Completion
-  const toggleTask = (taskId) => {
+  const toggleTask = async (taskId) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+    if (isBackendCenter && toggleCenterTask) {
+      await toggleCenterTask(taskId).catch(() => {});
+    }
   };
 
-  const handleDeleteTask = (taskId) => {
+  const handleDeleteTask = async (taskId) => {
     setTasks(prev => prev.filter(t => t.id !== taskId));
     if (editingTaskId === taskId) setEditingTaskId(null);
+    if (isBackendCenter && deleteCenterTask) {
+      await deleteCenterTask(taskId).catch(() => {});
+    }
   };
 
   const handleStartEdit = (t) => {
@@ -139,9 +204,21 @@ export const CenterSettingsView = () => {
     setEditTaskDeadline(t.deadline);
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editTaskTitle.trim()) return;
+    if (isBackendCenter && updateCenterTask) {
+      const updated = await updateCenterTask(editingTaskId, {
+        titleAr: editTaskTitle.trim(),
+        assignee: editTaskAssignee,
+        deadline: editTaskDeadline,
+      }).catch(() => null);
+      if (updated) {
+        setTasks(prev => prev.map(t => t.id === editingTaskId ? updated : t));
+        setEditingTaskId(null);
+        return;
+      }
+    }
     setTasks(prev => prev.map(t => t.id === editingTaskId ? {
       ...t,
       titleAr: editTaskTitle.trim(),
@@ -156,9 +233,21 @@ export const CenterSettingsView = () => {
   };
 
   // Add Task
-  const handleAddTask = (e) => {
+  const handleAddTask = async (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
+
+    if (isBackendCenter && addCenterTask) {
+      const created = await addCenterTask({
+        titleAr: newTaskTitle.trim(),
+        assignee: newTaskAssignee,
+        deadline: newTaskDeadline,
+      }).catch(() => null);
+      if (created) {
+        setNewTaskTitle('');
+        return;
+      }
+    }
 
     setTasks(prev => [
       {
@@ -174,9 +263,23 @@ export const CenterSettingsView = () => {
   };
 
   // Add Announcement
-  const handleAddAnnouncement = (e) => {
+  const handleAddAnnouncement = async (e) => {
     e.preventDefault();
     if (!newAnnouncementTitle.trim() || !newAnnouncementContent.trim()) return;
+
+    if (isBackendCenter && addCenterAnnouncement) {
+      const created = await addCenterAnnouncement({
+        titleAr: newAnnouncementTitle.trim(),
+        contentAr: newAnnouncementContent.trim(),
+        branch: newAnnouncementBranch,
+        author: 'إدارة السنتر العامة',
+      }).catch(() => null);
+      if (created) {
+        setNewAnnouncementTitle('');
+        setNewAnnouncementContent('');
+        return;
+      }
+    }
 
     setAnnouncements(prev => [
       {
@@ -193,26 +296,60 @@ export const CenterSettingsView = () => {
     setNewAnnouncementContent('');
   };
 
-  // Simulate File Import
-  const handleSimulateExcelImport = () => {
+  // Simulate or Perform Batch Student Import
+  const handleSimulateExcelImport = async () => {
     setIsImporting(true);
+    const sampleBatch = [
+      { name: 'حازم خالد مصطفى', phone: '01019283746', group: 'فيزياء الثانوية العامة', grade: '3 ثانوي' },
+      { name: 'رنا إبراهيم الشربيني', phone: '01128374655', group: 'كيمياء اللغات', grade: '3 ثانوي' },
+      { name: 'مروان أحمد توفيق', phone: '01239485761', group: 'الرياضيات البحتة', grade: '3 ثانوي' },
+      { name: 'سلمى وائل البغدادي', phone: '01558473629', group: 'الأحياء التفاعلية', grade: '2 ثانوي' }
+    ];
+
+    if (isBackendCenter && importCenterStudents) {
+      try {
+        const res = await importCenterStudents(sampleBatch);
+        const rows = Array.isArray(res?.importedRows) && res.importedRows.length > 0 ? res.importedRows : sampleBatch;
+        setImportedRows(rows);
+        setIsImporting(false);
+        setImportSuccessMessage(`تم استيراد ${res?.importedCount ?? rows.length} سجل طالب بنجاح في قاعدة البيانات وفحص عدم تكرار الأرقام.`);
+        setTimeout(() => setImportSuccessMessage(null), 4000);
+        return;
+      } catch (err) {
+        setIsImporting(false);
+        alert(err?.message || 'تعذر استيراد دفعة الطلاب.');
+        return;
+      }
+    }
+
     setTimeout(() => {
-      const mockImported = [
-        { name: 'حازم خالد مصطفى', phone: '01019283746', group: 'فيزياء الثانوية العامة', grade: '3 ثانوي' },
-        { name: 'رنا إبراهيم الشربيني', phone: '01128374655', group: 'كيمياء اللغات', grade: '3 ثانوي' },
-        { name: 'مروان أحمد توفيق', phone: '01239485761', group: 'الرياضيات البحتة', grade: '3 ثانوي' },
-        { name: 'سلمى وائل البغدادي', phone: '01558473629', group: 'الأحياء التفاعلية', grade: '2 ثانوي' }
-      ];
-      setImportedRows(mockImported);
+      setImportedRows(sampleBatch);
       setIsImporting(false);
-      setImportSuccessMessage(`تم استيراد ${mockImported.length} سجل طالب بنجاح وفحص عدم تكرار الأرقام.`);
+      setImportSuccessMessage(`تم استيراد ${sampleBatch.length} سجل طالب بنجاح وفحص عدم تكرار الأرقام.`);
       setTimeout(() => setImportSuccessMessage(null), 4000);
     }, 700);
   };
 
   // Trigger Cloud Backup
-  const handleTriggerBackup = () => {
+  const handleTriggerBackup = async () => {
     setIsBackingUp(true);
+    if (isBackendCenter && createCenterBackup) {
+      try {
+        const created = await createCenterBackup();
+        setIsBackingUp(false);
+        const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        setLastBackupTime(`اليوم، ${now}`);
+        setBackupNotice(`تم إنشاء نسخة احتياطية مشفرة (${created?.filename || 'SHA-256'}) وحفظها على الخادم السحابي بنجاح.`);
+        setTimeout(() => setBackupNotice(null), 4000);
+        return;
+      } catch (err) {
+        setIsBackingUp(false);
+        setBackupNotice(err?.message || 'يتطلب النسخ الاحتياطي السحابي باقة السنتر برو (Pro).');
+        setTimeout(() => setBackupNotice(null), 4000);
+        return;
+      }
+    }
+
     setTimeout(() => {
       setIsBackingUp(false);
       const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
@@ -223,8 +360,20 @@ export const CenterSettingsView = () => {
   };
 
   // Save KPI Targets
-  const handleSaveKpiTargets = (e) => {
+  const handleSaveKpiTargets = async (e) => {
     e.preventDefault();
+    if (isBackendCenter && updateKpiTargets) {
+      try {
+        await updateKpiTargets({
+          targetAttendance: Number(targetAttendance) || 95,
+          targetRevenue: Number(targetRevenue) || 300000,
+          targetUtilization: Number(targetUtilization) || 85,
+        });
+      } catch (err) {
+        alert(err?.message || 'تعذر حفظ مؤشرات الأداء.');
+        return;
+      }
+    }
     setKpiSavedSuccess(true);
     setTimeout(() => setKpiSavedSuccess(false), 3000);
   };
@@ -1216,7 +1365,15 @@ export const CenterSettingsView = () => {
 
           <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '20px' }}>
             <button
-              onClick={() => {
+              onClick={async () => {
+                if (isBackendCenter) {
+                  try {
+                    await centerApi.settings.downloadImportTemplate('نموذج_استيراد_الطلاب.csv');
+                    return;
+                  } catch {
+                    // fallback
+                  }
+                }
                 const headers = ['اسم الطالب', 'رقم الهاتف', 'المجموعة', 'المرحلة الدراسية'];
                 const rows = [
                   ['طالب تجريبي 1', '01000000001', 'فيزياء الثانوية العامة', '3 ثانوي'],
@@ -1355,7 +1512,9 @@ export const CenterSettingsView = () => {
                 {lang === 'ar' ? 'حالة المزامنة السحابية:' : 'Sync Status:'} <span style={{ color: 'var(--success)' }}>{lang === 'ar' ? 'نشط ومتزامن ومشفر بالكامل' : 'Active & Synchronized (256-bit AES)'}</span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                آخر نسخة احتياطية ناجحة: {lastBackupTime}
+                {lang === 'ar'
+                  ? `آخر نسخة احتياطية ناجحة: ${lastBackupTime || 'لا توجد نسخ احتياطية بعد'}`
+                  : `Last backup: ${lastBackupTime || 'No backups yet'}`}
               </div>
             </div>
 

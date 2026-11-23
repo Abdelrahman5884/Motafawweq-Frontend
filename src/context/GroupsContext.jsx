@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { tokenStorage } from '../services/api';
 import { teacherApi } from '../services/teacherApi';
 import { studentApi } from '../services/studentApi';
+import { centerApi } from '../services/centerApi';
 import { extractGroupJoinCode } from '../utils';
 import { useAuth } from './AuthContext';
 import { hasTeacherFeatureAccess } from '../constants/teacherPlanFeatures';
@@ -89,6 +90,7 @@ export const GroupsProvider = ({ children }) => {
   const hasToken = Boolean(tokenStorage.getAccessToken());
   const isStudentRole = currentUser?.role === 'student';
   const isTeacherRole = currentUser?.role === 'teacher';
+  const isCenterRole = currentUser?.role === 'center';
   const canUseTeacherSchedule = isTeacherRole && hasTeacherFeatureAccess(teacherPlanTier, 'schedule');
   const activeUserId = isAuthenticated && hasToken && currentUser?.id ? String(currentUser.id) : '';
   const studySessionsStorageKey = activeUserId ? `motafawweq_student_study_sessions_${activeUserId}` : '';
@@ -140,10 +142,10 @@ export const GroupsProvider = ({ children }) => {
     }, 3500);
   }, []);
 
-  // Fetch groups from backend (role-aware: Teacher vs Student)
+  // Fetch groups from backend (role-aware: Teacher vs Student vs Center)
   const fetchGroups = useCallback(async () => {
     if (authLoading) return;
-    if (!activeUserId || (!isStudentRole && !isTeacherRole)) {
+    if (!activeUserId || (!isStudentRole && !isTeacherRole && !isCenterRole)) {
       setGroups([]);
       setEnrolledStudents({});
       setPendingStudents({});
@@ -155,6 +157,64 @@ export const GroupsProvider = ({ children }) => {
     setLoadingGroups(true);
     setGroupsError(null);
     try {
+      if (isCenterRole) {
+        const res = await centerApi.groups.list();
+        const rawList = Array.isArray(res?.data) ? res.data : [];
+        if (res?.meta) {
+          setGroupsMeta(res.meta);
+        }
+        const mappedGroups = rawList.map((g) => {
+          const rawSlots = Array.isArray(g.scheduleSlots || g.schedule_slots) ? (g.scheduleSlots || g.schedule_slots) : [];
+          return {
+            id: g.id || g.uuid,
+            uuid: g.uuid || g.id,
+            nameAr: g.nameAr || g.name_ar || 'مجموعة دراسية',
+            nameEn: g.nameEn || g.name_en || g.nameAr || g.name_ar || '',
+            subjectAr: g.subjectAr || g.subject_ar || 'المادة الدراسية',
+            subjectEn: g.subjectEn || g.subject_en || g.subjectAr || '',
+            gradeAr: g.gradeAr || g.grade_ar || 'الصف الثالث الثانوي',
+            gradeEn: g.gradeEn || g.grade_en || 'Grade 12',
+            scheduleAr: g.scheduleAr || g.schedule_ar || '',
+            scheduleEn: g.scheduleEn || g.schedule_en || '',
+            branchId: g.branchId || g.branch_id || null,
+            branchNameAr: g.branchNameAr || g.branch_name_ar || g.centerName || 'الفرع الرئيسي',
+            centerName: g.centerName || g.branchNameAr || 'سنتر الرواد التعليمي',
+            roomId: g.roomId || g.room_id || null,
+            hallName: g.hallName || g.hall_name || 'القاعة الرئيسية',
+            teacherId: g.teacherId || g.teacher_id || null,
+            teacherNameAr: g.teacherNameAr || g.teacher_name_ar || 'مدرس السنتر',
+            priceEgp: !Number.isNaN(Number(g.priceEgp ?? g.price_egp)) ? Number(g.priceEgp ?? g.price_egp) : 0,
+            joinCode: String(g.joinCode || g.join_code || '').trim().toUpperCase(),
+            maxStudents: Number(g.maxStudents || g.max_students) || 50,
+            enrolledCount: Number(g.enrolledCount || g.enrolled_count) || 0,
+            pendingCount: Number(g.pendingCount || g.pending_count) || 0,
+            status: g.status || 'active',
+            scheduleSlots: rawSlots.length > 0
+              ? rawSlots.map((s) => {
+                  const dayKey = String(s.day || s.day_of_week || '').toLowerCase();
+                  const meta = DAY_LABELS[dayKey] || { ar: dayKey, en: dayKey };
+                  return {
+                    id: s.id || `slot-${dayKey}`,
+                    day: dayKey,
+                    dayAr: s.dayAr || meta.ar,
+                    dayEn: s.dayEn || meta.en,
+                    startTime: s.startTime || s.start_time || '16:00',
+                    endTime: s.endTime || s.end_time || '18:00',
+                    roomId: s.roomId || s.room_id || g.roomId || null,
+                    hall: s.hall || s.hall_name || g.hallName || 'القاعة الرئيسية',
+                  };
+                })
+              : parseScheduleSlots(g.scheduleAr || g.schedule_ar, g.hallName || g.hall_name),
+          };
+        });
+
+        setGroups(mappedGroups);
+        if (mappedGroups.length > 0) {
+          setActiveGroupId((prev) => (prev && mappedGroups.some((m) => m.id === prev) ? prev : mappedGroups[0].id));
+        }
+        return;
+      }
+
       if (isStudentRole) {
         const res = await studentApi.groups.list();
         const rawList = Array.isArray(res?.data) ? res.data : [];
@@ -302,19 +362,29 @@ export const GroupsProvider = ({ children }) => {
     } finally {
       setLoadingGroups(false);
     }
-  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, currentUser?.name, currentUser?.nameAr, currentUser?.phone]);
+  }, [authLoading, activeUserId, isStudentRole, isTeacherRole, isCenterRole, currentUser?.name, currentUser?.nameAr, currentUser?.phone]);
 
-  // Fetch Roster for active group (Teacher only) with stale-request guard and optional session date
+  // Fetch Roster for active group (Teacher or Center) with stale-request guard and optional session date
   const fetchGroupRoster = useCallback(async (groupId, date = null) => {
-    if (authLoading || !groupId || !isTeacherRole || !activeUserId) return;
+    if (authLoading || !groupId || (!isTeacherRole && !isCenterRole) || !activeUserId) return;
     const seq = ++rosterRequestSeqRef.current;
     setLoadingRoster(true);
     setRosterError(null);
     try {
-      const res = await teacherApi.roster.list(groupId, date ? { date } : {});
+      const res = isCenterRole
+        ? await centerApi.groups.getRoster(groupId, date ? { date } : {})
+        : await teacherApi.roster.list(groupId, date ? { date } : {});
       if (seq !== rosterRequestSeqRef.current) return;
       if (res?.data) {
-        const enrolled = Array.isArray(res.data.enrolled) ? res.data.enrolled : [];
+        const rawEnrolled = Array.isArray(res.data.enrolled) ? res.data.enrolled : [];
+        const enrolled = isCenterRole
+          ? rawEnrolled.map((s) => ({
+              ...s,
+              id: s.enrollmentId || s.id,
+              todayStatus: s.todayStatus === 'late' ? 'present' : (s.todayStatus || 'absent'),
+              rawTodayStatus: s.todayStatus || 'absent',
+            }))
+          : rawEnrolled;
         const pending = Array.isArray(res.data.pending) ? res.data.pending : [];
         const stats = res.data.stats && typeof res.data.stats === 'object' ? res.data.stats : null;
         setEnrolledStudents((prev) => ({ ...prev, [groupId]: enrolled }));
@@ -338,7 +408,7 @@ export const GroupsProvider = ({ children }) => {
         setLoadingRoster(false);
       }
     }
-  }, [authLoading, isTeacherRole, activeUserId]);
+  }, [authLoading, isTeacherRole, isCenterRole, activeUserId]);
 
   // Fetch Schedule Notes & Student Personal Study Sessions
   const fetchScheduleNotes = useCallback(async () => {
@@ -470,7 +540,12 @@ export const GroupsProvider = ({ children }) => {
       scheduleAr: g?.scheduleAr || g?.schedule_ar || fallback.scheduleAr || '',
       scheduleEn: g?.scheduleEn || g?.schedule_en || g?.scheduleAr || g?.schedule_ar || fallback.scheduleEn || fallback.scheduleAr || '',
       centerName: g?.centerName || g?.center_name || fallback.centerName || '',
+      branchId: g?.branchId || g?.branch_id || fallback.branchId || null,
+      branchNameAr: g?.branchNameAr || g?.branch_name_ar || fallback.branchNameAr || g?.centerName || '',
+      roomId: g?.roomId || g?.room_id || fallback.roomId || null,
       hallName: g?.hallName || g?.hall_name || fallback.hallName || 'القاعة الرئيسية',
+      teacherId: g?.teacherId || g?.teacher_id || fallback.teacherId || null,
+      teacherNameAr: g?.teacherNameAr || g?.teacher_name_ar || fallback.teacherNameAr || '',
       priceEgp: numericPrice,
       joinCode: String(g?.joinCode || g?.join_code || fallback.joinCode || '').trim().toUpperCase(),
       maxStudents: Number(g?.maxStudents ?? g?.max_students ?? fallback.maxStudents) || 50,
@@ -510,6 +585,38 @@ export const GroupsProvider = ({ children }) => {
           hall_name: s.hall || groupData.hallName || 'القاعة الرئيسية',
         })),
       };
+
+      if (isCenterRole) {
+        const centerPayload = {
+          name_ar: groupData.nameAr || 'مجموعة دراسية جديدة',
+          name_en: groupData.nameEn || groupData.nameAr || 'New Study Group',
+          subject_ar: groupData.subjectAr || 'الأحياء',
+          grade_ar: groupData.gradeAr || 'الصف الثالث الثانوي',
+          branch_id: groupData.branchId || undefined,
+          room_id: groupData.roomId || undefined,
+          teacher_id: groupData.teacherId || undefined,
+          teacher_name_override: groupData.teacherNameAr || undefined,
+          hall_name: groupData.hallName || 'القاعة الرئيسية',
+          schedule_ar: groupData.scheduleAr || 'الأحد والأربعاء 4:00 عصراً',
+          price_egp: groupData.priceEgp !== undefined && groupData.priceEgp !== '' && !isNaN(Number(groupData.priceEgp)) ? Number(groupData.priceEgp) : 0,
+          max_students: Number(groupData.maxStudents) || 50,
+          schedule_slots: slots.map((s) => ({
+            day: s.day,
+            start_time: s.startTime || '16:00',
+            end_time: s.endTime || '18:00',
+            room_id: s.roomId || groupData.roomId || undefined,
+            hall_name: s.hall || groupData.hallName || 'القاعة الرئيسية',
+          })),
+        };
+        const res = await centerApi.groups.create(centerPayload);
+        const createdObj = normalizeTeacherGroup(res?.data || {}, { ...groupData, scheduleSlots: slots });
+        setGroups((prev) => [createdObj, ...prev]);
+        setEnrolledStudents((prev) => ({ ...prev, [createdObj.id]: [] }));
+        setPendingStudents((prev) => ({ ...prev, [createdObj.id]: [] }));
+        setActiveGroupId(createdObj.id);
+        showToast('تم إنشاء المجموعة وإضافتها بنجاح!');
+        return createdObj;
+      }
 
       const res = await teacherApi.groups.create(payload);
       const createdObj = normalizeTeacherGroup(res?.data || {}, { ...groupData, scheduleSlots: slots });
@@ -556,6 +663,37 @@ export const GroupsProvider = ({ children }) => {
         })),
       };
 
+      if (isCenterRole) {
+        const centerPayload = {
+          name_ar: updatedData.nameAr || existing?.nameAr,
+          name_en: updatedData.nameEn || updatedData.nameAr || existing?.nameEn,
+          subject_ar: updatedData.subjectAr || existing?.subjectAr,
+          grade_ar: updatedData.gradeAr || existing?.gradeAr,
+          branch_id: updatedData.branchId !== undefined ? updatedData.branchId : existing?.branchId,
+          room_id: updatedData.roomId !== undefined ? updatedData.roomId : existing?.roomId,
+          teacher_id: updatedData.teacherId !== undefined ? updatedData.teacherId : existing?.teacherId,
+          teacher_name_override: updatedData.teacherNameAr || existing?.teacherNameAr,
+          hall_name: updatedData.hallName || existing?.hallName,
+          price_egp: updatedData.priceEgp !== undefined && updatedData.priceEgp !== '' && !isNaN(Number(updatedData.priceEgp))
+            ? Number(updatedData.priceEgp)
+            : (existing?.priceEgp ?? 0),
+          max_students: Number(updatedData.maxStudents) || existing?.maxStudents || 50,
+          schedule_ar: updatedData.scheduleAr || existing?.scheduleAr,
+          schedule_slots: slots.map((s) => ({
+            day: s.day,
+            start_time: s.startTime || '16:00',
+            end_time: s.endTime || '18:00',
+            room_id: s.roomId || updatedData.roomId || existing?.roomId || undefined,
+            hall_name: s.hall || updatedData.hallName || existing?.hallName || 'القاعة الرئيسية',
+          })),
+        };
+        const res = await centerApi.groups.update(groupId, centerPayload);
+        const updatedObj = normalizeTeacherGroup(res?.data || {}, { ...existing, ...updatedData, scheduleSlots: slots });
+        setGroups((prev) => prev.map((g) => (g.id === groupId ? updatedObj : g)));
+        showToast('تم حفظ تعديلات المجموعة بنجاح!');
+        return updatedObj;
+      }
+
       const res = await teacherApi.groups.update(groupId, payload);
       const updatedObj = normalizeTeacherGroup(res?.data || {}, { ...existing, ...updatedData, scheduleSlots: slots });
 
@@ -572,7 +710,9 @@ export const GroupsProvider = ({ children }) => {
   // Regenerate study group join code (Anti-leakage)
   const regenerateGroupJoinCode = async (groupId) => {
     try {
-      const res = await teacherApi.groups.regenerateCode(groupId);
+      const res = isCenterRole
+        ? await centerApi.groups.regenerateCode(groupId)
+        : await teacherApi.groups.regenerateCode(groupId);
       const existing = groups.find((g) => g.id === groupId) || {};
       const updatedObj = normalizeTeacherGroup(res?.data || {}, existing);
       setGroups((prev) => prev.map((g) => (g.id === groupId ? updatedObj : g)));
@@ -588,7 +728,11 @@ export const GroupsProvider = ({ children }) => {
   // Delete study group
   const deleteGroup = async (groupId) => {
     try {
-      await teacherApi.groups.delete(groupId);
+      if (isCenterRole) {
+        await centerApi.groups.delete(groupId);
+      } else {
+        await teacherApi.groups.delete(groupId);
+      }
       setGroups((prev) => prev.filter((g) => g.id !== groupId));
       setEnrolledStudents((prev) => {
         const copy = { ...prev };
@@ -621,7 +765,11 @@ export const GroupsProvider = ({ children }) => {
   // Accept pending student enrollment
   const acceptPendingStudent = async (groupId, pendingId) => {
     try {
-      await teacherApi.roster.accept(groupId, pendingId);
+      if (isCenterRole) {
+        await centerApi.groups.acceptPending(groupId, pendingId);
+      } else {
+        await teacherApi.roster.accept(groupId, pendingId);
+      }
       await fetchGroupRoster(groupId);
       showToast('تم قبول الطالب بنجاح وإضافته لقائمة المقيدين!');
       return { success: true };
@@ -636,7 +784,11 @@ export const GroupsProvider = ({ children }) => {
   // Reject pending student enrollment or cancel a teacher-sent invitation
   const rejectPendingStudent = async (groupId, pendingId, reason = '', { isInviteCancel = false } = {}) => {
     try {
-      await teacherApi.roster.reject(groupId, pendingId, reason);
+      if (isCenterRole) {
+        await centerApi.groups.rejectPending(groupId, pendingId);
+      } else {
+        await teacherApi.roster.reject(groupId, pendingId, reason);
+      }
       await fetchGroupRoster(groupId);
       showToast(
         isInviteCancel ? 'تم إلغاء الدعوة المرسلة للطالب.' : 'تم رفض طلب الانضمام.',
@@ -654,12 +806,62 @@ export const GroupsProvider = ({ children }) => {
   // Remove enrolled student from group
   const removeStudentFromGroup = async (groupId, enrollmentUuid) => {
     try {
-      await teacherApi.roster.remove(groupId, enrollmentUuid);
+      if (isCenterRole) {
+        await centerApi.groups.removeStudent(groupId, enrollmentUuid);
+      } else {
+        await teacherApi.roster.remove(groupId, enrollmentUuid);
+      }
       await fetchGroupRoster(groupId);
       showToast('تم إلغاء قيد الطالب من هذه المجموعة.');
       return { success: true };
     } catch (err) {
       const msg = err?.message || 'فشل إلغاء قيد الطالب.';
+      showToast(msg, 'warning');
+      return { success: false, error: msg };
+    }
+  };
+
+  // Direct enrollment of existing or walk-in student (Center Portal & Teacher fallback)
+  const enrollStudentDirectly = async (groupId, studentOrPayload) => {
+    if (!isCenterRole) {
+      return inviteStudentToGroup(groupId, studentOrPayload);
+    }
+    try {
+      let body = {};
+      if (studentOrPayload && typeof studentOrPayload === 'object') {
+        if (studentOrPayload.id && !studentOrPayload.nameAr && !studentOrPayload.name_ar) {
+          body = { student_id: Number(studentOrPayload.id) || undefined };
+        } else if (studentOrPayload.id && Number.isInteger(Number(studentOrPayload.id))) {
+          body = {
+            student_id: Number(studentOrPayload.id),
+            name_ar: studentOrPayload.nameAr || studentOrPayload.name_ar || studentOrPayload.name,
+            phone: studentOrPayload.phone || undefined,
+            email: studentOrPayload.email || undefined,
+            grade_ar: studentOrPayload.gradeAr || studentOrPayload.grade_ar || undefined,
+            parent_name_ar: studentOrPayload.parentNameAr || studentOrPayload.parent_name_ar || undefined,
+            parent_phone: studentOrPayload.parentPhone || studentOrPayload.parent_phone || undefined,
+          };
+        } else {
+          body = {
+            name_ar: studentOrPayload.nameAr || studentOrPayload.name_ar || studentOrPayload.name,
+            phone: studentOrPayload.phone || undefined,
+            email: studentOrPayload.email || undefined,
+            grade_ar: studentOrPayload.gradeAr || studentOrPayload.grade_ar || undefined,
+            parent_name_ar: studentOrPayload.parentNameAr || studentOrPayload.parent_name_ar || undefined,
+            parent_phone: studentOrPayload.parentPhone || studentOrPayload.parent_phone || undefined,
+            payment_status: studentOrPayload.paymentStatus || studentOrPayload.payment_status || 'paid',
+            due_amount_egp: studentOrPayload.dueAmountEgp ?? studentOrPayload.due_amount_egp ?? undefined,
+          };
+        }
+      }
+      const res = await centerApi.groups.enrollStudent(groupId, body);
+      await fetchGroupRoster(groupId);
+      const enrolledName = res?.data?.nameAr || body.name_ar || 'الطالب';
+      showToast(`تم قيد الطالب «${enrolledName}» في المجموعة وتوليد بطاقة الباركود بنجاح!`);
+      return { success: true, data: res?.data };
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      const msg = firstErr || err?.message || 'فشل تسجيل الطالب في المجموعة.';
       showToast(msg, 'warning');
       return { success: false, error: msg };
     }
@@ -772,11 +974,14 @@ export const GroupsProvider = ({ children }) => {
   // Direct manual toggle or explicit set of attendance (present / absent / late / excused)
   const toggleStudentAttendance = async (groupId, enrollmentId, targetStatus = null, date = null) => {
     try {
-      const res = await teacherApi.attendance.toggleManual(groupId, {
+      const payload = {
         enrollment_id: String(enrollmentId),
         ...(targetStatus ? { status: targetStatus } : {}),
         ...(date ? { date } : {}),
-      });
+      };
+      const res = isCenterRole
+        ? await centerApi.attendance.toggleInGroup(groupId, payload)
+        : await teacherApi.attendance.toggleManual(groupId, payload);
       await fetchGroupRoster(groupId, date);
       const finalStatus = res?.data?.status || targetStatus;
       const studentName = res?.data?.nameAr || '';
@@ -802,7 +1007,13 @@ export const GroupsProvider = ({ children }) => {
     }
 
     try {
-      const res = await teacherApi.attendance.scan(groupId, rawCode, 'barcode_input', date);
+      const res = isCenterRole
+        ? await centerApi.attendance.scanInGroup(groupId, {
+            code: rawCode,
+            method: 'qr_scan',
+            ...(date ? { date } : {}),
+          })
+        : await teacherApi.attendance.scan(groupId, rawCode, 'barcode_input', date);
       await fetchGroupRoster(groupId, date);
       const alreadyRecorded = Boolean(res?.data?.alreadyRecorded);
       const record = res?.data?.record || null;
@@ -815,6 +1026,7 @@ export const GroupsProvider = ({ children }) => {
         success: true,
         alreadyRecorded,
         record,
+        student: record || { nameAr: studentName || 'الطالب' },
         session: res?.data?.session || null,
         message: msg,
       };
@@ -1089,6 +1301,7 @@ export const GroupsProvider = ({ children }) => {
         rejectPendingStudent,
         removeStudentFromGroup,
         inviteStudentToGroup,
+        enrollStudentDirectly,
         studentJoinByCode,
         studentAcceptInvitation,
         studentDeclineInvitation,

@@ -71,6 +71,33 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
     ? 'admin'
     : currentRole;
 
+  const profileSettingsPath =
+    effectiveRole === 'student'
+      ? '/student/settings'
+      : effectiveRole === 'teacher'
+      ? '/teacher/settings'
+      : effectiveRole === 'center'
+      ? '/center/settings'
+      : '#';
+
+  const sidebarProfileName =
+    effectiveRole === 'center'
+      ? lang === 'ar'
+        ? currentUser?.centerNameAr || currentUser?.center || 'السنتر التعليمي'
+        : currentUser?.centerNameEn || currentUser?.center || 'Educational Center'
+      : lang === 'ar'
+      ? currentUser?.nameAr || currentUser?.name || ''
+      : currentUser?.name || '';
+
+  const sidebarProfileSubtitle =
+    effectiveRole === 'center' && currentUser?.name && currentUser.name !== sidebarProfileName
+      ? lang === 'ar'
+        ? `إدارة: ${currentUser.name}`
+        : `Manager: ${currentUser.name}`
+      : lang === 'ar'
+      ? currentUser?.roleLabelAr || currentUser?.roleLabel || ''
+      : currentUser?.roleLabel || '';
+
   // Role accent color strictly adhering to platform palette (#1588C7)
   const roleAccent = {
     teacher: '#1588C7',
@@ -426,9 +453,15 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                   textOverflow: 'ellipsis',
                   marginTop: '1px'
                 }}>
-                  {currentRole === 'student'
+                  {effectiveRole === 'student'
                     ? (lang === 'ar' ? 'منصة المتفوقين الذكية' : 'Smart Learning Hub')
-                    : (lang === 'ar' ? 'بوابة المعلم' : 'Workspace')}
+                    : effectiveRole === 'center'
+                    ? (lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Management')
+                    : effectiveRole === 'parent'
+                    ? (lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal')
+                    : effectiveRole === 'admin'
+                    ? (lang === 'ar' ? 'لوحة الإدارة العامة' : 'Admin Console')
+                    : (lang === 'ar' ? 'بوابة المعلم' : 'Educator Workspace')}
                 </div>
               </div>
             </Link>
@@ -486,15 +519,15 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       {currentUser && (
         !isCollapsed ? (
           <Link
-            to={currentRole === 'student' ? '/student/settings' : (currentRole === 'teacher' ? '/teacher/settings' : '#')}
+            to={profileSettingsPath}
             onClick={handleLinkClick}
             className="sidebar-user-card"
-            style={{ textDecoration: 'none', cursor: (currentRole === 'student' || currentRole === 'teacher') ? 'pointer' : 'default' }}
+            style={{ textDecoration: 'none', cursor: profileSettingsPath !== '#' ? 'pointer' : 'default' }}
           >
             <div className="sidebar-avatar-wrapper">
               <Avatar
                 src={currentUser?.avatar}
-                name={currentUser?.nameAr || currentUser?.name || ''}
+                name={sidebarProfileName}
                 size={34}
               />
               <span className="sidebar-online-dot" />
@@ -514,7 +547,7 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}>
-                  {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
+                  {sidebarProfileName}
                 </div>
                 {currentRole === 'student' && sidebarStreakDays > 0 && (
                   <div
@@ -571,13 +604,13 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
               }}>
-                {lang === 'ar' ? (currentUser.roleLabelAr || currentUser.roleLabel) : currentUser.roleLabel}
+                {sidebarProfileSubtitle}
               </div>
             </div>
           </Link>
         ) : (
           <Link
-            to={currentRole === 'student' ? '/student/settings' : (currentRole === 'teacher' ? '/teacher/settings' : '#')}
+            to={profileSettingsPath}
             onClick={handleLinkClick}
             className="sidebar-item-wrapper"
             style={{ margin: '10px auto 4px auto', display: 'flex', justifyContent: 'center', textDecoration: 'none' }}
@@ -585,13 +618,13 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             <div className="sidebar-avatar-wrapper">
               <Avatar
                 src={currentUser?.avatar}
-                name={currentUser?.nameAr || currentUser?.name || ''}
+                name={sidebarProfileName}
                 size={32}
               />
               <span className="sidebar-online-dot" />
             </div>
             <div className="sidebar-tooltip">
-              <span>{lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}</span>
+              <span>{sidebarProfileName}</span>
             </div>
           </Link>
         )

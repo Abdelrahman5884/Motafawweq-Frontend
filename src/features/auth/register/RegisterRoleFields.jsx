@@ -334,12 +334,15 @@ export const RegisterRoleFields = ({
               width: '100%',
               padding: '10px 12px',
               borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-medium)',
+              border: fieldErrors.center_name ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
               backgroundColor: 'var(--bg-subtle)',
               color: 'var(--text-primary)',
               fontSize: '13px'
             }}
           />
+          {fieldErrors.center_name && (
+            <span style={{ fontSize: '11.5px', color: 'var(--error, #dc2626)', marginTop: '4px', display: 'block' }}>{fieldErrors.center_name}</span>
+          )}
         </div>
         <div>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
@@ -348,6 +351,8 @@ export const RegisterRoleFields = ({
           <input
             type="text"
             required
+            value={governorate || ''}
+            onChange={(e) => setGovernorate && setGovernorate(e.target.value)}
             placeholder={lang === 'ar' ? 'الجيزة / الدقي' : 'Giza / Dokki'}
             style={{
               width: '100%',

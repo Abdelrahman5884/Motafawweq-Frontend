@@ -1709,6 +1709,24 @@ button, input, select, textarea {
   font-family: var(--font-arabic);
 }
 
+.center-dashboard-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 20px 100px;
+  font-family: var(--font-arabic);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .center-dashboard-container {
+    padding: 16px 12px 96px;
+    gap: 16px;
+  }
+}
+
 .executive-card {
   background: #0E1726;
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -1736,7 +1754,7 @@ button, input, select, textarea {
   padding: 20px 22px;
   display: flex;
   flex-direction: column;
-  justifyContent: space-between;
+  justify-content: space-between;
   min-height: 138px;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1819,6 +1837,21 @@ button, input, select, textarea {
 [data-theme="light"] .executive-filter-btn:hover {
   background: #F8FAFC;
   color: #0F172A;
+}
+
+.executive-filter-btn.active,
+[data-theme="light"] .executive-filter-btn.active {
+  background: var(--primary, #1588C7);
+  border-color: var(--primary, #1588C7);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(21, 136, 199, 0.28);
+}
+
+.executive-filter-btn.active:hover,
+[data-theme="light"] .executive-filter-btn.active:hover {
+  background: var(--primary, #1588C7);
+  border-color: var(--primary, #1588C7);
+  color: #FFFFFF;
 }
 
 /* Spline line animation */

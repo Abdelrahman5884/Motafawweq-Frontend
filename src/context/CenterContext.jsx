@@ -1,1116 +1,1044 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useGroups } from './GroupsContext';
+import { useAuth } from './AuthContext';
+import { tokenStorage } from '../services/api';
+import { centerApi } from '../services/centerApi';
 
 const CenterContext = createContext(null);
 
-const INITIAL_BRANCHES = [
-  {
-    id: 'br-dokki',
-    nameAr: 'فرع الدقي (الرئيسي)',
-    nameEn: 'Dokki Branch (Main)',
-    addressAr: 'شارع التحرير، الدقي، الجيزة',
-    phone: '+20 2 3345 6789',
-    managerNameAr: 'أ. سامح عبدالحميد',
-    roomsCount: 6,
-    activeStudents: 680,
-    teachersCount: 8,
-    utilizationRate: 88
-  },
-  {
-    id: 'br-nasrcity',
-    nameAr: 'فرع مدينة نصر',
-    nameEn: 'Nasr City Branch',
-    addressAr: 'شارع عباس العقاد، مدينة نصر، القاهرة',
-    phone: '+20 2 2456 7890',
-    managerNameAr: 'أ. مروة الشريف',
-    roomsCount: 5,
-    activeStudents: 510,
-    teachersCount: 6,
-    utilizationRate: 82
-  },
-  {
-    id: 'br-smouha',
-    nameAr: 'فرع سموحة (الإسكندرية)',
-    nameEn: 'Smouha Branch (Alexandria)',
-    addressAr: 'ميدان فيكتور عمانويل، سموحة، الإسكندرية',
-    phone: '+20 3 4200 1122',
-    managerNameAr: 'أ. أحمد جلال',
-    roomsCount: 4,
-    activeStudents: 340,
-    teachersCount: 5,
-    utilizationRate: 76
-  }
-];
+const AUDIT_EVENT_LABELS = {
+  'center.branch.created': 'إنشاء وتدشين فرع جديد',
+  'center.branch.updated': 'تحديث بيانات فرع',
+  'center.branch.deleted': 'حذف فرع من السنتر',
+  'center.room.created': 'إضافة قاعة دراسية جديدة',
+  'center.room.updated': 'تعديل بيانات قاعة دراسية',
+  'center.room.deleted': 'حذف قاعة دراسية',
+  'center.teacher.created': 'إضافة مدرس جديد واعتماده',
+  'center.teacher.updated': 'تحديث بيانات مدرس',
+  'center.teacher.deleted': 'فك ارتباط مدرس بالسنتر',
+  'center.teacher.invite_resent': 'إعادة إرسال رابط تفعيل مدرس',
+  'center.connect.user_linked': 'ربط حساب مستخدم بالسنتر (Motafawweq Connect)',
+  'center.connect.user_unlinked': 'فك ربط حساب مستخدم من السنتر',
+  'center.staff.created': 'تعيين موظف جديد بالسنتر',
+  'center.staff.updated': 'تحديث صلاحيات موظف',
+  'center.staff.deleted': 'إلغاء تعيين موظف',
+  'center.group.created': 'إنشاء مجموعة دراسية جديدة',
+  'center.group.updated': 'تحديث جدول وبيانات مجموعة',
+  'center.group.deleted': 'حذف مجموعة دراسية',
+  'center.group.code_regenerated': 'تجديد كود الانضمام للمجموعة',
+  'center.group.student_enrolled': 'تسجيل طالب بالمجموعة وإصدار الباركود',
+  'center.group.student_accepted': 'قبول طلب انضمام طالب للمجموعة',
+  'center.group.student_rejected': 'رفض طلب انضمام طالب',
+  'center.group.student_removed': 'إلغاء قيد طالب من المجموعة',
+  'center.group.payment_updated': 'تحديث حالة سداد اشتراك طالب',
+  'center.attendance.scanned': 'تسجيل حضور طالب بمسح الباركود',
+  'center.attendance.toggled': 'تحديث حالة حضور طالب يدوياً',
+  'center.attendance.smart_gate_matched': 'تسجيل حضور تلقائي عبر بوابة المسح الذكي',
+  'center.attendance.absence_alert_sent': 'إرسال تنبيه غياب فوري لولي الأمر',
+  'center.financials.expense_created': 'تسجيل سند صرف مصروف تشغيلي',
+  'center.financials.expense_deleted': 'حذف سند مصروف',
+  'center.financials.settlement_approved': 'اعتماد وصرف تسوية مستحقات مدرس',
+  'center.financials.due_reminded': 'إرسال تذكير سداد متأخرات لطالب',
+  'center.financials.due_marked_paid': 'تحصيل متأخرات طالب وتسويتها',
+  'center.billing.subscribed': 'تفعيل أو ترقية باقة اشتراك السنتر',
+  'center.billing.cancelled': 'إلغاء باقة اشتراك السنتر المدفوعة',
+  'center.settings.updated': 'تحديث بيانات وسياسات السنتر',
+  'center.settings.kpis_updated': 'تحديث مستهدفات مؤشرات الأداء (KPIs)',
+  'center.settings.task_created': 'إسناد مهمة إدارية جديدة',
+  'center.settings.task_updated': 'تحديث مهمة إدارية',
+  'center.settings.task_toggled': 'تغيير حالة إنجاز مهمة إدارية',
+  'center.settings.task_deleted': 'حذف مهمة إدارية',
+  'center.settings.announcement_created': 'نشر إعلان أو تعميم داخلي',
+  'center.settings.announcement_deleted': 'حذف إعلان داخلي',
+  'center.settings.students_imported': 'استيراد دفعة طلاب مجمعة',
+  'center.settings.backup_created': 'إنشاء نسخة احتياطية سحابية مشفرة',
+  'center.queue.item_completed': 'إنهاء حصة من طابور التشغيل اليومي',
+  'center.queue.item_restored': 'إعادة حصة إلى طابور التشغيل اليومي',
+  'center.queue.reset': 'إعادة ضبط طابور الحصص اليومي',
+  'center.idor_attempt_blocked': 'حظر محاولة وصول غير مصرح بها (IDOR)',
+};
 
-export const INITIAL_CENTER_TEACHERS = [
-  {
-    id: 'tch-1',
-    nameAr: 'د. سلمى السيد',
-    nameEn: 'Dr. Salma El-Sayed',
-    subjectAr: 'الأحياء (الثانوية العامة)',
-    phone: '01012345678',
-    email: 'salma.sayed@motafawweq.com',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي (الرئيسي)',
-    status: 'active',
-    statusAr: 'معتمد ونشط بالمنصة',
-    inviteSent: true,
-    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=salma2026',
-    enrolledGroupsCount: 2,
-    createdAt: '2026-08-15'
-  },
-  {
-    id: 'tch-2',
-    nameAr: 'م. أحمد جلال',
-    nameEn: 'Eng. Ahmed Galal',
-    subjectAr: 'الفيزياء (الثانوية العامة)',
-    phone: '01123456789',
-    email: 'ahmed.galal@motafawweq.com',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    status: 'active',
-    statusAr: 'معتمد ونشط بالمنصة',
-    inviteSent: true,
-    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=ahmed2026',
-    enrolledGroupsCount: 2,
-    createdAt: '2026-08-20'
-  },
-  {
-    id: 'tch-3',
-    nameAr: 'د. إيمان الشريف',
-    nameEn: 'Dr. Iman El-Sherif',
-    subjectAr: 'الكيمياء (الثانوية العامة)',
-    phone: '01234567891',
-    email: 'iman.sherif@motafawweq.com',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي (الرئيسي)',
-    status: 'active',
-    statusAr: 'معتمد ونشط بالمنصة',
-    inviteSent: true,
-    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=iman2026',
-    enrolledGroupsCount: 2,
-    createdAt: '2026-08-25'
-  },
-  {
-    id: 'tch-4',
-    nameAr: 'أ. حسام فؤاد',
-    nameEn: 'Mr. Hossam Fouad',
-    subjectAr: 'الرياضيات البحتة والتطبيقية',
-    phone: '01512345678',
-    email: 'hossam.fouad@motafawweq.com',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي (الرئيسي)',
-    status: 'active',
-    statusAr: 'معتمد ونشط بالمنصة',
-    inviteSent: true,
-    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=hossam2026',
-    enrolledGroupsCount: 2,
-    createdAt: '2026-09-01'
-  },
-  {
-    id: 'tch-5',
-    nameAr: 'أ. رضا الفاروق',
-    nameEn: 'Mr. Reda El-Farouk',
-    subjectAr: 'اللغة العربية والبلاغة',
-    phone: '01098765432',
-    email: 'reda.farouk@motafawweq.com',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي (الرئيسي)',
-    status: 'active',
-    statusAr: 'معتمد ونشط بالمنصة',
-    inviteSent: true,
-    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=reda2026',
-    enrolledGroupsCount: 1,
-    createdAt: '2026-09-05'
-  },
-  {
-    id: 'tch-6',
-    nameAr: 'م. عصام الشرقاوي',
-    nameEn: 'Eng. Essam El-Sharkawy',
-    subjectAr: 'الفيزياء',
-    phone: '01187654321',
-    email: 'essam.sharkawy@motafawweq.com',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    status: 'active',
-    statusAr: 'معتمد ونشط بالمنصة',
-    inviteSent: true,
-    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=essam2026',
-    enrolledGroupsCount: 1,
-    createdAt: '2026-09-10'
-  },
-  {
-    id: 'tch-7',
-    nameAr: 'د. سامح نشأت',
-    nameEn: 'Dr. Sameh Nashaat',
-    subjectAr: 'الجيولوجيا وعلوم البيئة',
-    phone: '01287654321',
-    email: 'sameh.nashaat@motafawweq.com',
-    branchId: 'br-smouha',
-    branchNameAr: 'فرع سموحة (الإسكندرية)',
-    status: 'active',
-    statusAr: 'معتمد ونشط بالمنصة',
-    inviteSent: true,
-    activationLink: 'https://motafawweq.edu.eg/teacher/activate?token=sameh2026',
-    enrolledGroupsCount: 1,
-    createdAt: '2026-09-12'
-  }
-];
+const EMPTY_ATTENDANCE_SUMMARY = {
+  scannedPresentCount: 0,
+  lateCount: 0,
+  absentCount: 0,
+  complianceRatePct: 0,
+};
 
-const INITIAL_ROOMS = [
-  // فرع الدقي
-  {
-    id: 'room-1',
-    nameAr: 'قاعة 1 (المحاضرات الكبرى)',
-    nameEn: 'Hall 1 (Grand Auditorium)',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    capacity: 65,
-    equipped: ['شاشة عرض تفاعلية 85 بوصة', 'نظام صوتي محيطي لاسلكي', 'تكييف مركزي', 'كاميرا تسجيل ذكية'],
-    isAvailable: true,
-    floor: 'الطابق الثاني'
-  },
-  {
-    id: 'room-3',
-    nameAr: 'مدرج ابن الهيثم للعلوم',
-    nameEn: 'Ibn Al-Haytham Auditorium',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    capacity: 45,
-    equipped: ['شاشة ذكية', 'نظام صوتيات', 'تكييف مركزي'],
-    isAvailable: true,
-    floor: 'الطابق الأول'
-  },
-  {
-    id: 'room-5',
-    nameAr: 'قاعة الخوارزمي للرياضيات',
-    nameEn: 'Al-Khwarizmi Hall',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    capacity: 35,
-    equipped: ['سبورة ذكية تفاعلية', 'نظام صوتي مدمج', 'تكييف'],
-    isAvailable: true,
-    floor: 'الطابق الثالث'
-  },
-  {
-    id: 'room-6',
-    nameAr: 'قاعة نجيب محفوظ للغات',
-    nameEn: 'Naguib Mahfouz Languages Hall',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    capacity: 40,
-    equipped: ['شاشة ذكية 75 بوصة', 'نظام صوتي معزول', 'تكييف سبليت'],
-    isAvailable: true,
-    floor: 'الطابق الثاني'
-  },
-  {
-    id: 'room-7',
-    nameAr: 'مختبر المتفوق الرقمي',
-    nameEn: 'Digital Excellence Lab',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    capacity: 30,
-    equipped: ['شاشة تفاعلية 4K', 'محطات حاسب آلي', 'إنترنت ألياف ضوئية'],
-    isAvailable: true,
-    floor: 'الطابق الأرضي'
-  },
+const EMPTY_DUES_STATE = {
+  totalDuesEgp: 0,
+  count: 0,
+  items: [],
+};
 
-  // فرع مدينة نصر
-  {
-    id: 'room-2',
-    nameAr: 'قاعة أينشتاين للمتفوقين',
-    nameEn: 'Einstein Hall',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    capacity: 50,
-    equipped: ['بروجيكتور 4K', 'ميكروفون لاسلكي', 'تكييف سبليت', 'لوحة ذكية'],
-    isAvailable: true,
-    floor: 'الطابق الأول'
-  },
-  {
-    id: 'room-8',
-    nameAr: 'مدرج الفارابي للغات',
-    nameEn: 'Al-Farabi Auditorium',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    capacity: 55,
-    equipped: ['شاشة ذكية 85 بوصة', 'نظام صوتيات متطور', 'تكييف مركزي'],
-    isAvailable: true,
-    floor: 'الطابق الثاني'
-  },
-  {
-    id: 'room-9',
-    nameAr: 'قاعة زويل للعلوم والكيمياء',
-    nameEn: 'Zewail Science Hall',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    capacity: 45,
-    equipped: ['شاشة تفاعلية', 'تكييف مركزي', 'سبورة رقمية'],
-    isAvailable: true,
-    floor: 'الطابق الأول'
-  },
-  {
-    id: 'room-10',
-    nameAr: 'قاعة عباس العقاد للمحاضرات',
-    nameEn: 'Abbas El-Akkad Lecture Hall',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    capacity: 40,
-    equipped: ['شاشة عرض ذكية', 'تكييف سبليت', 'ميكروفونات مدمجة'],
-    isAvailable: true,
-    floor: 'الطابق الثالث'
-  },
+const AUTH_REQUIRED_MESSAGE = 'يرجى تسجيل الدخول بحساب سنتر مفعل أولاً.';
 
-  // فرع سموحة
-  {
-    id: 'room-4',
-    nameAr: 'قاعة نيوتن للفيزياء',
-    nameEn: 'Newton Hall',
-    branchId: 'br-smouha',
-    branchNameAr: 'فرع سموحة',
-    capacity: 40,
-    equipped: ['شاشة تفاعلية', 'تكييف', 'نظام عزل صوتي'],
-    isAvailable: true,
-    floor: 'الطابق الأرضي'
-  },
-  {
-    id: 'room-11',
-    nameAr: 'قاعة الإسكندرية الكبرى',
-    nameEn: 'Grand Alexandria Auditorium',
-    branchId: 'br-smouha',
-    branchNameAr: 'فرع سموحة',
-    capacity: 60,
-    equipped: ['شاشة 85 بوصة 4K', 'نظام صوت محيطي', 'تكييف مركزي'],
-    isAvailable: true,
-    floor: 'الطابق الأول'
-  },
-  {
-    id: 'room-12',
-    nameAr: 'قاعة ابن خلدون للدراسات',
-    nameEn: 'Ibn Khaldun Hall',
-    branchId: 'br-smouha',
-    branchNameAr: 'فرع سموحة',
-    capacity: 35,
-    equipped: ['شاشة ذكية', 'تكييف سبليت', 'صوتيات لاسلكية'],
-    isAvailable: true,
-    floor: 'الطابق الثاني'
-  },
-  {
-    id: 'room-13',
-    nameAr: 'قاعة البيروني للرياضيات',
-    nameEn: 'Al-Biruni Math Hall',
-    branchId: 'br-smouha',
-    branchNameAr: 'فرع سموحة',
-    capacity: 45,
-    equipped: ['شاشة تفاعلية ذكية', 'تكييف مركزي', 'سبورة قلم رقمي'],
-    isAvailable: true,
-    floor: 'الطابق الثاني'
-  }
-];
+function formatAuditLogItem(log, centerName = 'إدارة السنتر') {
+  if (log?.actionAr && log?.detailsAr) return log;
+  const eventKey = String(log?.event || '');
+  const ctx = log?.context && typeof log.context === 'object' ? log.context : {};
+  const actionAr = AUDIT_EVENT_LABELS[eventKey] || eventKey || 'عملية نظام';
 
-const INITIAL_EXPENSES = [
-  {
-    id: 'exp-1',
-    titleAr: 'إيجار مقر فرع الدقي لشهر سبتمبر',
-    titleEn: 'Dokki Branch Rent - Sep',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    category: 'rent',
-    categoryAr: 'إيجار المقرات',
-    amountEgp: 45000,
-    date: '2026-09-01',
-    status: 'paid',
-    receiptNumber: 'REC-2026-091'
-  },
-  {
-    id: 'exp-2',
-    titleAr: 'فاتورة الكهرباء والتكييف المركزي - مدينة نصر',
-    titleEn: 'Electricity & AC Bill - Nasr City',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    category: 'utilities',
-    categoryAr: 'المرافق والخدمات',
-    amountEgp: 14200,
-    date: '2026-09-10',
-    status: 'paid',
-    receiptNumber: 'REC-2026-104'
-  },
-  {
-    id: 'exp-3',
-    titleAr: 'رواتب موظفي الاستقبال والسكرتارية',
-    titleEn: 'Reception & Admin Staff Salaries',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    category: 'salaries',
-    categoryAr: 'رواتب الموظفين',
-    amountEgp: 38000,
-    date: '2026-09-25',
-    status: 'paid',
-    receiptNumber: 'SAL-2026-09'
-  },
-  {
-    id: 'exp-4',
-    titleAr: 'صيانة دورية لأجهزة الصوت وشاشات القاعات',
-    titleEn: 'AV & Smartboard Maintenance',
-    branchId: 'br-smouha',
-    branchNameAr: 'فرع سموحة',
-    category: 'maintenance',
-    categoryAr: 'الصيانة والتجهيزات',
-    amountEgp: 6500,
-    date: '2026-09-18',
-    status: 'paid',
-    receiptNumber: 'MNT-2026-08'
-  },
-  {
-    id: 'exp-5',
-    titleAr: 'حملة إعلانية ممولة لبدء العام الدراسي الجديد',
-    titleEn: 'Digital Marketing Campaign',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    category: 'marketing',
-    categoryAr: 'التسويق والإعلانات',
-    amountEgp: 18500,
-    date: '2026-09-15',
-    status: 'paid',
-    receiptNumber: 'MKT-2026-15'
-  }
-];
+  const detailsParts = [];
+  if (ctx.name_ar) detailsParts.push(`الاسم: ${ctx.name_ar}`);
+  if (ctx.receipt_number) detailsParts.push(`سند: ${ctx.receipt_number}`);
+  if (ctx.amount_egp !== undefined) detailsParts.push(`المبلغ: ${ctx.amount_egp} ج.م`);
+  if (ctx.teacher_share_egp !== undefined) detailsParts.push(`مستحق المدرس: ${ctx.teacher_share_egp} ج.م`);
+  if (ctx.plan_tier) detailsParts.push(`الباقة: ${String(ctx.plan_tier).toUpperCase()}`);
+  if (ctx.group_uuid) detailsParts.push(`مجموعة: ${String(ctx.group_uuid).slice(0, 8)}`);
+  if (ctx.barcode) detailsParts.push(`باركود: ${ctx.barcode}`);
+  if (ctx.imported_count !== undefined) detailsParts.push(`عدد المستوردين: ${ctx.imported_count}`);
+  if (ctx.filename) detailsParts.push(`الملف: ${ctx.filename}`);
 
-const INITIAL_STAFF = [
-  {
-    id: 'staff-1',
-    nameAr: 'أ. سامح عبدالحميد',
-    nameEn: 'Sameh Abdelhamid',
-    phone: '+20 100 234 5678',
-    email: 'sameh.admin@alrowad.edu',
-    role: 'manager',
-    roleAr: 'مدير الفرع العام',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    status: 'active',
-    salaryEgp: 16000,
-    permissions: ['إدارة الفرع', 'تعيين الموظفين', 'التقارير الإدارية']
-  },
-  {
-    id: 'staff-2',
-    nameAr: 'أ. ياسمين نبيل',
-    nameEn: 'Yasmine Nabil',
-    phone: '+20 102 345 6789',
-    email: 'yasmine.reg@alrowad.edu',
-    role: 'receptionist',
-    roleAr: 'مسؤولة الاستقبال والباركود',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    status: 'active',
-    salaryEgp: 7500,
-    permissions: ['إدارة الحضور بالباركود', 'تسجيل الطلاب', 'تحصيل الرسوم']
-  },
-  {
-    id: 'staff-3',
-    nameAr: 'أ. مصطفى الجيار',
-    nameEn: 'Mostafa El-Gayar',
-    phone: '+20 106 789 0123',
-    email: 'mostafa.fin@alrowad.edu',
-    role: 'accountant',
-    roleAr: 'المحاسب المالي',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    status: 'active',
-    salaryEgp: 9500,
-    permissions: ['التحصيل المالي', 'التقارير المالية', 'إدارة الفواتير']
-  },
-  {
-    id: 'staff-4',
-    nameAr: 'أ. مروة الشريف',
-    nameEn: 'Marwa El-Sherif',
-    phone: '+20 101 998 7766',
-    email: 'marwa.admin@alrowad.edu',
-    role: 'manager',
-    roleAr: 'مديرة الفرع',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    status: 'active',
-    salaryEgp: 14000,
-    permissions: ['إدارة الفرع', 'تعيين الموظفين', 'التقارير الإدارية']
-  }
-];
+  const rawDate = log?.createdAt || log?.created_at || '';
+  const timestamp = rawDate
+    ? new Date(rawDate).toLocaleString('ar-EG', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'الآن';
 
-const INITIAL_LEADS = [
-  {
-    id: 'lead-1',
-    studentNameAr: 'كريم ممدوح الصاوي',
-    phone: '+20 114 556 7788',
-    parentPhone: '+20 100 889 9900',
-    gradeAr: 'الصف الثالث الثانوي',
-    subjectAr: 'الأحياء والفيزياء',
-    source: 'Facebook',
-    sourceAr: 'إعلانات فيسبوك',
-    status: 'trial',
-    statusAr: 'حجز تجريبي',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    createdAt: '2026-09-26',
-    notes: 'مهتم بحضور حصة تجريبية مع د. سلمى السيد'
-  },
-  {
-    id: 'lead-2',
-    studentNameAr: 'حبيبة علاء الدين',
-    phone: '+20 122 334 4556',
-    parentPhone: '+20 101 223 3445',
-    gradeAr: 'الصف الثاني الثانوي',
-    subjectAr: 'الكيمياء',
-    source: 'Referral',
-    sourceAr: 'ترشيح من زميل',
-    status: 'interested',
-    statusAr: 'مهتم ويتابع العروض',
-    branchId: 'br-nasrcity',
-    branchNameAr: 'فرع مدينة نصر',
-    createdAt: '2026-09-27',
-    notes: 'طلبت تفاصيل جدول الأسبوع ومواعيد القاعة'
-  },
-  {
-    id: 'lead-3',
-    studentNameAr: 'محمد وائل عبدالفتاح',
-    phone: '+20 109 876 5432',
-    parentPhone: '+20 102 334 4556',
-    gradeAr: 'الصف الثالث الثانوي',
-    subjectAr: 'الفيزياء (الثانوية العامة)',
-    source: 'Walk-in',
-    sourceAr: 'زيارة مباشرة للفرع',
-    status: 'registered',
-    statusAr: 'تم التسجيل وسداد الاشتراك',
-    branchId: 'br-dokki',
-    branchNameAr: 'فرع الدقي',
-    createdAt: '2026-09-28',
-    notes: 'تم تسجيله في مجموعة الخميس 6 مساء'
-  }
-];
+  return {
+    id: log?.id || `log-${eventKey}`,
+    event: eventKey,
+    level: log?.level || 'info',
+    actionAr,
+    userAr: centerName,
+    detailsAr: detailsParts.length > 0 ? detailsParts.join(' • ') : `كود العملية: ${eventKey}`,
+    timestamp,
+    createdAt: rawDate,
+  };
+}
 
 export const CenterProvider = ({ children }) => {
-  const { groups, enrolledStudents } = useGroups();
+  const { currentUser, isAuthenticated, authLoading, centerPlanTier, refreshUser } = useAuth();
+  const { groups, refreshGroups, showToast } = useGroups();
 
-  const [branches, setBranches] = useState(() => {
-    try {
-      const saved = localStorage.getItem('motafawweq_center_branches');
-      return saved ? JSON.parse(saved) : INITIAL_BRANCHES;
-    } catch {
-      return INITIAL_BRANCHES;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('motafawweq_center_branches', JSON.stringify(branches));
-    } catch {}
-  }, [branches]);
-
-  const addBranch = (branchData) => {
-    const newBranch = {
-      id: `br-${Date.now()}`,
-      nameAr: branchData.nameAr || 'فرع جديد',
-      nameEn: branchData.nameEn || 'New Branch',
-      addressAr: branchData.addressAr || '',
-      phone: branchData.phone || '',
-      managerNameAr: branchData.managerNameAr || '',
-      roomsCount: 0,
-      activeStudents: 0,
-      teachersCount: 0,
-      utilizationRate: 0
-    };
-    setBranches(prev => [newBranch, ...prev]);
-    return newBranch;
-  };
-
-  const updateBranch = (branchId, branchData) => {
-    setBranches(prev => prev.map(b => b.id === branchId ? { ...b, ...branchData } : b));
-  };
-
-  const deleteBranch = (branchId) => {
-    setBranches(prev => prev.filter(b => b.id !== branchId));
-    if (selectedBranchId === branchId) {
-      setSelectedBranchId('all');
-    }
-  };
-
-  // Center Teachers State & Platform Activation
-  const [centerTeachers, setCenterTeachers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('motafawweq_center_teachers');
-      return saved ? JSON.parse(saved) : INITIAL_CENTER_TEACHERS;
-    } catch {
-      return INITIAL_CENTER_TEACHERS;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('motafawweq_center_teachers', JSON.stringify(centerTeachers));
-    } catch {}
-  }, [centerTeachers]);
-
-  const addCenterTeacher = (teacherData) => {
-    const token = Math.random().toString(36).substring(2, 10);
-    const activationLink = `https://motafawweq.edu.eg/teacher/activate?token=${token}`;
-    const branchObj = branches.find(b => b.id === teacherData.branchId) || branches[0];
-
-    const newTeacher = {
-      id: `tch-${Date.now()}`,
-      nameAr: teacherData.nameAr,
-      nameEn: teacherData.nameEn || '',
-      subjectAr: teacherData.subjectAr,
-      phone: teacherData.phone,
-      email: teacherData.email,
-      branchId: branchObj?.id || 'br-dokki',
-      branchNameAr: branchObj?.nameAr || 'فرع الدقي (الرئيسي)',
-      status: 'active',
-      statusAr: 'معتمد ونشط بالمنصة',
-      inviteSent: true,
-      activationLink,
-      enrolledGroupsCount: 0,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    setCenterTeachers(prev => [newTeacher, ...prev]);
-    return { success: true, teacher: newTeacher };
-  };
-
-  const updateCenterTeacher = (teacherId, teacherData) => {
-    setCenterTeachers(prev => prev.map(t => t.id === teacherId ? { ...t, ...teacherData } : t));
-  };
-
-  const deleteCenterTeacher = (teacherId) => {
-    setCenterTeachers(prev => prev.filter(t => t.id !== teacherId));
-  };
-
-  const resendTeacherInvite = (teacherId) => {
-    const teacher = centerTeachers.find(t => t.id === teacherId);
-    if (!teacher) return false;
-    return { success: true, link: teacher.activationLink };
-  };
+  const isBackendCenter =
+    !authLoading &&
+    isAuthenticated &&
+    Boolean(tokenStorage.getAccessToken()) &&
+    currentUser?.role === 'center';
 
   const [selectedBranchId, setSelectedBranchId] = useState('all');
-  const [rooms, setRooms] = useState(() => {
-    const saved = localStorage.getItem('motafawweq_center_rooms');
-    if (!saved) return INITIAL_ROOMS;
-    try {
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_ROOMS;
-    } catch {
-      return INITIAL_ROOMS;
+  const [centerLoading, setCenterLoading] = useState(false);
+
+  // Core Entities State (strictly empty until hydrated from API — zero static mock data)
+  const [branches, setBranches] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [centerTeachers, setCenterTeachers] = useState([]);
+  const [connectedUsers, setConnectedUsers] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [attendanceSummary, setAttendanceSummary] = useState(EMPTY_ATTENDANCE_SUMMARY);
+  const [globalPlatformUsers, setGlobalPlatformUsers] = useState([]);
+
+  // Financials ERP State
+  const [expenses, setExpenses] = useState([]);
+  const [remoteFinancialSummary, setRemoteFinancialSummary] = useState(null);
+  const [teacherSettlements, setTeacherSettlements] = useState([]);
+  const [outstandingDues, setOutstandingDues] = useState(EMPTY_DUES_STATE);
+
+  // Dashboard & Live Queue State
+  const [dashboardData, setDashboardData] = useState(null);
+  const [executiveReport, setExecutiveReport] = useState(null);
+
+  // Billing State
+  const [billingData, setBillingData] = useState(null);
+
+  // Settings, Tasks, Announcements & Backups State
+  const [centerSettings, setCenterSettings] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [backups, setBackups] = useState([]);
+
+  const dashboardSeqRef = useRef(0);
+
+  const resetAllCenterState = useCallback(() => {
+    setSelectedBranchId('all');
+    setBranches([]);
+    setRooms([]);
+    setCenterTeachers([]);
+    setConnectedUsers([]);
+    setStaff([]);
+    setAuditLogs([]);
+    setAttendanceRecords([]);
+    setAttendanceSummary(EMPTY_ATTENDANCE_SUMMARY);
+    setGlobalPlatformUsers([]);
+    setExpenses([]);
+    setRemoteFinancialSummary(null);
+    setTeacherSettlements([]);
+    setOutstandingDues(EMPTY_DUES_STATE);
+    setDashboardData(null);
+    setExecutiveReport(null);
+    setBillingData(null);
+    setCenterSettings(null);
+    setTasks([]);
+    setAnnouncements([]);
+    setBackups([]);
+  }, []);
+
+  // Reset immediately on sign-out, non-center role, or account change to prevent cross-account leakage
+  useEffect(() => {
+    resetAllCenterState();
+  }, [isBackendCenter, currentUser?.id, resetAllCenterState]);
+
+  const assertBackendCenter = useCallback(() => {
+    if (!isBackendCenter) {
+      throw new Error(AUTH_REQUIRED_MESSAGE);
     }
-  });
+  }, [isBackendCenter]);
+
+  const refreshAuditLogs = useCallback(async () => {
+    if (!isBackendCenter) return;
+    try {
+      const res = await centerApi.staff.listAuditLogs({ per_page: 30 });
+      if (Array.isArray(res?.data)) {
+        const cName = centerSettings?.nameAr || currentUser?.nameAr || 'إدارة السنتر';
+        setAuditLogs(res.data.map((l) => formatAuditLogItem(l, cName)));
+      }
+    } catch {
+      // ignore non-critical audit log refresh failures
+    }
+  }, [isBackendCenter, centerSettings?.nameAr, currentUser?.nameAr]);
+
+  // ─── Lightweight Core Hydration (Only 4 safe endpoints on mount — zero 403s) ─
+  const loadCoreCenterData = useCallback(async () => {
+    if (!isBackendCenter) return;
+    const [branchesRes, roomsRes, teachersRes, settingsRes] = await Promise.all([
+      centerApi.branches.list().catch(() => null),
+      centerApi.rooms.list().catch(() => null),
+      centerApi.teachers.list().catch(() => null),
+      centerApi.settings.get().catch(() => null),
+    ]);
+
+    if (Array.isArray(branchesRes?.data)) setBranches(branchesRes.data);
+    if (Array.isArray(roomsRes?.data)) setRooms(roomsRes.data);
+    if (Array.isArray(teachersRes?.data)) setCenterTeachers(teachersRes.data);
+    if (settingsRes?.data) setCenterSettings(settingsRes.data);
+  }, [isBackendCenter]);
+
+  // ─── On-Demand Section Loaders ──────────────────────────────────────────────
+  const loadOperationsData = useCallback(async () => {
+    if (!isBackendCenter) return;
+    const [connectedRes, staffRes, auditRes] = await Promise.all([
+      centerApi.connect.listUsers().catch(() => null),
+      centerApi.staff.list().catch(() => null),
+      centerApi.staff.listAuditLogs({ per_page: 30 }).catch(() => null),
+    ]);
+    if (Array.isArray(connectedRes?.data)) setConnectedUsers(connectedRes.data);
+    if (Array.isArray(staffRes?.data)) setStaff(staffRes.data);
+    if (Array.isArray(auditRes?.data)) {
+      const cName = centerSettings?.nameAr || currentUser?.nameAr || 'إدارة السنتر';
+      setAuditLogs(auditRes.data.map((l) => formatAuditLogItem(l, cName)));
+    }
+  }, [isBackendCenter, centerSettings?.nameAr, currentUser?.nameAr]);
+
+  const loadAttendanceData = useCallback(async () => {
+    if (!isBackendCenter) return;
+    const attendanceRes = await centerApi.attendance.listRecords().catch(() => null);
+    if (attendanceRes?.data) {
+      if (Array.isArray(attendanceRes.data.records)) {
+        setAttendanceRecords(attendanceRes.data.records);
+      }
+      if (attendanceRes.data.summary) {
+        setAttendanceSummary(attendanceRes.data.summary);
+      }
+    }
+  }, [isBackendCenter]);
+
+  const loadFinancialsData = useCallback(
+    async (tierOverride = null) => {
+      if (!isBackendCenter) return;
+      const tier = tierOverride || centerPlanTier || 'free';
+      if (tier !== 'plus' && tier !== 'pro') {
+        setRemoteFinancialSummary(null);
+        setExpenses([]);
+        setTeacherSettlements([]);
+        setOutstandingDues(EMPTY_DUES_STATE);
+        return;
+      }
+
+      const [finOverviewRes, expensesRes, settlementsRes, duesRes] = await Promise.all([
+        centerApi.financials.getOverview().catch(() => null),
+        centerApi.financials.listExpenses().catch(() => null),
+        centerApi.financials.listSettlements().catch(() => null),
+        centerApi.financials.listDues().catch(() => null),
+      ]);
+
+      if (finOverviewRes?.data?.summary) {
+        setRemoteFinancialSummary(finOverviewRes.data.summary);
+      }
+      if (Array.isArray(expensesRes?.data)) {
+        setExpenses(expensesRes.data);
+      }
+      if (Array.isArray(settlementsRes?.data)) {
+        setTeacherSettlements(settlementsRes.data);
+      }
+      if (duesRes?.data) {
+        setOutstandingDues(duesRes.data);
+      }
+    },
+    [isBackendCenter, centerPlanTier]
+  );
+
+  const loadBillingData = useCallback(async () => {
+    if (!isBackendCenter) return;
+    const billingRes = await centerApi.billing.getSummary().catch(() => null);
+    if (billingRes?.data) {
+      setBillingData(billingRes.data);
+    }
+  }, [isBackendCenter]);
+
+  const loadSettingsData = useCallback(
+    async (tierOverride = null) => {
+      if (!isBackendCenter) return;
+      const tier = tierOverride || centerPlanTier || 'free';
+      const [settingsRes, tasksRes, announcementsRes] = await Promise.all([
+        centerApi.settings.get().catch(() => null),
+        centerApi.settings.listTasks().catch(() => null),
+        centerApi.settings.listAnnouncements().catch(() => null),
+      ]);
+
+      if (settingsRes?.data) setCenterSettings(settingsRes.data);
+      if (Array.isArray(tasksRes?.data)) setTasks(tasksRes.data);
+      if (Array.isArray(announcementsRes?.data)) setAnnouncements(announcementsRes.data);
+
+      if (tier === 'pro') {
+        const backupsRes = await centerApi.settings.listBackups().catch(() => null);
+        if (Array.isArray(backupsRes?.data)) {
+          setBackups(backupsRes.data);
+        }
+      } else {
+        setBackups([]);
+      }
+    },
+    [isBackendCenter, centerPlanTier]
+  );
+
+  const refreshCenterData = useCallback(
+    async (tierOverride = null) => {
+      if (!isBackendCenter) return;
+      setCenterLoading(true);
+      try {
+        await Promise.all([
+          loadCoreCenterData(),
+          loadOperationsData(),
+          loadBillingData(),
+          loadFinancialsData(tierOverride),
+          loadSettingsData(tierOverride),
+        ]);
+      } finally {
+        setCenterLoading(false);
+      }
+    },
+    [
+      isBackendCenter,
+      loadCoreCenterData,
+      loadOperationsData,
+      loadBillingData,
+      loadFinancialsData,
+      loadSettingsData,
+    ]
+  );
 
   useEffect(() => {
-    localStorage.setItem('motafawweq_center_rooms', JSON.stringify(rooms));
-  }, [rooms]);
-  const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
-  const [staff, setStaff] = useState(INITIAL_STAFF);
-  const [leads, setLeads] = useState(INITIAL_LEADS);
+    if (!isBackendCenter) return undefined;
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      loadCoreCenterData();
+    });
+    return () => {
+      active = false;
+    };
+  }, [isBackendCenter, currentUser?.id, loadCoreCenterData]);
 
-  // Live Attendance Records Log
-  const [attendanceRecords, setAttendanceRecords] = useState([
-    {
-      id: 'att-1',
-      studentNameAr: 'عمر طارق القاضي',
-      studentPhone: '+20 102 458 9912',
-      groupId: 'cls-1',
-      groupNameAr: 'أحياء 3 ثانوي 2026 — مجموعة الدقي النخبة',
-      subjectAr: 'الأحياء (الثانوية العامة)',
-      teacherNameAr: 'د. سلمى السيد',
-      hallName: 'قاعة 1 (المحاضرات الكبرى)',
-      branchNameAr: 'فرع الدقي',
-      timestamp: '2026-09-29 15:58',
-      date: '2026-09-29',
-      dayKey: 'tuesday',
-      status: 'present',
-      statusAr: 'حاضر',
-      paymentStatus: 'paid',
-      paymentStatusAr: 'مسدد بالكامل',
-      method: 'smart_qr_scanner'
-    },
-    {
-      id: 'att-2',
-      studentNameAr: 'أحمد محمود رضوان',
-      studentPhone: '+20 100 123 4567',
-      groupId: 'cls-1',
-      groupNameAr: 'أحياء 3 ثانوي 2026 — مجموعة الدقي النخبة',
-      subjectAr: 'الأحياء (الثانوية العامة)',
-      teacherNameAr: 'د. سلمى السيد',
-      hallName: 'قاعة 1 (المحاضرات الكبرى)',
-      branchNameAr: 'فرع الدقي',
-      timestamp: '2026-09-29 16:02',
-      date: '2026-09-29',
-      dayKey: 'tuesday',
-      status: 'present',
-      statusAr: 'حاضر',
-      paymentStatus: 'paid',
-      paymentStatusAr: 'مسدد بالكامل',
-      method: 'smart_qr_scanner'
-    },
-    {
-      id: 'att-3',
-      studentNameAr: 'مريم شريف دسوقي',
-      studentPhone: '+20 101 234 5678',
-      groupId: 'cls-2',
-      groupNameAr: 'فيزياء الثانوية العامة — بنك أفكار كيرشوف والدينامو',
-      subjectAr: 'الفيزياء (الثانوية العامة)',
-      teacherNameAr: 'د. سلمى السيد',
-      hallName: 'قاعة أينشتاين للمتفوقين',
-      branchNameAr: 'فرع مدينة نصر',
-      timestamp: '2026-09-28 17:55',
-      date: '2026-09-28',
-      dayKey: 'monday',
-      status: 'present',
-      statusAr: 'حاضر',
-      paymentStatus: 'due',
-      paymentStatusAr: 'متبقي 200 ج.م',
-      method: 'smart_qr_scanner'
+  // ─── 1. Branches CRUD ───────────────────────────────────────────────────────
+  const addBranch = async (branchData) => {
+    assertBackendCenter();
+    try {
+      const res = await centerApi.branches.create({
+        name_ar: branchData.nameAr || 'فرع جديد',
+        name_en: branchData.nameEn || branchData.nameAr || 'New Branch',
+        address_ar: branchData.addressAr || '',
+        phone: branchData.phone || '',
+        manager_name_ar: branchData.managerNameAr || '',
+      });
+      const created = res?.data;
+      if (created) {
+        setBranches((prev) => [created, ...prev]);
+        refreshAuditLogs();
+      }
+      return created;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل إنشاء الفرع.', 'warning');
+      throw err;
     }
-  ]);
+  };
 
-  // Real-time Audit Trail Log
-  const [auditLogs, setAuditLogs] = useState([
-    {
-      id: 'log-1',
-      actionAr: 'تسجيل حضور تلقائي بمسح الباركود',
-      userAr: 'أ. ياسمين نبيل (الاستقبال)',
-      detailsAr: 'حضور الطالب: عمر طارق القاضي في مجموعة أحياء 3 ثانوي',
-      timestamp: 'منذ 5 دقائق'
-    },
-    {
-      id: 'log-2',
-      actionAr: 'تسجيل مصروف تشغيلي جديد',
-      userAr: 'أ. مصطفى الجيار (المحاسب)',
-      detailsAr: 'سداد فاتورة إنترنت وأجهزة فرع الدقي بقيمة 2,400 ج.م',
-      timestamp: 'منذ 40 دقيقة'
-    },
-    {
-      id: 'log-3',
-      actionAr: 'تحديث سعة القاعة وحجز موعد',
-      userAr: 'أ. سامح عبدالحميد (المدير)',
-      detailsAr: 'ربط قاعة 1 بمجموعة النخبة وتجهيز الكاميرا التفاعلية',
-      timestamp: 'منذ ساعتين'
+  const updateBranch = async (branchId, branchData) => {
+    assertBackendCenter();
+    try {
+      const res = await centerApi.branches.update(branchId, {
+        name_ar: branchData.nameAr,
+        name_en: branchData.nameEn || branchData.nameAr,
+        address_ar: branchData.addressAr,
+        phone: branchData.phone,
+        manager_name_ar: branchData.managerNameAr,
+      });
+      const updated = res?.data;
+      if (updated) {
+        setBranches((prev) => prev.map((b) => (b.id === branchId ? updated : b)));
+        refreshAuditLogs();
+      }
+      return updated;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل تحديث بيانات الفرع.', 'warning');
+      throw err;
     }
-  ]);
+  };
 
-  // Teacher Settlement Rules (Center collects student fees, then settles with teacher)
-  const teacherSettlementRate = 0.75; // Teacher gets 75%, Center retains 25%
+  const deleteBranch = async (branchId) => {
+    assertBackendCenter();
+    try {
+      await centerApi.branches.delete(branchId);
+      setBranches((prev) => prev.filter((b) => b.id !== branchId));
+      if (selectedBranchId === branchId) setSelectedBranchId('all');
+      refreshAuditLogs();
+      return true;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل حذف الفرع.', 'warning');
+      throw err;
+    }
+  };
 
-  // Check Schedule Conflicts Logic (Prevents double booking of same room or teacher at overlapping times)
-  const checkScheduleConflict = (candidateSlot, existingSlots, excludeGroupId = null) => {
-    const candidateDay = (candidateSlot.day || '').toLowerCase();
-    const candidateHall = (candidateSlot.hall || '').trim();
-    const candidateStart = candidateSlot.startTime || '16:00';
-    const candidateEnd = candidateSlot.endTime || '18:00';
+  // ─── 2. Center Teachers CRUD & Invites ──────────────────────────────────────
+  const addCenterTeacher = async (teacherData) => {
+    assertBackendCenter();
+    try {
+      const res = await centerApi.teachers.create({
+        name_ar: teacherData.nameAr,
+        name_en: teacherData.nameEn || teacherData.nameAr,
+        subject_ar: teacherData.subjectAr,
+        phone: teacherData.phone,
+        email: teacherData.email,
+        branch_id:
+          teacherData.branchId && teacherData.branchId !== 'all'
+            ? teacherData.branchId
+            : branches[0]?.id || undefined,
+        settlement_rate: teacherData.settlementRate ?? 0.75,
+      });
+      const created = res?.data;
+      if (created) {
+        setCenterTeachers((prev) => [created, ...prev]);
+        loadCoreCenterData();
+        refreshAuditLogs();
+      }
+      return { success: true, teacher: created };
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل إضافة المدرس.', 'warning');
+      throw err;
+    }
+  };
 
-    for (const group of groups) {
-      if (excludeGroupId && group.id === excludeGroupId) continue;
-      const slots = group.scheduleSlots || [];
-      for (const slot of slots) {
-        if ((slot.day || '').toLowerCase() === candidateDay) {
-          // Check if same hall
-          const isSameHall = (slot.hall || group.hallName || '').trim() === candidateHall;
-          // Check time overlap: (startA < endB) and (endA > startB)
-          const overlap = (candidateStart < (slot.endTime || '20:00')) && (candidateEnd > (slot.startTime || '10:00'));
+  const updateCenterTeacher = async (teacherId, teacherData) => {
+    assertBackendCenter();
+    try {
+      const res = await centerApi.teachers.update(teacherId, teacherData);
+      const updated = res?.data;
+      if (updated) {
+        setCenterTeachers((prev) => prev.map((t) => (t.id === teacherId ? updated : t)));
+        refreshAuditLogs();
+      }
+      return updated;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل تحديث بيانات المعلم.', 'warning');
+      throw err;
+    }
+  };
 
-          if (isSameHall && overlap) {
-            return {
-              hasConflict: true,
-              type: 'hall_overlap',
-              messageAr: `تعارض قاعات: القاعة «${candidateHall}» محجوزة بالفعل يوم ${candidateSlot.dayAr || candidateDay} في نفس التوقيت لمجموعة «${group.nameAr}»!`,
-              conflictingGroup: group,
-              conflictingSlot: slot
-            };
+  const deleteCenterTeacher = async (teacherId) => {
+    assertBackendCenter();
+    try {
+      await centerApi.teachers.delete(teacherId);
+      setCenterTeachers((prev) => prev.filter((t) => t.id !== teacherId));
+      loadCoreCenterData();
+      refreshAuditLogs();
+      return true;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل حذف المعلم.', 'warning');
+      throw err;
+    }
+  };
+
+  const resendTeacherInvite = async (teacherId) => {
+    assertBackendCenter();
+    try {
+      const res = await centerApi.teachers.resendInvite(teacherId);
+      const link = res?.data?.activationLink;
+      if (link) {
+        setCenterTeachers((prev) =>
+          prev.map((t) => (t.id === teacherId ? { ...t, activationLink: link } : t))
+        );
+      }
+      refreshAuditLogs();
+      return { success: true, link };
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'تعذر تجديد رابط الدعوة.', 'warning');
+      return { success: false, error: err?.message };
+    }
+  };
+
+  // ─── 3. Rooms CRUD & Schedule Conflict Engine ───────────────────────────────
+  const addRoom = async (roomData) => {
+    assertBackendCenter();
+    try {
+      const validBranchId =
+        roomData.branchId && roomData.branchId !== 'all'
+          ? roomData.branchId
+          : branches[0]?.id || undefined;
+
+      const res = await centerApi.rooms.create({
+        name_ar: roomData.nameAr,
+        name_en: roomData.nameEn || roomData.nameAr,
+        branch_id: validBranchId,
+        capacity: Number(roomData.capacity) || 40,
+        floor: roomData.floor || 'الطابق الأول',
+        equipped: Array.isArray(roomData.equipped) ? roomData.equipped : [],
+        is_available: roomData.isAvailable !== false,
+      });
+      const created = res?.data;
+      if (created) {
+        setRooms((prev) => [...prev, created]);
+        loadCoreCenterData();
+        refreshAuditLogs();
+      }
+      return created;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل إضافة القاعة.', 'warning');
+      throw err;
+    }
+  };
+
+  const updateRoom = async (roomId, updatedData) => {
+    assertBackendCenter();
+    try {
+      const validBranchId =
+        updatedData.branchId && updatedData.branchId !== 'all' ? updatedData.branchId : undefined;
+
+      const res = await centerApi.rooms.update(roomId, {
+        name_ar: updatedData.nameAr,
+        name_en: updatedData.nameEn || updatedData.nameAr,
+        branch_id: validBranchId,
+        capacity: Number(updatedData.capacity) || 40,
+        floor: updatedData.floor,
+        equipped: updatedData.equipped,
+        is_available: updatedData.isAvailable,
+      });
+      const updated = res?.data;
+      if (updated) {
+        setRooms((prev) => prev.map((r) => (r.id === roomId ? updated : r)));
+        await Promise.all([refreshGroups(), refreshAuditLogs()]);
+      }
+      return updated;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل تحديث بيانات القاعة.', 'warning');
+      throw err;
+    }
+  };
+
+  const deleteRoom = async (roomId) => {
+    assertBackendCenter();
+    try {
+      await centerApi.rooms.delete(roomId);
+      setRooms((prev) => prev.filter((r) => r.id !== roomId));
+      loadCoreCenterData();
+      refreshAuditLogs();
+      return true;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل حذف القاعة.', 'warning');
+      throw err;
+    }
+  };
+
+  // Synchronous client-side conflict check mirroring backend CenterScheduleService for instant form feedback
+  const checkScheduleConflict = useCallback(
+    (candidateSlot, _existingSlots, excludeGroupId = null) => {
+      const candidateDay = (candidateSlot.day || '').toLowerCase();
+      const candidateHall = (candidateSlot.hall || '').trim();
+      const candidateStart = candidateSlot.startTime || '16:00';
+      const candidateEnd = candidateSlot.endTime || '18:00';
+
+      for (const group of groups) {
+        if (excludeGroupId && group.id === excludeGroupId) continue;
+        const slots = group.scheduleSlots || [];
+        for (const slot of slots) {
+          if ((slot.day || '').toLowerCase() === candidateDay) {
+            const isSameHall = (slot.hall || group.hallName || '').trim() === candidateHall;
+            const overlap =
+              candidateStart < (slot.endTime || '20:00') &&
+              candidateEnd > (slot.startTime || '10:00');
+
+            if (isSameHall && overlap) {
+              return {
+                hasConflict: true,
+                type: 'hall_overlap',
+                messageAr: `تعارض قاعات: القاعة «${candidateHall}» محجوزة بالفعل يوم ${candidateSlot.dayAr || candidateDay} في نفس التوقيت لمجموعة «${group.nameAr}»!`,
+                conflictingGroup: group,
+                conflictingSlot: slot,
+              };
+            }
           }
         }
       }
+      return { hasConflict: false };
+    },
+    [groups]
+  );
+
+  // ─── 4. Smart Gate QR Scanner & Absence Alerts ──────────────────────────────
+  const processSmartStudentQrScan = async (rawScanText, simulatedDay = null, simulatedTime = null) => {
+    if (!isBackendCenter) {
+      return { success: false, type: 'auth_required', messageAr: AUTH_REQUIRED_MESSAGE };
     }
-    return { hasConflict: false };
-  };
-
-  /**
-   * SMART STUDENT QR SCANNER CORE ENGINE (As required in Audio 1)
-   * Automatically parses the student QR pass, detects the current day and current time,
-   * matches against all enrolled groups of the student, and logs attendance immediately.
-   */
-  const processSmartStudentQrScan = (rawScanText, simulatedTime = null) => {
-    // Current simulated or real date & time
-    const now = new Date();
-    const dayIndex = now.getDay();
-    const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const currentDayKey = dayMap[dayIndex] || 'tuesday';
-
-    // Format current time HH:MM (e.g. "16:15") or use simulated
-    let currentHourMinutes = simulatedTime;
-    if (!currentHourMinutes) {
-      const h = String(now.getHours()).padStart(2, '0');
-      const m = String(now.getMinutes()).padStart(2, '0');
-      currentHourMinutes = `${h}:${m}`;
-    }
-
-    // Try parsing payload
-    let studentId = 'std-omar';
-    let studentNameAr = 'عمر طارق القاضي';
-    let studentPhone = '+20 102 458 9912';
 
     try {
-      if (rawScanText && rawScanText.startsWith('{')) {
-        const parsed = JSON.parse(rawScanText);
-        if (parsed.studentNameAr) studentNameAr = parsed.studentNameAr;
-        if (parsed.phone) studentPhone = parsed.phone;
-        if (parsed.id) studentId = parsed.id;
-      } else if (rawScanText && rawScanText.includes(':')) {
-        // e.g. "STD:OMAR:+201024589912"
-        const parts = rawScanText.split(':');
-        if (parts[1]) studentNameAr = parts[1];
-        if (parts[2]) studentPhone = parts[2];
+      const res = await centerApi.attendance.smartGateScan({
+        code: String(rawScanText || '').trim(),
+        simulated_day: simulatedDay ? String(simulatedDay).toLowerCase() : undefined,
+        simulated_time: simulatedTime || undefined,
+      });
+      const data = res?.data || {};
+      if (data.record) {
+        setAttendanceRecords((prev) => {
+          const exists = prev.some((r) => r.id === data.record.id);
+          return exists ? prev : [data.record, ...prev];
+        });
       }
-    } catch (e) {
-      // fallback to default
-    }
-
-    // Find all groups this student is enrolled in
-    const studentEnrolledGroups = groups.filter(g => {
-      const list = enrolledStudents[g.id] || [];
-      return list.some(s => s.nameAr === studentNameAr || s.phone === studentPhone || s.name === studentNameAr);
-    });
-
-    if (studentEnrolledGroups.length === 0) {
-      return {
-        success: false,
-        type: 'not_enrolled',
-        studentNameAr,
-        messageAr: `الطالب «${studentNameAr}» غير مسجل في أي مجموعة دراسية بهذا السنتر.`
-      };
-    }
-
-    // Look for a scheduled slot matching current day & time window (e.g. class running or starting in next 45 mins)
-    let matchedGroup = null;
-    let matchedSlot = null;
-
-    for (const group of studentEnrolledGroups) {
-      const slots = group.scheduleSlots || [];
-      for (const slot of slots) {
-        // Day match (or fallback to slot day if testing)
-        const isDayMatch = (slot.day || '').toLowerCase() === currentDayKey;
-        if (isDayMatch) {
-          // Check time proximity: within 1 hour before start or up to 2 hours after start
-          matchedGroup = group;
-          matchedSlot = slot;
-          break;
-        }
-      }
-      if (matchedGroup) break;
-    }
-
-    // If no exact day match found, pick the student's primary group for smooth test demonstration
-    if (!matchedGroup) {
-      matchedGroup = studentEnrolledGroups[0];
-      matchedSlot = (matchedGroup.scheduleSlots && matchedGroup.scheduleSlots[0]) || {
-        startTime: '16:00',
-        endTime: '18:00',
-        hall: matchedGroup.hallName || 'القاعة الرئيسية',
-        dayAr: 'اليوم'
-      };
-    }
-
-    // Check if already checked in today for this group
-    const todayYmd = now.toISOString().split('T')[0];
-    const alreadyLogged = attendanceRecords.find(
-      r => r.studentPhone === studentPhone && r.groupId === matchedGroup.id && r.date === todayYmd
-    );
-
-    if (alreadyLogged) {
+      refreshAuditLogs();
       return {
         success: true,
-        isDuplicateNotice: true,
-        record: alreadyLogged,
-        studentNameAr,
-        group: matchedGroup,
-        slot: matchedSlot,
-        messageAr: `تم تسجيل حضور الطالب «${studentNameAr}» مسبقاً في تمام الساعة ${alreadyLogged.timestamp.split(' ')[1]}.`
+        isDuplicateNotice: Boolean(data.alreadyRecorded),
+        isNew: !data.alreadyRecorded,
+        record: data.record,
+        studentNameAr: data.student?.nameAr || data.record?.studentNameAr || 'الطالب',
+        group: data.group,
+        slot: data.matchedSlot,
+        paymentStatus: data.student?.paymentStatus || 'paid',
+        paymentStatusAr: data.student?.paymentStatusAr || 'مسدد بالكامل',
+        messageAr: data.messageAr || res?.message || 'تم تسجيل الحضور بنجاح.',
+      };
+    } catch (err) {
+      return {
+        success: false,
+        type: 'scan_error',
+        messageAr: err?.message || 'لم يتم العثور على طالب مطابق لهذا الباركود في مجموعات السنتر.',
       };
     }
-
-    // Create New Attendance Record
-    const newRecord = {
-      id: `att-${Date.now()}`,
-      studentNameAr,
-      studentPhone,
-      groupId: matchedGroup.id,
-      groupNameAr: matchedGroup.nameAr,
-      subjectAr: matchedGroup.subjectAr,
-      teacherNameAr: matchedGroup.teacherNameAr || 'د. سلمى السيد',
-      hallName: matchedSlot.hall || matchedGroup.hallName || 'القاعة 1',
-      branchNameAr: matchedGroup.centerName || 'فرع الدقي',
-      timestamp: `${todayYmd} ${currentHourMinutes}`,
-      date: todayYmd,
-      dayKey: currentDayKey,
-      status: 'present',
-      statusAr: 'حاضر',
-      paymentStatus: 'paid',
-      paymentStatusAr: 'مسدد بالكامل',
-      method: 'smart_qr_scanner'
-    };
-
-    setAttendanceRecords(prev => [newRecord, ...prev]);
-
-    // Add to Audit Log
-    setAuditLogs(prev => [
-      {
-        id: `log-${Date.now()}`,
-        actionAr: 'تسجيل حضور عبر الباركود الذكي',
-        userAr: 'ماسح البوابة الذكي',
-        detailsAr: `حضور تلقائي: ${studentNameAr} — ${matchedGroup.nameAr} (${newRecord.hallName})`,
-        timestamp: 'الآن'
-      },
-      ...prev
-    ]);
-
-    return {
-      success: true,
-      isNew: true,
-      record: newRecord,
-      studentNameAr,
-      group: matchedGroup,
-      slot: matchedSlot,
-      messageAr: `تم تسجيل حضور «${studentNameAr}» بنجاح في مادة ${matchedGroup.subjectAr} مع ${matchedGroup.teacherNameAr} بالقاعة: ${newRecord.hallName}.`
-    };
   };
 
-  // Add Room
-  const addRoom = (roomData) => {
-    const newRoom = {
-      id: `room-${Date.now()}`,
-      ...roomData
-    };
-    setRooms(prev => [...prev, newRoom]);
-    setAuditLogs(prev => [
-      {
-        id: `log-${Date.now()}`,
-        actionAr: 'إضافة قاعة جديدة',
-        userAr: 'إدارة السنتر',
-        detailsAr: `إضافة ${newRoom.nameAr} بسعة ${newRoom.capacity} طالب`,
-        timestamp: 'الآن'
-      },
-      ...prev
-    ]);
-    return newRoom;
+  const sendAbsenceAlert = async (payload) => {
+    assertBackendCenter();
+    const res = await centerApi.attendance.sendAbsenceAlert(payload);
+    refreshAuditLogs();
+    return res?.data;
   };
 
-  // Update Room
-  const updateRoom = (roomId, updatedData) => {
-    setRooms(prev => prev.map(r => {
-      if (r.id === roomId) {
-        const branchObj = branches.find(b => b.id === (updatedData.branchId || r.branchId));
-        return {
-          ...r,
-          ...updatedData,
-          branchNameAr: branchObj?.nameAr || r.branchNameAr,
-          capacity: parseInt(updatedData.capacity) || r.capacity
-        };
+  // ─── 5. Financials ERP (Expenses, Settlements, Dues) ────────────────────────
+  const addExpense = async (expenseData) => {
+    assertBackendCenter();
+    try {
+      const validBranchId =
+        expenseData.branchId && expenseData.branchId !== 'all'
+          ? expenseData.branchId
+          : branches[0]?.id || undefined;
+
+      const res = await centerApi.financials.createExpense({
+        title_ar: expenseData.titleAr,
+        title_en: expenseData.titleEn || expenseData.titleAr,
+        category: expenseData.category || 'other',
+        amount_egp: Number(expenseData.amountEgp) || 0,
+        branch_id: validBranchId,
+        expense_date: expenseData.date || undefined,
+      });
+      const created = res?.data;
+      if (created) {
+        setExpenses((prev) => [created, ...prev]);
+        const ov = await centerApi.financials.getOverview().catch(() => null);
+        if (ov?.data?.summary) setRemoteFinancialSummary(ov.data.summary);
+        refreshAuditLogs();
       }
-      return r;
-    }));
-
-    setAuditLogs(prev => [
-      {
-        id: `log-${Date.now()}`,
-        actionAr: 'تعديل بيانات قاعة',
-        userAr: 'إدارة السنتر',
-        detailsAr: `تم تحديث بيانات القاعة «${updatedData.nameAr || roomId}»`,
-        timestamp: 'الآن'
-      },
-      ...prev
-    ]);
-  };
-
-  // Delete Room
-  const deleteRoom = (roomId) => {
-    const targetRoom = rooms.find(r => r.id === roomId);
-    setRooms(prev => prev.filter(r => r.id !== roomId));
-    setAuditLogs(prev => [
-      {
-        id: `log-${Date.now()}`,
-        actionAr: 'حذف قاعة دراسية',
-        userAr: 'إدارة السنتر',
-        detailsAr: `تم حذف القاعة «${targetRoom?.nameAr || roomId}» بنجاح`,
-        timestamp: 'الآن'
-      },
-      ...prev
-    ]);
-  };
-
-  // Add Expense
-  const addExpense = (expenseData) => {
-    const newExp = {
-      id: `exp-${Date.now()}`,
-      receiptNumber: `REC-${Date.now().toString().slice(-4)}`,
-      date: new Date().toISOString().split('T')[0],
-      status: 'paid',
-      ...expenseData
-    };
-    setExpenses(prev => [newExp, ...prev]);
-    setAuditLogs(prev => [
-      {
-        id: `log-${Date.now()}`,
-        actionAr: 'تسجيل مصروف مالي',
-        userAr: 'الإدارة المالية',
-        detailsAr: `تسجيل ${newExp.titleAr} بمبلغ ${newExp.amountEgp} ج.م`,
-        timestamp: 'الآن'
-      },
-      ...prev
-    ]);
-  };
-
-  // Add Staff Member
-  const addStaff = (staffData) => {
-    const newStaff = {
-      id: `staff-${Date.now()}`,
-      status: 'active',
-      permissions: staffData.permissions || ['إدارة الحضور بالباركود', 'تسجيل الطلاب'],
-      ...staffData
-    };
-    setStaff(prev => [...prev, newStaff]);
-  };
-
-  // Add Lead
-  const addLead = (leadData) => {
-    const newLead = {
-      id: `lead-${Date.now()}`,
-      createdAt: new Date().toISOString().split('T')[0],
-      status: 'new',
-      statusAr: 'استفسار جديد',
-      ...leadData
-    };
-    setLeads(prev => [newLead, ...prev]);
-  };
-
-  // Update Lead Status
-  // Global Motafawweq Users Database (Feature 9: User Search & Connect)
-  const [globalPlatformUsers] = useState([
-    {
-      id: 'usr-t-1',
-      nameAr: 'د. سلمى السيد',
-      username: 'dr.salma',
-      phone: '01012345678',
-      email: 'dr.salma@motafawweq.com',
-      role: 'teacher',
-      roleAr: 'معلم معتمد',
-      subjectAr: 'الأحياء - الثانوية العامة',
-      rating: 4.9,
-      studentsCount: 380,
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'usr-t-2',
-      nameAr: 'أ. خالد منتصر',
-      username: 'khaled.physics',
-      phone: '01234567890',
-      email: 'khaled.phys@motafawweq.com',
-      role: 'teacher',
-      roleAr: 'معلم معتمد',
-      subjectAr: 'الفيزياء للثانوية العامة واللغات',
-      rating: 4.95,
-      studentsCount: 520,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'usr-s-1',
-      nameAr: 'أحمد محمود رضوان',
-      username: 'ahmed.radwan',
-      phone: '01001122334',
-      email: 'ahmed.radwan@gmail.com',
-      role: 'student',
-      roleAr: 'طالب مسجل',
-      gradeAr: 'الصف الثالث الثانوي — علمي رياضة',
-      schoolAr: 'مدرسة المتفوقين الثانوية'
-    },
-    {
-      id: 'usr-s-2',
-      nameAr: 'ياسمين حسام الدسوقي',
-      username: 'yasmin.desouky',
-      phone: '01223344556',
-      email: 'yasmin.d@gmail.com',
-      role: 'student',
-      roleAr: 'طالبة مسجلة',
-      gradeAr: 'الصف الأول الثانوي',
-      schoolAr: 'مدرسة الأورمان لغات'
-    },
-    {
-      id: 'usr-s-3',
-      nameAr: 'زياد طارق الشهاوي',
-      username: 'ziad.shehawi',
-      phone: '01556677889',
-      email: 'ziad.t@gmail.com',
-      role: 'student',
-      roleAr: 'طالب مسجل',
-      gradeAr: 'الصف الثاني الثانوي — علمي علوم',
-      schoolAr: 'مدرسة طبري روكسي'
+      return created;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل تسجيل المصروف.', 'warning');
+      throw err;
     }
-  ]);
-
-  const [connectedUsers, setConnectedUsers] = useState([
-    {
-      id: 'usr-t-1',
-      nameAr: 'د. سلمى السيد',
-      username: 'dr.salma',
-      phone: '01012345678',
-      roleAr: 'معلم معتمد',
-      subjectAr: 'الأحياء - الثانوية العامة',
-      branchNameAr: 'فرع الدقي',
-      connectedAt: '2026-09-01'
-    }
-  ]);
-
-  // Search Global Motafawweq Users by username, phone, or email (Feature 9)
-  const searchGlobalUsers = (query) => {
-    if (!query || !query.trim()) return [];
-    const q = query.trim().toLowerCase();
-    return globalPlatformUsers.filter(u => 
-      u.nameAr.toLowerCase().includes(q) ||
-      u.phone.includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      u.username.toLowerCase().includes(q)
-    );
   };
 
-  // Connect user to center (Feature 9)
-  const connectUserToCenter = (user, branchId, branchNameAr) => {
-    const isAlreadyConnected = connectedUsers.some(u => u.phone === user.phone || u.id === user.id);
-    if (isAlreadyConnected) {
-      return { success: false, messageAr: 'المستخدم مربوط بالفعل بهذا السنتر!' };
+  const deleteExpense = async (expenseId) => {
+    assertBackendCenter();
+    await centerApi.financials.deleteExpense(expenseId);
+    setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+    const ov = await centerApi.financials.getOverview().catch(() => null);
+    if (ov?.data?.summary) setRemoteFinancialSummary(ov.data.summary);
+    refreshAuditLogs();
+    return true;
+  };
+
+  const approveTeacherSettlement = async (teacherId, period = null, referenceNote = null) => {
+    assertBackendCenter();
+    const res = await centerApi.financials.approveSettlement(teacherId, {
+      ...(period ? { period } : {}),
+      ...(referenceNote ? { reference_note: referenceNote } : {}),
+    });
+    const updated = res?.data;
+    if (updated) {
+      setTeacherSettlements((prev) =>
+        prev.map((item) =>
+          item.teacherId === teacherId || item.id === teacherId ? updated : item
+        )
+      );
+      refreshAuditLogs();
     }
+    return updated;
+  };
 
-    const newConnection = {
-      ...user,
-      branchId,
-      branchNameAr: branchNameAr || 'فرع الدقي',
-      connectedAt: new Date().toISOString().split('T')[0]
-    };
+  const remindStudentDue = async (enrollmentId) => {
+    assertBackendCenter();
+    const res = await centerApi.financials.remindDue(enrollmentId);
+    refreshAuditLogs();
+    return res?.data;
+  };
 
-    setConnectedUsers(prev => [newConnection, ...prev]);
-
-    setAuditLogs(prev => [
-      {
-        id: `log-${Date.now()}`,
-        actionAr: 'ربط حساب مستخدم بالسنتر (Motafawweq Connect)',
-        userAr: 'إدارة شؤون الطلاب والأساتذة',
-        detailsAr: `تم ربط الحساب «${user.nameAr}» (${user.roleAr}) بنجاح دون إنشاء حساب مكرر`,
-        timestamp: 'الآن'
-      },
-      ...prev
+  const markStudentDuePaid = async (enrollmentId) => {
+    assertBackendCenter();
+    const res = await centerApi.financials.markDuePaid(enrollmentId);
+    const [duesRes, ovRes] = await Promise.all([
+      centerApi.financials.listDues().catch(() => null),
+      centerApi.financials.getOverview().catch(() => null),
     ]);
-
-    return { success: true, messageAr: `تم ربط حساب «${user.nameAr}» بالسنتر بنجاح!` };
+    if (duesRes?.data) setOutstandingDues(duesRes.data);
+    if (ovRes?.data?.summary) setRemoteFinancialSummary(ovRes.data.summary);
+    refreshAuditLogs();
+    return res?.data;
   };
 
-  // Export Data to CSV (Feature 78: Export Data)
+  // ─── 6. Staff CRUD ──────────────────────────────────────────────────────────
+  const addStaff = async (staffData) => {
+    assertBackendCenter();
+    try {
+      const roleMap = {
+        'مدير فرع': 'manager',
+        'مدير الفرع العام': 'manager',
+        'سكرتارية واستقبال': 'receptionist',
+        'محاسب مالي': 'accountant',
+        'مشرف قاعات': 'supervisor',
+      };
+      const resolvedRole = staffData.role || roleMap[staffData.roleAr] || 'receptionist';
+      const validBranchId =
+        staffData.branchId && staffData.branchId !== 'all'
+          ? staffData.branchId
+          : branches[0]?.id || undefined;
+
+      const res = await centerApi.staff.create({
+        name_ar: staffData.nameAr,
+        name_en: staffData.nameEn || staffData.nameAr,
+        role: resolvedRole,
+        role_ar: staffData.roleAr,
+        branch_id: validBranchId,
+        phone: staffData.phone,
+        email: staffData.email,
+        salary_egp: Number(staffData.salaryEgp) || 0,
+        permissions: Array.isArray(staffData.permissions)
+          ? staffData.permissions
+          : ['إدارة الحضور بالباركود', 'تسجيل الطلاب'],
+      });
+      const created = res?.data;
+      if (created) {
+        setStaff((prev) => [created, ...prev]);
+        refreshAuditLogs();
+      }
+      return created;
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'فشل إضافة الموظف.', 'warning');
+      throw err;
+    }
+  };
+
+  const deleteStaff = async (staffId) => {
+    assertBackendCenter();
+    await centerApi.staff.delete(staffId);
+    setStaff((prev) => prev.filter((s) => s.id !== staffId));
+    refreshAuditLogs();
+    return true;
+  };
+
+  // ─── 7. Motafawweq Connect (Global User Search & Link) ──────────────────────
+  const searchGlobalUsers = useCallback(
+    (query) => {
+      if (!query || !query.trim() || query.trim().length < 2) return [];
+      const q = query.trim().toLowerCase();
+      return globalPlatformUsers.filter(
+        (u) =>
+          (u.nameAr || '').toLowerCase().includes(q) ||
+          (u.phone || '').includes(q) ||
+          (u.email || '').toLowerCase().includes(q) ||
+          (u.username || '').toLowerCase().includes(q)
+      );
+    },
+    [globalPlatformUsers]
+  );
+
+  const searchGlobalUsersRemote = useCallback(
+    async (query, role = null) => {
+      if (!isBackendCenter || !query || query.trim().length < 2) return [];
+      try {
+        const res = await centerApi.connect.searchUsers(query.trim(), role);
+        const list = Array.isArray(res?.data) ? res.data : [];
+        setGlobalPlatformUsers(list);
+        return list;
+      } catch {
+        return [];
+      }
+    },
+    [isBackendCenter]
+  );
+
+  const connectUserToCenter = async (user, branchId) => {
+    if (!isBackendCenter) {
+      return { success: false, messageAr: AUTH_REQUIRED_MESSAGE };
+    }
+    try {
+      const targetUserId = Number(user?.userId || user?.id);
+      const validBranchId =
+        branchId && branchId !== 'all' ? branchId : branches[0]?.id || undefined;
+
+      const res = await centerApi.connect.connectUser({
+        user_id: targetUserId,
+        branch_id: validBranchId,
+      });
+      const created = res?.data;
+      if (created) {
+        setConnectedUsers((prev) => [created, ...prev]);
+        await Promise.all([loadCoreCenterData(), loadOperationsData()]);
+      }
+      return {
+        success: true,
+        messageAr: res?.message || `تم ربط حساب «${user.nameAr}» بالسنتر بنجاح!`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        messageAr: err?.message || 'المستخدم مربوط بالفعل بهذا السنتر أو تعذر الربط.',
+      };
+    }
+  };
+
+  // ─── 8. Dashboard, Queue & Executive Report Actions ─────────────────────────
+  const fetchDashboard = useCallback(
+    async (params = {}) => {
+      if (!isBackendCenter) return null;
+      const seq = ++dashboardSeqRef.current;
+      const res = await centerApi.dashboard.get(params);
+      if (seq !== dashboardSeqRef.current) return null;
+      if (res?.data) {
+        setDashboardData(res.data);
+        if (branches.length === 0 && Array.isArray(res.data.branches)) {
+          setBranches(res.data.branches);
+        }
+        return res.data;
+      }
+      return null;
+    },
+    [isBackendCenter, branches.length]
+  );
+
+  const completeQueueItemRemote = async (groupId, slotId = null, queueDate = null) => {
+    assertBackendCenter();
+    const res = await centerApi.dashboard.completeQueueItem({
+      group_id: groupId,
+      ...(slotId ? { slot_id: slotId } : {}),
+      ...(queueDate ? { queue_date: queueDate } : {}),
+    });
+    refreshAuditLogs();
+    return res?.data;
+  };
+
+  const restoreQueueItemRemote = async (groupId, slotId = null, queueDate = null) => {
+    assertBackendCenter();
+    await centerApi.dashboard.restoreQueueItem({
+      group_id: groupId,
+      ...(slotId ? { slot_id: slotId } : {}),
+      ...(queueDate ? { queue_date: queueDate } : {}),
+    });
+    refreshAuditLogs();
+    return true;
+  };
+
+  const resetQueueRemote = async (day = null, queueDate = null) => {
+    assertBackendCenter();
+    const res = await centerApi.dashboard.resetQueue({
+      ...(day ? { day: String(day).toLowerCase() } : {}),
+      ...(queueDate ? { queue_date: queueDate } : {}),
+    });
+    refreshAuditLogs();
+    return res?.data;
+  };
+
+  const fetchExecutiveReport = useCallback(
+    async (period = 'weekly') => {
+      if (!isBackendCenter) return null;
+      try {
+        const res = await centerApi.dashboard.getExecutiveReport(period);
+        if (res?.data) {
+          setExecutiveReport(res.data);
+          return res.data;
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    },
+    [isBackendCenter]
+  );
+
+  // ─── 9. Settings, KPIs, Tasks, Announcements, Import & Cloud Backups ────────
+  const updateCenterSettings = async (payload) => {
+    assertBackendCenter();
+    const res = await centerApi.settings.update(payload);
+    if (res?.data) {
+      setCenterSettings(res.data);
+      refreshAuditLogs();
+    }
+    return res?.data;
+  };
+
+  const updateKpiTargets = async (payload) => {
+    assertBackendCenter();
+    const res = await centerApi.settings.updateKpis(payload);
+    if (res?.data) {
+      setCenterSettings(res.data);
+      refreshAuditLogs();
+    }
+    return res?.data;
+  };
+
+  const addCenterTask = async (taskData) => {
+    assertBackendCenter();
+    const res = await centerApi.settings.createTask(taskData);
+    if (res?.data) {
+      setTasks((prev) => [res.data, ...prev]);
+      refreshAuditLogs();
+    }
+    return res?.data;
+  };
+
+  const updateCenterTask = async (taskId, taskData) => {
+    assertBackendCenter();
+    const res = await centerApi.settings.updateTask(taskId, taskData);
+    if (res?.data) {
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? res.data : t)));
+      refreshAuditLogs();
+    }
+    return res?.data;
+  };
+
+  const toggleCenterTask = async (taskId) => {
+    assertBackendCenter();
+    const res = await centerApi.settings.toggleTask(taskId);
+    if (res?.data) {
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? res.data : t)));
+    }
+    return res?.data;
+  };
+
+  const deleteCenterTask = async (taskId) => {
+    assertBackendCenter();
+    await centerApi.settings.deleteTask(taskId);
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    refreshAuditLogs();
+    return true;
+  };
+
+  const addCenterAnnouncement = async (data) => {
+    assertBackendCenter();
+    const res = await centerApi.settings.createAnnouncement(data);
+    if (res?.data) {
+      setAnnouncements((prev) => [res.data, ...prev]);
+      refreshAuditLogs();
+    }
+    return res?.data;
+  };
+
+  const deleteCenterAnnouncement = async (uuid) => {
+    assertBackendCenter();
+    await centerApi.settings.deleteAnnouncement(uuid);
+    setAnnouncements((prev) => prev.filter((a) => a.id !== uuid));
+    refreshAuditLogs();
+    return true;
+  };
+
+  const importCenterStudents = async (rows, defaultGroupId = null) => {
+    assertBackendCenter();
+    const res = await centerApi.settings.importStudents({
+      rows,
+      ...(defaultGroupId ? { default_group_id: defaultGroupId } : {}),
+    });
+    await Promise.all([refreshGroups(), refreshAuditLogs()]);
+    return res?.data;
+  };
+
+  const createCenterBackup = async () => {
+    assertBackendCenter();
+    const res = await centerApi.settings.createBackup();
+    if (res?.data) {
+      setBackups((prev) => [res.data, ...prev]);
+      refreshAuditLogs();
+    }
+    return res?.data;
+  };
+
+  // ─── 10. Billing & Subscriptions ────────────────────────────────────────────
+  const validateCenterCoupon = async (code, orderAmount = 0) => {
+    assertBackendCenter();
+    const res = await centerApi.billing.validateCoupon({
+      code,
+      order_amount: orderAmount,
+    });
+    return res?.data;
+  };
+
+  const subscribeCenterPlan = async (payload) => {
+    assertBackendCenter();
+    const res = await centerApi.billing.subscribe(payload);
+    const newTier = res?.data?.activeSub?.tier || payload?.plan_tier || 'free';
+    await Promise.all([refreshUser(), refreshCenterData(newTier)]);
+    return { data: res?.data, message: res?.message };
+  };
+
+  const cancelCenterSubscription = async () => {
+    assertBackendCenter();
+    const res = await centerApi.billing.cancel();
+    await Promise.all([refreshUser(), refreshCenterData('free')]);
+    return { data: res?.data, message: res?.message };
+  };
+
+  // ─── CSV Export Helper (Formula-Injection Safe) ─────────────────────────────
   const exportToCsv = (filename, headers, rows) => {
-    const csvContent = '\uFEFF' + [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
+    const escapeCell = (cell) => {
+      let s = String(cell ?? '');
+      if (s !== '' && /^[=+\-@\t\r]/.test(s)) {
+        s = `'${s}`;
+      }
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const csvContent =
+      '\uFEFF' +
+      [headers.map(escapeCell).join(','), ...rows.map((row) => row.map(escapeCell).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1119,40 +1047,46 @@ export const CenterProvider = ({ children }) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  const updateLeadStatus = (leadId, newStatus, newStatusAr) => {
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus, statusAr: newStatusAr } : l));
-  };
-
-  // Financial Calculations
+  // ─── Authoritative Financial Summary ────────────────────────────────────────
   const financialSummary = useMemo(() => {
-    // Total gross revenue from enrolled students across all groups
-    let grossCollectedRevenue = 0;
-    groups.forEach(g => {
-      const studentCount = (enrolledStudents[g.id] || []).length;
-      grossCollectedRevenue += studentCount * (Number(g.priceEgp) || 450);
-    });
-
-    const totalExpenses = expenses.reduce((acc, exp) => acc + (Number(exp.amountEgp) || 0), 0);
-    const teacherPayouts = Math.round(grossCollectedRevenue * teacherSettlementRate);
-    const centerNetRevenue = grossCollectedRevenue - teacherPayouts;
-    const netProfit = centerNetRevenue - totalExpenses;
-    const outstandingReceivables = 38500; // Estimated dues from delayed payments
+    if (isBackendCenter && remoteFinancialSummary) {
+      return {
+        grossCollectedRevenue: Number(remoteFinancialSummary.grossCollectedRevenue ?? 0),
+        totalExpenses: Number(remoteFinancialSummary.totalExpenses ?? 0),
+        teacherPayouts: Number(remoteFinancialSummary.teacherPayouts ?? 0),
+        centerNetRevenue: Number(remoteFinancialSummary.centerNetRevenue ?? 0),
+        netProfit: Number(remoteFinancialSummary.netProfit ?? 0),
+        operatingMarginPct: Number(remoteFinancialSummary.operatingMarginPct ?? 0),
+        outstandingReceivables: Number(remoteFinancialSummary.outstandingReceivables ?? 0),
+      };
+    }
 
     return {
-      grossCollectedRevenue,
-      totalExpenses,
-      teacherPayouts,
-      centerNetRevenue,
-      netProfit,
-      outstandingReceivables
+      grossCollectedRevenue: 0,
+      totalExpenses: 0,
+      teacherPayouts: 0,
+      centerNetRevenue: 0,
+      netProfit: 0,
+      operatingMarginPct: 0,
+      outstandingReceivables: 0,
     };
-  }, [groups, enrolledStudents, expenses]);
+  }, [isBackendCenter, remoteFinancialSummary]);
 
   return (
     <CenterContext.Provider
       value={{
+        isBackendCenter,
+        centerLoading,
+        refreshCenterData,
+        loadCoreCenterData,
+        loadOperationsData,
+        loadAttendanceData,
+        loadFinancialsData,
+        loadBillingData,
+        loadSettingsData,
         branches,
         selectedBranchId,
         setSelectedBranchId,
@@ -1170,20 +1104,55 @@ export const CenterProvider = ({ children }) => {
         deleteRoom,
         expenses,
         addExpense,
+        deleteExpense,
+        teacherSettlements,
+        approveTeacherSettlement,
+        outstandingDues,
+        remindStudentDue,
+        markStudentDuePaid,
         staff,
         addStaff,
-        leads,
-        addLead,
-        updateLeadStatus,
+        deleteStaff,
         attendanceRecords,
+        attendanceSummary,
         processSmartStudentQrScan,
+        sendAbsenceAlert,
         auditLogs,
+        refreshAuditLogs,
         financialSummary,
         checkScheduleConflict,
         connectedUsers,
         searchGlobalUsers,
+        searchGlobalUsersRemote,
         connectUserToCenter,
-        exportToCsv
+        dashboardData,
+        fetchDashboard,
+        completeQueueItemRemote,
+        restoreQueueItemRemote,
+        resetQueueRemote,
+        executiveReport,
+        fetchExecutiveReport,
+        billingData,
+        validateCenterCoupon,
+        subscribeCenterPlan,
+        cancelCenterSubscription,
+        centerSettings,
+        updateCenterSettings,
+        updateKpiTargets,
+        tasks,
+        setTasks,
+        addCenterTask,
+        updateCenterTask,
+        toggleCenterTask,
+        deleteCenterTask,
+        announcements,
+        setAnnouncements,
+        addCenterAnnouncement,
+        deleteCenterAnnouncement,
+        importCenterStudents,
+        backups,
+        createCenterBackup,
+        exportToCsv,
       }}
     >
       {children}

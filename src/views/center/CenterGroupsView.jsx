@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
-import { useGroups, ALL_REGISTERED_STUDENTS } from '../../context/GroupsContext';
+import { useGroups } from '../../context/GroupsContext';
+import { centerApi } from '../../services/centerApi';
 import { RealQRCode } from '../../components/common/RealQRCode';
 import { CameraBarcodeScanner } from '../../components/common/CameraBarcodeScanner';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -69,7 +70,7 @@ export const CenterGroupsView = () => {
   const navigate = useNavigate();
   const { groupId: routeGroupId } = useParams();
 
-  const { branches, rooms, checkScheduleConflict, centerTeachers = [] } = useCenter();
+  const { isBackendCenter, branches, rooms, checkScheduleConflict, centerTeachers = [] } = useCenter();
   const { 
     groups, 
     addGroup, 
@@ -77,6 +78,7 @@ export const CenterGroupsView = () => {
     deleteGroup,
     showToast,
     enrolledStudents, 
+    fetchGroupRoster,
     enrollStudentDirectly, 
     toggleStudentAttendance, 
     recordStudentAttendanceByCode, 
@@ -91,8 +93,11 @@ export const CenterGroupsView = () => {
   useEffect(() => {
     if (routeGroupId) {
       setActiveGroupId(routeGroupId);
+      if (fetchGroupRoster) {
+        fetchGroupRoster(routeGroupId);
+      }
     }
-  }, [routeGroupId]);
+  }, [routeGroupId, fetchGroupRoster]);
 
   // Filters & Search for Groups List
   const [searchTerm, setSearchTerm] = useState('');
@@ -215,7 +220,7 @@ export const CenterGroupsView = () => {
   };
 
   // Comprehensive scanner processor (processes Camera scan, Barcode Reader gun, or Manual typing)
-  const processScannedCode = (rawText) => {
+  const processScannedCode = async (rawText) => {
     if (!activeGroup || !rawText) return;
     const raw = rawText.trim();
     let candidateCodes = [raw];
@@ -239,7 +244,7 @@ export const CenterGroupsView = () => {
 
     let result = null;
     for (const c of candidateCodes) {
-      const res = recordStudentAttendanceByCode(activeGroup.id, c);
+      const res = await recordStudentAttendanceByCode(activeGroup.id, c);
       if (res?.success) {
         result = res;
         break;
@@ -248,10 +253,11 @@ export const CenterGroupsView = () => {
 
     if (result && result.success) {
       playScannerBeep();
+      const studentObj = result.student || result.record || { nameAr: 'الطالب' };
       setScanFeedback({
         success: true,
-        message: `تم مسح الباركود بنجاح! تم تسجيل حضور «${result.student.nameAr}»`,
-        student: result.student
+        message: `تم مسح الباركود بنجاح! تم تسجيل حضور «${studentObj.nameAr}»`,
+        student: studentObj
       });
       setScanCodeInput('');
       if (scannerInputRef.current) {
@@ -510,14 +516,16 @@ export const CenterGroupsView = () => {
   };
 
   // Handle Save (Create or Update) Cohort Submit
-  const handleSaveCohort = (e) => {
+  const handleSaveCohort = async (e) => {
     e.preventDefault();
     if (!cohortName.trim() || hasAnyConflict) return;
 
     const matchedDefaultRoom = rooms.find(r => r.id === cohortDefaultRoomId) || rooms[0];
+    const matchedTeacher = centerTeachers.find(t => t.nameAr === teacherName || t.id === teacherName);
 
     const formattedSlots = sessions.map((sess, idx) => {
       const dayObj = WEEKDAYS.find(w => w.key === sess.day);
+      const slotRoom = rooms.find(r => r.nameAr === sess.hall || r.id === sess.hall) || matchedDefaultRoom;
       return {
         id: `slot-${sess.day}-${idx}-${Date.now()}`,
         day: sess.day,
@@ -525,6 +533,7 @@ export const CenterGroupsView = () => {
         dayEn: dayObj?.labelEn || sess.day,
         startTime: sess.startTime,
         endTime: sess.endTime,
+        roomId: slotRoom?.id && !String(slotRoom.id).startsWith('room-') ? slotRoom.id : undefined,
         hall: sess.hall || matchedDefaultRoom?.nameAr || 'القاعة 1'
       };
     });
@@ -535,7 +544,10 @@ export const CenterGroupsView = () => {
       nameAr: cohortName.trim(),
       nameEn: cohortName.trim(),
       subjectAr: subject,
-      teacherNameAr: teacherName,
+      teacherId: matchedTeacher?.id && !String(matchedTeacher.id).startsWith('tch-') ? matchedTeacher.id : undefined,
+      teacherNameAr: matchedTeacher?.nameAr || teacherName,
+      branchId: matchedDefaultRoom?.branchId && !String(matchedDefaultRoom.branchId).startsWith('br-') ? matchedDefaultRoom.branchId : undefined,
+      roomId: matchedDefaultRoom?.id && !String(matchedDefaultRoom.id).startsWith('room-') ? matchedDefaultRoom.id : undefined,
       centerName: matchedDefaultRoom?.branchNameAr || 'سنتر الرواد التعليمي',
       hallName: matchedDefaultRoom?.nameAr || sessions[0]?.hall || 'القاعة 1',
       scheduleAr: scheduleSummary,
@@ -545,25 +557,28 @@ export const CenterGroupsView = () => {
       slots: formattedSlots
     };
 
-    if (editingCohort) {
-      updateGroup(editingCohort.id, cohortPayload);
-      setEditingCohort(null);
-    } else {
-      const newGrp = addGroup(cohortPayload);
-      if (newGrp?.id) {
-        handleOpenGroupStudents(newGrp.id);
+    try {
+      if (editingCohort) {
+        await updateGroup(editingCohort.id, cohortPayload);
+        setEditingCohort(null);
+      } else {
+        const newGrp = await addGroup(cohortPayload);
+        if (newGrp?.id) {
+          handleOpenGroupStudents(newGrp.id);
+        }
       }
+      setCohortName('');
+      setIsAddCohortOpen(false);
+    } catch {
+      // toast already shown by GroupsContext
     }
-
-    setCohortName('');
-    setIsAddCohortOpen(false);
   };
 
   // Handle Delete Cohort Confirmation
-  const handleConfirmDeleteCohort = () => {
+  const handleConfirmDeleteCohort = async () => {
     if (!deleteConfirmCohort) return;
     const deletedId = deleteConfirmCohort.id;
-    deleteGroup(deletedId);
+    await deleteGroup(deletedId);
     setDeleteConfirmCohort(null);
     if (activeGroupId === deletedId) {
       setActiveGroupId(null);
@@ -574,6 +589,9 @@ export const CenterGroupsView = () => {
   // Navigation: Navigate to dedicated group students page
   const handleOpenGroupStudents = (groupId) => {
     setActiveGroupId(groupId);
+    if (fetchGroupRoster) {
+      fetchGroupRoster(groupId);
+    }
     navigate(`/center/groups/${groupId}`);
     setStudentSearchTerm('');
     setStudentStatusFilter('ALL');
@@ -630,21 +648,44 @@ export const CenterGroupsView = () => {
     setTimeout(() => setCopiedCodeId(null), 2000);
   };
 
-  // Platform Student Search Results
-  const searchResults = searchStudentQuery.trim()
-    ? ALL_REGISTERED_STUDENTS.filter(s => 
-        (s.nameAr || '').toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
-        (s.nameEn || '').toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
-        (s.phone || '').includes(searchStudentQuery)
-      )
-    : [];
+  // Platform Student Search Results (Live Backend + Local Fallback)
+  const [remoteStudentResults, setRemoteStudentResults] = useState([]);
+  useEffect(() => {
+    const q = searchStudentQuery.trim();
+    if (!isBackendCenter || q.length < 2) {
+      setRemoteStudentResults([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      centerApi.groups
+        .searchStudents(q)
+        .then((res) => {
+          if (!cancelled && Array.isArray(res?.data)) {
+            setRemoteStudentResults(res.data);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setRemoteStudentResults([]);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isBackendCenter, searchStudentQuery]);
+
+  const searchResults = isBackendCenter ? remoteStudentResults : [];
 
   // Summary Metrics for the Center
-  const totalEnrolledAllGroups = Object.values(enrolledStudents).reduce((acc, list) => acc + (list?.length || 0), 0);
+  const totalEnrolledAllGroups = groups.reduce(
+    (acc, g) => acc + (enrolledStudents[g.id]?.length ?? g.enrolledCount ?? 0),
+    0
+  );
   const totalCenterCapacity = rooms.reduce((acc, r) => acc + (parseInt(r.capacity) || 50), 0);
   
   // Occupied halls count (unique halls hosting cohorts)
-  const occupiedHallsCount = Math.min(rooms.length, new Set(groups.map(g => g.hallName).filter(Boolean)).size || 5);
+  const occupiedHallsCount = Math.min(rooms.length, new Set(groups.map(g => g.hallName).filter(Boolean)).size);
 
   return (
     <div style={{
@@ -947,7 +988,7 @@ export const CenterGroupsView = () => {
               gap: '20px'
             }}>
               {filteredGroups.map(group => {
-                const students = enrolledStudents[group.id] || [];
+                const groupEnrolledCount = enrolledStudents[group.id] ? enrolledStudents[group.id].length : (group.enrolledCount ?? 0);
                 const room = rooms.find(r => r.nameAr === group.hallName || r.id === group.hallName) || {
                   nameAr: group.hallName || 'القاعة 1',
                   capacity: group.maxStudents || 50
@@ -1208,7 +1249,7 @@ export const CenterGroupsView = () => {
                           fontWeight: '900',
                           color: 'var(--primary)'
                         }}>
-                          {students.length} / {maxCap} طالب
+                          {groupEnrolledCount} / {maxCap} طالب
                         </span>
                       </div>
                     </div>
@@ -1916,16 +1957,7 @@ export const CenterGroupsView = () => {
                     onClick={() => {
                       const code = std.passcode || std.barcode || std.id;
                       setScanCodeInput(code);
-                      const result = recordStudentAttendanceByCode(activeGroup.id, code);
-                      if (result.success) {
-                        playScannerBeep();
-                        setScanFeedback({
-                          success: true,
-                          message: `تم مسح الباركود بنجاح! تم تسجيل حضور الطالب «${result.student.nameAr}»`,
-                          student: result.student
-                        });
-                        setTimeout(() => setScanFeedback(null), 3500);
-                      }
+                      processScannedCode(code);
                     }}
                     style={{
                       padding: '4px 10px',

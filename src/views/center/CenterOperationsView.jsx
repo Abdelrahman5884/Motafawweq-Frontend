@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
+import { centerApi } from '../../services/centerApi';
 import { 
   Building2, 
   Users, 
@@ -37,6 +38,8 @@ import { Link } from 'react-router-dom';
 export const CenterOperationsView = () => {
   const { lang, isRtl } = useLanguage();
   const { 
+    isBackendCenter,
+    loadOperationsData,
     branches = [], 
     addBranch,
     updateBranch,
@@ -52,12 +55,19 @@ export const CenterOperationsView = () => {
     auditLogs = [],
     connectedUsers = [],
     searchGlobalUsers,
+    searchGlobalUsersRemote,
     connectUserToCenter,
+    executiveReport,
+    fetchExecutiveReport,
     exportToCsv
   } = useCenter();
 
   // Active Tab: 'branches' | 'teachers' | 'staff' | 'audit' (CRM removed as requested!)
   const [activeTab, setActiveTab] = useState('branches');
+
+  useEffect(() => {
+    loadOperationsData?.();
+  }, [loadOperationsData]);
 
   // Notification Toast
   const [toastMessage, setToastMessage] = useState(null);
@@ -95,38 +105,47 @@ export const CenterOperationsView = () => {
     setBranchManagerAr(b.managerNameAr || '');
   };
 
-  const handleSaveBranch = (e) => {
+  const handleSaveBranch = async (e) => {
     e.preventDefault();
     if (!branchNameAr.trim()) return;
 
-    if (editingBranch) {
-      updateBranch(editingBranch.id, {
-        nameAr: branchNameAr,
-        nameEn: branchNameEn || branchNameAr,
-        addressAr: branchAddressAr,
-        phone: branchPhone,
-        managerNameAr: branchManagerAr
-      });
-      showToast(`تم تحديث بيانات الفرع «${branchNameAr}» بنجاح!`);
-      setEditingBranch(null);
-    } else {
-      addBranch({
-        nameAr: branchNameAr,
-        nameEn: branchNameEn || branchNameAr,
-        addressAr: branchAddressAr,
-        phone: branchPhone,
-        managerNameAr: branchManagerAr
-      });
-      showToast(`تم إنشاء وتدشين الفرع «${branchNameAr}» بنجاح!`);
-      setIsAddBranchOpen(false);
+    try {
+      if (editingBranch) {
+        await updateBranch(editingBranch.id, {
+          nameAr: branchNameAr,
+          nameEn: branchNameEn || branchNameAr,
+          addressAr: branchAddressAr,
+          phone: branchPhone,
+          managerNameAr: branchManagerAr
+        });
+        showToast(`تم تحديث بيانات الفرع «${branchNameAr}» بنجاح!`);
+        setEditingBranch(null);
+      } else {
+        await addBranch({
+          nameAr: branchNameAr,
+          nameEn: branchNameEn || branchNameAr,
+          addressAr: branchAddressAr,
+          phone: branchPhone,
+          managerNameAr: branchManagerAr
+        });
+        showToast(`تم إنشاء وتدشين الفرع «${branchNameAr}» بنجاح!`);
+        setIsAddBranchOpen(false);
+      }
+    } catch (err) {
+      showToast(err?.message || 'تعذر حفظ الفرع (تحقق من حدود باقة السنتر).');
     }
   };
 
-  const handleConfirmDeleteBranch = () => {
+  const handleConfirmDeleteBranch = async () => {
     if (!deleteConfirmBranch) return;
-    deleteBranch(deleteConfirmBranch.id);
-    showToast(`تم حذف وإغلاق فرع «${deleteConfirmBranch.nameAr}».`);
-    setDeleteConfirmBranch(null);
+    try {
+      await deleteBranch(deleteConfirmBranch.id);
+      showToast(`تم حذف وإغلاق فرع «${deleteConfirmBranch.nameAr}».`);
+    } catch (err) {
+      showToast(err?.message || 'تعذر حذف الفرع.');
+    } finally {
+      setDeleteConfirmBranch(null);
+    }
   };
 
   // ── TEACHERS STATE & MODALS ──
@@ -148,32 +167,41 @@ export const CenterOperationsView = () => {
     setIsAddTeacherOpen(true);
   };
 
-  const handleSaveTeacher = (e) => {
+  const handleSaveTeacher = async (e) => {
     e.preventDefault();
     if (!tchNameAr.trim() || !tchEmail.trim()) return;
 
-    addCenterTeacher({
-      nameAr: tchNameAr,
-      subjectAr: tchSubjectAr,
-      phone: tchPhone,
-      email: tchEmail,
-      branchId: tchBranchId
-    });
-
-    showToast(`تمت إضافة المعلم «${tchNameAr}» وإرسال رابط التفعيل لمنصة متفوق على بريده بنجاح!`);
-    setIsAddTeacherOpen(false);
+    try {
+      await addCenterTeacher({
+        nameAr: tchNameAr,
+        subjectAr: tchSubjectAr,
+        phone: tchPhone,
+        email: tchEmail,
+        branchId: tchBranchId
+      });
+      showToast(`تمت إضافة المعلم «${tchNameAr}» وإرسال رابط التفعيل لمنصة متفوق على بريده بنجاح!`);
+      setIsAddTeacherOpen(false);
+    } catch (err) {
+      showToast(err?.message || 'تعذر إضافة المعلم (تحقق من البريد أو حدود الباقة).');
+    }
   };
 
-  const handleConfirmDeleteTeacher = () => {
+  const handleConfirmDeleteTeacher = async () => {
     if (!deleteConfirmTeacher) return;
-    deleteCenterTeacher(deleteConfirmTeacher.id);
-    showToast(`تم حذف وفك اعتماد المعلم «${deleteConfirmTeacher.nameAr}» من السنتر.`);
-    setDeleteConfirmTeacher(null);
+    try {
+      await deleteCenterTeacher(deleteConfirmTeacher.id);
+      showToast(`تم حذف وفك اعتماد المعلم «${deleteConfirmTeacher.nameAr}» من السنتر.`);
+    } catch (err) {
+      showToast(err?.message || 'تعذر حذف المعلم.');
+    } finally {
+      setDeleteConfirmTeacher(null);
+    }
   };
 
-  const handleResendTeacherInvite = (tch) => {
-    resendTeacherInvite(tch.id);
-    navigator.clipboard?.writeText?.(tch.activationLink || 'https://motafawweq.edu.eg/teacher/activate');
+  const handleResendTeacherInvite = async (tch) => {
+    const res = await resendTeacherInvite(tch.id);
+    const link = res?.link || tch.activationLink || 'https://motafawweq.edu.eg/teacher/activate';
+    navigator.clipboard?.writeText?.(link);
     showToast(`تم نسخ وإعادة إرسال رابط تفعيل المنصة للمعلم «${tch.nameAr}»!`);
   };
 
@@ -181,11 +209,21 @@ export const CenterOperationsView = () => {
   const [connectSearchQuery, setConnectSearchQuery] = useState('');
   const [selectedBranchForConnect, setSelectedBranchForConnect] = useState(branches[0]?.id || 'br-dokki');
   const [connectFeedback, setConnectFeedback] = useState(null);
+
+  useEffect(() => {
+    const q = connectSearchQuery.trim();
+    if (!isBackendCenter || !searchGlobalUsersRemote || q.length < 2) return undefined;
+    const timer = setTimeout(() => {
+      searchGlobalUsersRemote(q);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [isBackendCenter, searchGlobalUsersRemote, connectSearchQuery]);
+
   const searchResults = searchGlobalUsers ? searchGlobalUsers(connectSearchQuery) : [];
 
-  const handleConnectUser = (user) => {
+  const handleConnectUser = async (user) => {
     const branchObj = branches.find(b => b.id === selectedBranchForConnect);
-    const result = connectUserToCenter(user, selectedBranchForConnect, branchObj?.nameAr);
+    const result = await connectUserToCenter(user, selectedBranchForConnect, branchObj?.nameAr);
     setConnectFeedback(result);
     setTimeout(() => setConnectFeedback(null), 3500);
   };
@@ -197,30 +235,47 @@ export const CenterOperationsView = () => {
   const [staffBranch, setStaffBranch] = useState(branches[0]?.id || 'br-dokki');
   const [staffPhone, setStaffPhone] = useState('');
 
-  const handleCreateStaff = (e) => {
+  const handleCreateStaff = async (e) => {
     e.preventDefault();
     if (!staffName.trim()) return;
 
-    addStaff({
-      nameAr: staffName,
-      roleAr: staffRole,
-      branchId: staffBranch,
-      branchNameAr: branches.find(b => b.id === staffBranch)?.nameAr || 'فرع الدقي',
-      phone: staffPhone || '+20 100 000 0000',
-      permissions: ['إدارة الحضور بالباركود', 'تسجيل الطلاب', 'تحصيل الرسوم']
-    });
-
-    setStaffName('');
-    setStaffPhone('');
-    setIsAddStaffOpen(false);
-    showToast(`تمت إضافة الموظف «${staffName}» بنجاح!`);
+    try {
+      await addStaff({
+        nameAr: staffName,
+        roleAr: staffRole,
+        branchId: staffBranch,
+        branchNameAr: branches.find(b => b.id === staffBranch)?.nameAr || 'فرع الدقي',
+        phone: staffPhone || '+20 100 000 0000',
+        permissions: ['إدارة الحضور بالباركود', 'تسجيل الطلاب', 'تحصيل الرسوم']
+      });
+      setStaffName('');
+      setStaffPhone('');
+      setIsAddStaffOpen(false);
+      showToast(`تمت إضافة الموظف «${staffName}» بنجاح!`);
+    } catch (err) {
+      showToast(err?.message || 'تعذر إضافة الموظف.');
+    }
   };
 
   // ── EXECUTIVE REPORT (Zero finances) ──
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportType, setReportType] = useState('weekly');
 
-  const handleExportBranchesCsv = () => {
+  useEffect(() => {
+    if (isReportModalOpen && isBackendCenter && fetchExecutiveReport) {
+      fetchExecutiveReport(reportType);
+    }
+  }, [isReportModalOpen, isBackendCenter, fetchExecutiveReport, reportType]);
+
+  const handleExportBranchesCsv = async () => {
+    if (isBackendCenter) {
+      try {
+        await centerApi.branches.exportCsv('مقارنة_فروع_السنتر_التشغيلية.csv');
+        return;
+      } catch {
+        // fallback to client export
+      }
+    }
     const headers = ['اسم الفرع', 'العنوان', 'المدير', 'الهاتف', 'عدد القاعات', 'عدد الطلاب', 'عدد المدرسين', 'نسبة الإشغال'];
     const rows = branches.map(b => {
       const rCount = rooms.filter(r => r.branchId === b.id).length;
