@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import { Calendar, Sparkles } from 'lucide-react';
 import { generateSplinePaths } from '../../../utils';
 
@@ -130,12 +131,13 @@ export const CenterAttendanceChart = ({
             >
               {isAr ? 'حركة القاعات' : 'Daily Gate Activity'}
             </span>
+            <InfoTooltip
+              size={13}
+              text={isAr
+                ? 'إجمالي الطلاب المسجل حضورهم وساعات التدريس الفعلية خلال آخر 7 أيام'
+                : 'Verified student check-ins & teaching hours over the last 7 days'}
+            />
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-            {isAr
-              ? 'إجمالي الطلاب المسجل حضورهم وساعات التدريس الفعلية خلال آخر 7 أيام'
-              : 'Verified student check-ins & teaching hours over the last 7 days'}
-          </p>
         </div>
 
         <div

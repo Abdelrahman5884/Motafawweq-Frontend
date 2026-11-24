@@ -149,7 +149,7 @@ export const CenterGroupsListSection = ({
       {/* ── 1. Unified Page Header ── */}
       <SPageHeader
         title={isAr ? 'المجموعات والصفوف الدراسية' : 'Study Cohorts & Classes'}
-        subtitle={
+        info={
           isAr
             ? `إدارة مجموعات «${centerNameAr}»، سجل الطلاب، أكواد الانضمام، والحضور الفوري بالباركود.`
             : `Manage cohorts, student rosters, join codes, and instant barcode attendance.`

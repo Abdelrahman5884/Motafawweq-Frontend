@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -17,7 +17,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { adminApi } from '../../../services/adminApi';
-import { InfoTooltip } from './InfoTooltip';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 
 const formatMoney = (val) =>
   Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });

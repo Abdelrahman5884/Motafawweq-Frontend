@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Layers,
   RefreshCw,
@@ -13,7 +13,7 @@ import {
   EyeOff,
   X,
 } from 'lucide-react';
-import { InfoTooltip } from './InfoTooltip';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 
 export const SubscriptionPlansSection = ({
   plans = [],

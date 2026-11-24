@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import {
   Activity,
   ChevronLeft,
@@ -201,12 +202,13 @@ export const CenterAuditLogSection = ({
               <SBadge variant="default" size="xs">
                 {totalItems.toLocaleString()} {isAr ? 'عملية' : 'logs'}
               </SBadge>
+              <InfoTooltip
+                size={13}
+                text={isAr
+                  ? 'توثيق غير قابل للتعديل لكافة عمليات الإدارة والفروع والقاعات والمعلمين'
+                  : 'Immutable tenant-isolated audit trail of center operations'}
+              />
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {isAr
-                ? 'توثيق غير قابل للتعديل لكافة عمليات الإدارة والفروع والقاعات والمعلمين'
-                : 'Immutable tenant-isolated audit trail of center operations'}
-            </span>
           </div>
         </div>
 

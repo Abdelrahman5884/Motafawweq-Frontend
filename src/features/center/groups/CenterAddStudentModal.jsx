@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import { Clock, Loader2, Mail, Search, Send, UserCheck, UserPlus, X } from 'lucide-react';
 import { Avatar } from '../../../components/common/Avatar';
 import { centerApi } from '../../../services/centerApi';
@@ -257,9 +258,15 @@ export const CenterAddStudentModal = ({
                 lineHeight: 1.55,
               }}
             >
-              {isAr
-                ? 'عند اختيار طالب مسجل في المنصة، يتم إرسال دعوة انضمام لحسابه؛ وبمجرد قبول الطالب للدعوة من عنده ينضم للمجموعة تلقائياً ويُصدر له باركود الحضور.'
-                : 'Selecting a registered platform student sends an invitation to their account. Once accepted by the student, they join automatically.'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                <span>{isAr ? 'طالب مسجل بالمنصة — يتم إرسال دعوة انضمام' : 'Platform student — invitation is sent'}</span>
+                <InfoTooltip
+                  size={13}
+                  text={isAr
+                    ? 'عند اختيار طالب مسجل في المنصة، يتم إرسال دعوة انضمام لحسابه؛ وبمجرد قبول الطالب للدعوة من عنده ينضم للمجموعة تلقائياً ويُصدر له باركود الحضور.'
+                    : 'Selecting a registered platform student sends an invitation to their account. Once accepted by the student, they join automatically.'}
+                />
+              </span>
             </div>
 
             <div style={{ position: 'relative', marginBottom: '14px' }}>
@@ -476,9 +483,15 @@ export const CenterAddStudentModal = ({
                 lineHeight: 1.55,
               }}
             >
-              {isAr
-                ? 'تسجيل طالب عادي غير موجود بالمنصة: يتم قيد الطالب مباشرةً في المجموعة وإصدار بطاقة الباركود والكود السريع له فوراً.'
-                : 'Walk-in non-platform student: directly enrolls the student and generates their barcode & PIN pass immediately.'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                <span>{isAr ? 'طالب خارجي — قيد مباشر وباركود فوري' : 'Walk-in student — instant enrollment & pass'}</span>
+                <InfoTooltip
+                  size={13}
+                  text={isAr
+                    ? 'تسجيل طالب عادي غير موجود بالمنصة: يتم قيد الطالب مباشرةً في المجموعة وإصدار بطاقة الباركود والكود السريع له فوراً.'
+                    : 'Walk-in non-platform student: directly enrolls the student and generates their barcode & PIN pass immediately.'}
+                />
+              </span>
             </div>
 
             <div>

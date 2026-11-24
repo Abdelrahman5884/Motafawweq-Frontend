@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { InfoTooltip } from '../../components/common/InfoTooltip';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
 import { useGroups } from '../../context/GroupsContext';
@@ -479,12 +480,15 @@ export const CenterFinancialsView = () => {
             gap: '10px'
           }}>
             <div>
-              <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'تسويات مستحقات المدرسين التلقائية' : 'Automated Teacher Settlements'}
+              <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{lang === 'ar' ? 'تسويات المدرسين التلقائية' : 'Teacher Settlements'}</span>
+                <InfoTooltip
+                  size={13}
+                  text={lang === 'ar'
+                    ? 'حساب تلقائي للنسبة المئوية بناءً على الطلاب المسجلين والتحصيل الفعلي'
+                    : 'Automatic percentage split based on active student enrollments'}
+                />
               </h3>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                {lang === 'ar' ? 'حساب تلقائي للنسبة المئوية بناءً على الطلاب المسجلين والتحصيل الفعلي' : 'Automatic percentage split based on active student enrollments'}
-              </div>
             </div>
           </div>
 

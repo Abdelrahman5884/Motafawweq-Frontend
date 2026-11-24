@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Plus,
   Check,
@@ -8,7 +8,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { InfoTooltip } from './InfoTooltip';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 
 export const PayoutsSection = ({
   payouts = [],

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { InfoTooltip } from '../../components/common/InfoTooltip';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
 import { useGroups } from '../../context/GroupsContext';
@@ -147,8 +148,9 @@ export const CenterAttendanceView = () => {
                 {lang === 'ar' ? 'الماسح التلقائي نشط' : 'Auto-Scanner Active'}
               </span>
             </div>
-            <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
-              {lang === 'ar' ? 'حضور الطلاب بالباركود والمطابقة التلقائية للمواعيد' : 'QR Attendance & Auto Time Matcher'}
+            <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: '2px 0 0 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>{lang === 'ar' ? 'حضور الطلاب بالباركود' : 'QR Attendance'}</span>
+              <InfoTooltip text={lang === 'ar' ? 'مطابقة تلقائية لموعد الحصة الحالية عند مسح باركود الطالب.' : 'Auto-matches the current class time slot when a student pass is scanned.'} />
             </h1>
           </div>
         </div>
@@ -246,12 +248,8 @@ export const CenterAttendanceView = () => {
               <h2 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
                 {lang === 'ar' ? 'ماسح باركود بوابة السنتر' : 'Center Entrance Scanner'}
               </h2>
+              <InfoTooltip text={lang === 'ar' ? 'امسح باركود الطالب أو بطاقته الذكية. سيتعرف النظام تلقائياً على موعد حصته الحالية ويسجل حضوره في القاعة المحددة.' : 'Scan student pass. System auto-detects current time slot and registers presence.'} />
             </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
-              {lang === 'ar'
-                ? 'امسح باركود الطالب أو بطاقته الذكية. سيتعرف النظام تلقائياً على موعد حصته الحالية ويسجل حضوره في القاعة المحددة.'
-                : 'Scan student pass. System auto-detects current time slot and registers presence.'}
-            </p>
           </div>
 
           {/* Scanner Input Box */}
@@ -504,16 +502,12 @@ export const CenterAttendanceView = () => {
                   <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
                     {lang === 'ar' ? 'تنبيهات الغياب الفورية لأولياء الأمور' : 'Absence Alerts to Parents'}
                   </span>
+                  <InfoTooltip text={lang === 'ar' ? 'يتم إشعار ولي أمر الطالب تلقائياً في حال انقضاء 20 دقيقة من موعد الحصة دون مسح باركود الدخول.' : 'Automated notification sent to guardian if student passes 20 min mark without gate check-in.'} size={13} />
                 </div>
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   {lang === 'ar' ? 'إشعار واتساب / SMS' : 'SMS / WhatsApp'}
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 10px 0', lineHeight: '1.4' }}>
-                {lang === 'ar'
-                  ? 'يتم إشعار ولي أمر الطالب تلقائياً في حال انقضاء 20 دقيقة من موعد الحصة دون مسح باركود الدخول.'
-                  : 'Automated notification sent to guardian if student passes 20 min mark without gate check-in.'}
-              </p>
 
               {/* Sample student with absence */}
               <div style={{

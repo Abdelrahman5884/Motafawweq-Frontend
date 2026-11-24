@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import { toPng } from 'html-to-image';
 import {
   Building2,
@@ -238,11 +239,12 @@ export const CenterStudentCardModal = ({
               <ShieldCheck size={18} />
             </div>
             <div>
-              <div style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1.2 }}>
-                {isAr ? 'بطاقة الحضور والباركود الذكية للطالب' : 'Smart Student Attendance ID Card'}
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                {isAr ? 'مجهزة للطباعة عالية الدقة ومسح الليزر ورمز QR' : 'High-DPI printable card with QR & Code-128 barcode'}
+              <div style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{isAr ? 'بطاقة الحضور الذكية للطالب' : 'Smart Student ID Card'}</span>
+                <InfoTooltip
+                  size={13}
+                  text={isAr ? 'مجهزة للطباعة عالية الدقة ومسح الليزر ورمز QR' : 'High-DPI printable card with QR & Code-128 barcode'}
+                />
               </div>
             </div>
           </div>
@@ -736,11 +738,13 @@ export const CenterStudentCardModal = ({
           }}
         >
           <Sparkles size={12} color="var(--primary)" />
-          <span>
-            {isAr
+          <span>{isAr ? 'طباعة الوجهين مع علامات القص' : 'Prints both sides with cut marks'}</span>
+          <InfoTooltip
+            size={12}
+            text={isAr
               ? 'الطباعة تتم في صفحة مستقلة نظيفة تشمل الوجهين الأمامي والخلفي وعلامات القص جاهزة للتغليف'
               : 'Prints in a dedicated clean sheet with front & back card sides and lamination cut marks'}
-          </span>
+          />
         </div>
       </div>
     </div>

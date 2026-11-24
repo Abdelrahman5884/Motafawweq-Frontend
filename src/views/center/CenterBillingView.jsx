@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { InfoTooltip } from '../../components/common/InfoTooltip';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -198,7 +199,7 @@ export const CenterBillingView = () => {
         {/* ── 1. Unified Page Header ── */}
         <SPageHeader
           title={isAr ? 'الباقات والاشتراك للسنتر' : 'Center Plans & Subscriptions'}
-          subtitle={
+          info={
             isAr
               ? 'إدارة باقة السنتر (مجاني 20 مستخدم • بلس 200 ج.م/شهر • برو 400 ج.م/شهر)، متابعة حدود الاستخدام الحية، والفواتير الرسمية.'
               : 'Manage your center plan (Free 20 users • Plus 200 EGP/mo • Pro 400 EGP/mo), live quota usage, and official invoices.'
@@ -451,10 +452,13 @@ export const CenterBillingView = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-primary)', fontWeight: '700' }}>
                   <Lock size={17} color="#D97706" style={{ flexShrink: 0 }} />
-                  <span>
-                    {isAr
-                      ? 'للانتقال من اشتراكك الحالي إلى باقة أخرى (أو تغيير مدة الاشتراك)، يجب إلغاء الاشتراك الحالي أولاً ثم الاشتراك في الباقة الجديدة.'
-                      : 'To switch from your active plan to another tier (or change billing period), you must cancel your active subscription first.'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{isAr ? 'تغيير الباقة يتطلب إلغاء الاشتراك الحالي أولاً' : 'Switching plans requires cancelling first'}</span>
+                    <InfoTooltip
+                      text={isAr
+                        ? 'للانتقال من اشتراكك الحالي إلى باقة أخرى (أو تغيير مدة الاشتراك)، يجب إلغاء الاشتراك الحالي أولاً ثم الاشتراك في الباقة الجديدة.'
+                        : 'To switch from your active plan to another tier (or change billing period), you must cancel your active subscription first.'}
+                    />
                   </span>
                 </div>
                 <SButton
@@ -480,14 +484,14 @@ export const CenterBillingView = () => {
                 }}
               >
                 <div>
-                  <h3 style={{ fontSize: '19.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                    {isAr ? 'باقات الاشتراك المعتمدة للسناتر' : 'Official Center Subscription Tiers'}
+                  <h3 style={{ fontSize: '19.5px', fontWeight: '900', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{isAr ? 'باقات الاشتراك المعتمدة للسناتر' : 'Official Center Subscription Tiers'}</span>
+                    <InfoTooltip
+                      text={isAr
+                        ? 'مجاني (20 مستخدم) • بلس (200 ج.م/شهر — باركود وجدول وموظفون) • برو (400 ج.م/شهر — مفتوح بالكامل + رقابة وتقارير)'
+                        : 'Free (20 users) • Plus (200 EGP/mo — QR, Schedule & Staff) • Pro (400 EGP/mo — Unlimited + Audit & Reports)'}
+                    />
                   </h3>
-                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    {isAr
-                      ? 'مجاني (20 مستخدم) • بلس (200 ج.م/شهر — باركود وجدول وموظفون) • برو (400 ج.م/شهر — مفتوح بالكامل + رقابة وتقارير)'
-                      : 'Free (20 users) • Plus (200 EGP/mo — QR, Schedule & Staff) • Pro (400 EGP/mo — Unlimited + Audit & Reports)'}
-                  </div>
                 </div>
 
                 {/* Duration Toggle */}
@@ -567,10 +571,13 @@ export const CenterBillingView = () => {
                 }}
               >
                 <Sparkles size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
-                <span>
-                  {isAr
-                    ? 'يمكنك استخدام كود الخصم CENTER2026 عند الدفع للحصول على خصم فوري 20% على أي باقة مدفوعة.'
-                    : 'Use promo code CENTER2026 during checkout for an instant 20% discount on any paid tier.'}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <span>{isAr ? 'كود الخصم CENTER2026 — خصم 20%' : 'Promo code CENTER2026 — 20% off'}</span>
+                  <InfoTooltip
+                    text={isAr
+                      ? 'يمكنك استخدام كود الخصم CENTER2026 عند الدفع للحصول على خصم فوري 20% على أي باقة مدفوعة.'
+                      : 'Use promo code CENTER2026 during checkout for an instant 20% discount on any paid tier.'}
+                  />
                 </span>
               </div>
 

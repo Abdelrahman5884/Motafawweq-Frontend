@@ -395,7 +395,7 @@ export const CenterSettingsView = () => {
         {/* ── Page Header ── */}
         <SPageHeader
           title={isAr ? 'إعدادات حساب السنتر' : 'Center Settings'}
-          subtitle={
+          info={
             isAr
               ? 'تحديث بيانات السنتر والمدير، الشعار، المظهر واللغة، وأمان الحساب وحذفه.'
               : 'Manage your center profile, logo, appearance, security sessions, and account deletion.'

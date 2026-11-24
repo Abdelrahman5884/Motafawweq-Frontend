@@ -336,7 +336,7 @@ export const CenterHallsView = () => {
         {/* ── 1. Unified Page Header ── */}
         <SPageHeader
           title={isAr ? 'القاعات والجدول الأسبوعي' : 'Halls & Weekly Schedule'}
-          subtitle={
+          info={
             isAr
               ? `إدارة قاعات «${centerNameAr}» وسعاتها الاستيعابية والجدول الأسبوعي الشامل بدون تعارض.`
               : `Manage classrooms, seating capacities, and the conflict-free weekly schedule.`

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
 import { adminApi } from '../../../services/adminApi';
-import { InfoTooltip } from '../financials/InfoTooltip';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import {
   Plus,
   Eye,

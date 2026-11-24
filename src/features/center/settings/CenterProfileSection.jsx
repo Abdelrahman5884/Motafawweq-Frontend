@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import { Link } from 'react-router-dom';
 import {
   Camera,
@@ -250,11 +251,15 @@ export const CenterProfileSection = ({
                 </div>
               )}
 
-              <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', margin: '0 0 14px 0', lineHeight: 1.55 }}>
-                {isAr
-                  ? 'يظهر الشعار في لوحة التحكم وبطاقات الطلاب المطبوعة (JPG أو PNG أو WEBP بحد أقصى 5 ميجابايت).'
-                  : 'Shown across your dashboard and printed student ID passes (JPG, PNG, or WEBP up to 5MB).'}
-              </p>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{isAr ? 'JPG / PNG / WEBP — حتى 5MB' : 'JPG / PNG / WEBP — up to 5MB'}</span>
+                <InfoTooltip
+                  size={13}
+                  text={isAr
+                    ? 'يظهر الشعار في لوحة التحكم وبطاقات الطلاب المطبوعة (JPG أو PNG أو WEBP بحد أقصى 5 ميجابايت).'
+                    : 'Shown across your dashboard and printed student ID passes (JPG, PNG, or WEBP up to 5MB).'}
+                />
+              </div>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <input
@@ -329,13 +334,11 @@ export const CenterProfileSection = ({
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
           title={isAr ? 'بيانات السنتر والحساب' : 'Center & Account Information'}
+          info={isAr
+            ? 'البيانات الأساسية للسنتر التي تظهر في لوحة التحكم، المجموعات، وبطاقات الحضور.'
+            : 'Core center identity displayed across your dashboard, cohorts, and student passes.'}
           style={{ marginBottom: 0 }}
         >
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 18px 0', lineHeight: 1.5 }}>
-            {isAr
-              ? 'البيانات الأساسية للسنتر التي تظهر في لوحة التحكم، المجموعات، وبطاقات الحضور.'
-              : 'Core center identity displayed across your dashboard, cohorts, and student passes.'}
-          </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
             {/* اسم السنتر بالعربية */}
@@ -442,10 +445,14 @@ export const CenterProfileSection = ({
                   }}
                 />
               </div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                {isAr
-                  ? 'يُستخدم لتسجيل الدخول واستعادة كلمة المرور (للقراءة فقط).'
-                  : 'Used for sign-in and password recovery (read-only).'}
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span>{isAr ? 'للقراءة فقط' : 'Read-only'}</span>
+                <InfoTooltip
+                  size={12}
+                  text={isAr
+                    ? 'يُستخدم لتسجيل الدخول واستعادة كلمة المرور (للقراءة فقط).'
+                    : 'Used for sign-in and password recovery (read-only).'}
+                />
               </span>
             </div>
 

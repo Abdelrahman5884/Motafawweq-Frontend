@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Plus,
   Edit3,
@@ -15,7 +15,7 @@ import {
   X,
   AlertCircle,
 } from 'lucide-react';
-import { InfoTooltip } from './InfoTooltip';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 
 const EXPENSE_CATEGORIES = [
   { id: 'hosting', labelAr: 'سيرفرات واستضافة ودومين', labelEn: 'Servers & Hosting', icon: Server, color: '#1588C7', bg: 'rgba(21, 136, 199, 0.12)' },

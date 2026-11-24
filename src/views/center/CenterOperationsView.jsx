@@ -438,7 +438,7 @@ export const CenterOperationsView = () => {
         {/* ── 1. Unified Page Header ── */}
         <SPageHeader
           title={isAr ? 'الفروع وشبكة المعلمين' : 'Branches & Teachers Network'}
-          subtitle={
+          info={
             isAr
               ? `إدارة فروع «${centerNameAr}»، دعوة واعتماد معلمي منصة متفوّق، وصلاحيات الفريق الإداري.`
               : `Manage branches, invite & approve Motafawweq teachers, and control staff roles.`

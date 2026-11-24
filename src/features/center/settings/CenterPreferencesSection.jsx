@@ -31,13 +31,11 @@ export const CenterPreferencesSection = ({ onSyncPreference, lang }) => {
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
           title={isAr ? 'المظهر ونمط الألوان' : 'Theme & Color Mode'}
+          info={isAr
+            ? 'اختر النمط المريح لعينيك أثناء إدارة السنتر — يُطبّق فوراً ويُحفظ تلقائياً في حسابك.'
+            : 'Choose your preferred visual mode — applied immediately and saved automatically.'}
           style={{ marginBottom: 0 }}
         >
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-            {isAr
-              ? 'اختر النمط المريح لعينيك أثناء إدارة السنتر — يُطبّق فوراً ويُحفظ تلقائياً في حسابك.'
-              : 'Choose your preferred visual mode — applied immediately and saved automatically.'}
-          </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
             {/* Light Mode */}
@@ -181,13 +179,11 @@ export const CenterPreferencesSection = ({ onSyncPreference, lang }) => {
       <SCard padding={24} style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
         <SSection
           title={isAr ? 'لغة الواجهة' : 'Interface Language'}
+          info={isAr
+            ? 'اختر اللغة المناسبة لواجهة إدارة السنتر. يتم تطبيق اتجاه النصوص (RTL / LTR) وحفظ اختيارك تلقائياً.'
+            : 'Choose your preferred interface language. Text direction and preference update immediately.'}
           style={{ marginBottom: 0 }}
         >
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-            {isAr
-              ? 'اختر اللغة المناسبة لواجهة إدارة السنتر. يتم تطبيق اتجاه النصوص (RTL / LTR) وحفظ اختيارك تلقائياً.'
-              : 'Choose your preferred interface language. Text direction and preference update immediately.'}
-          </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
             <button

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import {
   AlertCircle,
   BadgeCheck,
@@ -181,9 +182,15 @@ export const CenterTeachersNetworkSection = ({
               <Link2 size={18} color="var(--primary)" />
               <span>
                 {isAr
-                  ? 'دعوة معلم مسجل على منصة متفوّق (Motafawweq Connect)'
-                  : 'Invite Existing Platform Teacher (Motafawweq Connect)'}
+                  ? 'دعوة معلم مسجل على منصة متفوّق'
+                  : 'Invite Existing Platform Teacher'}
               </span>
+              <InfoTooltip
+                size={13}
+                text={isAr
+                  ? 'ابحث بالاسم أو الهاتف أو البريد عن معلم مسجل على المنصة لإرسال دعوة انضمام رسمية — يتم اعتماده تلقائياً فور موافقته من حسابه.'
+                  : 'Search registered platform teachers by name, phone, or email to send an invitation — activated automatically once approved by the teacher.'}
+              />
             </span>
           }
           action={
@@ -198,11 +205,6 @@ export const CenterTeachersNetworkSection = ({
           }
           style={{ marginBottom: 0 }}
         >
-          <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.55 }}>
-            {isAr
-              ? 'ابحث بالاسم أو الهاتف أو البريد عن معلم مسجل على المنصة لإرسال دعوة انضمام رسمية — يتم اعتماده تلقائياً فور موافقته من حسابه.'
-              : 'Search registered platform teachers by name, phone, or email to send an invitation — activated automatically once approved by the teacher.'}
-          </p>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flex: '1 1 280px' }}>
@@ -1185,10 +1187,14 @@ const TeacherFormModal = ({
             }}
           >
             <Clock size={15} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
-            <span>
-              {isAr
-                ? 'إذا كان البريد الإلكتروني أو الهاتف مسجلاً بالفعل لمعلم على منصة متفوّق، سيتم إرسال دعوة انضمام رسمية لحسابه ولن يُفعّل إلا بعد موافقته.'
-                : 'If this email or phone belongs to an existing Motafawweq teacher, an official invitation will be sent and requires their approval before activation.'}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <span>{isAr ? 'سيتم إرسال دعوة إن كان الحساب مسجلاً بالمنصة' : 'An invitation is sent if the account exists'}</span>
+              <InfoTooltip
+                size={13}
+                text={isAr
+                  ? 'إذا كان البريد الإلكتروني أو الهاتف مسجلاً بالفعل لمعلم على منصة متفوّق، سيتم إرسال دعوة انضمام رسمية لحسابه ولن يُفعّل إلا بعد موافقته.'
+                  : 'If this email or phone belongs to an existing Motafawweq teacher, an official invitation will be sent and requires their approval before activation.'}
+              />
             </span>
           </div>
 

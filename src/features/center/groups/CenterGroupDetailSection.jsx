@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import {
   AlertCircle,
@@ -661,14 +662,15 @@ export const CenterGroupDetailSection = ({
               <Scan size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                {isAr ? 'ماسح باركود الحضور الفوري' : 'Instant Barcode & QR Attendance'}
+              <h3 style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{isAr ? 'ماسح باركود الحضور الفوري' : 'Instant Barcode & QR Attendance'}</span>
+                <InfoTooltip
+                  size={13}
+                  text={isAr
+                    ? 'يدعم جهاز الباركود USB أو الكاميرا المباشرة أو إدخال كود الطالب / رقم الهاتف'
+                    : 'Supports USB scanner gun, live camera QR scan, or student code / phone'}
+                />
               </h3>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {isAr
-                  ? 'يدعم جهاز الباركود USB أو الكاميرا المباشرة أو إدخال كود الطالب / رقم الهاتف'
-                  : 'Supports USB scanner gun, live camera QR scan, or student code / phone'}
-              </span>
             </div>
           </div>
 
@@ -891,16 +893,19 @@ export const CenterGroupDetailSection = ({
           }}
         >
           <div>
-            <h3 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-              {isAr
-                ? `قائمة الطلاب المقيدين (${filteredStudents.length} من ${activeGroupStudents.length})`
-                : `Enrolled Students (${filteredStudents.length} of ${activeGroupStudents.length})`}
+            <h3 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>
+                {isAr
+                  ? `الطلاب المقيدون (${filteredStudents.length} من ${activeGroupStudents.length})`
+                  : `Enrolled Students (${filteredStudents.length} of ${activeGroupStudents.length})`}
+              </span>
+              <InfoTooltip
+                size={13}
+                text={isAr
+                  ? 'بحث سريع، تبديل الحضور والسداد، وطباعة بطاقة الباركود الذكية'
+                  : 'Search, toggle attendance & payment, and print smart barcode cards'}
+              />
             </h3>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {isAr
-                ? 'بحث سريع، تبديل الحضور والسداد، وطباعة بطاقة الباركود الذكية'
-                : 'Search, toggle attendance & payment, and print smart barcode cards'}
-            </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

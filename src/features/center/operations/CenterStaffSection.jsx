@@ -109,8 +109,8 @@ export const CenterStaffSection = ({
             </h4>
             <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 16px' }}>
               {isAr
-                ? 'أضف موظفي الاستقبال ومشرفي القاعات ومديري الفروع وحدد صلاحيات كل موظف بدقة.'
-                : 'Add receptionists, hall supervisors, and branch managers with role-based permissions.'}
+                ? 'أضف موظفين وحدد صلاحيات كل موظف.'
+                : 'Add staff with role-based permissions.'}
             </p>
             <SButton
               variant="primary"

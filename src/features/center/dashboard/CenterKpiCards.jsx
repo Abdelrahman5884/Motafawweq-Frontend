@@ -1,4 +1,5 @@
 import React from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import { ArrowUpRight, Building2, GraduationCap, Layers, Users } from 'lucide-react';
 
 const BADGE_STYLES = {
@@ -145,11 +146,13 @@ export const CenterKpiCards = ({
           </h2>
         </div>
 
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-          {isAr
+        <InfoTooltip
+          size={13}
+          align="end"
+          text={isAr
             ? 'بيانات حية محدثة الآن • انقر على أي مؤشر لعرض تفاصيله'
             : 'Live synced metrics • Click any card for details'}
-        </span>
+        />
       </div>
 
       {/* Responsive 4-Card Grid */}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { InfoTooltip } from '../../../components/common/InfoTooltip';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Calendar, Check, Plus, Trash2, X } from 'lucide-react';
 import {
@@ -314,20 +315,23 @@ export const CenterCohortFormModal = ({
               <Plus size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                {isEditMode
-                  ? isAr
-                    ? 'تعديل بيانات المجموعة والمواعيد'
-                    : 'Edit Cohort & Schedule'
-                  : isAr
-                  ? 'إنشاء مجموعة جديدة وتحديد الحصص الأسبوعية'
-                  : 'Create New Study Cohort'}
+              <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>
+                  {isEditMode
+                    ? isAr
+                      ? 'تعديل بيانات المجموعة والمواعيد'
+                      : 'Edit Cohort & Schedule'
+                    : isAr
+                    ? 'إنشاء مجموعة جديدة'
+                    : 'Create New Study Cohort'}
+                </span>
+                <InfoTooltip
+                  size={13}
+                  text={isAr
+                    ? 'ربط المجموعة بالفرع والقاعة والمعلم مع فحص التعارضات الزمنية تلقائياً'
+                    : 'Assign branch, hall, teacher, and conflict-checked weekly sessions'}
+                />
               </h3>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                {isAr
-                  ? 'ربط المجموعة بالفرع والقاعة والمعلم مع فحص التعارضات الزمنية تلقائياً'
-                  : 'Assign branch, hall, teacher, and conflict-checked weekly sessions'}
-              </span>
             </div>
           </div>
 
