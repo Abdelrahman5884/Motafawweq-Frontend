@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Layers, FileText, ClipboardCheck, Landmark, Award } from 'lucide-react';
+import { BookOpen, Layers, FileText, ClipboardCheck, Landmark, Award, Video } from 'lucide-react';
 
 export const MinistryCurriculumCard = ({ item, lang = 'ar', onOpenModal, onTakeMinistryExam }) => {
   const isAr = lang === 'ar';
@@ -179,6 +179,15 @@ export const MinistryCurriculumCard = ({ item, lang = 'ar', onOpenModal, onTakeM
             <FileText size={13} color="var(--text-muted)" />
             {item.chaptersCount} {isAr ? 'فصل' : 'chapters'}
           </span>
+          {Number(item.lessonsCount || item.videosCount || 0) > 0 && (
+            <>
+              <span>•</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontWeight: '800' }}>
+                <Video size={13} />
+                {item.lessonsCount || item.videosCount} {isAr ? 'حصة' : 'lessons'}
+              </span>
+            </>
+          )}
           {item.examBestPercentage !== null && item.examBestPercentage !== undefined && (
             <>
               <span>•</span>

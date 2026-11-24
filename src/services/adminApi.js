@@ -164,13 +164,40 @@ export const adminApi = {
       downloadAdminExcel(`/admin/users/export-excel${buildQuery(params)}`, filename),
   },
 
-  // ─── 4. Courses & Content Moderation ───────────────────────────────────────
+  // ─── 4. Courses Moderation & Ministry of Education Curricula CMS ───────────
   courses: {
     list: (params = {}) => apiGet(`/admin/courses${buildQuery(params)}`),
     get: (uuid) => apiGet(`/admin/courses/${uuid}`),
     togglePublish: (uuid, data = {}) => apiPatch(`/admin/courses/${uuid}/toggle-publish`, data),
     toggleFeatured: (uuid) => apiPatch(`/admin/courses/${uuid}/toggle-featured`, {}),
     delete: (uuid, data = {}) => apiDelete(`/admin/courses/${uuid}`, { body: data }),
+  },
+
+  ministryCurricula: {
+    list: (params = {}) => apiGet(`/admin/ministry-curricula${buildQuery(params)}`),
+    get: (uuid) => apiGet(`/admin/ministry-curricula/${uuid}`),
+    create: (data) =>
+      apiPost('/admin/ministry-curricula', data, {
+        headers: makeIdempotencyHeader('moe-curr-create'),
+      }),
+    update: (uuid, data) => apiPut(`/admin/ministry-curricula/${uuid}`, data),
+    togglePublish: (uuid) => apiPatch(`/admin/ministry-curricula/${uuid}/toggle-publish`, {}),
+    delete: (uuid, data = {}) => apiDelete(`/admin/ministry-curricula/${uuid}`, { body: data }),
+
+    // Units & Lessons management inside a Ministry course
+    addUnit: (uuid, data) => apiPost(`/admin/ministry-curricula/${uuid}/units`, data),
+    updateUnit: (uuid, unitIndex, data) =>
+      apiPut(`/admin/ministry-curricula/${uuid}/units/${unitIndex}`, data),
+    deleteUnit: (uuid, unitIndex) =>
+      apiDelete(`/admin/ministry-curricula/${uuid}/units/${unitIndex}`),
+
+    addLesson: (uuid, data) => apiPost(`/admin/ministry-curricula/${uuid}/lessons`, data),
+    updateLesson: (uuid, unitIndex, lessonId, data) =>
+      apiPut(`/admin/ministry-curricula/${uuid}/units/${unitIndex}/lessons/${encodeURIComponent(lessonId)}`, data),
+    deleteLesson: (uuid, unitIndex, lessonId) =>
+      apiDelete(`/admin/ministry-curricula/${uuid}/units/${unitIndex}/lessons/${encodeURIComponent(lessonId)}`),
+    reorderLessons: (uuid, unitIndex, lessonIds) =>
+      apiPatch(`/admin/ministry-curricula/${uuid}/units/${unitIndex}/lessons/reorder`, { lessonIds }),
   },
 
   // ─── 5. Financials: Overview, Pricing Plans, Payouts & Discount Coupons ────
