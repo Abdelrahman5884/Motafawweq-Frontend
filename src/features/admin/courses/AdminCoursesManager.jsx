@@ -235,7 +235,7 @@ const TeacherCoursesModerationTab = ({ lang, isRtl, showToast }) => {
               backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '12px', fontWeight: '600', cursor: 'pointer'
             }}
           >
-            <option value="all">{isAr ? 'كل الصفوف (1 ابتدائي — 3 ثانوي)' : 'All Grades (1st Pri — 3rd Sec)'}</option>
+            <option value="all">{isAr ? 'كل الصفوف' : 'All Grades'}</option>
             {MINISTRY_GRADES.map((g) => (
               <option key={g.gradeAr} value={g.gradeAr}>
                 {isAr ? g.gradeAr : g.gradeEn}
@@ -669,7 +669,7 @@ export const AdminCoursesManager = () => {
           }}
         >
           <Landmark size={16} />
-          <span>{isAr ? 'مقررات الوزارة (1 ابتدائي — 3 ثانوي)' : 'Ministry Courses (1st Pri — 3rd Sec)'}</span>
+          <span>{isAr ? 'مقررات الوزارة' : 'Ministry Courses'}</span>
         </button>
 
         <button

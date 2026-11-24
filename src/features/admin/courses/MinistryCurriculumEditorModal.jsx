@@ -301,7 +301,7 @@ export const MinistryCurriculumEditorModal = ({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
             <div>
               <label style={labelStyle}>
-                {isAr ? 'الصف الدراسي (1 ابتدائي ← 3 ثانوي) *' : 'Grade Level (1st Pri — 3rd Sec) *'}
+                {isAr ? 'الصف الدراسي *' : 'Grade Level *'}
               </label>
               <select
                 value={form.gradeAr}

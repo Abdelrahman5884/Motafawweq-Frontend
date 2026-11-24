@@ -290,8 +290,8 @@ export const AdminMinistryCurriculaTab = ({ lang = 'ar', isRtl = true, showToast
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.55 }}>
               {isAr
-                ? 'أنشئ المقرر لأي صف (من أولى ابتدائي حتى تالتة ثانوي)، ثم ادخل على المقرر لإضافة الحصص وفيديوهات يوتيوب والمحتوى.'
-                : 'Create courses for any grade (1st Primary — 3rd Secondary), then open any course to add YouTube lessons & content.'}
+                ? 'أنشئ المقرر لأي صف دراسي، ثم ادخل عليه لإضافة الحصص وفيديوهات يوتيوب والمحتوى التعليمي.'
+                : 'Create courses for any grade, then open any course to add YouTube lessons & study content.'}
             </p>
           </div>
         </div>
@@ -380,217 +380,170 @@ export const AdminMinistryCurriculaTab = ({ lang = 'ar', isRtl = true, showToast
         })}
       </div>
 
-      {/* Unified Filter & Navigation Card */}
+      {/* Compact Unified Filter Bar (Search + Stage Dropdown + Grade Dropdown + Term + Status) */}
       <div
         style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '18px',
-          padding: '16px 20px',
+          padding: '14px 18px',
           boxShadow: 'var(--shadow-xs)',
           display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
+          flexWrap: 'wrap',
+          gap: '10px',
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
-        {/* Stage Segmented Pills */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-          {STAGE_GROUPS.map((st) => {
-            const active = stageFilter === st.id;
-            const count = st.id === 'all' ? summary.total : summary.byStage?.[st.id] ?? 0;
-            return (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => handleStageSelect(st.id)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  padding: '8px 14px',
-                  borderRadius: '11px',
-                  border: active ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
-                  backgroundColor: active ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                  color: active ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontSize: '12.5px',
-                  fontWeight: active ? '800' : '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>{isAr ? st.labelAr : st.labelEn}</span>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    padding: '1px 7px',
-                    borderRadius: '999px',
-                    backgroundColor: active ? 'var(--primary)' : 'var(--bg-surface)',
-                    color: active ? '#FFFFFF' : 'var(--text-secondary)',
-                  }}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+        <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: '320px' }}>
+          <Search size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', insetInlineStart: '12px', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder={isAr ? 'ابحث باسم المقرر أو المادة...' : 'Search course or subject...'}
+            style={{
+              width: '100%',
+              padding: '9px 12px',
+              paddingInlineStart: '36px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              boxSizing: 'border-box',
+            }}
+          />
         </div>
 
-        {/* 12 Grades Pills Bar */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '6px',
-            alignItems: 'center',
-            paddingTop: '10px',
-            borderTop: '1px solid var(--border-subtle)',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setGradeFilter('all');
-              setPage(1);
-            }}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Stage Select Dropdown */}
+          <select
+            aria-label={isAr ? 'المرحلة التعليمية' : 'Stage'}
+            value={stageFilter}
+            onChange={(e) => handleStageSelect(e.target.value)}
             style={{
-              padding: '5px 12px',
-              borderRadius: '999px',
-              border: gradeFilter === 'all' ? '1.5px solid #06254E' : '1px solid var(--border-subtle)',
-              backgroundColor: gradeFilter === 'all' ? '#06254E' : 'transparent',
-              color: gradeFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
-              fontSize: '11.5px',
+              padding: '9px 12px',
+              borderRadius: '10px',
+              border: stageFilter !== 'all' ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
+              backgroundColor: stageFilter !== 'all' ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+              color: stageFilter !== 'all' ? 'var(--primary)' : 'var(--text-primary)',
+              fontSize: '12.5px',
               fontWeight: '800',
               cursor: 'pointer',
             }}
           >
-            {isAr ? 'جميع الصفوف' : 'All Grades'}
-          </button>
-
-          {visibleGrades.map((g) => {
-            const active = gradeFilter === g.gradeAr;
-            const gCount = summary.byGrade?.[g.gradeAr] ?? 0;
-            return (
-              <button
-                key={g.gradeAr}
-                type="button"
-                onClick={() => {
-                  setGradeFilter(g.gradeAr);
-                  setPage(1);
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '5px 12px',
-                  borderRadius: '999px',
-                  border: active ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
-                  backgroundColor: active ? 'var(--primary)' : 'var(--bg-subtle)',
-                  color: active ? '#FFFFFF' : 'var(--text-secondary)',
-                  fontSize: '11.5px',
-                  fontWeight: active ? '800' : '600',
-                  cursor: 'pointer',
-                }}
-              >
-                <span>{isAr ? g.shortAr : g.gradeEn}</span>
-                <span style={{ opacity: active ? 0.9 : 0.7, fontSize: '10.5px' }}>({gCount})</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search + Filters */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '400px' }}>
-            <Search size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', insetInlineStart: '12px', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={isAr ? 'ابحث باسم المقرر، المادة، أو الصف الدراسي...' : 'Search course, subject, or grade...'}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                paddingInlineStart: '36px',
-                borderRadius: '11px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <select
-              value={termFilter}
-              onChange={(e) => {
-                setTermFilter(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                padding: '8px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="all">{isAr ? 'كل الفصول الدراسية' : 'All Terms'}</option>
-              {TERM_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {isAr ? t.labelAr : t.labelEn}
+            {STAGE_GROUPS.map((st) => {
+              const count = st.id === 'all' ? summary.total : summary.byStage?.[st.id] ?? 0;
+              return (
+                <option key={st.id} value={st.id}>
+                  {isAr ? `${st.labelAr} (${count})` : `${st.labelEn} (${count})`}
                 </option>
-              ))}
-            </select>
+              );
+            })}
+          </select>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                padding: '8px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="all">{isAr ? 'كل الحالات' : 'All Statuses'}</option>
-              <option value="published">{isAr ? 'منشور للطلاب' : 'Published'}</option>
-              <option value="draft">{isAr ? 'مسودة' : 'Draft'}</option>
-            </select>
+          {/* Grade Select Dropdown */}
+          <select
+            aria-label={isAr ? 'الصف الدراسي' : 'Grade'}
+            value={gradeFilter}
+            onChange={(e) => {
+              setGradeFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              padding: '9px 12px',
+              borderRadius: '10px',
+              border: gradeFilter !== 'all' ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
+              backgroundColor: gradeFilter !== 'all' ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+              color: gradeFilter !== 'all' ? 'var(--primary)' : 'var(--text-primary)',
+              fontSize: '12.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="all">{isAr ? 'جميع الصفوف' : 'All Grades'}</option>
+            {visibleGrades.map((g) => {
+              const gCount = summary.byGrade?.[g.gradeAr] ?? 0;
+              return (
+                <option key={g.gradeAr} value={g.gradeAr}>
+                  {isAr ? `${g.gradeAr} (${gCount})` : `${g.gradeEn} (${gCount})`}
+                </option>
+              );
+            })}
+          </select>
 
-            <button
-              type="button"
-              onClick={fetchCurricula}
-              disabled={loading}
-              title={isAr ? 'تحديث' : 'Refresh'}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-            </button>
-          </div>
+          {/* Term Select */}
+          <select
+            aria-label={isAr ? 'الفصل الدراسي' : 'Term'}
+            value={termFilter}
+            onChange={(e) => {
+              setTermFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              padding: '9px 12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="all">{isAr ? 'كل الفصول' : 'All Terms'}</option>
+            {TERM_OPTIONS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {isAr ? t.labelAr : t.labelEn}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Select */}
+          <select
+            aria-label={isAr ? 'الحالة' : 'Status'}
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              padding: '9px 12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="all">{isAr ? 'كل الحالات' : 'All Statuses'}</option>
+            <option value="published">{isAr ? 'منشور' : 'Published'}</option>
+            <option value="draft">{isAr ? 'مسودة' : 'Draft'}</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={fetchCurricula}
+            disabled={loading}
+            title={isAr ? 'تحديث' : 'Refresh'}
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+          </button>
         </div>
       </div>
 

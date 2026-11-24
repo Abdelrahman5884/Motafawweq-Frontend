@@ -19,10 +19,10 @@ export const MINISTRY_GRADES = [
 ];
 
 export const STAGE_GROUPS = [
-  { id: 'all', labelAr: 'كل المراحل (1 ابتدائي — 3 ثانوي)', labelEn: 'All Stages (1st Pri — 3rd Sec)' },
-  { id: 'stage-primary', labelAr: 'المرحلة الابتدائية (1–6)', labelEn: 'Primary (1–6)' },
-  { id: 'stage-prep', labelAr: 'المرحلة الإعدادية (1–3)', labelEn: 'Preparatory (1–3)' },
-  { id: 'secondary_all', labelAr: 'المرحلة الثانوية (1–3)', labelEn: 'Secondary (1–3)' },
+  { id: 'all', labelAr: 'كل المراحل', labelEn: 'All Stages' },
+  { id: 'stage-primary', labelAr: 'المرحلة الابتدائية', labelEn: 'Primary Stage' },
+  { id: 'stage-prep', labelAr: 'المرحلة الإعدادية', labelEn: 'Preparatory Stage' },
+  { id: 'secondary_all', labelAr: 'المرحلة الثانوية', labelEn: 'Secondary Stage' },
 ];
 
 export const TERM_OPTIONS = [

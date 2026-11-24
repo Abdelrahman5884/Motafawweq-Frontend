@@ -197,14 +197,14 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         ];
       case 'admin':
         return [
-          { id: 'admin-overview', path: '/admin/dashboard?tab=overview', label: lang === 'ar' ? 'الرئيسية والإحصائيات' : 'Overview & KPIs', icon: LayoutDashboard },
-          { id: 'admin-champions', path: '/admin/dashboard?tab=champions', label: lang === 'ar' ? 'لوحة الشرف وأبطال الكؤوس' : 'Cup Champions', icon: Trophy, badge: lang === 'ar' ? 'مميز' : 'Cups' },
-          { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'إدارة المستخدمين والتوثيق' : 'User Management', icon: Users },
-          { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات والمحتوى التعليمي' : 'Courses & Content', icon: BookOpen },
-          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'المالية وتحديد أسعار الباقات' : 'Financials & Pricing', icon: DollarSign },
-          { id: 'admin-attendance', path: '/admin/dashboard?tab=attendance', label: lang === 'ar' ? 'بوابات الحضور والباركود' : 'QR Gate Attendance', icon: QrCode },
-          { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'شريط الأخبار والإعلانات' : 'Broadcast & News', icon: Megaphone },
-          { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الذكاء الاصطناعي والإعدادات' : 'AI & Settings', icon: Settings },
+          { id: 'admin-overview', path: '/admin/dashboard?tab=overview', label: lang === 'ar' ? 'الرئيسية' : 'Overview', icon: LayoutDashboard },
+          { id: 'admin-champions', path: '/admin/dashboard?tab=champions', label: lang === 'ar' ? 'الأبطال والدوري' : 'Champions', icon: Trophy, badge: lang === 'ar' ? 'مميز' : 'Cups' },
+          { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'المستخدمون' : 'Users', icon: Users },
+          { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
+          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'الماليات' : 'Financials', icon: DollarSign },
+          { id: 'admin-attendance', path: '/admin/dashboard?tab=attendance', label: lang === 'ar' ? 'الحضور' : 'Attendance', icon: QrCode },
+          { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'الإعلانات' : 'Announcements', icon: Megaphone },
+          { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings },
         ];
       default:
         return [];
