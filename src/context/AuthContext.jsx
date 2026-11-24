@@ -61,14 +61,14 @@ export const ROLES = {
   },
   admin: {
     id: 'admin',
-    name: 'Motafawweq SuperAdmin',
-    nameAr: 'مدير منصة متفوّق',
-    roleLabel: 'System & AI Operations',
-    roleLabelAr: 'إدارة النظام واقتصاديات الذكاء الاصطناعي',
-    email: 'hq@motafawweq.me',
-    phone: '01000000000',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    center: 'HQ Cairo',
+    name: 'Abdelrhaman Hassan',
+    nameAr: 'Abdelrhaman Hassan',
+    roleLabel: 'Platform Director',
+    roleLabelAr: 'مدير منصة متفوّق',
+    email: '',
+    phone: '',
+    avatar: null,
+    center: 'Platform HQ',
     defaultRoute: '/admin/dashboard'
   }
 };
@@ -153,6 +153,8 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [authLoading, setAuthLoading] = useState(() => Boolean(tokenStorage.getAccessToken()));
+  // Only becomes true after a real server-side /auth/login or /auth/me response succeeds
+  const [sessionVerified, setSessionVerified] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem('motafawweq_custom_user');
@@ -253,6 +255,7 @@ export const AuthProvider = ({ children }) => {
     setCurrentRole(roleKey);
     setCurrentUser(mergedUser);
     setIsAuthenticated(true);
+    setSessionVerified(Boolean(tokenStorage.getAccessToken()));
     localStorage.setItem('motafawweq_role', roleKey);
     localStorage.setItem('motafawweq_authenticated', 'true');
     localStorage.setItem('motafawweq_custom_user', JSON.stringify(mergedUser));
@@ -263,8 +266,14 @@ export const AuthProvider = ({ children }) => {
   const clearLocalSession = useCallback(() => {
     tokenStorage.clearTokens();
     setIsAuthenticated(false);
+    setSessionVerified(false);
     localStorage.setItem('motafawweq_authenticated', 'false');
     localStorage.removeItem('motafawweq_custom_user');
+    if (localStorage.getItem('motafawweq_role') === 'admin') {
+      localStorage.removeItem('motafawweq_role');
+      setCurrentRole('student');
+      setCurrentUser(ROLES.student);
+    }
   }, []);
 
   // Hydrate user from /api/v1/auth/me on mount when a token is stored
@@ -326,12 +335,17 @@ export const AuthProvider = ({ children }) => {
     };
   }, [clearLocalSession]);
 
-  // Switch role (used by role switcher / quick demo)
+  // Switch role (used by demo portal switcher — STRICTLY BLOCKED for admin accounts)
   const switchRole = (newRole) => {
+    if (newRole === 'admin') {
+      if (routerNavigator) routerNavigator('/admin/dashboard');
+      return '/admin/dashboard';
+    }
     if (ROLES[newRole]) {
       setCurrentRole(newRole);
       setCurrentUser(ROLES[newRole]);
       setIsAuthenticated(true);
+      setSessionVerified(false);
       localStorage.setItem('motafawweq_role', newRole);
       localStorage.setItem('motafawweq_authenticated', 'true');
       localStorage.removeItem('motafawweq_custom_user');
@@ -342,8 +356,11 @@ export const AuthProvider = ({ children }) => {
     return '/';
   };
 
-  // 1-Click Quick Demo Login (attempts real backend login with seeded demo account first)
+  // 1-Click Quick Demo Login (NEVER permitted for admin accounts)
   const quickDemoLogin = async (roleId) => {
+    if (roleId === 'admin') {
+      return '/admin/dashboard';
+    }
     const demoRole = ROLES[roleId] || ROLES.student;
     try {
       const res = await authService.login({
@@ -472,12 +489,8 @@ export const AuthProvider = ({ children }) => {
   const requestPasswordReset = async (email) => {
     const cleanEmail = String(email).trim().toLowerCase();
     setOtpTargetEmail(cleanEmail);
-    try {
-      const response = await authService.forgotPassword(cleanEmail);
-      return response?.data || { mail_delivered: true };
-    } catch {
-      return { mail_delivered: true, code: '482915' };
-    }
+    const response = await authService.forgotPassword(cleanEmail);
+    return response?.data || { mail_delivered: true };
   };
 
   const verifyOtp = async (code, email) => {
@@ -485,19 +498,11 @@ export const AuthProvider = ({ children }) => {
     if (!/^\d{6}$/.test(cleanCode)) {
       return false;
     }
-    if (cleanCode === '482915') {
-      return true;
-    }
-    try {
-      await authService.verifyPasswordResetOtp({
-        email: String(email || otpTargetEmail).trim().toLowerCase(),
-        code: cleanCode,
-      });
-      return true;
-    } catch (err) {
-      if (cleanCode === '482915') return true;
-      throw err;
-    }
+    await authService.verifyPasswordResetOtp({
+      email: String(email || otpTargetEmail).trim().toLowerCase(),
+      code: cleanCode,
+    });
+    return true;
   };
 
   const completePasswordReset = async ({ email, code, newPassword, confirmPassword }) => {
@@ -599,7 +604,9 @@ export const AuthProvider = ({ children }) => {
       value={{
         isAuthenticated,
         authLoading,
+        sessionVerified,
         hasActiveToken: Boolean(tokenStorage.getAccessToken()),
+        isVerifiedAdmin: Boolean(isAuthenticated && sessionVerified && tokenStorage.getAccessToken() && currentRole === 'admin'),
         currentRole,
         currentUser,
         studentPlanTier: normalizeStudentPlanTier(currentUser?.plan_tier),

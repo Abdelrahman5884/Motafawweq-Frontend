@@ -79,6 +79,7 @@ import { CenterProvider } from './context/CenterContext';
 
 // Admin Views
 import { AdminDashboard } from './views/admin/AdminDashboard';
+import { AdminRouteGuard } from './components/admin/AdminRouteGuard';
 
 const SIDEBAR_EXPANDED = 260;
 const SIDEBAR_COLLAPSED = 76;
@@ -93,7 +94,7 @@ function JoinGroupRedirect() {
 function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { setRouterNavigator } = useAuth();
+  const { setRouterNavigator, isVerifiedAdmin } = useAuth();
   const { isRtl, lang } = useLanguage();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -189,9 +190,11 @@ function AppShell({ children }) {
   ];
 
   const authRoutes = ['/login', '/register', '/forgot-password'];
-  const isAuthRoute = authRoutes.includes(location.pathname);
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isLockedAdminVault = isAdminRoute && !isVerifiedAdmin;
+  const isAuthRoute = authRoutes.includes(location.pathname) || isLockedAdminVault;
   const isVerifyRoute = location.pathname === '/verify' || location.pathname.startsWith('/verify/');
-  const isFullPage = fullPageRoutes.includes(location.pathname) || isVerifyRoute;
+  const isFullPage = fullPageRoutes.includes(location.pathname) || isVerifyRoute || isLockedAdminVault;
   const hasSidebar = !isFullPage && !isAuthRoute;
 
   // Sidebar pixel width (used for margin offset)
@@ -457,9 +460,16 @@ export default function App() {
                     <Route path="/center/billing" element={<CenterBillingView />} />
                     <Route path="/center/settings" element={<CenterSettingsView />} />
 
-                    {/* Admin Portal Route */}
+                    {/* Admin Portal Route (Strictly guarded by verified server admin session) */}
                     <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    <Route
+                      path="/admin/dashboard"
+                      element={
+                        <AdminRouteGuard>
+                          <AdminDashboard />
+                        </AdminRouteGuard>
+                      }
+                    />
 
                     {/* Fallback Catch-all Route */}
                     <Route path="*" element={<Navigate to="/" replace />} />

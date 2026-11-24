@@ -7,7 +7,6 @@ import {
   GraduationCap, 
   Users, 
   Building2, 
-  ShieldCheck,
   ArrowRight, 
   ArrowLeft 
 } from 'lucide-react';
@@ -25,16 +24,16 @@ export const LoginPage = () => {
     teacher: 'salma.biology@motafawweq.me',
     student: 'omar.tarek@motafawweq.me',
     parent: 'tarek.kady@gmail.com',
-    center: 'admin@alrowad.edu.eg',
-    admin: 'hq@motafawweq.me'
+    center: 'admin@alrowad.edu.eg'
   };
 
-  const initialRole = searchParams.get('role') || 'student';
+  const rawRoleParam = searchParams.get('role');
+  const initialRole = defaultEmails[rawRoleParam] ? rawRoleParam : 'student';
   const [selectedRole, setSelectedRole] = useState(initialRole);
   const [emailOrPhone, setEmailOrPhone] = useState(
-    defaultEmails[initialRole] || 'omar.tarek@motafawweq.me'
+    rawRoleParam === 'admin' ? '' : (defaultEmails[initialRole] || 'omar.tarek@motafawweq.me')
   );
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [password, setPassword] = useState(rawRoleParam === 'admin' ? '' : DEMO_PASSWORD);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -42,12 +41,13 @@ export const LoginPage = () => {
   const handleRoleTabChange = (roleKey) => {
     setSelectedRole(roleKey);
     setErrorMsg('');
-    if (roleKey === 'teacher') setEmailOrPhone('salma.biology@motafawweq.me');
-    else if (roleKey === 'student') setEmailOrPhone('omar.tarek@motafawweq.me');
-    else if (roleKey === 'parent') setEmailOrPhone('tarek.kady@gmail.com');
-    else if (roleKey === 'center') setEmailOrPhone('admin@alrowad.edu.eg');
-    else if (roleKey === 'admin') setEmailOrPhone('hq@motafawweq.me');
-    setPassword(DEMO_PASSWORD);
+    if (defaultEmails[roleKey]) {
+      setEmailOrPhone(defaultEmails[roleKey]);
+      setPassword(DEMO_PASSWORD);
+    } else {
+      setEmailOrPhone('');
+      setPassword('');
+    }
   };
 
   const handleLoginSubmit = async (e) => {
@@ -78,8 +78,7 @@ export const LoginPage = () => {
     { id: 'student', label: lang === 'ar' ? 'طالب' : 'Student', icon: BookOpen },
     { id: 'teacher', label: lang === 'ar' ? 'معلم' : 'Teacher', icon: GraduationCap },
     { id: 'parent', label: lang === 'ar' ? 'ولي أمر' : 'Parent', icon: Users },
-    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 },
-    { id: 'admin', label: lang === 'ar' ? 'مشرف المنصة' : 'Admin', icon: ShieldCheck }
+    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 }
   ];
 
   const roleCharacters = {

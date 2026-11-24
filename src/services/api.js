@@ -266,13 +266,25 @@ export async function apiRequest(path, { method = 'GET', body, headers: extraHea
       firstFieldError = Array.isArray(msgs) ? msgs[0] : msgs;
     }
 
+    // Security defense-in-depth: never render raw SQL, DB connection strings, or 5xx stack details in UI
+    const rawMsg = firstFieldError || payload?.message || '';
+    const looksInternal =
+      res.status >= 500 ||
+      /SQLSTATE|Connection:\s*\w+|Stack trace|Syntax error|Unknown column|PDOException/i.test(String(rawMsg));
+
+    const safeMessage = looksInternal
+      ? (lang === 'en'
+        ? 'A temporary server issue occurred. Please try again later.'
+        : 'حدثت مشكلة مؤقتة في الخادم، يرجى المحاولة مرة أخرى لاحقاً.')
+      : (rawMsg || (lang === 'en' ? `Request failed (${res.status})` : `تعذر تنفيذ الطلب (${res.status})`));
+
     throw new ApiError({
-      message: firstFieldError || payload?.message || `خطأ في الطلب (${res.status})`,
+      message: safeMessage,
       status: res.status,
-      errorCode: payload?.error_code || null,
-      errors: payload?.errors || null,
+      errorCode: payload?.error_code || (res.status >= 500 ? 'SERVER_ERROR' : null),
+      errors: res.status >= 500 ? null : (payload?.errors || null),
       meta: payload?.meta || null,
-      data: payload || null,
+      data: res.status >= 500 ? null : (payload || null),
     });
   }
 
