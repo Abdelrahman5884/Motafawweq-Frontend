@@ -279,9 +279,13 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
             key={currentChamp.id}
             src={currentChamp.image}
             alt={lang === 'ar' ? currentChamp.nameAr : currentChamp.nameEn}
+            onError={(e) => {
+              e.currentTarget.src = '/characters/real-male-champ-1.png';
+            }}
             style={{
               maxHeight: 'min(300px, 36vh)',
               maxWidth: '92%',
+              borderRadius: '18px',
               objectFit: 'contain',
               filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15))',
               animation: 'championFadeIn 0.4s ease-out both'
@@ -340,7 +344,9 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
               gap: '8px'
             }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {lang === 'ar' ? currentChamp.schoolAr : currentChamp.schoolEn}
+                {lang === 'ar'
+                  ? [currentChamp.gradeAr, currentChamp.schoolAr].filter(Boolean).join(' • ')
+                  : [currentChamp.gradeEn || currentChamp.gradeAr, currentChamp.schoolEn || currentChamp.schoolAr].filter(Boolean).join(' • ')}
               </span>
               <span style={{ 
                 color: 'var(--primary-light, #5CB6DB)', 

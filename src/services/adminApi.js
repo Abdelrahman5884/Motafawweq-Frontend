@@ -71,19 +71,32 @@ export const adminApi = {
 
   // ─── 2. Honor Roll Cup Champions & General Republic League ─────────────────
   champions: {
-    list: () => apiGet('/admin/champions'),
+    list: (params = {}) => apiGet(`/admin/champions${buildQuery(params)}`),
     create: (data) =>
       apiPost('/admin/champions', data, { headers: makeIdempotencyHeader('champ-create') }),
+    approveNominee: (data) =>
+      apiPost('/admin/champions/approve-nominee', data, {
+        headers: makeIdempotencyHeader(`champ-approve-${data?.studentId ?? data?.student_id ?? 'std'}`),
+      }),
+    uploadPhoto: (file) => {
+      const formData = new FormData();
+      formData.append('photo', file);
+      return apiPost('/admin/champions/upload-photo', formData);
+    },
     update: (uuid, data) => apiPut(`/admin/champions/${uuid}`, data),
     togglePin: (uuid) => apiPatch(`/admin/champions/${uuid}/toggle-pin`, {}),
     delete: (uuid) => apiDelete(`/admin/champions/${uuid}`),
   },
 
   republicLeague: {
-    get: () => apiGet('/admin/leagues/republic'),
+    get: (params = {}) => apiGet(`/admin/leagues/republic${buildQuery(params)}`),
+    getLeaderboard: (params = {}) =>
+      apiGet(`/admin/leagues/republic/leaderboard${buildQuery(params)}`),
+    getNominees: (params = {}) =>
+      apiGet(`/admin/leagues/republic/nominees${buildQuery(params)}`),
     start: (data = {}) =>
       apiPost('/admin/leagues/republic/start', data, { headers: makeIdempotencyHeader('rep-start') }),
-    stop: () => apiPost('/admin/leagues/republic/stop', {}),
+    stop: (data = {}) => apiPost('/admin/leagues/republic/stop', data),
   },
 
   // ─── 3. User Management, KYC Verification & Security Controls ──────────────
