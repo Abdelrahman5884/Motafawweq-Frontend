@@ -200,9 +200,17 @@ export const adminApi = {
       apiPatch(`/admin/ministry-curricula/${uuid}/units/${unitIndex}/lessons/reorder`, { lessonIds }),
   },
 
-  // ─── 5. Financials: Overview, Pricing Plans, Payouts & Discount Coupons ────
+  // ─── 5. Financials: Overview, Manual Costs, Pricing Plans, Payouts & Coupons
   financials: {
     getOverview: () => apiGet('/admin/financials/overview'),
+
+    expenses: {
+      list: (params = {}) => apiGet(`/admin/financials/expenses${buildQuery(params)}`),
+      create: (data) =>
+        apiPost('/admin/financials/expenses', data, { headers: makeIdempotencyHeader('exp-create') }),
+      update: (uuid, data) => apiPut(`/admin/financials/expenses/${uuid}`, data),
+      delete: (uuid) => apiDelete(`/admin/financials/expenses/${uuid}`),
+    },
 
     plans: {
       list: (params = {}) => apiGet(`/admin/financials/plans${buildQuery(params)}`),
