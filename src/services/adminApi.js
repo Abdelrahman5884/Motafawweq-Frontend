@@ -61,6 +61,40 @@ export async function downloadAdminCsv(path, filename = 'admin-export.csv') {
   return true;
 }
 
+/**
+ * Downloads a real Office Open XML Excel (.xlsx) workbook directly from an authenticated admin endpoint.
+ */
+export async function downloadAdminExcel(path, filename = 'admin-export.xlsx') {
+  const token = tokenStorage.getAccessToken();
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const errPayload = await res.json().catch(() => ({}));
+    throw new ApiError({
+      message: errPayload?.message || `فشل تصدير ملف Excel (${res.status})`,
+      status: res.status,
+      errorCode: errPayload?.error_code || null,
+    });
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  return true;
+}
+
 export const adminApi = {
   // ─── 1. Executive Dashboard, KPIs & Real-Time Traffic ──────────────────────
   dashboard: {
@@ -126,6 +160,8 @@ export const adminApi = {
     delete: (id) => apiDelete(`/admin/users/${id}`),
     exportCsv: (params = {}, filename = 'motafawweq-users.csv') =>
       downloadAdminCsv(`/admin/users/export${buildQuery(params)}`, filename),
+    exportExcel: (params = {}, filename = 'motafawweq-users.xlsx') =>
+      downloadAdminExcel(`/admin/users/export-excel${buildQuery(params)}`, filename),
   },
 
   // ─── 4. Courses & Content Moderation ───────────────────────────────────────
