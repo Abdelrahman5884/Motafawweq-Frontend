@@ -97,6 +97,10 @@ export const adminApi = {
     start: (data = {}) =>
       apiPost('/admin/leagues/republic/start', data, { headers: makeIdempotencyHeader('rep-start') }),
     stop: (data = {}) => apiPost('/admin/leagues/republic/stop', data),
+    announceEnd: (data = {}) =>
+      apiPost('/admin/leagues/republic/announce-end', data, {
+        headers: makeIdempotencyHeader('rep-announce-end'),
+      }),
   },
 
   // ─── 3. User Management, KYC Verification & Security Controls ──────────────

@@ -34,6 +34,13 @@ import {
   Clock,
   Star,
   Image as ImageIcon,
+  Mail,
+  Phone,
+  Copy,
+  Check,
+  MessageCircle,
+  Megaphone,
+  Calendar,
 } from 'lucide-react';
 
 const CANONICAL_GRADES = [
@@ -80,10 +87,56 @@ const TIER_STYLES = {
 };
 
 const getRankVisual = (rank) => {
-  if (rank === 1) return { bg: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#FFFFFF', ring: 'rgba(245, 158, 11, 0.35)', label: '#1' };
-  if (rank === 2) return { bg: 'linear-gradient(135deg, #94A3B8, #64748B)', color: '#FFFFFF', ring: 'rgba(148, 163, 184, 0.35)', label: '#2' };
-  if (rank === 3) return { bg: 'linear-gradient(135deg, #D97706, #9A3412)', color: '#FFFFFF', ring: 'rgba(217, 119, 6, 0.3)', label: '#3' };
-  return { bg: 'var(--bg-subtle)', color: 'var(--text-primary)', ring: 'var(--border-subtle)', label: `#${rank}` };
+  if (rank === 1) {
+    return {
+      bg: 'linear-gradient(135deg, #F59E0B, #D97706)',
+      softBg: 'rgba(245, 158, 11, 0.1)',
+      border: 'rgba(245, 158, 11, 0.42)',
+      color: '#FFFFFF',
+      accentText: '#B45309',
+      ring: 'rgba(245, 158, 11, 0.45)',
+      label: '#1',
+      titleAr: 'المركز الأول',
+      titleEn: '1st Place',
+    };
+  }
+  if (rank === 2) {
+    return {
+      bg: 'linear-gradient(135deg, #64748B, #475569)',
+      softBg: 'rgba(100, 116, 139, 0.08)',
+      border: 'rgba(148, 163, 184, 0.45)',
+      color: '#FFFFFF',
+      accentText: '#475569',
+      ring: 'rgba(148, 163, 184, 0.45)',
+      label: '#2',
+      titleAr: 'المركز الثاني',
+      titleEn: '2nd Place',
+    };
+  }
+  if (rank === 3) {
+    return {
+      bg: 'linear-gradient(135deg, #D97706, #9A3412)',
+      softBg: 'rgba(217, 119, 6, 0.08)',
+      border: 'rgba(217, 119, 6, 0.35)',
+      color: '#FFFFFF',
+      accentText: '#9A3412',
+      ring: 'rgba(217, 119, 6, 0.35)',
+      label: '#3',
+      titleAr: 'المركز الثالث',
+      titleEn: '3rd Place',
+    };
+  }
+  return {
+    bg: 'var(--bg-subtle)',
+    softBg: 'var(--bg-subtle)',
+    border: 'var(--border-subtle)',
+    color: 'var(--text-primary)',
+    accentText: 'var(--text-secondary)',
+    ring: 'var(--border-subtle)',
+    label: `#${rank}`,
+    titleAr: `المركز #${rank}`,
+    titleEn: `Rank #${rank}`,
+  };
 };
 
 const getInitials = (name) => {
@@ -91,6 +144,36 @@ const getInitials = (name) => {
   if (parts.length === 0) return '؟';
   if (parts.length === 1) return parts[0].slice(0, 2);
   return `${parts[0][0]}${parts[1][0]}`;
+};
+
+const formatShortDate = (iso, lang) => {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '—';
+  }
+};
+
+const buildWhatsAppLink = (phone, studentName, rank, gradeAr) => {
+  const digits = String(phone || '').replace(/[^\d]/g, '');
+  if (!digits) return null;
+  const intl = digits.startsWith('0') && digits.length === 11 ? `2${digits}` : digits;
+  const rankWord = rank === 1 ? 'الأول' : rank === 2 ? 'الثاني' : `#${rank}`;
+  const msg = `ألف مبروك يا ${studentName}! تصدّرت المركز ${rankWord} على مستوى الجمهورية (${gradeAr}) في منصة متفوّق 🏆\nنرجو إرسال صورة شخصية واضحة ومناسبة لعرضك في لوحة الشرف والسلايدر الرئيسي بالمنصة.`;
+  return `https://wa.me/${intl}?text=${encodeURIComponent(msg)}`;
+};
+
+const buildMailtoLink = (email, studentName, rank, gradeAr) => {
+  if (!email) return null;
+  const rankWord = rank === 1 ? 'الأول' : rank === 2 ? 'الثاني' : `#${rank}`;
+  const subject = `تهنئة منصة متفوّق — طلب صورة شخصية لعرضك في لوحة الشرف (${gradeAr})`;
+  const body = `مرحباً ${studentName}،\n\nألف مبروك على حصولك على المركز ${rankWord} في دوري الجمهورية (${gradeAr}) على منصة متفوّق!\n\nنرجو الرد بصورة شخصية واضحة ومناسبة ليتم اعتمادها وعرضها في لوحة الشرف الرئيسية للمنصة.\n\nمع خالص التمنيات بدوام التفوق،\nإدارة منصة متفوّق`;
+  return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 };
 
 const PaginationBar = ({ meta, onPageChange, perPage, onPerPageChange, perPageOptions = [12, 24, 36], lang, isRtl }) => {
@@ -120,14 +203,14 @@ const PaginationBar = ({ meta, onPageChange, perPage, onPerPageChange, perPageOp
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '12px',
-        padding: '14px 18px',
+        padding: '13px 18px',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
         borderRadius: '14px',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+        <span style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
           {lang === 'ar'
             ? `عرض ${from} – ${to} من إجمالي ${total.toLocaleString('ar-EG')}`
             : `Showing ${from}–${to} of ${total.toLocaleString()}`}
@@ -252,21 +335,33 @@ export const AdminChampionsManager = () => {
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewError, setOverviewError] = useState(null);
   const [leagueBusy, setLeagueBusy] = useState(false);
+
+  // Modals: Launch, Announce End, Stop
   const [showLaunchModal, setShowLaunchModal] = useState(false);
   const [launchForm, setLaunchForm] = useState({
     grade_ar: 'all',
-    title_ar: 'دوري الجمهورية العام',
+    title_ar: 'دوري الجمهورية العام (أولى إعدادي — ثالثة ثانوي)',
     duration: 'monthly',
+  });
+  const [announceEndTarget, setAnnounceEndTarget] = useState(null);
+  const [announceForm, setAnnounceForm] = useState({
+    end_now: true,
+    publish_announcement: true,
+    announcement_title_ar: '',
+    announcement_content_ar: '',
+    audience: 'all',
+    priority: 'important',
+    display_days: 7,
   });
   const [confirmStopRound, setConfirmStopRound] = useState(null);
 
-  // Tab 1: Auto-Detected Nominees State
+  // Tab 1: Auto-Detected Top-2 Nominees State
   const [nominees, setNominees] = useState([]);
   const [nomineesMeta, setNomineesMeta] = useState(null);
   const [nomineesLoading, setNomineesLoading] = useState(true);
-  const [nomineeStatusFilter, setNomineeStatusFilter] = useState('all'); // 'all' | 'pending' | 'approved'
+  const [nomineeStatusFilter, setNomineeStatusFilter] = useState('all');
   const [nomineesPage, setNomineesPage] = useState(1);
-  const [nomineesPerPage, setNomineesPerPage] = useState(9);
+  const [nomineesPerPage, setNomineesPerPage] = useState(12);
 
   // Tab 2: Live Republic League Standings State
   const [leaderboard, setLeaderboard] = useState([]);
@@ -284,8 +379,8 @@ export const AdminChampionsManager = () => {
   const [championsLoading, setChampionsLoading] = useState(false);
   const [champSearchInput, setChampSearchInput] = useState('');
   const [champSearch, setChampSearch] = useState('');
-  const [champPinnedFilter, setChampPinnedFilter] = useState('all'); // 'all' | 'pinned' | 'hidden'
-  const [champSourceFilter, setChampSourceFilter] = useState('all'); // 'all' | 'republic_league' | 'manual'
+  const [champPinnedFilter, setChampPinnedFilter] = useState('all');
+  const [champSourceFilter, setChampSourceFilter] = useState('all');
   const [champPage, setChampPage] = useState(1);
   const [champPerPage, setChampPerPage] = useState(12);
 
@@ -293,16 +388,19 @@ export const AdminChampionsManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'approve' | 'edit' | 'create'
   const [editingChampUuid, setEditingChampUuid] = useState(null);
+  const [modalContactInfo, setModalContactInfo] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef(null);
 
   const [championToDelete, setChampionToDelete] = useState(null);
+  const [copiedKey, setCopiedKey] = useState(null);
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
+  const copyTimerRef = useRef(null);
 
-  // Sequence counters to eliminate async race conditions when switching tabs/grades rapidly
+  // Sequence counters to prevent stale async races
   const overviewSeqRef = useRef(0);
   const nomineesSeqRef = useRef(0);
   const leaderboardSeqRef = useRef(0);
@@ -314,11 +412,25 @@ export const AdminChampionsManager = () => {
     toastTimerRef.current = setTimeout(() => setToast(null), 3600);
   }, []);
 
+  const handleCopy = useCallback(async (value, key, label) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedKey(null), 1800);
+      showToast(lang === 'ar' ? `تم نسخ ${label}: ${value}` : `Copied ${label}`);
+    } catch {
+      showToast(lang === 'ar' ? 'تعذر النسخ التلقائي' : 'Copy failed', 'error');
+    }
+  }, [lang, showToast]);
+
   useEffect(() => () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
   }, []);
 
-  // Debounce search inputs (320ms)
+  // Debounce search inputs
   useEffect(() => {
     const t = setTimeout(() => {
       setLbSearch(lbSearchInput.trim());
@@ -367,7 +479,7 @@ export const AdminChampionsManager = () => {
         grade: selectedGrade,
         status: nomineeStatusFilter,
         league_id: selectedLeagueUuid || undefined,
-        top_per_grade: selectedGrade === 'all' ? 3 : 10,
+        top_per_grade: 2,
         page: nomineesPage,
         per_page: nomineesPerPage,
       });
@@ -451,7 +563,6 @@ export const AdminChampionsManager = () => {
     else fetchChampions();
   }, [activeSubTab, fetchOverview, fetchNominees, fetchLeaderboard, fetchChampions]);
 
-  // Reset pagination when grade or round scope changes
   const handleSelectGrade = (gradeValue) => {
     setSelectedGrade(gradeValue);
     setNomineesPage(1);
@@ -459,7 +570,7 @@ export const AdminChampionsManager = () => {
     setChampPage(1);
   };
 
-  // ─── League Actions ────────────────────────────────────────────────────────
+  // ─── League Actions (Launch / Announce End & Early Honoring / Stop) ────────
 
   const openLaunchLeagueModal = () => {
     const initialGrade = selectedGrade;
@@ -494,13 +605,71 @@ export const AdminChampionsManager = () => {
     }
   };
 
+  const openAnnounceEndModal = (roundObj) => {
+    const target = roundObj || overview?.league || null;
+    if (!target) {
+      showToast(lang === 'ar' ? 'لا توجد جولة دوري حالية لإعلان انتهائها' : 'No Republic League round found', 'error');
+      return;
+    }
+
+    const topTwoPreview = nominees
+      .filter((n) => !target.gradeAr || n.gradeAr === target.gradeAr)
+      .slice(0, 4)
+      .map((n) => `${n.rank === 1 ? '🥇' : '🥈'} ${n.name} (${getShortGradeLabel(n.gradeAr)})`)
+      .join(' • ');
+
+    const scopeLabel = target.gradeLabelAr || 'جميع الصفوف';
+    const defaultBody = topTwoPreview
+      ? `تُعلن إدارة منصة متفوّق عن انتهاء جولة «${target.titleAr}» (${scopeLabel}) والبدء في التكريم الرسمي لأوائل الجمهورية (المركز الأول والثاني): ${topTwoPreview}. سيتم عرض صور الأوائل في لوحة الشرف الرئيسية فور اعتمادها.`
+      : `تُعلن إدارة منصة متفوّق عن انتهاء جولة «${target.titleAr}» (${scopeLabel}) وتثبيت الترتيب النهائي والبدء في التكريم الرسمي لأوائل الجمهورية (المركز الأول والثاني من كل صف دراسي).`;
+
+    setAnnounceEndTarget(target);
+    setAnnounceForm({
+      end_now: Boolean(target.isActive),
+      publish_announcement: true,
+      announcement_title_ar: `إعلان انتهاء ${target.titleAr} وبدء التكريم الرسمي للأوائل 🏆`,
+      announcement_content_ar: defaultBody,
+      audience: 'all',
+      priority: 'important',
+      display_days: 7,
+    });
+  };
+
+  const handleConfirmAnnounceEnd = async (e) => {
+    e.preventDefault();
+    if (!announceEndTarget) return;
+    setLeagueBusy(true);
+    try {
+      const res = await adminApi.republicLeague.announceEnd({
+        league_id: announceEndTarget.id,
+        end_now: announceForm.end_now,
+        publish_announcement: announceForm.publish_announcement,
+        announcement_title_ar: announceForm.announcement_title_ar.trim(),
+        announcement_content_ar: announceForm.announcement_content_ar.trim(),
+        audience: announceForm.audience,
+        priority: announceForm.priority,
+        display_days: Number(announceForm.display_days) || 7,
+      });
+      setAnnounceEndTarget(null);
+      const endedEarly = res?.data?.endedEarly;
+      showToast(
+        endedEarly
+          ? (lang === 'ar' ? 'تم إنهاء الدوري مبكراً ونشر إعلان التكريم الرسمي بنجاح!' : 'League concluded early and honoring announcement published!')
+          : (lang === 'ar' ? 'تم إعلان انتهاء الدوري وبث تنبيه التكريم بنجاح!' : 'League conclusion announcement published!')
+      );
+      refreshAllVisible();
+    } catch (err) {
+      showToast(err?.message || (lang === 'ar' ? 'تعذر نشر إعلان انتهاء الدوري' : 'Failed to announce league end'), 'error');
+    } finally {
+      setLeagueBusy(false);
+    }
+  };
+
   const handleConfirmStopLeague = async () => {
     if (!confirmStopRound) return;
     setLeagueBusy(true);
     try {
-      await adminApi.republicLeague.stop(
-        confirmStopRound.id ? { league_id: confirmStopRound.id } : {}
-      );
+      await adminApi.republicLeague.stop(confirmStopRound.id ? { league_id: confirmStopRound.id } : {});
       setConfirmStopRound(null);
       showToast(lang === 'ar' ? 'تم إيقاف جولة دوري الجمهورية بنجاح' : 'Republic League round stopped');
       refreshAllVisible();
@@ -517,6 +686,14 @@ export const AdminChampionsManager = () => {
     const s = entry?.suggestedChampion || {};
     setModalMode('approve');
     setEditingChampUuid(entry?.championUuid || null);
+    setModalContactInfo({
+      name: entry?.name || s.nameAr || '',
+      email: entry?.email || null,
+      phone: entry?.phone || entry?.parentPhone || null,
+      parentPhone: entry?.parentPhone || null,
+      rank: entry?.rank || 1,
+      gradeAr: entry?.gradeAr || s.gradeAr || '',
+    });
     setFormData({
       ...EMPTY_FORM,
       studentId: s.studentId ?? entry?.studentId ?? null,
@@ -550,6 +727,7 @@ export const AdminChampionsManager = () => {
   const openManualAddModal = () => {
     setModalMode('create');
     setEditingChampUuid(null);
+    setModalContactInfo(null);
     setFormData({
       ...EMPTY_FORM,
       gradeAr: selectedGrade !== 'all' ? selectedGrade : 'الصف الثالث الثانوي',
@@ -561,6 +739,7 @@ export const AdminChampionsManager = () => {
   const openEditChampionModal = (champ) => {
     setModalMode('edit');
     setEditingChampUuid(champ.id);
+    setModalContactInfo(null);
     setFormData({
       ...EMPTY_FORM,
       studentId: champ.studentId || null,
@@ -724,304 +903,490 @@ export const AdminChampionsManager = () => {
             bottom: '24px',
             left: isRtl ? '24px' : 'auto',
             right: isRtl ? 'auto' : '24px',
-            backgroundColor: toast.type === 'error' ? '#991B1B' : 'var(--color-brand-dark)',
+            backgroundColor: toast.type === 'error' ? '#991B1B' : '#06254E',
             color: '#FFFFFF',
             padding: '12px 20px',
             borderRadius: '14px',
-            boxShadow: 'var(--shadow-lg)',
+            boxShadow: '0 14px 36px rgba(6, 37, 78, 0.28)',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
             zIndex: 10050,
             fontSize: '13.5px',
             fontWeight: '700',
-            maxWidth: '420px',
+            maxWidth: '440px',
           }}
         >
-          {toast.type === 'error' ? <AlertCircle size={18} color="#FCA5A5" /> : <CheckCircle size={18} color="var(--primary-light)" />}
+          {toast.type === 'error' ? <AlertCircle size={18} color="#FCA5A5" /> : <CheckCircle size={18} color="#5CB6DB" />}
           <span>{toast.text}</span>
         </div>
       )}
 
-      {/* ─── 1. Executive Republic League Command Banner ─── */}
+      {/* ─── 1. Executive Republic League Hero Command Center ─── */}
       <div
         style={{
-          background: 'linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-subtle) 100%)',
+          position: 'relative',
+          overflow: 'hidden',
+          backgroundColor: 'var(--bg-surface)',
           border: activeLeague?.isActive ? '1.5px solid rgba(16, 185, 129, 0.35)' : '1.5px solid var(--border-subtle)',
-          borderRadius: '22px',
-          padding: '22px 24px',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '18px',
+          borderRadius: '24px',
+          boxShadow: '0 8px 30px rgba(6, 37, 78, 0.06)',
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                background: activeLeague?.isActive
-                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(21, 136, 199, 0.16))'
-                  : 'rgba(21, 136, 199, 0.12)',
-                border: activeLeague?.isActive ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(21, 136, 199, 0.25)',
-                color: activeLeague?.isActive ? '#059669' : 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <Crown size={26} />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'دوري الجمهورية ولوحة شرف الأوائل' : 'Republic League & Honor Roll Command'}
-                </h2>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 11px',
-                    borderRadius: '999px',
-                    fontSize: '11.5px',
-                    fontWeight: '800',
-                    backgroundColor: activeLeague?.isActive ? 'rgba(16, 185, 129, 0.14)' : 'rgba(148, 163, 184, 0.16)',
-                    color: activeLeague?.isActive ? '#047857' : 'var(--text-secondary)',
-                    border: activeLeague?.isActive ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-subtle)',
-                  }}
-                >
+        {/* Top Accent Ribbon */}
+        <div
+          style={{
+            height: '4px',
+            width: '100%',
+            background: activeLeague?.isActive
+              ? 'linear-gradient(90deg, #06254E 0%, #1588C7 45%, #10B981 100%)'
+              : 'linear-gradient(90deg, #06254E 0%, #1588C7 60%, #5CB6DB 100%)',
+          }}
+        />
+
+        <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* Row A: Title + Action Buttons */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+              <div
+                style={{
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, #06254E 0%, #1588C7 100%)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 8px 20px rgba(21, 136, 199, 0.25)',
+                }}
+              >
+                <Crown size={26} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    {lang === 'ar' ? 'دوري الجمهورية ولوحة شرف الأوائل' : 'Republic League & Honor Roll'}
+                  </h2>
                   <span
                     style={{
-                      width: '7px',
-                      height: '7px',
-                      borderRadius: '50%',
-                      backgroundColor: activeLeague?.isActive ? '#10B981' : '#94A3B8',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 12px',
+                      borderRadius: '999px',
+                      fontSize: '11.5px',
+                      fontWeight: '800',
+                      backgroundColor: activeLeague?.isActive ? 'rgba(16, 185, 129, 0.14)' : 'rgba(148, 163, 184, 0.15)',
+                      color: activeLeague?.isActive ? '#047857' : 'var(--text-secondary)',
+                      border: activeLeague?.isActive ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-subtle)',
                     }}
-                  />
-                  {activeLeague?.isActive
+                  >
+                    <span
+                      style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        backgroundColor: activeLeague?.isActive ? '#10B981' : '#94A3B8',
+                      }}
+                    />
+                    {activeLeague?.isActive
+                      ? (lang === 'ar' ? activeLeague.dayProgressLabelAr : activeLeague.dayProgressLabelEn)
+                      : (activeLeague
+                        ? (lang === 'ar' ? activeLeague.dayProgressLabelAr : activeLeague.dayProgressLabelEn)
+                        : (lang === 'ar' ? 'لا توجد جولة نشطة حالياً' : 'No Active Round'))}
+                  </span>
+                </div>
+                <p style={{ margin: '5px 0 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {activeLeague
                     ? (lang === 'ar'
-                      ? `موسم نشط • متبقي ${activeLeague.daysRemaining ?? 0} يوم`
-                      : `Active • ${activeLeague.daysRemaining ?? 0}d left`)
-                    : (lang === 'ar' ? 'لا توجد جولة نشطة حالياً' : 'No Active Round')}
-                </span>
+                      ? `${activeLeague.titleAr} • النطاق: ${activeLeague.gradeLabelAr}`
+                      : `${activeLeague.titleAr} • Scope: ${activeLeague.gradeLabelEn}`)
+                    : (lang === 'ar'
+                      ? 'إدارة مواسم دوري الجمهورية (أولى إعدادي ← ثالثة ثانوي)، ترشيح الأول والثاني تلقائياً بالتواصل المباشر، وإعلان انتهاء الدوري للتكريم.'
+                      : 'Manage Republic League seasons (1st Prep – 3rd Sec), auto-nominate Top 2 per grade with direct contact, and broadcast honoring announcements.')}
+                </p>
               </div>
-              <p style={{ margin: '5px 0 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                {activeLeague
-                  ? (lang === 'ar'
-                    ? `${activeLeague.titleAr} • النطاق: ${activeLeague.gradeLabelAr}`
-                    : `${activeLeague.titleAr} • Scope: ${activeLeague.gradeLabelEn}`)
-                  : (lang === 'ar'
-                    ? 'إدارة مواسم دوري الجمهورية من أولى إعدادي حتى ثالثة ثانوي، متابعة الترتيب الحي، ومراجعة واعتماد صور الأوائل للسلايدر الرئيسي.'
-                    : 'Manage Republic League seasons (1st Prep to 3rd Sec), live standings, and approve top achievers for the homepage slider.')}
-              </p>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {recentRounds.length > 0 && (
-              <select
-                value={selectedLeagueUuid}
-                onChange={(e) => {
-                  setSelectedLeagueUuid(e.target.value);
-                  setNomineesPage(1);
-                  setLbPage(1);
-                }}
-                aria-label={lang === 'ar' ? 'اختيار جولة الدوري' : 'Select League Round'}
+            {/* Action Toolbar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {recentRounds.length > 0 && (
+                <select
+                  value={selectedLeagueUuid}
+                  onChange={(e) => {
+                    setSelectedLeagueUuid(e.target.value);
+                    setNomineesPage(1);
+                    setLbPage(1);
+                  }}
+                  aria-label={lang === 'ar' ? 'اختيار جولة الدوري' : 'Select League Round'}
+                  style={{
+                    padding: '9px 12px',
+                    borderRadius: '11px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    maxWidth: '235px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">{lang === 'ar' ? 'الجولة الحالية / الأحدث تلقائياً' : 'Current / Latest Round'}</option>
+                  {recentRounds.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.isActive ? '● ' : '✓ '}
+                      {r.titleAr} ({lang === 'ar' ? `يوم ${r.currentDay}/${r.totalDays}` : `Day ${r.currentDay}/${r.totalDays}`})
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button
+                type="button"
+                onClick={refreshAllVisible}
+                disabled={overviewLoading}
+                title={lang === 'ar' ? 'تحديث البيانات' : 'Refresh'}
                 style={{
-                  padding: '9px 12px',
+                  width: '38px',
+                  height: '38px',
                   borderRadius: '11px',
                   border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  maxWidth: '220px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  color: 'var(--text-secondary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   cursor: 'pointer',
                 }}
               >
-                <option value="">
-                  {lang === 'ar' ? 'الجولة الحالية / الأحدث تلقائياً' : 'Current / Latest Round'}
-                </option>
-                {recentRounds.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.isActive ? '● ' : ''}{r.titleAr} ({r.gradeAr ? getShortGradeLabel(r.gradeAr) : (lang === 'ar' ? 'جميع الصفوف' : 'All')})
-                  </option>
-                ))}
-              </select>
-            )}
+                <RefreshCw size={15} style={{ animation: overviewLoading ? 'spin 1s linear infinite' : 'none' }} />
+              </button>
 
-            <button
-              type="button"
-              onClick={refreshAllVisible}
-              disabled={overviewLoading}
-              title={lang === 'ar' ? 'تحديث البيانات' : 'Refresh'}
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '11px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-surface)',
-                color: 'var(--text-secondary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <RefreshCw size={15} style={{ animation: overviewLoading ? 'spin 1s linear infinite' : 'none' }} />
-            </button>
-
-            <button
-              type="button"
-              onClick={openLaunchLeagueModal}
-              disabled={leagueBusy}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '7px',
-                backgroundColor: '#047857',
-                color: '#FFFFFF',
-                border: 'none',
-                padding: '9px 16px',
-                borderRadius: '11px',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: leagueBusy ? 'wait' : 'pointer',
-                boxShadow: '0 4px 12px rgba(4, 120, 87, 0.22)',
-              }}
-            >
-              <Play size={14} />
-              <span>{lang === 'ar' ? 'إطلاق جولة دوري' : 'Launch Round'}</span>
-            </button>
-
-            {activeRounds.length > 0 && (
               <button
                 type="button"
-                onClick={() => setConfirmStopRound(activeLeague?.isActive ? activeLeague : activeRounds[0])}
+                onClick={openLaunchLeagueModal}
                 disabled={leagueBusy}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                  color: '#DC2626',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  padding: '9px 14px',
+                  gap: '7px',
+                  backgroundColor: '#059669',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  padding: '9px 15px',
                   borderRadius: '11px',
                   fontSize: '13px',
                   fontWeight: '700',
                   cursor: leagueBusy ? 'wait' : 'pointer',
+                  boxShadow: '0 4px 12px rgba(5, 150, 105, 0.24)',
                 }}
               >
-                <Square size={13} />
-                <span>{lang === 'ar' ? 'إيقاف الجولة' : 'Stop Round'}</span>
+                <Play size={14} />
+                <span>{lang === 'ar' ? 'إطلاق جولة' : 'Launch Round'}</span>
               </button>
-            )}
 
-            <button
-              type="button"
-              onClick={openManualAddModal}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '7px',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                padding: '9px 16px',
-                borderRadius: '11px',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(21, 136, 199, 0.25)',
-              }}
-            >
-              <Plus size={16} />
-              <span>{lang === 'ar' ? 'إضافة بطل يدوياً' : 'Add Champion'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 4 Compact Executive KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '12px' }}>
-          {[
-            {
-              icon: Users,
-              color: 'var(--primary)',
-              bg: 'rgba(21, 136, 199, 0.1)',
-              label: selectedGrade === 'all'
-                ? (lang === 'ar' ? 'طلاب المراحل الست' : 'Students (All 6 Grades)')
-                : (lang === 'ar' ? `طلاب ${getShortGradeLabel(selectedGrade)}` : `${getShortGradeLabel(selectedGrade)} Students`),
-              value: summary.totalStudents,
-            },
-            {
-              icon: Flame,
-              color: '#EA580C',
-              bg: 'rgba(234, 88, 12, 0.1)',
-              label: lang === 'ar' ? 'متنافسون حققوا نقاطاً' : 'Scored Competitors',
-              value: summary.activeCompetitors,
-            },
-            {
-              icon: Sparkles,
-              color: '#D97706',
-              bg: 'rgba(245, 158, 11, 0.14)',
-              label: lang === 'ar' ? 'أوائل بانتظار موافقتك' : 'Pending Slider Approval',
-              value: summary.pendingNominees,
-              highlight: summary.pendingNominees > 0,
-            },
-            {
-              icon: Trophy,
-              color: '#059669',
-              bg: 'rgba(16, 185, 129, 0.12)',
-              label: lang === 'ar' ? 'معروضون حالياً بالسلايدر' : 'Live in Homepage Slider',
-              value: summary.pinnedChampions,
-            },
-          ].map((kpi) => {
-            const Icon = kpi.icon;
-            return (
-              <div
-                key={kpi.label}
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  border: kpi.highlight ? '1.5px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border-subtle)',
-                  borderRadius: '14px',
-                  padding: '13px 15px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <div
+              {activeLeague && (
+                <button
+                  type="button"
+                  onClick={() => openAnnounceEndModal(activeLeague)}
+                  disabled={leagueBusy}
                   style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
-                    backgroundColor: kpi.bg,
-                    color: kpi.color,
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    gap: '7px',
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '9px 15px',
+                    borderRadius: '11px',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    cursor: leagueBusy ? 'wait' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(217, 119, 6, 0.28)',
                   }}
                 >
-                  <Icon size={20} />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1.15 }}>
-                    {Number(kpi.value || 0).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US')}
+                  <Megaphone size={15} />
+                  <span>{lang === 'ar' ? 'إعلان انتهاء الدوري والتكريم' : 'Announce End & Honoring'}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={openManualAddModal}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  padding: '9px 15px',
+                  borderRadius: '11px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(21, 136, 199, 0.25)',
+                }}
+              >
+                <Plus size={16} />
+                <span>{lang === 'ar' ? 'إضافة بطل يدوياً' : 'Add Champion'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Row B: Active Rounds Day-by-Day Progress Tracker (Shows Day X of Y for EVERY active league!) */}
+          {(activeRounds.length > 0 || activeLeague) && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: activeRounds.length > 1
+                  ? 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'
+                  : '1fr',
+                gap: '12px',
+              }}
+            >
+              {(activeRounds.length > 0 ? activeRounds : [activeLeague]).filter(Boolean).map((round) => {
+                const pct = Math.min(100, Math.max(0, Number(round.progressPercent ?? 0)));
+                const isRunning = Boolean(round.isActive);
+                return (
+                  <div
+                    key={round.id}
+                    style={{
+                      backgroundColor: 'var(--bg-subtle)',
+                      border: isRunning ? '1px solid rgba(21, 136, 199, 0.25)' : '1px solid var(--border-subtle)',
+                      borderRadius: '16px',
+                      padding: '14px 18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
+                        <Calendar size={16} color={isRunning ? 'var(--primary)' : 'var(--text-secondary)'} />
+                        <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                          {round.titleAr}
+                        </span>
+                        <span
+                          style={{
+                            padding: '2px 9px',
+                            borderRadius: '999px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                            color: 'var(--primary)',
+                          }}
+                        >
+                          {round.gradeAr ? getShortGradeLabel(round.gradeAr) : (lang === 'ar' ? 'جميع الصفوف' : 'All Grades')}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            padding: '4px 11px',
+                            borderRadius: '999px',
+                            backgroundColor: isRunning ? 'rgba(21, 136, 199, 0.12)' : 'rgba(148, 163, 184, 0.15)',
+                            color: isRunning ? 'var(--primary)' : 'var(--text-secondary)',
+                            fontSize: '12px',
+                            fontWeight: '800',
+                          }}
+                        >
+                          {lang === 'ar'
+                            ? `اليوم ${round.currentDay ?? 0} من ${round.totalDays ?? round.durationDays ?? 30}`
+                            : `Day ${round.currentDay ?? 0} of ${round.totalDays ?? round.durationDays ?? 30}`}
+                        </span>
+
+                        {isRunning && (
+                          <span
+                            style={{
+                              padding: '4px 11px',
+                              borderRadius: '999px',
+                              backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                              color: '#047857',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                            }}
+                          >
+                            {lang === 'ar'
+                              ? `متبقي ${round.daysRemaining ?? 0} يوم`
+                              : `${round.daysRemaining ?? 0} days left`}
+                          </span>
+                        )}
+
+                        {isRunning && (
+                          <button
+                            type="button"
+                            onClick={() => openAnnounceEndModal(round)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(217, 119, 6, 0.35)',
+                              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                              color: '#B45309',
+                              fontSize: '11.5px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Megaphone size={12} />
+                            <span>{lang === 'ar' ? 'إعلان انتهاء مبكر' : 'End & Announce'}</span>
+                          </button>
+                        )}
+
+                        {isRunning && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmStopRound(round)}
+                            title={lang === 'ar' ? 'إيقاف الجولة بدون إعلان' : 'Stop silently'}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 9px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                              color: '#DC2626',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Square size={11} />
+                            <span>{lang === 'ar' ? 'إيقاف' : 'Stop'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Visual Progress Bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div
+                        style={{
+                          flex: 1,
+                          height: '9px',
+                          borderRadius: '999px',
+                          backgroundColor: 'var(--border-subtle)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: '100%',
+                            borderRadius: '999px',
+                            background: isRunning
+                              ? 'linear-gradient(90deg, #1588C7 0%, #10B981 100%)'
+                              : 'linear-gradient(90deg, #64748B 0%, #94A3B8 100%)',
+                            transition: 'width 0.35s ease',
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', minWidth: '38px', textAlign: 'center' }}>
+                        {pct}%
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                      <span>
+                        {lang === 'ar' ? 'تاريخ البداية: ' : 'Started: '}
+                        <strong style={{ color: 'var(--text-primary)' }}>{formatShortDate(round.startsAt, lang)}</strong>
+                      </span>
+                      <span>
+                        {round.endedEarly
+                          ? (lang === 'ar' ? 'تم الإنهاء المبكر للتكريم: ' : 'Ended early: ')
+                          : (lang === 'ar' ? 'تاريخ الانتهاء: ' : 'Ends: ')}
+                        <strong style={{ color: 'var(--text-primary)' }}>{formatShortDate(round.endsAt, lang)}</strong>
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {kpi.label}
+                );
+              })}
+            </div>
+          )}
+
+          {/* Row C: 4 Clean Executive KPI Metric Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 195px), 1fr))', gap: '12px' }}>
+            {[
+              {
+                icon: Users,
+                color: 'var(--primary)',
+                bg: 'rgba(21, 136, 199, 0.1)',
+                label: selectedGrade === 'all'
+                  ? (lang === 'ar' ? 'طلاب المراحل الست' : 'Students (All 6 Grades)')
+                  : (lang === 'ar' ? `طلاب ${getShortGradeLabel(selectedGrade)}` : `${getShortGradeLabel(selectedGrade)} Students`),
+                value: summary.totalStudents,
+              },
+              {
+                icon: Flame,
+                color: '#EA580C',
+                bg: 'rgba(234, 88, 12, 0.1)',
+                label: lang === 'ar' ? 'متنافسون حققوا نقاطاً' : 'Scored Competitors',
+                value: summary.activeCompetitors,
+              },
+              {
+                icon: Sparkles,
+                color: '#D97706',
+                bg: 'rgba(245, 158, 11, 0.14)',
+                label: lang === 'ar' ? 'أوائل (#1 و #2) بانتظارك' : 'Top-2 Pending Approval',
+                value: summary.pendingNominees,
+                highlight: summary.pendingNominees > 0,
+              },
+              {
+                icon: Trophy,
+                color: '#059669',
+                bg: 'rgba(16, 185, 129, 0.12)',
+                label: lang === 'ar' ? 'معروضون حالياً بالسلايدر' : 'Live in Homepage Slider',
+                value: summary.pinnedChampions,
+              },
+            ].map((kpi) => {
+              const Icon = kpi.icon;
+              return (
+                <div
+                  key={kpi.label}
+                  style={{
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: kpi.highlight ? '1.5px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border-subtle)',
+                    borderRadius: '14px',
+                    padding: '13px 15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      backgroundColor: kpi.bg,
+                      color: kpi.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon size={20} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '21px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: 1.15 }}>
+                      {Number(kpi.value || 0).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US')}
+                    </div>
+                    <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {kpi.label}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -1052,16 +1417,17 @@ export const AdminChampionsManager = () => {
         </div>
       )}
 
-      {/* ─── 2. 6-Grade Selector Strip (1st Prep → 3rd Secondary) ─── */}
+      {/* ─── 2. 6-Grade Filter Strip (1st Prep → 3rd Secondary) ─── */}
       <div
         style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '18px',
-          padding: '14px 16px',
+          padding: '14px 18px',
           display: 'flex',
           flexDirection: 'column',
           gap: '10px',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
@@ -1073,14 +1439,7 @@ export const AdminChampionsManager = () => {
             <button
               type="button"
               onClick={() => handleSelectGrade('all')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--primary)',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-              }}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
             >
               {lang === 'ar' ? 'عرض جميع الصفوف' : 'Show All Grades'}
             </button>
@@ -1145,12 +1504,7 @@ export const AdminChampionsManager = () => {
                 {g.hasDedicatedRound && (
                   <span
                     title={lang === 'ar' ? 'دوري خاص نشط لهذا الصف' : 'Dedicated active round'}
-                    style={{
-                      width: '7px',
-                      height: '7px',
-                      borderRadius: '50%',
-                      backgroundColor: isSelected ? '#A7F3D0' : '#10B981',
-                    }}
+                    style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: isSelected ? '#A7F3D0' : '#10B981' }}
                   />
                 )}
                 <span>{getShortGradeLabel(g.value)}</span>
@@ -1171,105 +1525,102 @@ export const AdminChampionsManager = () => {
         </div>
       </div>
 
-      {/* ─── 3. Sub-Navigation Tabs ─── */}
+      {/* ─── 3. Segmented Sub-Tabs ─── */}
       <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
+          gap: '6px',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '16px',
-          padding: '8px',
+          padding: '7px',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', flex: 1 }}>
-          {[
-            {
-              id: 'nominees',
-              icon: Sparkles,
-              labelAr: 'أوائل الجمهورية للاعتماد',
-              labelEn: 'Auto Top Nominees',
-              badge: summary.pendingNominees > 0 ? summary.pendingNominees : null,
-              badgeTone: 'amber',
-            },
-            {
-              id: 'leaderboard',
-              icon: Medal,
-              labelAr: 'ترتيب دوري الجمهورية الكامل',
-              labelEn: 'Live League Standings',
-              badge: summary.totalStudents > 0 ? summary.totalStudents : null,
-              badgeTone: 'neutral',
-            },
-            {
-              id: 'slider',
-              icon: Trophy,
-              labelAr: 'لوحة الشرف (السلايدر الرئيسي)',
-              labelEn: 'Homepage Slider Champions',
-              badge: summary.pinnedChampions > 0 ? summary.pinnedChampions : null,
-              badgeTone: 'emerald',
-            },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const active = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveSubTab(tab.id)}
-                style={{
-                  flex: '1 1 200px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '11px 16px',
-                  borderRadius: '12px',
-                  border: active ? '1px solid rgba(21, 136, 199, 0.35)' : '1px solid transparent',
-                  backgroundColor: active ? 'rgba(21, 136, 199, 0.1)' : 'transparent',
-                  color: active ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontSize: '13.5px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Icon size={16} />
-                <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
-                {tab.badge !== null && (
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '999px',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      backgroundColor:
-                        tab.badgeTone === 'amber'
-                          ? 'rgba(245, 158, 11, 0.18)'
-                          : tab.badgeTone === 'emerald'
-                            ? 'rgba(16, 185, 129, 0.16)'
-                            : 'var(--bg-subtle)',
-                      color:
-                        tab.badgeTone === 'amber'
-                          ? '#B45309'
-                          : tab.badgeTone === 'emerald'
-                            ? '#047857'
-                            : 'var(--text-secondary)',
-                    }}
-                  >
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {[
+          {
+            id: 'nominees',
+            icon: Sparkles,
+            labelAr: 'أوائل الجمهورية للاعتماد (#1 و #2)',
+            labelEn: 'Top-2 Auto Nominees (#1 & #2)',
+            badge: summary.pendingNominees > 0 ? summary.pendingNominees : null,
+            badgeTone: 'amber',
+          },
+          {
+            id: 'leaderboard',
+            icon: Medal,
+            labelAr: 'ترتيب دوري الجمهورية الكامل',
+            labelEn: 'Live League Standings',
+            badge: summary.totalStudents > 0 ? summary.totalStudents : null,
+            badgeTone: 'neutral',
+          },
+          {
+            id: 'slider',
+            icon: Trophy,
+            labelAr: 'لوحة الشرف (السلايدر الرئيسي)',
+            labelEn: 'Homepage Slider Champions',
+            badge: summary.pinnedChampions > 0 ? summary.pinnedChampions : null,
+            badgeTone: 'emerald',
+          },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const active = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSubTab(tab.id)}
+              style={{
+                flex: '1 1 210px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '11px 16px',
+                borderRadius: '12px',
+                border: active ? '1px solid rgba(21, 136, 199, 0.35)' : '1px solid transparent',
+                backgroundColor: active ? 'rgba(21, 136, 199, 0.1)' : 'transparent',
+                color: active ? 'var(--primary)' : 'var(--text-secondary)',
+                fontSize: '13.5px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Icon size={16} />
+              <span>{lang === 'ar' ? tab.labelAr : tab.labelEn}</span>
+              {tab.badge !== null && (
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    backgroundColor:
+                      tab.badgeTone === 'amber'
+                        ? 'rgba(245, 158, 11, 0.18)'
+                        : tab.badgeTone === 'emerald'
+                          ? 'rgba(16, 185, 129, 0.16)'
+                          : 'var(--bg-subtle)',
+                    color:
+                      tab.badgeTone === 'amber'
+                        ? '#B45309'
+                        : tab.badgeTone === 'emerald'
+                          ? '#047857'
+                          : 'var(--text-secondary)',
+                  }}
+                >
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* TAB 1: AUTOMATIC TOP REPUBLIC LEAGUE NOMINEES PENDING ADMIN APPROVAL   */}
+      {/* TAB 1: TOP-2 AUTO-NOMINEES (#1 & #2 ONLY) WITH EMAIL, PHONE & WHATSAPP */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeSubTab === 'nominees' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1286,13 +1637,13 @@ export const AdminChampionsManager = () => {
               borderRadius: '16px',
             }}
           >
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
               <strong style={{ color: 'var(--text-primary)' }}>
-                {lang === 'ar' ? 'الرصد التلقائي للأوائل: ' : 'Auto-Detected Top Performers: '}
+                {lang === 'ar' ? 'ترشيح المركز الأول والثاني فقط من كل صف: ' : 'Top-2 Only Per Grade (#1 & #2): '}
               </strong>
               {lang === 'ar'
-                ? 'يتم سحب أعلى الطلاب ترتيباً في دوري الجمهورية تلقائياً لكل صف — اضغط على "مراجعة واعتماد للسلايدر" لتعديل البيانات أو رفع صورة مناسبة قبل النشر.'
-                : 'Top Republic League students are surfaced automatically per grade — review, edit text or upload a clean portrait before publishing to the homepage slider.'}
+                ? 'تظهر بيانات التواصل (الإيميل ورقم الهاتف) مباشرة لطلب صورة شخصية مناسبة من الطالب قبل تعديل البطاقة والموافقة على عرضها في السلايدر.'
+                : 'Email and phone are shown directly so you can request a crisp portrait from each winner before publishing to the homepage slider.'}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -1309,7 +1660,7 @@ export const AdminChampionsManager = () => {
                     setNomineesPage(1);
                   }}
                   style={{
-                    padding: '7px 12px',
+                    padding: '7px 13px',
                     borderRadius: '9px',
                     border: nomineeStatusFilter === st.id ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
                     backgroundColor: nomineeStatusFilter === st.id ? 'var(--primary)' : 'var(--bg-subtle)',
@@ -1327,13 +1678,13 @@ export const AdminChampionsManager = () => {
 
           {nomineesLoading ? (
             <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', borderRadius: '18px', border: '1px solid var(--border-subtle)' }}>
-              {lang === 'ar' ? 'جاري رصد أوائل دوري الجمهورية...' : 'Detecting Republic League top performers...'}
+              {lang === 'ar' ? 'جاري رصد أوائل دوري الجمهورية (الأول والثاني)...' : 'Detecting Top-2 Republic League nominees...'}
             </div>
           ) : nominees.length === 0 ? (
             <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', borderRadius: '18px', border: '1px solid var(--border-subtle)' }}>
               <Crown size={36} style={{ opacity: 0.35, marginBottom: '10px' }} />
               <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                {lang === 'ar' ? 'لا يوجد مرشحون مطابقون لهذا الفلتر حالياً' : 'No matching nominees found'}
+                {lang === 'ar' ? 'لا يوجد مرشحون مطابقون لهذا الفلتر حالياً' : 'No matching Top-2 nominees found'}
               </div>
               <div style={{ fontSize: '13px' }}>
                 {lang === 'ar'
@@ -1342,13 +1693,17 @@ export const AdminChampionsManager = () => {
               </div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 380px), 1fr))', gap: '18px' }}>
               {nominees.map((entry) => {
                 const rankVis = getRankVisual(entry.rank);
                 const isApprovedPinned = entry.approvalStatus === 'approved_pinned';
                 const isApprovedHidden = entry.approvalStatus === 'approved_hidden';
                 const tierStyle = TIER_STYLES[entry.tier] || TIER_STYLES.bronze;
                 const displayImg = entry.existingChampion?.image || entry.avatar;
+                const contactPhone = entry.phone || entry.parentPhone || null;
+                const isParentPhone = !entry.phone && Boolean(entry.parentPhone);
+                const waUrl = buildWhatsAppLink(contactPhone, entry.name, entry.rank, entry.gradeAr);
+                const mailUrl = buildMailtoLink(entry.email, entry.name, entry.rank, entry.gradeAr);
 
                 return (
                   <div
@@ -1357,21 +1712,21 @@ export const AdminChampionsManager = () => {
                       backgroundColor: 'var(--bg-surface)',
                       border: isApprovedPinned
                         ? '1.5px solid rgba(16, 185, 129, 0.45)'
-                        : entry.rank === 1
-                          ? '1.5px solid rgba(245, 158, 11, 0.4)'
-                          : '1px solid var(--border-subtle)',
-                      borderRadius: '18px',
+                        : `1.5px solid ${rankVis.border}`,
+                      borderRadius: '20px',
                       overflow: 'hidden',
                       display: 'flex',
                       flexDirection: 'column',
-                      boxShadow: 'var(--shadow-sm)',
+                      boxShadow: entry.rank === 1
+                        ? '0 10px 28px rgba(245, 158, 11, 0.1)'
+                        : '0 6px 20px rgba(6, 37, 78, 0.05)',
                     }}
                   >
-                    {/* Card Header Strip */}
+                    {/* Top Podium Strip */}
                     <div
                       style={{
-                        padding: '10px 14px',
-                        backgroundColor: isApprovedPinned ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-subtle)',
+                        padding: '11px 16px',
+                        backgroundColor: isApprovedPinned ? 'rgba(16, 185, 129, 0.08)' : rankVis.softBg,
                         borderBottom: '1px solid var(--border-subtle)',
                         display: 'flex',
                         alignItems: 'center',
@@ -1379,10 +1734,13 @@ export const AdminChampionsManager = () => {
                         gap: '8px',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                         <span
                           style={{
-                            padding: '3px 9px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '4px 10px',
                             borderRadius: '999px',
                             background: rankVis.bg,
                             color: rankVis.color,
@@ -1391,15 +1749,16 @@ export const AdminChampionsManager = () => {
                             flexShrink: 0,
                           }}
                         >
-                          {rankVis.label}
+                          {entry.rank === 1 ? <Crown size={12} /> : <Medal size={12} />}
+                          <span>{lang === 'ar' ? rankVis.titleAr : rankVis.titleEn}</span>
                         </span>
                         <span
                           style={{
                             fontSize: '11.5px',
-                            fontWeight: '700',
+                            fontWeight: '800',
                             color: 'var(--primary)',
                             backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                            padding: '3px 9px',
+                            padding: '4px 10px',
                             borderRadius: '999px',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -1415,7 +1774,7 @@ export const AdminChampionsManager = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '4px',
-                          padding: '3px 9px',
+                          padding: '4px 10px',
                           borderRadius: '999px',
                           fontSize: '11px',
                           fontWeight: '800',
@@ -1441,27 +1800,27 @@ export const AdminChampionsManager = () => {
                         ) : (
                           <>
                             <Clock size={12} />
-                            <span>{lang === 'ar' ? 'بانتظار الموافقة' : 'Needs Approval'}</span>
+                            <span>{lang === 'ar' ? 'بانتظار الموافقة' : 'Pending Approval'}</span>
                           </>
                         )}
                       </span>
                     </div>
 
-                    {/* Student Info */}
-                    <div style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    {/* Student Identity */}
+                    <div style={{ padding: '16px 16px 12px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                       <div
                         style={{
-                          width: '64px',
-                          height: '64px',
-                          borderRadius: '16px',
+                          width: '68px',
+                          height: '68px',
+                          borderRadius: '18px',
                           overflow: 'hidden',
-                          border: `2px solid ${rankVis.ring}`,
+                          border: `2.5px solid ${rankVis.ring}`,
                           backgroundColor: 'var(--bg-subtle)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
-                          fontSize: '20px',
+                          fontSize: '21px',
                           fontWeight: '800',
                           color: 'var(--primary)',
                         }}
@@ -1481,23 +1840,24 @@ export const AdminChampionsManager = () => {
                       </div>
 
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {entry.name}
                         </div>
                         <div style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          {entry.studentCode} {entry.trackAr ? `• ${entry.trackAr}` : ''}
+                          <span style={{ fontFamily: 'monospace' }}>{entry.studentCode}</span>
+                          {entry.trackAr ? ` • ${entry.trackAr}` : ''}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           <School size={13} style={{ flexShrink: 0 }} />
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.schoolDisplay}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Metrics Strip */}
+                    {/* Score / Streak / Tier Row */}
                     <div
                       style={{
-                        margin: '0 16px 14px',
+                        margin: '0 16px 12px',
                         padding: '10px 12px',
                         borderRadius: '12px',
                         backgroundColor: 'var(--bg-subtle)',
@@ -1505,21 +1865,22 @@ export const AdminChampionsManager = () => {
                         gridTemplateColumns: '1fr 1fr 1fr',
                         gap: '8px',
                         textAlign: 'center',
+                        alignItems: 'center',
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--primary)' }}>
                           {Number(entry.xpPoints || 0).toLocaleString()}
                         </div>
-                        <div style={{ fontSize: '10.5px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '10.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
                           {lang === 'ar' ? 'نقطة XP' : 'XP Points'}
                         </div>
                       </div>
                       <div style={{ borderInline: '1px solid var(--border-subtle)' }}>
-                        <div style={{ fontSize: '14px', fontWeight: '800', color: '#D97706' }}>
+                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#D97706' }}>
                           {entry.streakDays || 0}
                         </div>
-                        <div style={{ fontSize: '10.5px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '10.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
                           {lang === 'ar' ? 'يوم استريك' : 'Streak'}
                         </div>
                       </div>
@@ -1527,7 +1888,7 @@ export const AdminChampionsManager = () => {
                         <span
                           style={{
                             display: 'inline-block',
-                            padding: '3px 8px',
+                            padding: '3px 9px',
                             borderRadius: '8px',
                             fontSize: '11px',
                             fontWeight: '800',
@@ -1538,6 +1899,156 @@ export const AdminChampionsManager = () => {
                         >
                           {entry.tierLabelAr}
                         </span>
+                      </div>
+                    </div>
+
+                    {/* Direct Admin Contact Box (Email & Phone to request a clear photo!) */}
+                    <div
+                      style={{
+                        margin: '0 16px 14px',
+                        padding: '11px 13px',
+                        borderRadius: '13px',
+                        backgroundColor: 'rgba(21, 136, 199, 0.05)',
+                        border: '1px solid rgba(21, 136, 199, 0.18)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                      }}
+                    >
+                      <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>{lang === 'ar' ? 'بيانات التواصل لطلب صورة شخصية مناسبة' : 'Direct Contact (Request Portrait)'}</span>
+                      </div>
+
+                      {/* Email Row */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
+                          <Mail size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
+                          <span
+                            dir="ltr"
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              color: entry.email ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {entry.email || (lang === 'ar' ? 'لا يوجد إيميل مسجل' : 'No email')}
+                          </span>
+                        </div>
+                        {entry.email && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(entry.email, `email-${entry.studentId}`, lang === 'ar' ? 'البريد الإلكتروني' : 'Email')}
+                              title={lang === 'ar' ? 'نسخ الإيميل' : 'Copy Email'}
+                              style={{
+                                width: '27px',
+                                height: '27px',
+                                borderRadius: '7px',
+                                border: '1px solid var(--border-subtle)',
+                                backgroundColor: 'var(--bg-surface)',
+                                color: copiedKey === `email-${entry.studentId}` ? '#059669' : 'var(--text-secondary)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {copiedKey === `email-${entry.studentId}` ? <Check size={13} /> : <Copy size={13} />}
+                            </button>
+                            {mailUrl && (
+                              <a
+                                href={mailUrl}
+                                title={lang === 'ar' ? 'إرسال بريد بطلب صورة' : 'Send email'}
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: '7px',
+                                  border: '1px solid rgba(21, 136, 199, 0.3)',
+                                  backgroundColor: 'var(--bg-surface)',
+                                  color: 'var(--primary)',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  textDecoration: 'none',
+                                }}
+                              >
+                                {lang === 'ar' ? 'مراسلة' : 'Mail'}
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Phone Row */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
+                          <Phone size={14} color="#059669" style={{ flexShrink: 0 }} />
+                          <span
+                            dir="ltr"
+                            style={{
+                              fontSize: '12.5px',
+                              fontWeight: '800',
+                              color: contactPhone ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {contactPhone || (lang === 'ar' ? 'لا يوجد رقم هاتف مسجل' : 'No phone')}
+                          </span>
+                          {isParentPhone && (
+                            <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                              ({lang === 'ar' ? 'ولي الأمر' : 'Parent'})
+                            </span>
+                          )}
+                        </div>
+                        {contactPhone && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(contactPhone, `phone-${entry.studentId}`, lang === 'ar' ? 'رقم الهاتف' : 'Phone')}
+                              title={lang === 'ar' ? 'نسخ الرقم' : 'Copy Phone'}
+                              style={{
+                                width: '27px',
+                                height: '27px',
+                                borderRadius: '7px',
+                                border: '1px solid var(--border-subtle)',
+                                backgroundColor: 'var(--bg-surface)',
+                                color: copiedKey === `phone-${entry.studentId}` ? '#059669' : 'var(--text-secondary)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {copiedKey === `phone-${entry.studentId}` ? <Check size={13} /> : <Copy size={13} />}
+                            </button>
+                            {waUrl && (
+                              <a
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={lang === 'ar' ? 'طلب صورة عبر واتساب' : 'Request photo on WhatsApp'}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '4px 9px',
+                                  borderRadius: '7px',
+                                  backgroundColor: '#16A34A',
+                                  color: '#FFFFFF',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  textDecoration: 'none',
+                                }}
+                              >
+                                <MessageCircle size={12} />
+                                <span>{lang === 'ar' ? 'واتساب' : 'WhatsApp'}</span>
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1561,17 +2072,17 @@ export const AdminChampionsManager = () => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '7px',
-                          padding: '9px 14px',
-                          borderRadius: '10px',
+                          padding: '10px 14px',
+                          borderRadius: '11px',
                           border: 'none',
                           backgroundColor: isApprovedPinned ? 'rgba(21, 136, 199, 0.12)' : 'var(--primary)',
                           color: isApprovedPinned ? 'var(--primary)' : '#FFFFFF',
-                          fontSize: '12.5px',
+                          fontSize: '13px',
                           fontWeight: '800',
                           cursor: 'pointer',
                         }}
                       >
-                        {isApprovedPinned ? <Edit3 size={14} /> : <CheckCircle size={14} />}
+                        {isApprovedPinned ? <Edit3 size={14} /> : <CheckCircle size={15} />}
                         <span>
                           {isApprovedPinned
                             ? (lang === 'ar' ? 'تعديل البيانات والصورة' : 'Edit Card & Photo')
@@ -1585,9 +2096,9 @@ export const AdminChampionsManager = () => {
                           onClick={() => handleTogglePin(entry.championUuid)}
                           title={isApprovedPinned ? (lang === 'ar' ? 'إخفاء من السلايدر' : 'Hide from Slider') : (lang === 'ar' ? 'إظهار بالسلايدر' : 'Show on Slider')}
                           style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '10px',
+                            width: '38px',
+                            height: '38px',
+                            borderRadius: '11px',
                             border: '1px solid var(--border-subtle)',
                             backgroundColor: 'var(--bg-subtle)',
                             color: isApprovedPinned ? '#047857' : 'var(--text-secondary)',
@@ -1616,7 +2127,7 @@ export const AdminChampionsManager = () => {
               setNomineesPerPage(n);
               setNomineesPage(1);
             }}
-            perPageOptions={[6, 9, 15, 24]}
+            perPageOptions={[6, 12, 24]}
             lang={lang}
             isRtl={isRtl}
           />
@@ -1624,11 +2135,10 @@ export const AdminChampionsManager = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* TAB 2: LIVE REPUBLIC LEAGUE STANDINGS TABLE WITH SEARCH & PAGINATION   */}
+      {/* TAB 2: LIVE REPUBLIC LEAGUE STANDINGS TABLE WITH CONTACT & PAGINATION  */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeSubTab === 'leaderboard' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Search & Filter Toolbar */}
           <div
             style={{
               display: 'flex',
@@ -1642,7 +2152,7 @@ export const AdminChampionsManager = () => {
               borderRadius: '16px',
             }}
           >
-            <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '420px' }}>
+            <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '430px' }}>
               <Search
                 size={16}
                 style={{
@@ -1659,7 +2169,7 @@ export const AdminChampionsManager = () => {
                 type="text"
                 value={lbSearchInput}
                 onChange={(e) => setLbSearchInput(e.target.value)}
-                placeholder={lang === 'ar' ? 'ابحث باسم الطالب، الكود، المدرسة أو المحافظة...' : 'Search name, student code, school, or governorate...'}
+                placeholder={lang === 'ar' ? 'ابحث بالاسم، الكود، الإيميل، الهاتف، أو المدرسة...' : 'Search name, code, email, phone, or school...'}
                 style={{
                   width: '100%',
                   padding: isRtl ? '10px 38px 10px 14px' : '10px 14px 10px 38px',
@@ -1710,7 +2220,6 @@ export const AdminChampionsManager = () => {
             </div>
           </div>
 
-          {/* Standings Data Table */}
           <div
             style={{
               backgroundColor: 'var(--bg-surface)',
@@ -1721,17 +2230,17 @@ export const AdminChampionsManager = () => {
             }}
           >
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '820px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '940px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
                     {[
                       lang === 'ar' ? 'الترتيب' : 'Rank',
                       lang === 'ar' ? 'الطالب' : 'Student',
+                      lang === 'ar' ? 'التواصل (إيميل / هاتف)' : 'Contact',
                       lang === 'ar' ? 'الصف الدراسي' : 'Grade',
-                      lang === 'ar' ? 'المدرسة / المحافظة' : 'School / Governorate',
+                      lang === 'ar' ? 'المدرسة / المحافظة' : 'School',
                       lang === 'ar' ? 'النقاط والمستوى' : 'XP & Tier',
                       lang === 'ar' ? 'الامتحانات / الاستريك' : 'Exams / Streak',
-                      lang === 'ar' ? 'السلايدر' : 'Slider',
                       lang === 'ar' ? 'إجراء' : 'Action',
                     ].map((h) => (
                       <th
@@ -1768,14 +2277,14 @@ export const AdminChampionsManager = () => {
                       const rankVis = getRankVisual(row.rank);
                       const tierStyle = TIER_STYLES[row.tier] || TIER_STYLES.bronze;
                       const isPinned = row.approvalStatus === 'approved_pinned';
-                      const isHidden = row.approvalStatus === 'approved_hidden';
+                      const contactPhone = row.phone || row.parentPhone || null;
 
                       return (
                         <tr
                           key={row.studentId}
                           style={{
                             borderBottom: '1px solid var(--border-subtle)',
-                            backgroundColor: row.rank <= 3 ? 'rgba(245, 158, 11, 0.035)' : 'transparent',
+                            backgroundColor: row.rank <= 2 ? 'rgba(245, 158, 11, 0.045)' : 'transparent',
                           }}
                         >
                           <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
@@ -1841,6 +2350,63 @@ export const AdminChampionsManager = () => {
                             </div>
                           </td>
 
+                          <td style={{ padding: '12px 14px', fontSize: '12px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', maxWidth: '215px' }}>
+                              {row.email && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(row.email, `lb-email-${row.studentId}`, lang === 'ar' ? 'الإيميل' : 'Email')}
+                                  title={lang === 'ar' ? 'اضغط للنسخ' : 'Click to copy'}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    color: 'var(--text-primary)',
+                                    fontSize: '11.5px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    textAlign: 'start',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  <Mail size={12} color="var(--primary)" style={{ flexShrink: 0 }} />
+                                  <span dir="ltr" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.email}</span>
+                                </button>
+                              )}
+                              {contactPhone && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(contactPhone, `lb-phone-${row.studentId}`, lang === 'ar' ? 'الهاتف' : 'Phone')}
+                                  title={lang === 'ar' ? 'اضغط للنسخ' : 'Click to copy'}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    color: '#047857',
+                                    fontSize: '11.5px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    textAlign: 'start',
+                                  }}
+                                >
+                                  <Phone size={12} style={{ flexShrink: 0 }} />
+                                  <span dir="ltr">{contactPhone}</span>
+                                </button>
+                              )}
+                              {!row.email && !contactPhone && (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '11.5px' }}>—</span>
+                              )}
+                            </div>
+                          </td>
+
                           <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                             <span
                               style={{
@@ -1855,14 +2421,9 @@ export const AdminChampionsManager = () => {
                             >
                               {getShortGradeLabel(row.gradeAr)}
                             </span>
-                            {row.trackAr && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                                {row.trackAr}
-                              </div>
-                            )}
                           </td>
 
-                          <td style={{ padding: '12px 14px', fontSize: '12.5px', color: 'var(--text-secondary)', maxWidth: '200px' }}>
+                          <td style={{ padding: '12px 14px', fontSize: '12.5px', color: 'var(--text-secondary)', maxWidth: '175px' }}>
                             <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {row.schoolDisplay}
                             </div>
@@ -1891,45 +2452,12 @@ export const AdminChampionsManager = () => {
                           <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', fontSize: '12px' }}>
                             <div style={{ color: 'var(--text-primary)', fontWeight: '700' }}>
                               {row.examsSolved} {lang === 'ar' ? 'امتحان' : 'exams'}
-                              {row.perfectExams > 0 && (
-                                <span style={{ color: '#059669', marginInlineStart: '4px' }}>
-                                  ({row.perfectExams}★)
-                                </span>
-                              )}
+                              {row.perfectExams > 0 && <span style={{ color: '#059669', marginInlineStart: '4px' }}>({row.perfectExams}★)</span>}
                             </div>
                             <div style={{ color: '#D97706', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
                               <Flame size={12} />
                               <span>{row.streakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
                             </div>
-                          </td>
-
-                          <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '4px 9px',
-                                borderRadius: '999px',
-                                fontSize: '11px',
-                                fontWeight: '800',
-                                backgroundColor: isPinned
-                                  ? 'rgba(16, 185, 129, 0.14)'
-                                  : isHidden
-                                    ? 'rgba(100, 116, 139, 0.14)'
-                                    : 'var(--bg-subtle)',
-                                color: isPinned ? '#047857' : isHidden ? '#475569' : 'var(--text-secondary)',
-                              }}
-                            >
-                              {isPinned ? <Eye size={11} /> : isHidden ? <EyeOff size={11} /> : <Clock size={11} />}
-                              <span>
-                                {isPinned
-                                  ? (lang === 'ar' ? 'معروض' : 'Live')
-                                  : isHidden
-                                    ? (lang === 'ar' ? 'مخفي' : 'Hidden')
-                                    : (lang === 'ar' ? 'غير معتمد' : 'Not Approved')}
-                              </span>
-                            </span>
                           </td>
 
                           <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
@@ -1942,16 +2470,16 @@ export const AdminChampionsManager = () => {
                                 gap: '5px',
                                 padding: '7px 12px',
                                 borderRadius: '9px',
-                                border: isPinned ? '1px solid var(--border-subtle)' : 'none',
-                                backgroundColor: isPinned ? 'var(--bg-subtle)' : 'var(--primary)',
-                                color: isPinned ? 'var(--text-primary)' : '#FFFFFF',
+                                border: isPinned ? '1px solid rgba(16, 185, 129, 0.35)' : 'none',
+                                backgroundColor: isPinned ? 'rgba(16, 185, 129, 0.12)' : 'var(--primary)',
+                                color: isPinned ? '#047857' : '#FFFFFF',
                                 fontSize: '12px',
                                 fontWeight: '700',
                                 cursor: 'pointer',
                               }}
                             >
                               {isPinned ? <Edit3 size={13} /> : <CheckCircle size={13} />}
-                              <span>{isPinned ? (lang === 'ar' ? 'تعديل' : 'Edit') : (lang === 'ar' ? 'اعتماد للسلايدر' : 'Approve')}</span>
+                              <span>{isPinned ? (lang === 'ar' ? 'معروض • تعديل' : 'Live • Edit') : (lang === 'ar' ? 'اعتماد للسلايدر' : 'Approve')}</span>
                             </button>
                           </td>
                         </tr>
@@ -1983,7 +2511,6 @@ export const AdminChampionsManager = () => {
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {activeSubTab === 'slider' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Search & Filter Toolbar */}
           <div
             style={{
               display: 'flex',
@@ -2086,11 +2613,11 @@ export const AdminChampionsManager = () => {
               <div style={{ fontSize: '13px' }}>
                 {lang === 'ar'
                   ? 'يمكنك اعتماد أحد أوائل دوري الجمهورية مباشرة أو الضغط على "إضافة بطل يدوياً".'
-                  : 'Approve top Republic League nominees or click Add Champion to get started.'}
+                  : 'Approve Top-2 Republic League nominees or click Add Champion to get started.'}
               </div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 295px), 1fr))', gap: '18px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '18px' }}>
               {champions.map((champ) => {
                 const isPinned = champ.isPinned !== false;
                 return (
@@ -2101,7 +2628,7 @@ export const AdminChampionsManager = () => {
                       border: isPinned ? '1.5px solid rgba(21, 136, 199, 0.35)' : '1px solid var(--border-subtle)',
                       borderRadius: '18px',
                       overflow: 'hidden',
-                      boxShadow: isPinned ? '0 4px 20px rgba(21, 136, 199, 0.08)' : 'var(--shadow-sm)',
+                      boxShadow: isPinned ? '0 6px 22px rgba(21, 136, 199, 0.08)' : 'var(--shadow-sm)',
                       display: 'flex',
                       flexDirection: 'column',
                     }}
@@ -2145,8 +2672,8 @@ export const AdminChampionsManager = () => {
                       <div
                         style={{
                           position: 'relative',
-                          width: '72px',
-                          height: '72px',
+                          width: '74px',
+                          height: '74px',
                           borderRadius: '18px',
                           overflow: 'hidden',
                           border: '2px solid var(--primary)',
@@ -2326,7 +2853,7 @@ export const AdminChampionsManager = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 1: REVIEW / APPROVE / EDIT CHAMPION + REAL PHOTO UPLOAD          */}
+      {/* MODAL 1: REVIEW / APPROVE / EDIT CHAMPION + CONTACT + PHOTO UPLOAD     */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {isModalOpen && (
         <div
@@ -2349,16 +2876,16 @@ export const AdminChampionsManager = () => {
               border: '1.5px solid var(--border-subtle)',
               borderRadius: '24px',
               width: '100%',
-              maxWidth: '780px',
+              maxWidth: '790px',
               maxHeight: '92vh',
               overflowY: 'auto',
               padding: '26px',
               boxShadow: 'var(--shadow-xl)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: 'rgba(21, 136, 199, 0.12)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(21, 136, 199, 0.12)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {modalMode === 'approve' ? <CheckCircle2 size={20} /> : <Trophy size={20} />}
                 </div>
                 <div>
@@ -2371,8 +2898,8 @@ export const AdminChampionsManager = () => {
                   </h3>
                   <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
                     {lang === 'ar'
-                      ? 'يمكنك تعديل أي بيانات نصية أو رفع صورة جديدة واضحة ومناسبة قبل العرض في الصفحة الرئيسية'
-                      : 'Customize text fields or upload a clean portrait before displaying on the landing page slider'}
+                      ? 'يمكنك التواصل مع الطالب لطلب صورة جديدة، تعديل أي بيانات نصية، أو رفع صورة مناسبة قبل النشر'
+                      : 'Contact the student for a portrait, edit text fields, or upload a clean photo before publishing'}
                   </p>
                 </div>
               </div>
@@ -2384,6 +2911,85 @@ export const AdminChampionsManager = () => {
                 <X size={20} />
               </button>
             </div>
+
+            {/* Quick Student Contact Strip inside Modal */}
+            {modalContactInfo && (modalContactInfo.email || modalContactInfo.phone) && (
+              <div
+                style={{
+                  marginBottom: '16px',
+                  padding: '12px 15px',
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.07)',
+                  border: '1px solid rgba(21, 136, 199, 0.22)',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', fontSize: '12.5px' }}>
+                  {modalContactInfo.email && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                      <Mail size={14} color="var(--primary)" />
+                      <span dir="ltr">{modalContactInfo.email}</span>
+                    </span>
+                  )}
+                  {modalContactInfo.phone && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '800', color: '#047857' }}>
+                      <Phone size={14} />
+                      <span dir="ltr">{modalContactInfo.phone}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  {modalContactInfo.phone && (
+                    <a
+                      href={buildWhatsAppLink(modalContactInfo.phone, modalContactInfo.name, modalContactInfo.rank, modalContactInfo.gradeAr)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '6px 11px',
+                        borderRadius: '9px',
+                        backgroundColor: '#16A34A',
+                        color: '#FFFFFF',
+                        fontSize: '11.5px',
+                        fontWeight: '800',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <MessageCircle size={13} />
+                      <span>{lang === 'ar' ? 'طلب صورة عبر واتساب' : 'Request Photo (WhatsApp)'}</span>
+                    </a>
+                  )}
+                  {modalContactInfo.email && (
+                    <a
+                      href={buildMailtoLink(modalContactInfo.email, modalContactInfo.name, modalContactInfo.rank, modalContactInfo.gradeAr)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '6px 11px',
+                        borderRadius: '9px',
+                        border: '1px solid rgba(21, 136, 199, 0.3)',
+                        backgroundColor: 'var(--bg-surface)',
+                        color: 'var(--primary)',
+                        fontSize: '11.5px',
+                        fontWeight: '800',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <Mail size={13} />
+                      <span>{lang === 'ar' ? 'إرسال إيميل' : 'Send Email'}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSaveChampion} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Live Slider Card Preview + Photo Uploader */}
@@ -2398,7 +3004,6 @@ export const AdminChampionsManager = () => {
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                {/* Live Mini Preview */}
                 <div
                   style={{
                     backgroundColor: 'var(--bg-surface)',
@@ -2454,7 +3059,6 @@ export const AdminChampionsManager = () => {
                   </div>
                 </div>
 
-                {/* Upload Photo Controls */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', justifyContent: 'center' }}>
                   <label style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <ImageIcon size={15} color="var(--primary)" />
@@ -2543,7 +3147,6 @@ export const AdminChampionsManager = () => {
                 </div>
               </div>
 
-              {/* Name & Grade */}
               <div className="responsive-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
@@ -2585,7 +3188,6 @@ export const AdminChampionsManager = () => {
                 </div>
               </div>
 
-              {/* School & League Month */}
               <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
@@ -2611,7 +3213,6 @@ export const AdminChampionsManager = () => {
                 </div>
               </div>
 
-              {/* Score / Rank / Streak */}
               <div className="responsive-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
@@ -2675,7 +3276,6 @@ export const AdminChampionsManager = () => {
                 </div>
               </div>
 
-              {/* Cup / Badge Picker */}
               <div>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
                   {lang === 'ar' ? 'وسام / كأس التكريم' : 'Cup / Honor Badge'}
@@ -2711,7 +3311,6 @@ export const AdminChampionsManager = () => {
                 </div>
               </div>
 
-              {/* Publish to Homepage Slider Toggle */}
               <div
                 style={{
                   display: 'flex',
@@ -2792,7 +3391,224 @@ export const AdminChampionsManager = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 2: LAUNCH REPUBLIC LEAGUE ROUND (ALL 6 GRADES OR SPECIFIC GRADE) */}
+      {/* MODAL 2: ANNOUNCE LEAGUE END & EARLY HONORING CEREMONY                 */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {announceEndTarget && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(6, 37, 78, 0.58)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '18px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1.5px solid rgba(245, 158, 11, 0.4)',
+              borderRadius: '24px',
+              width: '100%',
+              maxWidth: '580px',
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              padding: '26px',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Megaphone size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    {lang === 'ar' ? 'إعلان انتهاء دوري الجمهورية وبدء التكريم' : 'Announce League Conclusion & Honoring'}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {announceEndTarget.titleAr} • {lang === 'ar' ? announceEndTarget.dayProgressLabelAr : announceEndTarget.dayProgressLabelEn}
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setAnnounceEndTarget(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmAnnounceEnd} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {announceEndTarget.isActive && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={announceForm.end_now}
+                    onChange={(e) => setAnnounceForm({ ...announceForm, end_now: e.target.checked })}
+                    style={{ width: '18px', height: '18px', marginTop: '2px', accentColor: '#D97706' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {lang === 'ar'
+                        ? `إنهاء الجولة الآن قبل الموعد (اليوم ${announceEndTarget.currentDay} من ${announceEndTarget.totalDays})`
+                        : `End round early now (Day ${announceEndTarget.currentDay} of ${announceEndTarget.totalDays})`}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {lang === 'ar'
+                        ? 'سيتم تثبيت الترتيب النهائي فوراً وإتاحة شهادات التفوق والتكريم الرسمي للأوائل'
+                        : 'Locks final standings immediately and enables official honoring certificates'}
+                    </div>
+                  </div>
+                </label>
+              )}
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '11px 14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={announceForm.publish_announcement}
+                  onChange={(e) => setAnnounceForm({ ...announceForm, publish_announcement: e.target.checked })}
+                  style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {lang === 'ar' ? 'نشر إعلان رسمي في شريط إعلانات المنصة للطلاب بانتهاء الدوري والتكريم' : 'Broadcast live Platform Announcement to students'}
+                </span>
+              </label>
+
+              {announceForm.publish_announcement && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+                      {lang === 'ar' ? 'عنوان الإعلان الرسمي' : 'Announcement Title'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={announceForm.announcement_title_ar}
+                      onChange={(e) => setAnnounceForm({ ...announceForm, announcement_title_ar: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '13px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '5px' }}>
+                      {lang === 'ar' ? 'نص إعلان انتهاء الدوري والتكريم' : 'Announcement Message'}
+                    </label>
+                    <textarea
+                      rows={4}
+                      required
+                      value={announceForm.announcement_content_ar}
+                      onChange={(e) => setAnnounceForm({ ...announceForm, announcement_content_ar: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '13px', lineHeight: 1.6, resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="responsive-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
+                        {lang === 'ar' ? 'الجمهور المستهدف' : 'Audience'}
+                      </label>
+                      <select
+                        value={announceForm.audience}
+                        onChange={(e) => setAnnounceForm({ ...announceForm, audience: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '12.5px', fontWeight: '700' }}
+                      >
+                        <option value="all">{lang === 'ar' ? 'جميع المستخدمين' : 'All Users'}</option>
+                        <option value="students">{lang === 'ar' ? 'الطلاب فقط' : 'Students Only'}</option>
+                        <option value="parents">{lang === 'ar' ? 'أولياء الأمور' : 'Parents'}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
+                        {lang === 'ar' ? 'أولوية الإعلان' : 'Priority'}
+                      </label>
+                      <select
+                        value={announceForm.priority}
+                        onChange={(e) => setAnnounceForm({ ...announceForm, priority: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '12.5px', fontWeight: '700' }}
+                      >
+                        <option value="urgent">{lang === 'ar' ? 'عاجل ومميز' : 'Urgent'}</option>
+                        <option value="important">{lang === 'ar' ? 'مهم' : 'Important'}</option>
+                        <option value="normal">{lang === 'ar' ? 'عادي' : 'Normal'}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
+                        {lang === 'ar' ? 'مدة ظهور الإعلان' : 'Visible For'}
+                      </label>
+                      <select
+                        value={announceForm.display_days}
+                        onChange={(e) => setAnnounceForm({ ...announceForm, display_days: Number(e.target.value) })}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '9px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '12.5px', fontWeight: '700' }}
+                      >
+                        <option value={3}>{lang === 'ar' ? '3 أيام' : '3 Days'}</option>
+                        <option value={7}>{lang === 'ar' ? '7 أيام' : '7 Days'}</option>
+                        <option value={14}>{lang === 'ar' ? '14 يوماً' : '14 Days'}</option>
+                        <option value={30}>{lang === 'ar' ? '30 يوماً' : '30 Days'}</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setAnnounceEndTarget(null)}
+                  style={{ backgroundColor: 'transparent', border: '1px solid var(--border-subtle)', padding: '9px 18px', borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={leagueBusy}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '10px 22px',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    cursor: leagueBusy ? 'wait' : 'pointer',
+                  }}
+                >
+                  <Megaphone size={15} />
+                  <span>{leagueBusy ? (lang === 'ar' ? 'جاري التنفيذ...' : 'Processing...') : (lang === 'ar' ? 'تأكيد إعلان الانتهاء والتكريم' : 'Confirm & Broadcast')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* MODAL 3: LAUNCH REPUBLIC LEAGUE ROUND (ALL 6 GRADES OR SPECIFIC GRADE) */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {showLaunchModal && (
         <div
@@ -2897,7 +3713,7 @@ export const AdminChampionsManager = () => {
                 <button
                   type="submit"
                   disabled={leagueBusy}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#047857', color: '#FFFFFF', border: 'none', padding: '9px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', cursor: leagueBusy ? 'wait' : 'pointer' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#059669', color: '#FFFFFF', border: 'none', padding: '9px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', cursor: leagueBusy ? 'wait' : 'pointer' }}
                 >
                   <Play size={14} />
                   <span>{leagueBusy ? (lang === 'ar' ? 'جاري التشغيل...' : 'Launching...') : (lang === 'ar' ? 'إطلاق الدوري الآن' : 'Launch Now')}</span>
@@ -2909,7 +3725,7 @@ export const AdminChampionsManager = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 3: STOP ROUND CONFIRMATION                                       */}
+      {/* MODAL 4: SILENT STOP ROUND CONFIRMATION                                */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {confirmStopRound && (
         <div
@@ -2944,19 +3760,19 @@ export const AdminChampionsManager = () => {
               <Square size={24} />
             </div>
             <h3 style={{ margin: 0, fontSize: '17.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-              {lang === 'ar' ? 'تأكيد إنهاء جولة دوري الجمهورية' : 'Confirm Ending League Round'}
+              {lang === 'ar' ? 'إيقاف جولة دوري الجمهورية' : 'Stop League Round'}
             </h3>
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
               {lang === 'ar'
-                ? `هل تريد إنهاء جولة "${confirmStopRound.titleAr}" الآن؟ سيظل الترتيب النهائي وأوائل الدوري متاحين للاعتماد في السلايدر.`
-                : `End "${confirmStopRound.titleAr}" now? Final standings and top nominees will remain available for slider approval.`}
+                ? `هل تريد إيقاف جولة «${confirmStopRound.titleAr}» الآن بدون بث إعلان؟ يمكنك استخدام زر "إعلان انتهاء الدوري والتكريم" إذا أردت إرسال تنبيه للطلاب.`
+                : `Stop "${confirmStopRound.titleAr}" without broadcasting an announcement?`}
             </p>
             <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
               <button type="button" onClick={() => setConfirmStopRound(null)} style={{ flex: 1, padding: '10px', borderRadius: '11px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontWeight: '700', cursor: 'pointer' }}>
                 {lang === 'ar' ? 'تراجع' : 'Cancel'}
               </button>
               <button type="button" disabled={leagueBusy} onClick={handleConfirmStopLeague} style={{ flex: 1, padding: '10px', borderRadius: '11px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: '800', cursor: 'pointer' }}>
-                {lang === 'ar' ? 'إنهاء الجولة' : 'End Round'}
+                {lang === 'ar' ? 'إيقاف الجولة' : 'Stop Round'}
               </button>
             </div>
           </div>
@@ -2964,7 +3780,7 @@ export const AdminChampionsManager = () => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* MODAL 4: DELETE CHAMPION CONFIRMATION                                  */}
+      {/* MODAL 5: DELETE CHAMPION CONFIRMATION                                  */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {championToDelete && (
         <div
