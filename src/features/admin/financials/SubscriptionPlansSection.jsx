@@ -13,6 +13,7 @@ import {
   EyeOff,
   X,
 } from 'lucide-react';
+import { InfoTooltip } from './InfoTooltip';
 
 export const SubscriptionPlansSection = ({
   plans = [],
@@ -179,15 +180,18 @@ export const SubscriptionPlansSection = ({
           >
             <Layers size={22} />
           </div>
-          <div>
-            <h3 style={{ margin: '0 0 4px', fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {isAr ? 'باقات المنصة الرسمية ومزاياها وأسعارها (من قاعدة البيانات)' : 'Official DB Subscription Plans, Features & Prices'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
+              {isAr ? 'الباقات والأسعار' : 'Plans & Pricing'}
             </h3>
-            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-              {isAr
-                ? 'تعرض الأسعار الفعلية (شهري • ترم 5 شهور • سنوي) وجميع المزايا المخزنة في قاعدة البيانات وتنعكس فوراً في بوابات الطلاب والمعلمين والسناتر.'
-                : 'Live Monthly, Semester (5-Mo), and Annual prices & features synced directly with all portals.'}
-            </p>
+            <InfoTooltip
+              size={14}
+              text={
+                isAr
+                  ? 'الأسعار الفعلية (شهري • ترم 5 شهور • سنوي) وجميع المزايا المخزنة في قاعدة البيانات وتنعكس فوراً في بوابات الطلاب والمعلمين والسناتر.'
+                  : 'Live Monthly, Semester (5-Mo), and Annual prices & features synced directly with all portals.'
+              }
+            />
           </div>
         </div>
 
@@ -211,7 +215,7 @@ export const SubscriptionPlansSection = ({
             }}
           >
             <RefreshCw size={14} />
-            <span>{isAr ? 'استعادة مزايا وأسعار المنصة الأصلية' : 'Restore Official Defaults'}</span>
+            <span>{isAr ? 'استعادة الافتراضي' : 'Restore Defaults'}</span>
           </button>
 
           <button

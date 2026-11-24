@@ -15,6 +15,7 @@ import {
   X,
   AlertCircle,
 } from 'lucide-react';
+import { InfoTooltip } from './InfoTooltip';
 
 const EXPENSE_CATEGORIES = [
   { id: 'hosting', labelAr: 'سيرفرات واستضافة ودومين', labelEn: 'Servers & Hosting', icon: Server, color: '#1588C7', bg: 'rgba(21, 136, 199, 0.12)' },
@@ -292,15 +293,21 @@ export const ManualExpensesSection = ({
           gap: '14px',
         }}
       >
-        <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
-            {isAr ? 'سجل التكاليف والمصروفات اليدوية' : 'Manual Costs & Expenses Ledger'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
+            {isAr ? 'التكاليف اليدوية' : 'Manual Costs'}
           </h3>
-          <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-            {isAr
-              ? `إجمالي التكاليف اليدوية المسجلة: ${Number(expensesSummary?.totalEgp || 0).toLocaleString()} ${cur} (${expenses.length} بند) — تُخصم تلقائياً لحساب صافي ربح المنصة.`
-              : `Total manual costs: ${Number(expensesSummary?.totalEgp || 0).toLocaleString()} ${cur} — automatically deducted from Net Profit.`}
-          </p>
+          <InfoTooltip
+            size={14}
+            text={
+              isAr
+                ? `إجمالي التكاليف اليدوية: ${Number(expensesSummary?.totalEgp || 0).toLocaleString()} ${cur} (${expenses.length} بند) — تُخصم تلقائياً لحساب صافي ربح المنصة.`
+                : `Total manual costs: ${Number(expensesSummary?.totalEgp || 0).toLocaleString()} ${cur} — automatically deducted from Net Profit.`
+            }
+          />
+          <span style={{ padding: '4px 10px', borderRadius: '999px', backgroundColor: 'rgba(245, 158, 11, 0.14)', color: '#B45309', fontSize: '12px', fontWeight: '900' }}>
+            {Number(expensesSummary?.totalEgp || 0).toLocaleString()} {cur}
+          </span>
         </div>
 
         <button
@@ -322,7 +329,7 @@ export const ManualExpensesSection = ({
           }}
         >
           <Plus size={16} />
-          <span>{isAr ? 'إضافة تكلفة جديدة + ملاحظة' : 'Add Cost + Note'}</span>
+          <span>{isAr ? 'إضافة تكلفة' : 'Add Cost'}</span>
         </button>
       </div>
 

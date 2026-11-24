@@ -8,6 +8,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { InfoTooltip } from './InfoTooltip';
 
 export const PayoutsSection = ({
   payouts = [],
@@ -54,13 +55,18 @@ export const PayoutsSection = ({
   return (
     <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '20px', padding: '22px', boxShadow: 'var(--shadow-xs)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-        <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
-            {isAr ? 'طلبات سحب وتسوية أرباح المعلمين والسناتر' : 'Teacher & Center Payout Requests'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
+            {isAr ? 'التسويات' : 'Payouts'}
           </h3>
-          <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-            {isAr ? 'مراجعة المبالغ المستحقة واعتماد أو رفض التحويلات عبر فودافون كاش وإنستاباي والبنك' : 'Review, approve, or reject payout transfers'}
-          </p>
+          <InfoTooltip
+            size={14}
+            text={
+              isAr
+                ? 'طلبات سحب أرباح المعلمين والسناتر، مع إمكانية الاعتماد أو الرفض عبر فودافون كاش وإنستاباي والبنك.'
+                : 'Review, approve, or reject teacher & center payout transfers.'
+            }
+          />
         </div>
 
         <button
@@ -69,7 +75,7 @@ export const PayoutsSection = ({
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '11px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', boxShadow: 'var(--shadow-primary)' }}
         >
           <Plus size={16} />
-          <span>{isAr ? 'تسجيل طلب صرف جديد' : 'Record Payout'}</span>
+          <span>{isAr ? 'طلب صرف جديد' : 'New Payout'}</span>
         </button>
       </div>
 
@@ -306,13 +312,18 @@ export const CouponsSection = ({
   return (
     <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '20px', padding: '22px', boxShadow: 'var(--shadow-xs)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-        <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
-            {isAr ? 'كوبونات وأكواد الخصم الترويجية' : 'Platform Promo Codes & Coupons'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
+            {isAr ? 'الكوبونات' : 'Coupons'}
           </h3>
-          <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-            {isAr ? 'إنشاء وتفعيل وإيقاف كوبونات الاشتراك الترويجية عبر جميع البوابات' : 'Create, toggle, and delete discount codes'}
-          </p>
+          <InfoTooltip
+            size={14}
+            text={
+              isAr
+                ? 'إنشاء وتفعيل وإيقاف أكواد الخصم الترويجية للاشتراكات عبر جميع البوابات.'
+                : 'Create, toggle, and delete promotional discount codes across all portals.'
+            }
+          />
         </div>
 
         <button
@@ -321,7 +332,7 @@ export const CouponsSection = ({
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', color: '#FFFFFF', border: 'none', padding: '10px 16px', borderRadius: '11px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', boxShadow: 'var(--shadow-primary)' }}
         >
           <Plus size={16} />
-          <span>{isAr ? 'إنشاء كود خصم جديد' : 'New Promo Code'}</span>
+          <span>{isAr ? 'كود خصم جديد' : 'New Coupon'}</span>
         </button>
       </div>
 

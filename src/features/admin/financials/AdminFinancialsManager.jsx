@@ -36,6 +36,7 @@ export const AdminFinancialsManager = () => {
   // Shared Manual Expense Modal State (accessible from both Overview hero & Expenses tab)
   const [expenseModal, setExpenseModal] = useState({ open: false, expense: null });
   const [savingExpense, setSavingExpense] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
@@ -281,9 +282,9 @@ export const AdminFinancialsManager = () => {
   };
 
   const tabs = [
-    { id: 'overview', labelAr: 'الأرباح الحقيقية وتفصيل الفئات', labelEn: 'Real Profit & Role Breakdown', icon: TrendingUp },
-    { id: 'expenses', labelAr: `التكاليف اليدوية (${expenses.length})`, labelEn: `Manual Costs (${expenses.length})`, icon: Receipt },
-    { id: 'plans', labelAr: `باقات وأسعار المنصة (${plans.length})`, labelEn: `DB Plans (${plans.length})`, icon: Layers },
+    { id: 'overview', labelAr: 'الأرباح', labelEn: 'Profit', icon: TrendingUp },
+    { id: 'expenses', labelAr: `التكاليف (${expenses.length})`, labelEn: `Costs (${expenses.length})`, icon: Receipt },
+    { id: 'plans', labelAr: `الباقات (${plans.length})`, labelEn: `Plans (${plans.length})`, icon: Layers },
     { id: 'payouts', labelAr: `التسويات (${payouts.length})`, labelEn: `Payouts (${payouts.length})`, icon: ArrowUpRight },
     { id: 'coupons', labelAr: `الكوبونات (${coupons.length})`, labelEn: `Coupons (${coupons.length})`, icon: Ticket },
   ];
@@ -393,7 +394,10 @@ export const AdminFinancialsManager = () => {
 
         <button
           type="button"
-          onClick={loadAllFinancials}
+          onClick={() => {
+            loadAllFinancials();
+            setRefreshTick((t) => t + 1);
+          }}
           disabled={loading}
           style={{
             display: 'inline-flex',
@@ -410,7 +414,7 @@ export const AdminFinancialsManager = () => {
           }}
         >
           <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-          <span>{isAr ? 'تحديث الأرقام' : 'Refresh'}</span>
+          <span>{isAr ? 'تحديث' : 'Refresh'}</span>
         </button>
       </div>
 
@@ -421,6 +425,7 @@ export const AdminFinancialsManager = () => {
           lang={lang}
           isRtl={isRtl}
           loading={loading}
+          refreshTick={refreshTick}
           onOpenAddExpense={() => setExpenseModal({ open: true, expense: null })}
           onSwitchTab={setActiveTab}
         />
