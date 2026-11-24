@@ -612,10 +612,7 @@ export const AdminSystemSettings = () => {
                       </td>
                       <td style={{ padding: '10px 14px', color: 'var(--text-primary)' }}>
                         {log.actor ? (
-                          <div>
-                            <div style={{ fontWeight: '700' }}>{log.actor.name}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{log.actor.email}</div>
-                          </div>
+                          <div style={{ fontWeight: '700' }}>{log.actor.name}</div>
                         ) : (
                           <span style={{ color: 'var(--text-muted)' }}>System / Guest</span>
                         )}

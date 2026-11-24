@@ -1223,10 +1223,10 @@ export const AdminUsersManager = () => {
 
                       <td style={{ padding: '13px 14px', maxWidth: '250px' }}>
                         <div style={{ fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {(lang === 'ar' ? (u.detailsAr || u.details) : (u.detailsEn || u.details)) || u.email}
+                          {(lang === 'ar' ? (u.detailsAr || u.details) : (u.detailsEn || u.details)) || (u.role === 'admin' ? (lang === 'ar' ? 'الإدارة العليا' : 'Platform Admin') : u.email)}
                         </div>
                         <div dir="ltr" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: isRtl ? 'right' : 'left' }}>
-                          {u.email}{u.phone ? ` • ${u.phone}` : ''}
+                          {u.role === 'admin' ? (u.phone || '—') : `${u.email}${u.phone ? ` • ${u.phone}` : ''}`}
                         </div>
                       </td>
 
@@ -1953,16 +1953,18 @@ export const AdminUsersManager = () => {
                       <span>{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</span>
                     </div>
                     <div dir="ltr" style={{ fontWeight: '700', color: 'var(--primary)', fontSize: '12.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {selectedUserForDetails.email}
+                      {selectedUserForDetails.role === 'admin' ? (lang === 'ar' ? 'محمي' : 'Protected') : selectedUserForDetails.email}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(selectedUserForDetails.email, 'detail-email', lang === 'ar' ? 'البريد الإلكتروني' : 'Email')}
-                    style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', color: copiedKey === 'detail-email' ? '#059669' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-                  >
-                    {copiedKey === 'detail-email' ? <Check size={13} /> : <Copy size={13} />}
-                  </button>
+                  {selectedUserForDetails.role !== 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(selectedUserForDetails.email, 'detail-email', lang === 'ar' ? 'البريد الإلكتروني' : 'Email')}
+                      style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)', color: copiedKey === 'detail-email' ? '#059669' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      {copiedKey === 'detail-email' ? <Check size={13} /> : <Copy size={13} />}
+                    </button>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '11px 14px', borderRadius: '12px', backgroundColor: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)' }}>

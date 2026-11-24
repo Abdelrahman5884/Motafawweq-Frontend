@@ -202,7 +202,6 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
           { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'المستخدمون' : 'Users', icon: Users },
           { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
           { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'الماليات' : 'Financials', icon: DollarSign },
-          { id: 'admin-attendance', path: '/admin/dashboard?tab=attendance', label: lang === 'ar' ? 'الحضور' : 'Attendance', icon: QrCode },
           { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'الإعلانات' : 'Announcements', icon: Megaphone },
           { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings },
         ];

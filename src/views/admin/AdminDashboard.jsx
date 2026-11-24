@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy, Component } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../services/adminApi';
 import {
   AdminKpiCards,
@@ -19,7 +18,6 @@ import {
   DollarSign,
   ArrowUpLeft,
   ArrowUpRight,
-  Lock,
   Building2,
   Clock
 } from 'lucide-react';
@@ -36,9 +34,6 @@ const AdminCoursesManager = lazy(() =>
 );
 const AdminFinancialsManager = lazy(() =>
   import('../../features/admin/financials/AdminFinancialsManager').then((m) => ({ default: m.AdminFinancialsManager }))
-);
-const AdminAttendanceManager = lazy(() =>
-  import('../../features/admin/attendance/AdminAttendanceManager').then((m) => ({ default: m.AdminAttendanceManager }))
 );
 const AdminAnnouncementsManager = lazy(() =>
   import('../../features/admin/announcements/AdminAnnouncementsManager').then((m) => ({ default: m.AdminAnnouncementsManager }))
@@ -155,13 +150,6 @@ const TAB_CONFIG = [
     subEn: 'Manage official subscription tiers, teacher/center payout settlements, and promo coupons'
   },
   {
-    key: 'attendance',
-    titleAr: 'مراقبة بوابات الحضور الذكية بالباركود',
-    titleEn: 'Smart QR Gate Attendance Monitor',
-    subAr: 'سجل فوري لعمليات المسح والدخول المصرح والمرفوض عبر جميع السناتر التعليمية المتصلة',
-    subEn: 'Real-time gate check-in stream and payment enforcement logs across connected centers'
-  },
-  {
     key: 'champions',
     titleAr: 'لوحة الشرف وأبطال الكؤوس ودوري الجمهورية',
     titleEn: 'Honor Roll Champions & Republic League',
@@ -192,7 +180,6 @@ const RANK_MEDALS = [
 
 export const AdminDashboard = () => {
   const { lang, isRtl } = useLanguage();
-  const { currentUser } = useAuth();
   const isAr = lang === 'ar';
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get('tab') || 'overview';
@@ -341,21 +328,6 @@ export const AdminDashboard = () => {
                     : (isAr ? 'جميع الأنظمة مستقرة' : 'Systems Operational')}
                 </span>
               </span>
-
-              {currentUser?.email && (
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '11.5px',
-                  color: 'rgba(226, 232, 240, 0.85)',
-                  fontFamily: 'var(--font-mono)',
-                  direction: 'ltr'
-                }}>
-                  <Lock size={11} />
-                  <span>{currentUser.email}</span>
-                </span>
-              )}
             </div>
 
             <h1 style={{
@@ -857,7 +829,6 @@ export const AdminDashboard = () => {
           {activeTab === 'users' && <AdminUsersManager />}
           {activeTab === 'courses' && <AdminCoursesManager />}
           {activeTab === 'financials' && <AdminFinancialsManager />}
-          {activeTab === 'attendance' && <AdminAttendanceManager />}
           {activeTab === 'announcements' && <AdminAnnouncementsManager />}
           {activeTab === 'system' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
