@@ -390,3 +390,4 @@ export const authService = {
 };
 
 export { teacherApi } from './teacherApi';
+export { adminApi, publicPlatformApi } from './adminApi';

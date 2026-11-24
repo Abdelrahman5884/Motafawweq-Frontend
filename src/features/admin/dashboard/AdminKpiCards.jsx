@@ -8,9 +8,9 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 
-// Easing count-up animation hook
-const useCountUp = (target, duration = 1200) => {
-  const [count, setCount] = useState(0);
+const useCountUp = (target, duration = 900) => {
+  const numericTarget = Number(target) || 0;
+  const [count, setCount] = useState(numericTarget);
 
   useEffect(() => {
     let startTimestamp = null;
@@ -19,35 +19,36 @@ const useCountUp = (target, duration = 1200) => {
     const step = (timestamp) => {
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      // easeOutExpo for snappy, premium feel
       const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      setCount(Math.floor(easeProgress * target));
+      setCount(Math.floor(easeProgress * numericTarget));
 
       if (progress < 1) {
         frameId = requestAnimationFrame(step);
       } else {
-        setCount(target);
+        setCount(numericTarget);
       }
     };
 
     frameId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frameId);
-  }, [target, duration]);
+  }, [numericTarget, duration]);
 
   return count;
 };
 
-export const AdminKpiCards = ({ econ }) => {
-  const { lang, isRtl } = useLanguage();
+export const AdminKpiCards = ({ kpis = {} }) => {
+  const { lang } = useLanguage();
   const isAr = lang === 'ar';
 
-  // Dynamic Animated Values
-  const animatedMrr = useCountUp(econ?.mrrEgp || 540000, 1100);
-  const animatedUsers = useCountUp(econ?.totalUsers || 34800, 1200);
-  const animatedActive = useCountUp(2840, 1000);
-  const animatedLatency = useCountUp(econ?.aiEconomics?.avgLessonProcessingSeconds || 38, 900);
+  const animatedMrr = useCountUp(Math.round(Number(kpis?.mrrEgp || 0)), 900);
+  const animatedUsers = useCountUp(Number(kpis?.totalUsers || 0), 950);
+  const animatedActive = useCountUp(Number(kpis?.activeNowCount || 0), 850);
+  const animatedLatency = useCountUp(Number(kpis?.avgLessonProcessingSeconds || 38), 750);
 
-  // Single-line ultra-concise KPI data (Focus strictly on Number + Short Label, No separate headers)
+  const mrrGrowth = Number(kpis?.mrrGrowthPct || 0);
+  const growthPrefix = mrrGrowth >= 0 ? '+' : '';
+  const livePct = Number(kpis?.liveConnectedPct || 0);
+
   const cardsData = [
     {
       id: 'mrr',
@@ -59,14 +60,14 @@ export const AdminKpiCards = ({ econ }) => {
       badge: (
         <span style={{
           fontSize: '11px',
-          color: '#10B981',
+          color: mrrGrowth >= 0 ? '#10B981' : '#EF4444',
           fontWeight: '800',
           display: 'inline-flex',
           alignItems: 'center',
           gap: '3px'
         }}>
           <ArrowUpRight size={13} className="admin-arrow-bounce" />
-          <span>{isAr ? '+24.2% نمو' : '+24.2% growth'}</span>
+          <span>{isAr ? `${growthPrefix}${mrrGrowth}% نمو شهري` : `${growthPrefix}${mrrGrowth}% MoM`}</span>
         </span>
       ),
       delay: '0.04s'
@@ -84,7 +85,9 @@ export const AdminKpiCards = ({ econ }) => {
           color: 'var(--text-secondary)',
           fontWeight: '700'
         }}>
-          {isAr ? '33.3k طالب • 1.4k معلم • 48 سنتر' : '33.3k std • 1.4k tutor • 48 center'}
+          {isAr
+            ? `${Number(kpis?.studentsCount || 0)} طالب • ${Number(kpis?.teachersCount || 0)} معلم • ${Number(kpis?.centersCount || 0)} سنتر`
+            : `${Number(kpis?.studentsCount || 0)} std • ${Number(kpis?.teachersCount || 0)} tutor • ${Number(kpis?.centersCount || 0)} ctr`}
         </span>
       ),
       delay: '0.1s'
@@ -109,7 +112,7 @@ export const AdminKpiCards = ({ econ }) => {
             <span className="admin-radar-core" />
             <span className="admin-radar-wave" />
           </span>
-          <span>{isAr ? 'متصل لحظياً (81.6%)' : 'Live Connected (81.6%)'}</span>
+          <span>{isAr ? `متصل لحظياً (${livePct}%)` : `Live Connected (${livePct}%)`}</span>
         </span>
       ),
       delay: '0.16s'
@@ -141,7 +144,7 @@ export const AdminKpiCards = ({ econ }) => {
         display: 'grid',
         gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
         gap: '14px',
-        marginBottom: '20px'
+        marginBottom: '6px'
       }}
     >
       {cardsData.map((c) => {
@@ -166,10 +169,7 @@ export const AdminKpiCards = ({ econ }) => {
               animation: `adminKpiSlideUpEntrance 0.5s ${c.delay} cubic-bezier(0.16, 1, 0.3, 1) both`
             }}
           >
-            {/* Ambient Shimmer Sweep on Hover */}
             <div className="admin-kpi-shimmer-sweep" />
-
-            {/* Left/Right Text Content: Big Number + Short Label in ONE focal zone, no separate title */}
             <div style={{ position: 'relative', zIndex: 2, minWidth: 0, flex: 1 }}>
               <div style={{
                 display: 'flex',
@@ -201,18 +201,11 @@ export const AdminKpiCards = ({ econ }) => {
                   {c.shortLabel}
                 </span>
               </div>
-
-              {/* Concise Bottom Micro-badge */}
-              <div style={{
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
+              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {c.badge}
               </div>
             </div>
 
-            {/* Icon Box */}
             <div
               className="admin-kpi-icon-box"
               style={{
@@ -238,119 +231,26 @@ export const AdminKpiCards = ({ econ }) => {
 
       <style>{`
         @media (max-width: 1080px) {
-          .admin-kpi-one-line-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
+          .admin-kpi-one-line-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
         }
         @media (max-width: 580px) {
-          .admin-kpi-one-line-grid {
-            grid-template-columns: 1fr !important;
-          }
+          .admin-kpi-one-line-grid { grid-template-columns: 1fr !important; }
         }
-
         @keyframes adminKpiSlideUpEntrance {
-          0% {
-            opacity: 0;
-            transform: translateY(16px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          0% { opacity: 0; transform: translateY(16px); }
+          100% { opacity: 1; transform: translateY(0); }
         }
-
-        .admin-animated-kpi-card {
-          transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
-                      box-shadow 0.24s ease,
-                      border-color 0.24s ease;
-        }
-
-        .admin-animated-kpi-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px -4px rgba(21, 136, 199, 0.16), 0 4px 10px -2px rgba(6, 37, 78, 0.05);
-          border-color: rgba(21, 136, 199, 0.4) !important;
-        }
-
-        .admin-animated-kpi-card:hover .admin-kpi-icon-box {
-          transform: scale(1.15) rotate(5deg);
-          box-shadow: 0 4px 12px rgba(21, 136, 199, 0.25);
-        }
-
-        .admin-kpi-shimmer-sweep {
-          position: absolute;
-          top: 0;
-          left: -120%;
-          width: 80%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(21, 136, 199, 0.06),
-            transparent
-          );
-          transform: skewX(-20deg);
-          pointer-events: none;
-          transition: left 0.75s ease-in-out;
-          z-index: 1;
-        }
-
-        .admin-animated-kpi-card:hover .admin-kpi-shimmer-sweep {
-          left: 140%;
-        }
-
-        .admin-arrow-bounce {
-          animation: adminArrowFloat 1.8s ease-in-out infinite;
-        }
-
-        @keyframes adminArrowFloat {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          50% {
-            transform: translate(1.5px, -2px);
-          }
-        }
-
-        .admin-radar-beacon {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 9px;
-          height: 9px;
-        }
-
-        .admin-radar-core {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background-color: #10B981;
-          z-index: 2;
-        }
-
-        .admin-radar-wave {
-          position: absolute;
-          inset: -2px;
-          border-radius: 50%;
-          background-color: rgba(16, 185, 129, 0.5);
-          animation: adminRadarPulse 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
-          z-index: 1;
-        }
-
-        @keyframes adminRadarPulse {
-          0% {
-            transform: scale(0.9);
-            opacity: 0.9;
-          }
-          70% {
-            transform: scale(2.4);
-            opacity: 0;
-          }
-          100% {
-            transform: scale(2.6);
-            opacity: 0;
-          }
-        }
+        .admin-animated-kpi-card { transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s ease, border-color 0.24s ease; }
+        .admin-animated-kpi-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -4px rgba(21, 136, 199, 0.16); border-color: rgba(21, 136, 199, 0.4) !important; }
+        .admin-animated-kpi-card:hover .admin-kpi-icon-box { transform: scale(1.15) rotate(5deg); }
+        .admin-kpi-shimmer-sweep { position: absolute; top: 0; left: -120%; width: 80%; height: 100%; background: linear-gradient(90deg, transparent, rgba(21, 136, 199, 0.06), transparent); transform: skewX(-20deg); pointer-events: none; transition: left 0.75s ease-in-out; z-index: 1; }
+        .admin-animated-kpi-card:hover .admin-kpi-shimmer-sweep { left: 140%; }
+        .admin-arrow-bounce { animation: adminArrowFloat 1.8s ease-in-out infinite; }
+        @keyframes adminArrowFloat { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(1.5px, -2px); } }
+        .admin-radar-beacon { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 9px; height: 9px; }
+        .admin-radar-core { width: 7px; height: 7px; border-radius: 50%; background-color: #10B981; z-index: 2; }
+        .admin-radar-wave { position: absolute; inset: -2px; border-radius: 50%; background-color: rgba(16, 185, 129, 0.5); animation: adminRadarPulse 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite; z-index: 1; }
+        @keyframes adminRadarPulse { 0% { transform: scale(0.9); opacity: 0.9; } 70% { transform: scale(2.4); opacity: 0; } 100% { transform: scale(2.6); opacity: 0; } }
       `}</style>
     </div>
   );

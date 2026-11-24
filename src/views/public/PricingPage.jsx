@@ -19,19 +19,34 @@ import {
 } from 'lucide-react';
 import { CENTER_SUBSCRIPTION_PLANS } from '../../data/centerData';
 import { TEACHER_SUBSCRIPTION_PLANS } from '../../data/teacherData';
-import { getSubscriptionPlans } from '../../services/pricingStorage';
+import { publicPlatformApi } from '../../services/adminApi';
 
 export const PricingPage = () => {
   const { navigate, switchRole } = useAuth();
   const { lang, isRtl } = useLanguage();
   const [selectedRole, setSelectedRole] = useState('center'); // 'center' | 'teacher' | 'student'
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
-  const [storedPlans, setStoredPlans] = useState(() => getSubscriptionPlans());
+  const [livePlans, setLivePlans] = useState([]);
 
   React.useEffect(() => {
-    const handleSync = () => setStoredPlans(getSubscriptionPlans());
+    let active = true;
+    const fetchPlans = async () => {
+      try {
+        const res = await publicPlatformApi.pricingPlans();
+        if (active && Array.isArray(res?.data) && res.data.length > 0) {
+          setLivePlans(res.data);
+        }
+      } catch {
+        // Keep static defaults if backend catalog is temporarily unreachable
+      }
+    };
+    fetchPlans();
+    const handleSync = () => fetchPlans();
     window.addEventListener('pricing-updated', handleSync);
-    return () => window.removeEventListener('pricing-updated', handleSync);
+    return () => {
+      active = false;
+      window.removeEventListener('pricing-updated', handleSync);
+    };
   }, []);
 
   const discount = billingCycle === 'yearly' ? 0.8 : 1;
@@ -179,8 +194,57 @@ export const PricingPage = () => {
     ctaEn: p.tier === 'free' ? 'Start Center Free' : (p.tier === 'plus' ? 'Get Center Plus (200 EGP)' : 'Get Center Pro (400 EGP)')
   }));
 
-  // Active cards according to selected role
-  const activePlans = selectedRole === 'center' ? centerCards : (selectedRole === 'teacher' ? teacherCards : studentPlans);
+  // Merge live admin-configured pricing plans when available for the selected role
+  const buildLiveCardsForRole = (role, fallbackCards) => {
+    const matching = livePlans.filter(p => p.targetRole === role && p.isActive !== false);
+    if (matching.length === 0) return fallbackCards;
+
+    return matching.map((p, idx) => {
+      const tier = p.tierKey || (Number(p.priceEgp) === 0 ? 'free' : (p.isPopular ? 'pro' : 'plus'));
+      const matchedFallback = fallbackCards.find(f => f.tier === tier) || fallbackCards[idx] || {};
+      const monthlyPrice = Math.round(Number(p.priceEgp || 0));
+      const annualPrice = Math.round(Number(p.annualPriceEgp || 0));
+      const displayPrice =
+        monthlyPrice === 0
+          ? 0
+          : billingCycle === 'yearly'
+            ? (annualPrice > 0 ? Math.round(annualPrice / 10) : Math.round(monthlyPrice * 0.8))
+            : monthlyPrice;
+
+      const color =
+        matchedFallback.color ||
+        (tier === 'pro' ? '#1588C7' : tier === 'plus' ? '#0284C7' : 'var(--text-secondary)');
+
+      return {
+        id: p.id,
+        nameAr: p.nameAr || matchedFallback.nameAr,
+        nameEn: p.nameEn || p.nameAr || matchedFallback.nameEn,
+        tier,
+        taglineAr: p.badgeAr || matchedFallback.taglineAr || (monthlyPrice === 0 ? 'ابدأ مجاناً على منصة متفوق' : 'باقة رسمية معتمدة على منصة متفوق'),
+        taglineEn: p.badgeEn || matchedFallback.taglineEn || (monthlyPrice === 0 ? 'Start free on Motafawweq' : 'Official verified Motafawweq plan'),
+        price: displayPrice,
+        periodAr: displayPrice === 0 ? 'دائماً مجاناً' : (billingCycle === 'yearly' ? 'ج.م / شهرياً (تدفع سنوياً)' : 'جنيه مصري / شهرياً'),
+        periodEn: displayPrice === 0 ? 'Forever Free' : (billingCycle === 'yearly' ? 'EGP / mo (billed yearly)' : 'EGP / month'),
+        usersLimitAr: matchedFallback.usersLimitAr || (p.commissionPercent !== null && p.commissionPercent !== undefined ? `عمولة المنصة: ${p.commissionPercent}%` : 'وصول كامل لمزايا الباقة'),
+        usersLimitEn: matchedFallback.usersLimitEn || (p.commissionPercent !== null && p.commissionPercent !== undefined ? `Platform commission: ${p.commissionPercent}%` : 'Full tier entitlements'),
+        color,
+        popular: Boolean(p.isPopular),
+        featuresAr: Array.isArray(p.featuresAr) && p.featuresAr.length > 0 ? p.featuresAr : (matchedFallback.featuresAr || []),
+        featuresEn: Array.isArray(p.featuresEn) && p.featuresEn.length > 0 ? p.featuresEn : (matchedFallback.featuresEn || p.featuresAr || []),
+        role,
+        ctaAr: displayPrice === 0 ? (matchedFallback.ctaAr || 'ابدأ مجاناً') : `اشترك الآن (${displayPrice} ج.م)`,
+        ctaEn: displayPrice === 0 ? (matchedFallback.ctaEn || 'Start Free') : `Subscribe Now (${displayPrice} EGP)`,
+      };
+    });
+  };
+
+  // Active cards according to selected role (live backend with static fallback)
+  const activePlans =
+    selectedRole === 'center'
+      ? buildLiveCardsForRole('center', centerCards)
+      : selectedRole === 'teacher'
+        ? buildLiveCardsForRole('teacher', teacherCards)
+        : buildLiveCardsForRole('student', studentPlans);
 
   return (
     <div style={{
