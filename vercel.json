@@ -1,5 +1,16 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://ecommerce-executed-armor-accessory.trycloudflare.com/api/:path*"
+    },
+    {
+      "source": "/storage/:path*",
+      "destination": "https://ecommerce-executed-armor-accessory.trycloudflare.com/storage/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
   ]
 }
