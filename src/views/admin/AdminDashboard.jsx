@@ -5,7 +5,6 @@ import { adminApi } from '../../services/adminApi';
 import {
   AdminKpiCards,
   AdminAnalyticsCharts,
-  AdminAiEconomicsPanel,
   AdminActiveUsersChart
 } from '../../features/admin/dashboard';
 import {
@@ -165,10 +164,10 @@ const TAB_CONFIG = [
   },
   {
     key: 'system',
-    titleAr: 'بنية النظام، سياسات التشغيل وسجل التدقيق الأمني',
-    titleEn: 'System Telemetry, Policies & Audit Trail',
-    subAr: 'فحص صحة السيرفر والكاش، تفعيل وضع الصيانة وسياسات التسجيل، واستعراض سجل الأمان غير القابل للتعديل',
-    subEn: 'Inspect live infrastructure latency, toggle platform policies, and audit security events'
+    titleAr: 'الإعدادات والسيرفر',
+    titleEn: 'Settings & Server',
+    subAr: '',
+    subEn: ''
   },
 ];
 
@@ -830,12 +829,7 @@ export const AdminDashboard = () => {
           {activeTab === 'courses' && <AdminCoursesManager />}
           {activeTab === 'financials' && <AdminFinancialsManager />}
           {activeTab === 'announcements' && <AdminAnnouncementsManager />}
-          {activeTab === 'system' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <AdminAiEconomicsPanel aiEconomics={aiEconomics} />
-              <AdminSystemSettings />
-            </div>
-          )}
+          {activeTab === 'system' && <AdminSystemSettings />}
         </Suspense>
       </AdminTabErrorBoundary>
 

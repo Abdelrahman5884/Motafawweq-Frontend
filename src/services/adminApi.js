@@ -270,11 +270,15 @@ export const adminApi = {
     delete: (uuid) => apiDelete(`/admin/announcements/${uuid}`),
   },
 
-  // ─── 8. System Telemetry, Policies, Cache & Global Audit Logs ──────────────
+  // ─── 8. System Telemetry, Policies, Cache, Password & Global Audit Logs ────
   system: {
     getOverview: () => apiGet('/admin/system/overview'),
     updateSettings: (data) => apiPut('/admin/system/settings', data),
+    changePassword: (data) => apiPut('/admin/system/password', data),
     flushCache: () => apiPost('/admin/system/cache/flush', {}),
+    retryFailedJob: (id) => apiPost(`/admin/system/failed-jobs/${id}/retry`, {}),
+    deleteFailedJob: (id) => apiDelete(`/admin/system/failed-jobs/${id}`),
+    flushFailedJobs: () => apiPost('/admin/system/failed-jobs/flush', {}),
     listAuditLogs: (params = {}) => apiGet(`/admin/system/audit-logs${buildQuery(params)}`),
     getSecuritySummary: () => apiGet('/admin/system/security-summary'),
   },
