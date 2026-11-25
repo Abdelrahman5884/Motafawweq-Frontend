@@ -266,10 +266,10 @@ export const ServerCapacityPanel = ({ telemetry, capacity, loading = false, lang
             label: isAr ? 'قاعدة البيانات' : 'Database',
             val: telemetry ? `${telemetry.dbLatencyMs} ms` : '—',
             sub: telemetry
-              ? `${String(telemetry.dbDriver || '').toUpperCase()} • ${telemetry.dbActiveConnections}/${telemetry.dbMaxConnections}`
+              ? `${String(telemetry.dbDriver || '').toUpperCase()} • ${telemetry.dbActiveConnections}/${telemetry.dbMaxConnections}${telemetry.dbSizeMb ? ` • ${telemetry.dbSizeMb} MB` : ''}`
               : '—',
             color: telemetry?.dbHealthy ? '#16A34A' : '#DC2626',
-            info: isAr ? 'زمن استجابة قاعدة البيانات وعدد الاتصالات النشطة من الحد الأقصى.' : 'Live DB latency and active/max connections.',
+            info: isAr ? 'متوسط 3 فحوصات حية لزمن استجابة قاعدة البيانات، الاتصالات النشطة، وحجم القاعدة الفعلي.' : 'Median of 3 live DB probes, active/max connections, and real DB size.',
           },
           {
             icon: Cpu,
