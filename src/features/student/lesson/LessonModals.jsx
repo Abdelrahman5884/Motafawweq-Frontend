@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  CheckCircle2, RotateCcw, Trash2, Sparkles, Award, X,
-  Play, Circle
+  CheckCircle2,
+  RotateCcw,
+  Trash2,
+  Sparkles,
+  Award,
+  X,
+  Play,
+  Circle,
 } from 'lucide-react';
 
 export const LessonModals = ({
@@ -11,6 +17,9 @@ export const LessonModals = ({
   handleConfirmAction,
   showCelebrationModal,
   setShowCelebrationModal,
+  lastEarnedXp = 0,
+  nextLesson = null,
+  onGoToNextLesson,
   courseInfo,
   mobilePlaylistOpen,
   setMobilePlaylistOpen,
@@ -18,29 +27,61 @@ export const LessonModals = ({
   completedCount,
   playlist,
   handlePlaylistLessonClick,
-  lang
+  lang,
 }) => {
   const navigate = useNavigate();
+  const isAr = lang === 'ar';
+
+  useEffect(() => {
+    if (!confirmDialog.open && !showCelebrationModal && !mobilePlaylistOpen) {
+      return undefined;
+    }
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setConfirmDialog((p) => ({ ...p, open: false }));
+        setShowCelebrationModal(false);
+        setMobilePlaylistOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [
+    confirmDialog.open,
+    showCelebrationModal,
+    mobilePlaylistOpen,
+    setConfirmDialog,
+    setShowCelebrationModal,
+    setMobilePlaylistOpen,
+  ]);
 
   return (
     <>
       {/* ══════════ MOBILE PLAYLIST DRAWER ══════════ */}
       {mobilePlaylistOpen && (
-        <div className="lv-mobile-drawer-overlay mobile-only" onClick={() => setMobilePlaylistOpen(false)}>
-          <div className="lv-mobile-drawer" onClick={e => e.stopPropagation()}>
+        <div
+          className="lv-mobile-drawer-overlay mobile-only"
+          onClick={() => setMobilePlaylistOpen(false)}
+        >
+          <div className="lv-mobile-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="lv-mobile-drawer__head">
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>
-                    {lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}
+                    {isAr ? 'محتوى الدورة' : 'Course Content'}
                   </h3>
                   <span className="lv-sidebar__pct-badge">{courseCompletionPct}%</span>
                 </div>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                  {completedCount} {lang === 'ar' ? `من أصل ${playlist.length} درساً مكتمل` : `of ${playlist.length} done`}
+                  {completedCount}{' '}
+                  {isAr ? `من أصل ${playlist.length} درس مكتمل` : `of ${playlist.length} done`}
                 </span>
               </div>
-              <button className="lv-km__action" onClick={() => setMobilePlaylistOpen(false)}>
+              <button
+                type="button"
+                className="lv-km__action"
+                onClick={() => setMobilePlaylistOpen(false)}
+                aria-label={isAr ? 'إغلاق' : 'Close'}
+              >
                 <X size={16} />
               </button>
             </div>
@@ -53,7 +94,13 @@ export const LessonModals = ({
                   onClick={() => handlePlaylistLessonClick(item)}
                 >
                   <div className="lv-playlist__icon">
-                    {item.completed ? <CheckCircle2 size={16} /> : item.active ? <Play size={13} fill="currentColor" /> : <Circle size={14} />}
+                    {item.completed ? (
+                      <CheckCircle2 size={16} />
+                    ) : item.active ? (
+                      <Play size={13} fill="currentColor" />
+                    ) : (
+                      <Circle size={14} />
+                    )}
                   </div>
                   <div className="lv-playlist__body">
                     <div className="lv-playlist__top-line">
@@ -69,10 +116,18 @@ export const LessonModals = ({
         </div>
       )}
 
-      {/* ══════════ UNIVERSAL ANIMATED CONFIRMATION MODAL ══════════ */}
+      {/* ══════════ UNIVERSAL CONFIRMATION MODAL ══════════ */}
       {confirmDialog.open && (
-        <div className="lv-modal-bg" onClick={() => setConfirmDialog(p => ({ ...p, open: false }))}>
-          <div className="lv-modal lv-modal--confirm animate-pop" onClick={e => e.stopPropagation()}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="lv-modal-bg"
+          onClick={() => setConfirmDialog((p) => ({ ...p, open: false }))}
+        >
+          <div
+            className="lv-modal lv-modal--confirm animate-pop"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className={`lv-modal__icon lv-modal__icon--${confirmDialog.confirmColor}`}>
               {confirmDialog.confirmColor === 'emerald' ? (
                 <CheckCircle2 size={34} />
@@ -90,14 +145,16 @@ export const LessonModals = ({
 
             <div className="lv-modal__buttons lv-modal__buttons--row">
               <button
+                type="button"
                 className={`lv-modal__action-btn lv-modal__action-btn--${confirmDialog.confirmColor}`}
                 onClick={handleConfirmAction}
               >
                 {confirmDialog.confirmText}
               </button>
               <button
+                type="button"
                 className="lv-modal__secondary"
-                onClick={() => setConfirmDialog(p => ({ ...p, open: false }))}
+                onClick={() => setConfirmDialog((p) => ({ ...p, open: false }))}
               >
                 {confirmDialog.cancelText}
               </button>
@@ -108,31 +165,63 @@ export const LessonModals = ({
 
       {/* ══════════ LESSON COMPLETION CELEBRATION MODAL ══════════ */}
       {showCelebrationModal && (
-        <div className="lv-modal-bg" onClick={() => setShowCelebrationModal(false)}>
-          <div className="lv-modal animate-pop" onClick={e => e.stopPropagation()}>
-            <div className="lv-modal__icon lv-modal__icon--emerald"><Award size={38} /></div>
-            <div className="lv-modal__xp">+50 XP مكتسبة</div>
-            <h3 className="lv-modal__title">{lang === 'ar' ? 'أحسنت يا بطل! أتممت الحصة' : 'Outstanding Achievement!'}</h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="lv-modal-bg"
+          onClick={() => setShowCelebrationModal(false)}
+        >
+          <div className="lv-modal animate-pop" onClick={(e) => e.stopPropagation()}>
+            <div className="lv-modal__icon lv-modal__icon--emerald">
+              <Award size={38} />
+            </div>
+            <div className="lv-modal__xp">
+              {lastEarnedXp > 0
+                ? isAr
+                  ? `+${lastEarnedXp} XP مكتسبة`
+                  : `+${lastEarnedXp} XP Earned`
+                : isAr
+                  ? 'تم تحديث تقدمك بنجاح'
+                  : 'Progress Updated'}
+            </div>
+            <h3 className="lv-modal__title">
+              {isAr ? 'أحسنت يا بطل! أتممت الحصة' : 'Outstanding Achievement!'}
+            </h3>
             <p className="lv-modal__desc">
-              {lang === 'ar'
-                ? `تم تحديث نسبة إنجازك في مادة ${courseInfo.subjectAr}. يمكنك الآن تثبيت معلوماتك بحل كويز فوري أو الاستمرار في الحصة التالية.`
-                : 'Your curriculum progress has been updated! Test your knowledge now or continue.'}
+              {isAr
+                ? `تم تحديث نسبة إنجازك في ${courseInfo.subjectAr || 'المقرر'}. يمكنك الانتقال للحصة التالية أو تثبيت معلوماتك بحل كويز فوري.`
+                : 'Your course progress has been updated! Continue to the next lesson or take a quick quiz.'}
             </p>
             <div className="lv-modal__buttons">
+              {nextLesson && onGoToNextLesson ? (
+                <button
+                  type="button"
+                  className="lv-modal__primary"
+                  onClick={() => {
+                    setShowCelebrationModal(false);
+                    onGoToNextLesson(nextLesson.id);
+                  }}
+                >
+                  {isAr ? `الحصة التالية: ${nextLesson.titleAr}` : 'Continue to Next Lesson'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="lv-modal__primary"
+                  onClick={() => {
+                    setShowCelebrationModal(false);
+                    navigate('/student/quiz');
+                  }}
+                >
+                  {isAr ? 'حل كويز تثبيت الفهم' : 'Take Practice Quiz'}
+                </button>
+              )}
               <button
-                className="lv-modal__primary"
-                onClick={() => {
-                  setShowCelebrationModal(false);
-                  navigate('/student/quiz');
-                }}
-              >
-                {lang === 'ar' ? 'حل كويز تثبيت الفهم' : 'Take Practice Quiz'}
-              </button>
-              <button
+                type="button"
                 className="lv-modal__secondary"
                 onClick={() => setShowCelebrationModal(false)}
               >
-                {lang === 'ar' ? 'متابعة المذاكرة هنا' : 'Stay Here'}
+                {isAr ? 'متابعة المذاكرة هنا' : 'Stay Here'}
               </button>
             </div>
           </div>

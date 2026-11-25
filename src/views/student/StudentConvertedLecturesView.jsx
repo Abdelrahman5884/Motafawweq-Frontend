@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { studentApi } from '../../services/studentApi';
 import {
   FolderCheck,
   PlayCircle,
@@ -17,98 +18,34 @@ import {
   Calendar
 } from 'lucide-react';
 
-const INITIAL_CONVERTED_LECTURES = [
-  {
-    id: 'conv-l3',
-    lessonId: 'l3',
-    titleAr: 'البناء الضوئي وحركية الطاقة في الخلايا النباتية',
-    titleEn: 'Photosynthesis & Plant Cell Energy Kinetics',
-    subjectAr: 'الأحياء',
-    subjectEn: 'Biology',
-    gradeAr: 'الصف الثالث الثانوي',
-    teacherAr: 'د. سلمى السيد',
-    dateAr: 'اليوم - 11:20 ص',
-    fileName: 'محاضرة_الأحياء_الفصل_الثالث.mp4',
-    fileSize: '24.6 MB',
-    duration: '35:00',
-    summaryAr: 'شرح متكامل لآلية امتصاص الكلوروفيل وانشطار الماء وتجربة فان نيل وتخليق PGAL مع خريطة مفاهيم كاملة.',
-    outputs: ['graph', 'transcript', 'topics', 'quiz'],
-    questionsCount: 5,
-    conceptsCount: 6,
-    keyTopics: ['انشطار الماء', 'تجربة فان نيل', 'الفسفرة الضوئية', 'دورة كالفن']
-  },
-  {
-    id: 'conv-l2',
-    lessonId: 'l2',
-    titleAr: 'الأصباغ النباتية ومطياف الامتصاص والطاقة الضوئية',
-    titleEn: 'Plant Pigments & Absorption Spectrum',
-    subjectAr: 'الأحياء',
-    subjectEn: 'Biology',
-    gradeAr: 'الصف الثالث الثانوي',
-    teacherAr: 'د. سلمى السيد',
-    dateAr: 'أمس - 04:15 م',
-    fileName: 'محاضرة_الأصباغ_الضوئية.mp3',
-    fileSize: '16.2 MB',
-    duration: '30:00',
-    summaryAr: 'تفريغ وتلخيص كامل لدور جزيئات الكلوروفيل أ وب واستثارة ذرة المغنيسيوم في الأنظمة الضوئية.',
-    outputs: ['graph', 'transcript', 'topics'],
-    questionsCount: 0,
-    conceptsCount: 4,
-    keyTopics: ['كلوروفيل أ وب', 'الأنظمة الضوئية', 'ذرة المغنيسيوم']
-  },
-  {
-    id: 'conv-l1',
-    lessonId: 'l1',
-    titleAr: 'مقدمة البناء الضوئي وتركيب البلاستيدة الخضراء',
-    titleEn: 'Introduction to Photosynthesis & Chloroplasts',
-    subjectAr: 'الأحياء',
-    subjectEn: 'Biology',
-    gradeAr: 'الصف الثالث الثانوي',
-    teacherAr: 'د. سلمى السيد',
-    dateAr: 'منذ 3 أيام',
-    fileName: 'تشريح_البلاستيدة_والثيلاكويد.pdf',
-    fileSize: '8.4 MB',
-    duration: '25:00',
-    summaryAr: 'دراسة تشريح البلاستيدة الخضراء وأقراص الجرانا وغشاء الثيلاكويد ودور الستروما في التفاعلات الإنزيمية.',
-    outputs: ['graph', 'transcript', 'topics', 'quiz'],
-    questionsCount: 4,
-    conceptsCount: 5,
-    keyTopics: ['البلاستيدة الخضراء', 'الثيلاكويد', 'الجرانا', 'الستروما']
-  }
-];
-
 export const StudentConvertedLecturesView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
 
-  const [lectures, setLectures] = useState(() => {
-    try {
-      const stored = localStorage.getItem('mtfq_converted_lectures');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return INITIAL_CONVERTED_LECTURES;
-  });
-
+  const [lectures, setLectures] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  // Sync to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem('mtfq_converted_lectures', JSON.stringify(lectures));
-    } catch (e) {}
-  }, [lectures]);
+    let mounted = true;
+    studentApi.convertedLectures.list()
+      .then((res) => {
+        if (!mounted) return;
+        setLectures(Array.isArray(res?.data) ? res.data : []);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Open in "حصصي" (StudentLessonView)
   const handleOpenInLesson = (lecture) => {
-    const targetId = lecture.lessonId || 'l3';
-    try {
-      sessionStorage.setItem('mtfq_target_lesson', targetId);
-    } catch (e) {}
-    navigate(`/student/lesson?id=${targetId}`);
+    if (lecture.lessonId) {
+      navigate(`/student/lesson?id=${lecture.lessonId}`);
+    } else {
+      navigate('/student/lesson');
+    }
   };
 
   // Open in Conversion Studio
@@ -117,10 +54,15 @@ export const StudentConvertedLecturesView = () => {
   };
 
   // Delete lecture
-  const handleDeleteLecture = (id) => {
-    const updated = lectures.filter(l => l.id !== id);
-    setLectures(updated);
-    setDeleteConfirmId(null);
+  const handleDeleteLecture = async (id) => {
+    try {
+      await studentApi.convertedLectures.delete(id);
+      setLectures((prev) => prev.filter((l) => l.id !== id));
+    } catch {
+      // ignore
+    } finally {
+      setDeleteConfirmId(null);
+    }
   };
 
   // Filter lectures

@@ -4,6 +4,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
 
 export const LoginForm = ({
+  selectedRole = 'student',
   emailOrPhone,
   setEmailOrPhone,
   password,
@@ -47,7 +48,7 @@ export const LoginForm = ({
               required
               value={emailOrPhone}
               onChange={(e) => setEmailOrPhone(e.target.value)}
-              placeholder={lang === 'ar' ? 'مثال: omar@motafawweq.me أو 010...' : 'e.g. name@motafawweq.me'}
+              placeholder={lang === 'ar' ? 'omar@motafawweq.me أو 010xxxxxxxx' : 'name@motafawweq.me or 010xxxxxxxx'}
               style={{
                 width: '100%',
                 padding: isRtl ? '11px 40px 11px 14px' : '11px 14px 11px 40px',
@@ -122,15 +123,19 @@ export const LoginForm = ({
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-            <input 
-              type="checkbox" 
-              checked={rememberMe} 
-              onChange={(e) => setRememberMe(e.target.checked)} 
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               style={{ accentColor: 'var(--primary)' }}
             />
             {t('rememberMe')}
           </label>
-          <Link to="/forgot-password" style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }}>
+          <Link
+            to={`/forgot-password?role=${selectedRole}`}
+            state={{ role: selectedRole, email: emailOrPhone }}
+            style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none' }}
+          >
             {t('forgotPasswordLink')}
           </Link>
         </div>

@@ -1,31 +1,104 @@
 import React from 'react';
-import { ShieldCheck, Calendar, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Calendar, Sparkles, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
-export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true, onUpgrade }) => {
+export const ActiveSubscriptionBanner = ({
+  activeSub,
+  lang = 'ar',
+  isRtl = true,
+  onUpgrade,
+  subtitleOverride = null,
+  upgradeLabelOverride = null,
+  hideUpgrade = false,
+  onCancel = null,
+  isCancelling = false,
+  cancelLabel = null,
+}) => {
   const isAr = lang === 'ar';
+
+  if (!activeSub) {
+    return (
+      <div
+        style={{
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          borderRadius: '20px',
+          padding: '28px 24px',
+          textAlign: 'center',
+          direction: isRtl ? 'rtl' : 'ltr',
+        }}
+      >
+        <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+          {isAr ? 'لا يوجد اشتراك نشط حالياً' : 'No Active Subscription'}
+        </div>
+        <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+          {isAr
+            ? 'اختر الباقة المناسبة لك من الباقات المتاحة بالأسفل.'
+            : 'Choose a subscription tier from the plans below.'}
+        </div>
+      </div>
+    );
+  }
+
+  const tier = activeSub.planTier || 'free';
+  const isFree = Boolean(activeSub.isFree || tier === 'free' || Number(activeSub.amountEgp || 0) === 0);
+  const isMaxPlan = tier === 'pro' && activeSub.billingPeriod === 'annual';
+
+  const highlights = isAr
+    ? Array.isArray(activeSub.highlightsAr) && activeSub.highlightsAr.length > 0
+      ? activeSub.highlightsAr
+      : ['الحصص والمقررات', 'الاختبارات التقييمية', 'الشهادات المعتمدة بـ QR']
+    : Array.isArray(activeSub.highlightsEn) && activeSub.highlightsEn.length > 0
+      ? activeSub.highlightsEn
+      : ['Courses & Lessons', 'Evaluations & Quizzes', 'Verified QR Certificates'];
+
+  const subtitle = subtitleOverride
+    ? subtitleOverride
+    : isFree
+      ? isAr
+        ? 'حسابك مفعّل على الباقة المجانية — يمكنك الترقية إلى باقة بلس أو برو في أي لحظة لفتح أدوات الذكاء الاصطناعي والاختبارات غير المحدودة.'
+        : 'Your account is active on the Free tier — upgrade to Plus or Pro anytime to unlock AI tools and unlimited practice.'
+      : tier === 'pro'
+        ? isAr
+          ? 'تمتلك كامل صلاحيات باقة برو بما في ذلك تحويل المحاضرات الذكي بالـ AI وتوليد كويزات البابل شيت الفورية والشهادات المعتمدة.'
+          : 'Full Student Pro access unlocked: AI Lecture Converter, instant Bubble-Sheet quizzes, and verified certificates.'
+        : isAr
+          ? 'تمتلك صلاحيات باقة بلس: المنافسة في دوريات المتفوقين والأوسمة والتحديات الأسبوعية والشهادات المعتمدة بكود QR.'
+          : 'Student Plus active: full Honors Leagues, badges, weekly challenges, analytics, and official QR certificates.';
+
+  const upgradeLabel = upgradeLabelOverride
+    ? upgradeLabelOverride
+    : tier === 'pro'
+      ? isAr
+        ? 'الترقية للباقة السنوية (وفر 30%)'
+        : 'Switch to Annual Pro (Save 30%)'
+      : isAr
+        ? 'الترقية إلى باقة برو (شاملة AI)'
+        : 'Upgrade to Pro (AI Included)';
 
   return (
     <div
       style={{
         backgroundColor: 'var(--bg-surface)',
-        border: '1.5px solid rgba(21, 136, 199, 0.25)',
+        border: '1.5px solid rgba(21, 136, 199, 0.28)',
         borderRadius: '24px',
         padding: '24px 28px',
-        marginBottom: '36px',
-        boxShadow: '0 10px 30px rgba(6, 37, 78, 0.05)',
+        boxShadow: 'var(--shadow-sm)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '24px',
-        background: 'linear-gradient(135deg, rgba(21, 136, 199, 0.07) 0%, rgba(255, 255, 255, 0.98) 50%, rgba(6, 37, 78, 0.03) 100%)',
+        background:
+          'linear-gradient(135deg, rgba(21, 136, 199, 0.08) 0%, var(--bg-surface) 55%, rgba(21, 136, 199, 0.04) 100%)',
         position: 'relative',
         overflow: 'hidden',
         direction: isRtl ? 'rtl' : 'ltr',
-        fontFamily: isRtl ? 'var(--font-arabic), "Cairo", system-ui, sans-serif' : 'var(--font-heading), "Outfit", sans-serif'
+        fontFamily: isRtl
+          ? 'var(--font-arabic), "Cairo", system-ui, sans-serif'
+          : 'var(--font-heading), "Outfit", sans-serif',
       }}
     >
-      {/* Decorative subtle platform curve glow */}
+      {/* Decorative subtle glow */}
       <div
         style={{
           position: 'absolute',
@@ -34,8 +107,8 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
           width: '180px',
           height: '180px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(21, 136, 199, 0.12) 0%, transparent 70%)',
-          pointerEvents: 'none'
+          background: 'radial-gradient(circle, rgba(21, 136, 199, 0.14) 0%, transparent 70%)',
+          pointerEvents: 'none',
         }}
       />
 
@@ -51,13 +124,13 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
               borderRadius: '99px',
               backgroundColor: 'rgba(21, 136, 199, 0.12)',
               color: 'var(--primary)',
-              border: '1px solid rgba(21, 136, 199, 0.25)',
+              border: '1px solid rgba(21, 136, 199, 0.28)',
               fontSize: '11.5px',
-              fontWeight: '900'
+              fontWeight: '900',
             }}
           >
             <ShieldCheck size={14} color="var(--primary)" />
-            <span>{isAr ? 'اشتراك نشط وسارٍ' : 'Active Subscription'}</span>
+            <span>{isAr ? 'باقتك النشطة حالياً' : 'Active Plan'}</span>
           </div>
 
           <div
@@ -67,14 +140,18 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
               gap: '6px',
               fontSize: '12px',
               color: 'var(--text-secondary)',
-              fontWeight: '600'
+              fontWeight: '700',
             }}
           >
             <Calendar size={13} color="var(--text-muted)" />
             <span>
-              {isAr
-                ? `ينتهي في ${activeSub.renewalDate} (متبقي ${activeSub.daysRemaining} يوماً)`
-                : `Renews on ${activeSub.renewalDate} (${activeSub.daysRemaining} days remaining)`}
+              {isFree || !activeSub.renewalDate
+                ? isAr
+                  ? 'فعّالة مدى الحياة بدون تاريخ انتهاء'
+                  : 'Active forever • No expiry'
+                : isAr
+                  ? `سارية حتى ${activeSub.renewalDate} (متبقي ${activeSub.daysRemaining ?? 0} يوم)`
+                  : `Valid until ${activeSub.renewalDate} (${activeSub.daysRemaining ?? 0} days left)`}
             </span>
           </div>
         </div>
@@ -82,15 +159,15 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
         {/* Plan Title */}
         <h2
           style={{
-            fontSize: '22px',
+            fontSize: '21px',
             fontWeight: '900',
             color: 'var(--text-primary)',
             margin: '0 0 6px 0',
             lineHeight: 1.3,
-            letterSpacing: '-0.3px'
+            letterSpacing: '-0.3px',
           }}
         >
-          {isAr ? activeSub.planNameAr : (activeSub.planNameEn || activeSub.planNameAr)}
+          {isAr ? activeSub.planNameAr : activeSub.planNameEn || activeSub.planNameAr}
         </h2>
 
         {/* Subtitle */}
@@ -99,22 +176,15 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
             fontSize: '13.5px',
             color: 'var(--text-secondary)',
             lineHeight: 1.55,
-            marginBottom: '14px'
+            marginBottom: '14px',
           }}
         >
-          {isAr
-            ? 'مفعّل لكافة مقررات الثانوية العامة، الكويزات الذكية، وتحميل الملازم والمذكرات بنظام البابل شيت بدون أي قيود.'
-            : 'Unlimited access to all Thanawya Amma lectures, AI smart quizzes, and downloadable study booklets.'}
+          {subtitle}
         </div>
 
         {/* Feature Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {[
-            isAr ? 'شهادات رسمية بكود QR' : 'QR Certificates',
-            isAr ? 'تحويل المحاضرات الذكي' : 'AI Transcripts',
-            isAr ? 'مناهج وزارة التربية والتعليم' : 'Ministry Curriculum',
-            isAr ? 'تقارير أسبوعية لولي الأمر' : 'Parent Reports'
-          ].map((tag, idx) => (
+          {highlights.map((tag, idx) => (
             <span
               key={idx}
               style={{
@@ -122,12 +192,12 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
                 fontWeight: '800',
                 padding: '3px 10px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(6, 37, 78, 0.04)',
+                backgroundColor: 'var(--bg-subtle)',
                 color: 'var(--text-primary)',
                 border: '1px solid var(--border-subtle)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '4px',
               }}
             >
               <CheckCircle2 size={11} color="var(--primary)" />
@@ -145,54 +215,80 @@ export const ActiveSubscriptionBanner = ({ activeSub, lang = 'ar', isRtl = true,
           alignItems: isRtl ? 'flex-start' : 'flex-end',
           gap: '12px',
           position: 'relative',
-          zIndex: 2
+          zIndex: 2,
         }}
       >
         <div
           style={{
             padding: '14px 22px',
             borderRadius: '18px',
-            backgroundColor: 'var(--bg-surface)',
+            backgroundColor: 'var(--bg-app)',
             border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-sm)',
+            boxShadow: 'var(--shadow-xs)',
             textAlign: 'center',
-            minWidth: '150px'
+            minWidth: '150px',
           }}
         >
           <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '2px' }}>
-            {isAr ? 'قيمة باقتك الحالية' : 'Plan Value'}
+            {isAr ? 'قيمة باقتك الحالية' : 'Current Plan Value'}
           </div>
           <div style={{ fontSize: '24px', fontWeight: '900', color: 'var(--primary)', letterSpacing: '-0.5px' }}>
-            {activeSub.amountEgp?.toLocaleString()} {isAr ? 'ج.م' : 'EGP'}
+            {isFree
+              ? isAr
+                ? 'مجاناً'
+                : 'Free'
+              : `${Number(activeSub.amountEgp || 0).toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`}
           </div>
         </div>
 
-        {onUpgrade && (
+        {!hideUpgrade && onUpgrade && !isMaxPlan && (
           <button
+            type="button"
             onClick={onUpgrade}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 16px',
+              padding: '9px 16px',
               borderRadius: '12px',
-              backgroundColor: 'rgba(21, 136, 199, 0.08)',
+              backgroundColor: 'rgba(21, 136, 199, 0.1)',
               color: 'var(--primary)',
-              border: '1px solid rgba(21, 136, 199, 0.25)',
+              border: '1px solid rgba(21, 136, 199, 0.28)',
               fontSize: '12px',
               fontWeight: '800',
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.15)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.08)'}
           >
             <Sparkles size={13} />
-            <span>{isAr ? 'الترقية للباقة السنوية (وفر 350 ج.م)' : 'Upgrade to Annual Pass (Save 350 EGP)'}</span>
+            <span>{upgradeLabel}</span>
+          </button>
+        )}
+
+        {onCancel && !isFree && (
+          <button
+            type="button"
+            disabled={isCancelling}
+            onClick={onCancel}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 16px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              color: '#DC2626',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: isCancelling ? 'wait' : 'pointer',
+              opacity: isCancelling ? 0.7 : 1,
+            }}
+          >
+            {isCancelling ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+            <span>{cancelLabel || (isAr ? 'إلغاء الاشتراك الحالي' : 'Cancel Subscription')}</span>
           </button>
         )}
       </div>
     </div>
   );
 };
-

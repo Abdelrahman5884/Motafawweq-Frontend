@@ -1,437 +1,560 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../../context/LanguageContext';
-import { useAuth } from '../../context/AuthContext';
-import { ALL_LEAGUES } from '../../data/leagueData';
-import { LEAGUE_TIERS } from '../../data/studentData';
-import { 
-  ClipboardList, 
-  HelpCircle, 
-  Gift, 
-  Trophy, 
-  Crown,
-  GraduationCap, 
-  BookOpen, 
-  ChevronLeft
+import React, { useMemo } from 'react';
+import {
+  ClipboardList,
+  HelpCircle,
+  Gift,
+  GraduationCap,
+  BookOpen,
+  Search,
+  X,
+  AlertCircle,
+  RefreshCw,
+  Clock,
 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import { SPage } from '../../components/student/ui';
+import '../../features/student/league/league.css';
 import {
   LeagueHeroBanner,
   LeaguePodium,
   LeagueLeaderboardTable,
   LeagueRulesTab,
   LeaguePrizesTab,
-  StudentAchievementModal
+  StudentAchievementModal,
+  useStudentLeague,
 } from '../../features/student/league';
 
 export const StudentLeagueView = () => {
-  const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
-  const { currentUser } = useAuth();
+  const isAr = lang === 'ar';
+  const lg = useStudentLeague(lang);
 
-  // League category: 'general' (وزارة التربية والتعليم) or 'teachers' (دوريات المدرسين)
-  const [leagueCategory, setLeagueCategory] = useState('general');
-  const [selectedLeagueId, setSelectedLeagueId] = useState('general-republic');
-  const [selectedTier, setSelectedTier] = useState('Diamond');
-  const [activeTab, setActiveTab] = useState('leaderboard'); // 'leaderboard' | 'rules' | 'prizes'
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const breadcrumbs = useMemo(
+    () => [
+      {
+        labelAr: 'دوريات المتفوقين',
+        labelEn: 'Student Leagues',
+      },
+    ],
+    []
+  );
+  useSetBreadcrumbs(breadcrumbs);
 
-  // Available leagues in current category
-  const categoryLeagues = ALL_LEAGUES.filter(l => l.category === leagueCategory);
-
-  // Currently active league object
-  const activeLeague = ALL_LEAGUES.find(l => l.id === selectedLeagueId) || categoryLeagues[0] || ALL_LEAGUES[0];
-
-  // Students of current league
-  const leagueStudents = activeLeague.students || [];
-
-  // Filter students by selected tier if tier exists, or fallback to all
-  const filteredStudents = leagueStudents.filter(s => !selectedTier || s.tier === selectedTier);
-  const displayStudents = filteredStudents.length > 0 ? filteredStudents : leagueStudents;
-
-  // Top 3 for podium
-  const top1 = leagueStudents.find(s => s.rank === 1) || leagueStudents[0];
-  const top2 = leagueStudents.find(s => s.rank === 2) || leagueStudents[1];
-  const top3 = leagueStudents.find(s => s.rank === 3) || leagueStudents[2];
-
-  // Handler for category switch
-  const handleCategorySwitch = (category) => {
-    setLeagueCategory(category);
-    const firstInCat = ALL_LEAGUES.find(l => l.category === category);
-    if (firstInCat) {
-      setSelectedLeagueId(firstInCat.id);
-    }
-  };
+  const tiers = lg.activeDetail?.tiers || [];
+  const rules = lg.activeDetail?.rules || [];
+  const prizes = lg.activeDetail?.prizes || [];
 
   return (
-    <div style={{
-      maxWidth: '1140px',
-      margin: '0 auto',
-      padding: '24px 20px 80px',
-      fontFamily: 'var(--font-arabic, sans-serif)',
-      color: 'var(--text-primary)'
-    }}>
-      {/* 1. Header Navigation & Quick Link to Gamification / Achievements */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '14px',
-        marginBottom: '20px'
-      }}>
-        <div>
-          <h1 style={{
-            fontSize: '22px',
-            fontWeight: '800',
-            color: 'var(--text-primary)',
-            margin: '0 0 4px 0'
-          }}>
-            {lang === 'ar' ? 'دوريات المتفوقين' : 'Student Leagues'}
-          </h1>
-          <p style={{
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            margin: 0
-          }}>
-            {lang === 'ar' 
-              ? 'تنافس على مستوى الجمهورية في دوريات المواد الوزارية ودوريات كورسات المعلمين' 
-              : 'Compete in national curriculum leagues and teacher course leagues'}
-          </p>
-        </div>
-
-        {/* Direct Link to Achievements Page */}
-        <button
-          onClick={() => navigate('/student/gamification')}
+    <SPage maxWidth={1120}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          fontFamily: 'var(--font-arabic, sans-serif)',
+          color: 'var(--text-primary)',
+          minWidth: 0,
+        }}
+      >
+        {/* Header */}
+        <div
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '9px 16px',
-            borderRadius: '12px',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-            fontSize: '13px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-xs)',
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--primary)';
-            e.currentTarget.style.color = 'var(--primary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-            e.currentTarget.style.color = 'var(--text-primary)';
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            paddingBottom: '16px',
+            borderBottom: '1px solid var(--border-subtle)',
           }}
         >
-          <Trophy size={16} color="var(--primary)" />
-          <span>{lang === 'ar' ? 'لوحة إنجازاتي وجوائزي' : 'My Achievements'}</span>
-          <ChevronLeft size={16} />
-        </button>
-      </div>
-
-      {/* 2. Unified League Switcher Box */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: '18px',
-        padding: '16px 20px',
-        marginBottom: '20px',
-        boxShadow: 'var(--shadow-xs)'
-      }}>
-        {/* Main Category Selector */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          paddingBottom: '14px',
-          borderBottom: '1px solid var(--border-subtle)',
-          marginBottom: '14px',
-          flexWrap: 'wrap'
-        }}>
-          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', marginInlineEnd: '4px' }}>
-            نوع الدوري:
-          </span>
-
-          {/* Ministry General Subject Leagues */}
-          <button
-            onClick={() => handleCategorySwitch('general')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              border: '1.5px solid',
-              borderColor: leagueCategory === 'general' ? 'var(--primary)' : 'transparent',
-              backgroundColor: leagueCategory === 'general' ? 'rgba(21, 136, 199, 0.08)' : 'var(--bg-subtle)',
-              color: leagueCategory === 'general' ? 'var(--primary)' : 'var(--text-secondary)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <GraduationCap size={16} />
-            <span>{lang === 'ar' ? 'دوري الجمهورية العام (كل المواد)' : 'General Republic League'}</span>
-          </button>
-
-          {/* Teacher Course Leagues */}
-          <button
-            onClick={() => handleCategorySwitch('teachers')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              border: '1.5px solid',
-              borderColor: leagueCategory === 'teachers' ? 'var(--primary)' : 'transparent',
-              backgroundColor: leagueCategory === 'teachers' ? 'rgba(21, 136, 199, 0.08)' : 'var(--bg-subtle)',
-              color: leagueCategory === 'teachers' ? 'var(--primary)' : 'var(--text-secondary)',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <BookOpen size={16} />
-            <span>{lang === 'ar' ? 'دوريات كورسات المعلمين' : 'Teacher Course Leagues'}</span>
-          </button>
-        </div>
-
-        {/* Sub-leagues Selector (Only for Teachers) or Republic Banner (for General) */}
-        {leagueCategory === 'teachers' ? (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            flexWrap: 'wrap'
-          }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginInlineEnd: '4px' }}>
-              {lang === 'ar' ? 'اختر كورس المعلم:' : 'Select Teacher League:'}
-            </span>
-
-            {categoryLeagues.map((lg) => {
-              const isSelected = lg.id === selectedLeagueId;
-
-              return (
-                <button
-                  key={lg.id}
-                  onClick={() => setSelectedLeagueId(lg.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '7px 14px',
-                    borderRadius: '10px',
-                    border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
-                    backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-subtle)',
-                    color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
-                    fontSize: '12.5px',
-                    fontWeight: isSelected ? '800' : '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <span>{lg.nameAr}</span>
-                  {lg.myRank && (
-                    <span style={{
-                      fontSize: '10.5px',
-                      padding: '1px 6px',
-                      borderRadius: '6px',
-                      backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.22)' : 'rgba(21, 136, 199, 0.12)',
-                      color: isSelected ? '#FFFFFF' : 'var(--primary)',
-                      fontWeight: '800'
-                    }}>
-                      #{lg.myRank}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(245, 158, 11, 0.08)',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
-            color: '#B45309',
-            fontSize: '13px',
-            fontWeight: '700'
-          }}>
-            <Crown size={16} color="#F59E0B" />
-            <span>
-              {lang === 'ar' 
-                ? 'دوري الجمهورية العام الموحد (المجموع التراكمي الشامل لكافة المواد الوزارية على مستوى الجمهورية)' 
-                : 'Unified National General League (All Ministry Subjects Combined)'}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* 3. Hero & League Status Banner with Champion Slider */}
-      <LeagueHeroBanner
-        lang={lang}
-        isRtl={isRtl}
-        activeLeague={activeLeague}
-        currentUser={currentUser}
-        onGoToAchievements={() => navigate('/student/gamification')}
-        onStartQuiz={() => navigate('/student/quiz')}
-        onStartExam={() => navigate('/student/exam')}
-      />
-
-      {/* 4. Top 3 Podium with onSelectStudent handler */}
-      <LeaguePodium 
-        top1={top1} 
-        top2={top2} 
-        top3={top3} 
-        lang={lang} 
-        leagueBadge={activeLeague.badge}
-        onSelectStudent={(student) => setSelectedStudent(student)}
-      />
-
-      {/* 5. Navigation Tabs & Tier Selector */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '14px',
-        marginBottom: '16px'
-      }}>
-        {/* Tier switcher */}
-        <div style={{
-          display: 'inline-flex',
-          backgroundColor: 'var(--bg-surface)',
-          padding: '3px',
-          borderRadius: '14px',
-          border: '1px solid var(--border-subtle)'
-        }}>
-          {LEAGUE_TIERS.map((tier) => (
-            <button
-              key={tier.id}
-              onClick={() => setSelectedTier(tier.id)}
+          <div>
+            <h1
               style={{
-                padding: '7px 14px',
-                borderRadius: '10px',
-                border: 'none',
-                backgroundColor: selectedTier === tier.id ? 'var(--primary)' : 'transparent',
-                color: selectedTier === tier.id ? '#FFFFFF' : 'var(--text-secondary)',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
+                fontSize: '24px',
+                fontWeight: '900',
+                color: 'var(--text-primary)',
+                margin: '0 0 6px 0',
+                letterSpacing: '-0.01em',
               }}
             >
-              {tier.nameAr}
+              {isAr ? 'دوريات المتفوقين' : 'Student Leagues'}
+            </h1>
+            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+              {isAr
+                ? 'نظام النقاط الرسمي: الصواب والخطأ (+1)، الاختياري (+3)، المقالي (+5)، تقفيل الامتحان (+3)، والاستريك اليومي (+3/يوم)'
+                : 'Official points: True/False (+1), MCQ (+3), Essay (+5), Full Mark (+3 bonus), and Daily Streak (+3/day)'}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            disabled={lg.loadingBoard || lg.loadingLeagues}
+            onClick={lg.handleRefresh}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '12.5px',
+              fontWeight: '800',
+              cursor: lg.loadingBoard ? 'wait' : 'pointer',
+            }}
+          >
+            <RefreshCw size={14} color="var(--primary)" />
+            <span>{isAr ? 'تحديث الترتيب' : 'Refresh'}</span>
+          </button>
+        </div>
+
+        {/* Error Alert */}
+        {lg.error && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px',
+              padding: '12px 16px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(220, 38, 38, 0.08)',
+              border: '1px solid rgba(220, 38, 38, 0.3)',
+              color: '#DC2626',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={17} />
+              <span style={{ fontSize: '13px', fontWeight: '700' }}>{lg.error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={lg.handleRefresh}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(220, 38, 38, 0.35)',
+                backgroundColor: 'var(--bg-surface)',
+                color: '#DC2626',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              {isAr ? 'إعادة المحاولة' : 'Retry'}
             </button>
-          ))}
+          </div>
+        )}
+
+        {/* Category & League Switcher */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '18px',
+            padding: '14px 18px',
+            boxShadow: 'var(--shadow-xs)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => lg.handleCategorySwitch('general')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '8px 15px',
+                borderRadius: '11px',
+                border: `1.5px solid ${lg.leagueCategory === 'general' ? 'var(--primary)' : 'transparent'}`,
+                backgroundColor: lg.leagueCategory === 'general' ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                color: lg.leagueCategory === 'general' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              <GraduationCap size={16} />
+              <span>{isAr ? 'دوري الجمهورية العام' : 'General Republic League'}</span>
+              {lg.generalLeague && !lg.generalLeague.hasStarted && (
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    padding: '1px 7px',
+                    borderRadius: '999px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                    color: '#D97706',
+                    fontWeight: '800',
+                  }}
+                >
+                  {isAr ? 'لم يبدأ بعد' : 'Not Started'}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => lg.handleCategorySwitch('teachers')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '8px 15px',
+                borderRadius: '11px',
+                border: `1.5px solid ${lg.leagueCategory === 'teachers' ? 'var(--primary)' : 'transparent'}`,
+                backgroundColor: lg.leagueCategory === 'teachers' ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                color: lg.leagueCategory === 'teachers' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              <BookOpen size={16} />
+              <span>
+                {isAr
+                  ? `دوريات كورسات المعلمين (${lg.teacherLeagues.length})`
+                  : `Teacher Course Leagues (${lg.teacherLeagues.length})`}
+              </span>
+            </button>
+          </div>
+
+          {lg.leagueCategory === 'teachers' && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap',
+                paddingTop: '10px',
+                borderTop: '1px solid var(--border-subtle)',
+              }}
+            >
+              {lg.teacherLeagues.length === 0 ? (
+                <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  {isAr
+                    ? 'لم يطلق معلموك دوريات للكورسات حالياً — يمكنك المنافسة في «دوري الجمهورية العام».'
+                    : 'No teacher course leagues yet — compete in the General Republic League.'}
+                </span>
+              ) : (
+                lg.teacherLeagues.map((item) => {
+                  const selected = item.id === lg.selectedLeagueId;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => lg.handleSelectLeague(item.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 13px',
+                        borderRadius: '10px',
+                        border: `1px solid ${selected ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                        backgroundColor: selected ? 'var(--primary)' : 'var(--bg-subtle)',
+                        color: selected ? '#FFFFFF' : 'var(--text-primary)',
+                        fontSize: '12.5px',
+                        fontWeight: selected ? '800' : '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span>{item.titleAr}</span>
+                      {!item.isActive && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            padding: '1px 5px',
+                            borderRadius: '5px',
+                            backgroundColor: selected ? 'rgba(255,255,255,0.22)' : 'var(--bg-hover)',
+                            color: selected ? '#FFFFFF' : 'var(--text-muted)',
+                          }}
+                        >
+                          {isAr ? 'منتهي' : 'Ended'}
+                        </span>
+                      )}
+                      {item.myRank && (
+                        <span
+                          style={{
+                            fontSize: '10.5px',
+                            padding: '1px 6px',
+                            borderRadius: '6px',
+                            backgroundColor: selected ? 'rgba(255, 255, 255, 0.22)' : 'var(--primary-surface)',
+                            color: selected ? '#FFFFFF' : 'var(--primary)',
+                            fontWeight: '900',
+                          }}
+                        >
+                          #{item.myRank}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
-        {/* View Mode Tabs */}
-        <div style={{
-          display: 'inline-flex',
-          backgroundColor: 'var(--bg-surface)',
-          padding: '3px',
-          borderRadius: '14px',
-          border: '1px solid var(--border-subtle)'
-        }}>
-          <button
-            onClick={() => setActiveTab('leaderboard')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: '10px',
-              border: 'none',
-              backgroundColor: activeTab === 'leaderboard' ? 'var(--bg-subtle)' : 'transparent',
-              color: activeTab === 'leaderboard' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <ClipboardList size={14} />
-            <span>{lang === 'ar' ? 'جدول الترتيب' : 'Leaderboard'}</span>
-          </button>
+        {/* Loading Skeleton */}
+        {lg.loadingLeagues || (lg.loadingBoard && !lg.activeDetail) ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ height: '185px', borderRadius: '22px', backgroundColor: 'var(--bg-subtle)' }} />
+            <div style={{ height: '210px', borderRadius: '20px', backgroundColor: 'var(--bg-subtle)' }} />
+          </div>
+        ) : lg.activeDetail ? (
+          <>
+            {/* Hero Status Banner */}
+            <LeagueHeroBanner
+              activeDetail={lg.activeDetail}
+              top1={lg.top1}
+              lang={lang}
+            />
 
-          <button
-            onClick={() => setActiveTab('rules')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: '10px',
-              border: 'none',
-              backgroundColor: activeTab === 'rules' ? 'var(--bg-subtle)' : 'transparent',
-              color: activeTab === 'rules' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <HelpCircle size={14} />
-            <span>{lang === 'ar' ? 'قواعد النقاط' : 'Rules'}</span>
-          </button>
+            {/* Top 3 Podium */}
+            <LeaguePodium
+              top1={lg.top1}
+              top2={lg.top2}
+              top3={lg.top3}
+              lang={lang}
+              leagueSubtitle={lg.activeDetail.courseTitleAr || lg.activeDetail.groupNameAr}
+              onSelectStudent={lg.setSelectedStudent}
+            />
 
-          <button
-            onClick={() => setActiveTab('prizes')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: '10px',
-              border: 'none',
-              backgroundColor: activeTab === 'prizes' ? 'var(--bg-subtle)' : 'transparent',
-              color: activeTab === 'prizes' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <Gift size={14} />
-            <span>{lang === 'ar' ? 'جوائز الدوري' : 'Prizes'}</span>
-          </button>
-        </div>
-      </div>
+            {/* Controls Bar: View Tabs + Tier Filters + Search */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              {/* View Tabs */}
+              <div
+                role="tablist"
+                style={{
+                  display: 'inline-flex',
+                  flexWrap: 'wrap',
+                  gap: '4px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  padding: '4px',
+                  borderRadius: '13px',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                {[
+                  { id: 'leaderboard', icon: ClipboardList, ar: 'جدول الترتيب', en: 'Leaderboard' },
+                  { id: 'rules', icon: HelpCircle, ar: 'قواعد النقاط', en: 'Scoring Rules' },
+                  { id: 'prizes', icon: Gift, ar: 'جوائز الدوري', en: 'Prizes' },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const active = lg.activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => lg.setActiveTab(tab.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 14px',
+                        borderRadius: '9px',
+                        border: 'none',
+                        backgroundColor: active ? 'var(--bg-surface-elevated)' : 'transparent',
+                        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontSize: '12.5px',
+                        fontWeight: active ? '800' : '600',
+                        cursor: 'pointer',
+                        boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                      }}
+                    >
+                      <Icon size={14} />
+                      <span>{isAr ? tab.ar : tab.en}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-      {/* 6. Tab Contents */}
-      {activeTab === 'leaderboard' && (
-        <LeagueLeaderboardTable 
-          students={displayStudents} 
-          lang={lang} 
-          isRtl={isRtl} 
-          onSelectStudent={(student) => setSelectedStudent(student)}
-        />
-      )}
+              {/* Search (only in started leaderboard tab) */}
+              {lg.activeTab === 'leaderboard' && lg.activeDetail.hasStarted !== false && (
+                <div style={{ position: 'relative', width: '100%', maxWidth: '260px' }}>
+                  <Search
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      insetInlineStart: '11px',
+                      color: 'var(--text-muted)',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={lg.searchQuery}
+                    onChange={(e) => lg.setSearchQuery(e.target.value)}
+                    placeholder={isAr ? 'بحث باسم الطالب أو المجموعة...' : 'Search student or group...'}
+                    style={{
+                      width: '100%',
+                      height: '38px',
+                      paddingInlineStart: '34px',
+                      paddingInlineEnd: lg.searchQuery ? '30px' : '12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      color: 'var(--text-primary)',
+                      fontSize: '12.5px',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {lg.searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => lg.setSearchQuery('')}
+                      aria-label={isAr ? 'مسح البحث' : 'Clear search'}
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        insetInlineEnd: '8px',
+                        border: 'none',
+                        background: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
-      {activeTab === 'rules' && (
-        <LeagueRulesTab lang={lang} />
-      )}
+            {/* Dynamic Tier Filter Pills (only on started leaderboard tab) */}
+            {lg.activeTab === 'leaderboard' && lg.activeDetail.hasStarted !== false && tiers.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'all', nameAr: 'جميع المستويات', nameEn: 'All Tiers', count: lg.tierCounts.all },
+                  ...tiers.map((t) => ({
+                    id: t.id,
+                    nameAr: t.nameAr,
+                    nameEn: t.nameEn,
+                    count: lg.tierCounts[t.id] || 0,
+                  })),
+                ].map((tier) => {
+                  const active = lg.selectedTier === tier.id;
+                  return (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      onClick={() => lg.setSelectedTier(tier.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '999px',
+                        border: `1px solid ${active ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                        backgroundColor: active ? 'var(--primary)' : 'var(--bg-surface)',
+                        color: active ? '#FFFFFF' : 'var(--text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: active ? '800' : '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span>{isAr ? tier.nameAr : tier.nameEn}</span>
+                      <span
+                        style={{
+                          fontSize: '10.5px',
+                          padding: '0px 6px',
+                          borderRadius: '999px',
+                          backgroundColor: active ? 'rgba(255,255,255,0.22)' : 'var(--bg-subtle)',
+                          color: active ? '#FFFFFF' : 'var(--text-muted)',
+                        }}
+                      >
+                        {tier.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-      {activeTab === 'prizes' && (
-        <LeaguePrizesTab lang={lang} />
-      )}
+            {/* Tab Contents */}
+            {lg.activeTab === 'leaderboard' && (
+              lg.activeDetail.hasStarted === false ? (
+                <div
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px dashed rgba(245, 158, 11, 0.45)',
+                    borderRadius: '18px',
+                    padding: '44px 24px',
+                    textAlign: 'center',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <Clock size={34} color="#D97706" style={{ marginBottom: '10px' }} />
+                  <div style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                    {isAr ? 'دوري الجمهورية العام لم يبدأ بعد' : 'General Republic League Has Not Started Yet'}
+                  </div>
+                  <div style={{ fontSize: '13.5px', maxWidth: '460px', margin: '0 auto', lineHeight: 1.65 }}>
+                    {isAr
+                      ? 'يتم إطلاق دوري الجمهورية العام من قِبل إدارة المنصة (الأدمن). فور البدء ستُحتسب نقاط جميع الطلاب من الصفر وفق قواعد الدوري المعتمدة.'
+                      : 'The General Republic League is launched by the platform admin. Once started, all students begin fresh from 0 points under the official rules.'}
+                  </div>
+                </div>
+              ) : (
+                <LeagueLeaderboardTable
+                  students={lg.filteredStudents}
+                  totalInLeague={lg.leaderboard.length}
+                  lang={lang}
+                  isRtl={isRtl}
+                  onSelectStudent={lg.setSelectedStudent}
+                />
+              )
+            )}
 
-      {/* 7. Student Achievement Modal */}
-      {selectedStudent && (
+            {lg.activeTab === 'rules' && (
+              <LeagueRulesTab
+                rules={rules}
+                tiers={tiers}
+                currentTier={lg.activeDetail.myStanding?.tier || ''}
+                lang={lang}
+              />
+            )}
+
+            {lg.activeTab === 'prizes' && (
+              <LeaguePrizesTab
+                prizes={prizes}
+                durationLabelAr={lg.activeDetail.durationLabelAr}
+                lang={lang}
+              />
+            )}
+          </>
+        ) : null}
+
+        {/* Real Student Metrics Modal */}
         <StudentAchievementModal
-          student={selectedStudent}
-          leagueTitle={activeLeague.titleAr}
-          onClose={() => setSelectedStudent(null)}
+          student={lg.selectedStudent}
+          leagueTitle={lg.activeDetail?.titleAr || ''}
+          onClose={() => lg.setSelectedStudent(null)}
           lang={lang}
         />
-      )}
-    </div>
+      </div>
+    </SPage>
   );
 };
+
+export default StudentLeagueView;

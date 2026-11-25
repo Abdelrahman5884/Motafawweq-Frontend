@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { STUDENT_PROFILE } from '../../data/studentData';
+import { studentApi } from '../../services/studentApi';
 import {
   Clock,
   CheckCircle2,
@@ -27,39 +27,41 @@ import {
 export const StudentAnalyticsView = () => {
   const navigate = useNavigate();
   const { lang } = useLanguage();
-  const student = STUDENT_PROFILE;
+  const [student, setStudent] = useState({
+    overallGpa: '0%',
+    studyMinutesToday: 0,
+    completedLessonsCount: 0,
+    totalEnrolledLessons: 0
+  });
+  const [subjectAverages] = useState([]);
+  const [weakAreas] = useState([]);
+  const [weeklyScores, setWeeklyScores] = useState([]);
 
-  const subjectAverages = [
-    { subjectAr: 'الأحياء', avg: 96, testsCount: 8, lessonsDone: 14, lessonsTotal: 18 },
-    { subjectAr: 'الفيزياء', avg: 88, testsCount: 6, lessonsDone: 11, lessonsTotal: 22 },
-    { subjectAr: 'الكيمياء', avg: 91, testsCount: 5, lessonsDone: 8, lessonsTotal: 16 },
-    { subjectAr: 'اللغة العربية', avg: 98, testsCount: 7, lessonsDone: 20, lessonsTotal: 24 },
-  ];
+  useEffect(() => {
+    let mounted = true;
+    studentApi.dashboard.analytics()
+      .then((res) => {
+        if (!mounted) return;
+        const d = res?.data || {};
+        setStudent({
+          overallGpa: `${Number(d.avgExamScorePercent || 0)}%`,
+          studyMinutesToday: 0,
+          completedLessonsCount: Number(d.completedLessonsCount || 0),
+          totalEnrolledLessons: Number(d.completedLessonsCount || 0)
+        });
+        const recent = Array.isArray(d.recentExamPerformances) ? d.recentExamPerformances : [];
+        setWeeklyScores(recent.map((r, i) => ({
+          week: r.examTitleAr || `امتحان ${i + 1}`,
+          score: Math.round(Number(r.percentage || 0))
+        })));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  const weakAreas = [
-    {
-      topicAr: 'دورة كالفن وتفاعلات الستروما',
-      subjectAr: 'الأحياء',
-      mastery: 64,
-      adviceAr: 'راجع الأسئلة من بنك الأخطاء وأعد سماع شرح الدقائق الأخيرة من الحصة.'
-    },
-    {
-      topicAr: 'قانون كيرشوف والدوائر المغلقة',
-      subjectAr: 'الفيزياء',
-      mastery: 71,
-      adviceAr: 'راجع تطبيق قاعدة الإشارات على المسارات المغلقة قبل الامتحان.'
-    },
-  ];
-
-  const weeklyScores = [
-    { week: 'الأسبوع 1', score: 82 },
-    { week: 'الأسبوع 2', score: 86 },
-    { week: 'الأسبوع 3', score: 91 },
-    { week: 'الأسبوع 4', score: 89 },
-    { week: 'الأسبوع 5', score: 96 },
-  ];
-
-  const maxScore = Math.max(...weeklyScores.map(w => w.score));
+  const maxScore = weeklyScores.length > 0 ? Math.max(...weeklyScores.map(w => w.score), 1) : 100;
 
   return (
     <SPage>
@@ -167,6 +169,11 @@ export const StudentAnalyticsView = () => {
               </div>
             </div>
           ))}
+          {weakAreas.length === 0 && (
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: S.textSecondary, fontSize: '13.5px', fontWeight: '700' }}>
+              {lang === 'ar' ? 'لا توجد نقاط ضعف مسجلة حالياً.' : 'No weak areas recorded at the moment.'}
+            </div>
+          )}
         </div>
       </SCard>
     </SPage>

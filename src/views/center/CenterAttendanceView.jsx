@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { InfoTooltip } from '../../components/common/InfoTooltip';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
 import { useGroups } from '../../context/GroupsContext';
+import { centerApi } from '../../services/centerApi';
 import { 
   CheckCircle2, 
   QrCode, 
@@ -28,46 +30,58 @@ import {
 export const CenterAttendanceView = () => {
   const { lang, isRtl } = useLanguage();
   const { 
+    isBackendCenter,
+    loadAttendanceData,
     attendanceRecords, 
+    attendanceSummary,
     processSmartStudentQrScan, 
+    sendAbsenceAlert,
     branches, 
     selectedBranchId,
     exportToCsv
   } = useCenter();
-  const { groups } = useGroups();
+  const { groups, enrolledStudents, showToast } = useGroups();
+
+  useEffect(() => {
+    loadAttendanceData?.();
+  }, [loadAttendanceData]);
 
   const [scanInput, setScanInput] = useState('');
   const [lastScanResult, setLastScanResult] = useState(null);
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [simulatedTime, setSimulatedTime] = useState('14:15'); // 2:15 PM default for demo testing matching the 2 PM cohort
+  const [simulatedTime, setSimulatedTime] = useState('14:15');
   const [simulatedDay, setSimulatedDay] = useState('Saturday');
   const [alertSentId, setAlertSentId] = useState(null);
 
-  // Quick Demo Student QR Presets for 1-click testing
-  const demoStudentQrs = [
-    { qrId: 'QR-STU-01001122334', name: 'أحمد محمود رضوان', phone: '01001122334', label: 'طالب مسجل (مجموعة الفيزياء - السبت 2:00 م)' },
-    { qrId: 'QR-STU-01009988776', name: 'سارة خالد المنشاوي', phone: '01009988776', label: 'طالبة مسجلة (مجموعة الكيمياء - الأحد 4:00 م)' },
-    { qrId: 'QR-STU-01112233445', name: 'محمد إبراهيم الشناوي', phone: '01112233445', label: 'طالب مسجل (مجموعة الأحياء - الاثنين 2:00 م)' }
-  ];
-
-  const handleScanSubmit = (e) => {
+  const handleScanSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!scanInput.trim()) return;
 
-    const result = processSmartStudentQrScan(scanInput.trim(), simulatedDay, simulatedTime);
+    const result = await processSmartStudentQrScan(scanInput.trim(), simulatedDay, simulatedTime);
     setLastScanResult(result);
     setScanInput('');
   };
 
-  const handleQuickScan = (qrCode, targetDay = 'Saturday', targetTime = '14:15') => {
-    setSimulatedDay(targetDay);
-    setSimulatedTime(targetTime);
-    const result = processSmartStudentQrScan(qrCode, targetDay, targetTime);
-    setLastScanResult(result);
-  };
+  const handleSendAbsenceAlert = async (studentName, phone, groupId = null, enrollmentId = null) => {
+    const firstGroup = groups[0];
+    const targetGroupId = groupId || firstGroup?.id;
+    const firstEnrolled = targetGroupId ? (enrolledStudents?.[targetGroupId] || [])[0] : null;
+    const targetEnrollmentId = enrollmentId || firstEnrolled?.id || firstEnrolled?.enrollmentId;
 
-  const handleSendAbsenceAlert = (studentName, phone) => {
+    if (isBackendCenter && targetGroupId && targetEnrollmentId && sendAbsenceAlert) {
+      try {
+        await sendAbsenceAlert({
+          group_id: targetGroupId,
+          enrollment_id: targetEnrollmentId,
+          parent_phone: phone,
+          channel: 'whatsapp',
+        });
+        if (showToast) showToast(`تم إرسال تنبيه الغياب لولي أمر الطالب «${studentName}» بنجاح!`);
+      } catch (err) {
+        if (showToast) showToast(err?.message || 'يتطلب إرسال تنبيهات الواتساب باقة السنتر برو (Pro).', 'warning');
+      }
+    }
     setAlertSentId(phone);
     setTimeout(() => {
       setAlertSentId(null);
@@ -134,8 +148,9 @@ export const CenterAttendanceView = () => {
                 {lang === 'ar' ? 'الماسح التلقائي نشط' : 'Auto-Scanner Active'}
               </span>
             </div>
-            <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
-              {lang === 'ar' ? 'حضور الطلاب بالباركود والمطابقة التلقائية للمواعيد' : 'QR Attendance & Auto Time Matcher'}
+            <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: '2px 0 0 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>{lang === 'ar' ? 'حضور الطلاب بالباركود' : 'QR Attendance'}</span>
+              <InfoTooltip text={lang === 'ar' ? 'مطابقة تلقائية لموعد الحصة الحالية عند مسح باركود الطالب.' : 'Auto-matches the current class time slot when a student pass is scanned.'} />
             </h1>
           </div>
         </div>
@@ -163,7 +178,18 @@ export const CenterAttendanceView = () => {
 
           {/* Export to Excel (Feature 78) */}
           <button
-            onClick={() => {
+            onClick={async () => {
+              if (isBackendCenter) {
+                try {
+                  await centerApi.attendance.exportCsv(
+                    { group_id: selectedGroupFilter !== 'all' ? selectedGroupFilter : '' },
+                    'سجل_حضور_الطلاب.csv'
+                  );
+                  return;
+                } catch {
+                  // fallback to client-side export
+                }
+              }
               const headers = ['اسم الطالب', 'الهاتف', 'المجموعة', 'المادة', 'المدرس', 'القاعة', 'التوقيت', 'طريقة المسح', 'حالة السداد'];
               const rows = filteredRecords.map(r => [
                 r.studentNameAr,
@@ -222,12 +248,8 @@ export const CenterAttendanceView = () => {
               <h2 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
                 {lang === 'ar' ? 'ماسح باركود بوابة السنتر' : 'Center Entrance Scanner'}
               </h2>
+              <InfoTooltip text={lang === 'ar' ? 'امسح باركود الطالب أو بطاقته الذكية. سيتعرف النظام تلقائياً على موعد حصته الحالية ويسجل حضوره في القاعة المحددة.' : 'Scan student pass. System auto-detects current time slot and registers presence.'} />
             </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
-              {lang === 'ar'
-                ? 'امسح باركود الطالب أو بطاقته الذكية. سيتعرف النظام تلقائياً على موعد حصته الحالية ويسجل حضوره في القاعة المحددة.'
-                : 'Scan student pass. System auto-detects current time slot and registers presence.'}
-            </p>
           </div>
 
           {/* Scanner Input Box */}
@@ -325,51 +347,6 @@ export const CenterAttendanceView = () => {
                   fontWeight: '600'
                 }}
               />
-            </div>
-          </div>
-
-          {/* Quick Demo Test Buttons */}
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-              {lang === 'ar' ? 'اختبار سريع بباركود طالب تجريبي:' : 'Quick Demo Barcode Test:'}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {demoStudentQrs.map(s => (
-                <button
-                  key={s.qrId}
-                  onClick={() => handleQuickScan(s.qrId, 'Saturday', '14:15')}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    textAlign: isRtl ? 'right' : 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: '700', color: 'var(--primary)' }}>{s.name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{s.label}</div>
-                  </div>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                    color: 'var(--primary)',
-                    fontWeight: '700'
-                  }}>
-                    {lang === 'ar' ? 'مسح الآن' : 'Scan'}
-                  </span>
-                </button>
-              ))}
             </div>
           </div>
 
@@ -525,16 +502,12 @@ export const CenterAttendanceView = () => {
                   <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
                     {lang === 'ar' ? 'تنبيهات الغياب الفورية لأولياء الأمور' : 'Absence Alerts to Parents'}
                   </span>
+                  <InfoTooltip text={lang === 'ar' ? 'يتم إشعار ولي أمر الطالب تلقائياً في حال انقضاء 20 دقيقة من موعد الحصة دون مسح باركود الدخول.' : 'Automated notification sent to guardian if student passes 20 min mark without gate check-in.'} size={13} />
                 </div>
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   {lang === 'ar' ? 'إشعار واتساب / SMS' : 'SMS / WhatsApp'}
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 10px 0', lineHeight: '1.4' }}>
-                {lang === 'ar'
-                  ? 'يتم إشعار ولي أمر الطالب تلقائياً في حال انقضاء 20 دقيقة من موعد الحصة دون مسح باركود الدخول.'
-                  : 'Automated notification sent to guardian if student passes 20 min mark without gate check-in.'}
-              </p>
 
               {/* Sample student with absence */}
               <div style={{

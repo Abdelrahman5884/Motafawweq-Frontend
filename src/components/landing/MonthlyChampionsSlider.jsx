@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { Trophy, ChevronRight, ChevronLeft } from 'lucide-react';
-import { getChampions } from '../../services/championsStorage';
+import { publicPlatformApi } from '../../services/adminApi';
 
 const CHAMPIONS_DATA = [
   {
@@ -71,21 +71,26 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
   const lang = propLang || languageContext.lang || 'ar';
   const isRtl = propIsRtl !== undefined ? propIsRtl : (lang === 'ar');
 
-  const [champions, setChampions] = useState(() => {
-    const list = getChampions();
-    const pinned = list.filter(c => c.isPinned !== false);
-    return pinned.length > 0 ? pinned : list;
-  });
+  const [champions, setChampions] = useState(CHAMPIONS_DATA);
+
+  const loadChampions = useCallback(async () => {
+    try {
+      const res = await publicPlatformApi.champions();
+      const list = Array.isArray(res?.data) ? res.data : [];
+      if (list.length > 0) {
+        setChampions(list);
+      }
+    } catch {
+      // Keep graceful static fallback if public API is unreachable
+    }
+  }, []);
 
   useEffect(() => {
-    const handleUpdate = () => {
-      const list = getChampions();
-      const pinned = list.filter(c => c.isPinned !== false);
-      setChampions(pinned.length > 0 ? pinned : list);
-    };
+    loadChampions();
+    const handleUpdate = () => loadChampions();
     window.addEventListener('champions-updated', handleUpdate);
     return () => window.removeEventListener('champions-updated', handleUpdate);
-  }, []);
+  }, [loadChampions]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -97,13 +102,13 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
   const safeIndex = currentIndex >= activeChampions.length ? 0 : currentIndex;
   const currentChamp = activeChampions[safeIndex] || CHAMPIONS_DATA[0];
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % activeChampions.length);
-  };
+  }, [activeChampions.length]);
 
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + activeChampions.length) % activeChampions.length);
-  };
+  }, [activeChampions.length]);
 
   // Touch Swipe Handlers for Mobile & Tablet
   const handleTouchStart = (e) => {
@@ -140,7 +145,7 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPaused, currentIndex]);
+  }, [isPaused, handleNext]);
 
   return (
     <div 
@@ -274,9 +279,13 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
             key={currentChamp.id}
             src={currentChamp.image}
             alt={lang === 'ar' ? currentChamp.nameAr : currentChamp.nameEn}
+            onError={(e) => {
+              e.currentTarget.src = '/characters/real-male-champ-1.png';
+            }}
             style={{
               maxHeight: 'min(300px, 36vh)',
               maxWidth: '92%',
+              borderRadius: '18px',
               objectFit: 'contain',
               filter: 'drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15))',
               animation: 'championFadeIn 0.4s ease-out both'
@@ -335,7 +344,9 @@ export const MonthlyChampionsSlider = ({ isRtl: propIsRtl, lang: propLang }) => 
               gap: '8px'
             }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {lang === 'ar' ? currentChamp.schoolAr : currentChamp.schoolEn}
+                {lang === 'ar'
+                  ? [currentChamp.gradeAr, currentChamp.schoolAr].filter(Boolean).join(' • ')
+                  : [currentChamp.gradeEn || currentChamp.gradeAr, currentChamp.schoolEn || currentChamp.schoolAr].filter(Boolean).join(' • ')}
               </span>
               <span style={{ 
                 color: 'var(--primary-light, #5CB6DB)', 

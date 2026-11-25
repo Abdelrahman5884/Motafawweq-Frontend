@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
+import { Eye, EyeOff, Lock } from 'lucide-react';
 
 export const ForgotPasswordStep3NewPassword = ({
   newPassword,
@@ -10,7 +11,8 @@ export const ForgotPasswordStep3NewPassword = ({
   isLoading,
   onSubmit
 }) => {
-  const { lang, t } = useLanguage();
+  const { lang, t, isRtl } = useLanguage();
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div>
@@ -41,44 +43,71 @@ export const ForgotPasswordStep3NewPassword = ({
           <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
             {lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}
           </label>
-          <input
-            type="password"
-            required
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="••••••••"
-            style={{
-              width: '100%',
-              padding: '11px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-medium)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '13px'
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••••"
+              style={{
+                width: '100%',
+                padding: '11px 38px 11px 38px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '13px'
+              }}
+            />
+            <Lock size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                [isRtl ? 'left' : 'right']: '10px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer'
+              }}
+            >
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
         </div>
 
         <div>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
             {t('confirmPasswordLabel')}
           </label>
-          <input
-            type="password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="••••••••"
-            style={{
-              width: '100%',
-              padding: '11px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-medium)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '13px'
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••••"
+              style={{
+                width: '100%',
+                padding: isRtl ? '11px 38px 11px 14px' : '11px 14px 11px 38px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '13px'
+              }}
+            />
+            <Lock size={15} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '12px', color: 'var(--text-muted)' }} />
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '5px', display: 'block' }}>
+            {lang === 'ar'
+              ? '10 أحرف على الأقل تشمل حروفاً كبيرة وصغيرة وأرقاماً ورمزاً خاصاً (مثل: Motafawweq@2026)'
+              : 'At least 10 chars with uppercase, lowercase, number, and symbol (e.g. Motafawweq@2026)'}
+          </span>
         </div>
 
         <button

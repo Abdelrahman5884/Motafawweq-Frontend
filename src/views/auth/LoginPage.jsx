@@ -1,66 +1,84 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useAuth, DEMO_PASSWORD } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { 
   BookOpen, 
   GraduationCap, 
   Users, 
   Building2, 
-  ShieldCheck,
   ArrowRight, 
   ArrowLeft 
 } from 'lucide-react';
 import { PlexusBackground } from '../../components/common/PlexusBackground';
 import { AuthSidePanel } from '../../features/auth/common';
-import { RoleSelectorTabs, LoginForm, QuickDemoAccess } from '../../features/auth/login';
+import { RoleSelectorTabs, LoginForm } from '../../features/auth/login';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, quickDemoLogin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
   const { lang, t, isRtl } = useLanguage();
 
-  const [selectedRole, setSelectedRole] = useState('student');
+  const defaultEmails = {
+    teacher: 'salma.biology@motafawweq.me',
+    student: 'omar.tarek@motafawweq.me',
+    parent: 'tarek.kady@gmail.com',
+    center: 'admin@alrowad.edu.eg'
+  };
+
+  const rawRoleParam = searchParams.get('role');
+  const initialRole = defaultEmails[rawRoleParam] ? rawRoleParam : 'student';
+  const [selectedRole, setSelectedRole] = useState(initialRole);
   const [emailOrPhone, setEmailOrPhone] = useState(
-    selectedRole === 'teacher' ? 'salma.biology@motafawweq.me' : 'omar.tarek@motafawweq.me'
+    rawRoleParam === 'admin' ? '' : (defaultEmails[initialRole] || 'omar.tarek@motafawweq.me')
   );
-  const [password, setPassword] = useState('motafawweq2026');
+  const [password, setPassword] = useState(rawRoleParam === 'admin' ? '' : DEMO_PASSWORD);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleRoleTabChange = (roleKey) => {
     setSelectedRole(roleKey);
-    if (roleKey === 'teacher') setEmailOrPhone('salma.biology@motafawweq.me');
-    else if (roleKey === 'student') setEmailOrPhone('omar.tarek@motafawweq.me');
-    else if (roleKey === 'parent') setEmailOrPhone('tarek.kady@gmail.com');
-    else if (roleKey === 'center') setEmailOrPhone('admin@alrowad.edu.eg');
-    else if (roleKey === 'admin') setEmailOrPhone('hq@motafawweq.me');
+    setErrorMsg('');
+    if (defaultEmails[roleKey]) {
+      setEmailOrPhone(defaultEmails[roleKey]);
+      setPassword(DEMO_PASSWORD);
+    } else {
+      setEmailOrPhone('');
+      setPassword('');
+    }
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      const targetRoute = login({ email: emailOrPhone, password, role: selectedRole });
+    try {
+      const targetRoute = await login({
+        email: emailOrPhone,
+        password,
+        role: selectedRole,
+        rememberMe
+      });
       navigate(targetRoute);
-    }, 600);
+    } catch (err) {
+      setErrorMsg(
+        err?.message ||
+          (lang === 'ar' ? 'فشل تسجيل الدخول، تحقق من البريد وكلمة المرور.' : 'Login failed. Please check your credentials.')
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleQuickDemo = (roleKey) => {
-    const targetRoute = quickDemoLogin(roleKey);
-    navigate(targetRoute);
-  };
 
   const roleOptions = [
     { id: 'student', label: lang === 'ar' ? 'طالب' : 'Student', icon: BookOpen },
     { id: 'teacher', label: lang === 'ar' ? 'معلم' : 'Teacher', icon: GraduationCap },
     { id: 'parent', label: lang === 'ar' ? 'ولي أمر' : 'Parent', icon: Users },
-    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 },
-    { id: 'admin', label: lang === 'ar' ? 'مشرف المنصة' : 'Admin', icon: ShieldCheck }
+    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 }
   ];
 
   const roleCharacters = {
@@ -124,6 +142,7 @@ export const LoginPage = () => {
           />
 
           <LoginForm
+            selectedRole={selectedRole}
             emailOrPhone={emailOrPhone}
             setEmailOrPhone={setEmailOrPhone}
             password={password}
@@ -134,8 +153,6 @@ export const LoginPage = () => {
             errorMsg={errorMsg}
             onSubmit={handleLoginSubmit}
           />
-
-          <QuickDemoAccess onQuickDemo={handleQuickDemo} />
 
           <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
             {t('dontHaveAccount')}{' '}

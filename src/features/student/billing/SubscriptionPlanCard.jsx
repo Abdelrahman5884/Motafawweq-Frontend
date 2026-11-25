@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, XCircle, Sparkles, ArrowRight, ArrowLeft, ShieldCheck, Zap } from 'lucide-react';
+import { CheckCircle2, XCircle, Sparkles, ArrowRight, ArrowLeft, ShieldCheck, Zap, Lock } from 'lucide-react';
 
 export const SubscriptionPlanCard = ({
   plan,
@@ -7,7 +7,11 @@ export const SubscriptionPlanCard = ({
   lang = 'ar',
   isRtl = true,
   onSelectPlan,
-  isCurrentPlan
+  isCurrentPlan,
+  switchBlocked = false,
+  switchBlockedLabel = null,
+  freeActionLabel = null,
+  isHighlighted = false,
 }) => {
   const isAr = lang === 'ar';
 
@@ -32,7 +36,7 @@ export const SubscriptionPlanCard = ({
   const isPro = plan.tier === 'pro' || plan.id === 'plan-pro' || plan.popular;
 
   // Unified Motafawweq Platform Brand Palette (ZERO green)
-  const cardBorderColor = isCurrentPlan
+  const cardBorderColor = isCurrentPlan || isHighlighted
     ? 'var(--primary)'
     : isPro
     ? 'var(--primary)'
@@ -40,7 +44,9 @@ export const SubscriptionPlanCard = ({
     ? 'rgba(2, 132, 199, 0.35)'
     : 'var(--border-subtle)';
 
-  const cardShadow = isPro
+  const cardShadow = isHighlighted
+    ? '0 0 0 4px rgba(21, 136, 199, 0.18), 0 18px 46px rgba(21, 136, 199, 0.22)'
+    : isPro
     ? '0 16px 44px rgba(21, 136, 199, 0.18)'
     : isPlus
     ? '0 10px 28px rgba(6, 37, 78, 0.08)'
@@ -295,13 +301,17 @@ export const SubscriptionPlanCard = ({
 
       {/* Subscribe CTA Button (Platform Palette) */}
       <button
-        onClick={() => onSelectPlan?.({ ...plan, ...currentPricing })}
+        type="button"
+        disabled={isCurrentPlan}
+        onClick={() => !isCurrentPlan && onSelectPlan?.({ ...plan, ...currentPricing })}
         style={{
           width: '100%',
           padding: '14px 20px',
           borderRadius: '16px',
           backgroundColor: isCurrentPlan
             ? 'var(--bg-subtle)'
+            : switchBlocked
+            ? 'rgba(245, 158, 11, 0.1)'
             : isPro
             ? 'var(--primary)'
             : isPlus
@@ -309,16 +319,21 @@ export const SubscriptionPlanCard = ({
             : 'var(--bg-subtle)',
           color: isCurrentPlan
             ? 'var(--text-primary)'
+            : switchBlocked
+            ? '#B45309'
             : (isPro || isPlus)
             ? '#FFFFFF'
             : 'var(--text-primary)',
           border: isCurrentPlan || isFree
             ? '1.5px solid var(--border-medium)'
+            : switchBlocked
+            ? '1.5px solid rgba(245, 158, 11, 0.4)'
             : 'none',
-          fontSize: '14px',
+          fontSize: '13.5px',
           fontWeight: '900',
-          cursor: 'pointer',
-          boxShadow: isCurrentPlan || isFree
+          cursor: isCurrentPlan ? 'default' : 'pointer',
+          opacity: isCurrentPlan ? 0.85 : 1,
+          boxShadow: isCurrentPlan || isFree || switchBlocked
             ? 'none'
             : isPro
             ? '0 8px 22px rgba(21, 136, 199, 0.35)'
@@ -329,27 +344,18 @@ export const SubscriptionPlanCard = ({
           gap: '8px',
           transition: 'all 0.2s ease'
         }}
-        onMouseEnter={(e) => {
-          if (!isCurrentPlan) {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.opacity = '0.95';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isCurrentPlan) {
-            e.currentTarget.style.transform = 'none';
-            e.currentTarget.style.opacity = '1';
-          }
-        }}
       >
+        {!isCurrentPlan && switchBlocked && <Lock size={15} />}
         <span>
           {isCurrentPlan
             ? (isAr ? 'باقتك الحالية المفعّلة' : 'Current Active Plan')
+            : switchBlocked
+            ? (switchBlockedLabel || (isAr ? 'ألغِ اشتراكك الحالي أولاً للتبديل' : 'Cancel active plan first to switch'))
             : isFree
-            ? (isAr ? 'البدء مجاناً الآن' : 'Start Free')
+            ? (freeActionLabel || (isAr ? 'التبديل للباقة المجانية' : 'Switch to Free'))
             : (isAr ? `الاشتراك في ${name}` : `Select ${name}`)}
         </span>
-        {isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}
+        {!isCurrentPlan && !switchBlocked && (isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />)}
       </button>
     </div>
   );

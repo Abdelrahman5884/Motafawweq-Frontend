@@ -1,3879 +1,447 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useLanguage } from '../../context/LanguageContext';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useCenter } from '../../context/CenterContext';
-import { useGroups, ALL_REGISTERED_STUDENTS } from '../../context/GroupsContext';
-import { RealQRCode } from '../../components/common/RealQRCode';
-import { CameraBarcodeScanner } from '../../components/common/CameraBarcodeScanner';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { 
-  Building2, 
-  Users, 
-  Calendar, 
-  QrCode, 
-  Search, 
-  Plus, 
-  CheckCircle2, 
-  AlertCircle, 
-  X, 
-  UserPlus, 
-  Clock, 
-  DollarSign, 
-  GraduationCap, 
-  Phone, 
-  UserCheck, 
-  Trash2, 
-  Printer, 
-  Scan, 
-  Check, 
-  ArrowRight, 
-  ArrowLeft, 
-  Copy, 
-  ExternalLink, 
-  MessageCircle, 
-  LayoutGrid, 
-  List, 
-  Filter, 
-  Sparkles, 
-  RefreshCw, 
-  SlidersHorizontal, 
-  ChevronDown,
-  Camera,
-  CameraOff,
-  Keyboard,
-  Pencil,
-  Mail
-} from 'lucide-react';
-
-const WEEKDAYS = [
-  { key: 'saturday', labelAr: 'السبت', labelEn: 'Saturday' },
-  { key: 'sunday', labelAr: 'الأحد', labelEn: 'Sunday' },
-  { key: 'monday', labelAr: 'الاثنين', labelEn: 'Monday' },
-  { key: 'tuesday', labelAr: 'الثلاثاء', labelEn: 'Tuesday' },
-  { key: 'wednesday', labelAr: 'الأربعاء', labelEn: 'Wednesday' },
-  { key: 'thursday', labelAr: 'الخميس', labelEn: 'Thursday' },
-  { key: 'friday', labelAr: 'الجمعة', labelEn: 'Friday' }
-];
-
-const STANDARD_CENTER_SLOTS = [
-  { label: '10:00 ص - 12:00 م', startTime: '10:00', endTime: '12:00' },
-  { label: '12:00 م - 02:00 م', startTime: '12:00', endTime: '14:00' },
-  { label: '02:00 م - 04:00 م', startTime: '14:00', endTime: '16:00' },
-  { label: '04:00 م - 06:00 م', startTime: '16:00', endTime: '18:00' },
-  { label: '06:00 م - 08:00 م', startTime: '18:00', endTime: '20:00' },
-  { label: '08:00 م - 10:00 م', startTime: '20:00', endTime: '22:00' }
-];
+import { useGroups } from '../../context/GroupsContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import { SButton, SCard, SPage, SSkeleton } from '../../components/student/ui';
+import { CenterQuotaLimitBanner } from '../../components/center/CenterSubscriptionGate';
+import { getCenterPlanQuotas } from '../../constants/centerPlanFeatures';
+import {
+  CenterAddStudentModal,
+  CenterCohortFormModal,
+  CenterDeleteCohortModal,
+  CenterGroupDetailSection,
+  CenterGroupsListSection,
+  CenterStudentCardModal,
+} from '../../features/center/groups';
+import '../../features/center/groups/groups.css';
 
 export const CenterGroupsView = () => {
-  const { lang, isRtl } = useLanguage();
   const navigate = useNavigate();
   const { groupId: routeGroupId } = useParams();
+  const { authLoading, isAuthenticated, hasActiveToken, currentUser, centerPlanTier, centerPlanQuotas } = useAuth();
+  const { lang, isRtl } = useLanguage();
+  const isAr = lang === 'ar';
+  const activeQuotas = centerPlanQuotas || getCenterPlanQuotas(centerPlanTier);
 
-  const { branches, rooms, checkScheduleConflict, centerTeachers = [] } = useCenter();
-  const { 
-    groups, 
-    addGroup, 
+  const {
+    isBackendCenter,
+    branches = [],
+    rooms = [],
+    centerTeachers = [],
+    staff = [],
+    centerSettings,
+    checkScheduleConflict,
+    loadCoreCenterData,
+  } = useCenter();
+
+  const {
+    groups = [],
+    groupsMeta,
+    loadingGroups,
+    groupsError,
+    refreshGroups,
+    addGroup,
     updateGroup,
     deleteGroup,
+    regenerateGroupJoinCode,
+    enrolledStudents = {},
+    pendingStudents = {},
+    loadingRoster,
+    fetchGroupRoster,
+    enrollStudentDirectly,
+    acceptPendingStudent,
+    rejectPendingStudent,
+    removeStudentFromGroup,
+    updateStudentPayment,
+    toggleStudentAttendance,
+    recordStudentAttendanceByCode,
     showToast,
-    enrolledStudents, 
-    enrollStudentDirectly, 
-    toggleStudentAttendance, 
-    recordStudentAttendanceByCode, 
-    removeStudentFromGroup 
   } = useGroups();
 
-  // Selected Group for viewing dedicated students & barcode attendance page
-  // When activeGroupId is null, user sees the Cohorts/Groups list
-  // When activeGroupId is set, user sees the dedicated Group Students & Barcode Attendance view
-  const [activeGroupId, setActiveGroupId] = useState(routeGroupId || null);
-
-  useEffect(() => {
-    if (routeGroupId) {
-      setActiveGroupId(routeGroupId);
-    }
-  }, [routeGroupId]);
-
-  // Filters & Search for Groups List
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('ALL');
-  const [selectedTeacher, setSelectedTeacher] = useState('ALL');
-
-  // Search & Filter for Group Students
-  const [studentSearchTerm, setStudentSearchTerm] = useState('');
-  const [studentStatusFilter, setStudentStatusFilter] = useState('ALL'); // ALL, present, absent
-  const [studentsViewMode, setStudentsViewMode] = useState(() => 
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 'cards' : 'table'
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
 
-  // Modals
   const [isAddCohortOpen, setIsAddCohortOpen] = useState(false);
   const [editingCohort, setEditingCohort] = useState(null);
   const [deleteConfirmCohort, setDeleteConfirmCohort] = useState(null);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
-  const [studentCardModal, setStudentCardModal] = useState(null); // student object
+  const [studentCardModal, setStudentCardModal] = useState(null);
 
-  // Add Cohort Form State with Multi-session capability (like teacher modal)
-  const [cohortName, setCohortName] = useState('');
-  const [teacherName, setTeacherName] = useState('د. سلمى السيد');
-  const [subject, setSubject] = useState('الرياضيات البحتة');
-  const [cohortPrice, setCohortPrice] = useState('500');
-  const [cohortMaxStudents, setCohortMaxStudents] = useState('50');
-  const [cohortDefaultRoomId, setCohortDefaultRoomId] = useState(rooms[0]?.id || '');
-
-  // Multi-session state: array of { id, day, startTime, endTime, hall }
-  const [sessions, setSessions] = useState([
-    { id: 'sess-1', day: 'sunday', startTime: '16:00', endTime: '18:00', hall: rooms[0]?.nameAr || 'قاعة 1 (المحاضرات الكبرى)' },
-    { id: 'sess-2', day: 'wednesday', startTime: '16:00', endTime: '18:00', hall: rooms[0]?.nameAr || 'قاعة 1 (المحاضرات الكبرى)' }
-  ]);
-
-  // Add Student Modal State
-  const [studentModalTab, setStudentModalTab] = useState('search'); // 'search' | 'manual'
-  const [searchStudentQuery, setSearchStudentQuery] = useState('');
-  
-  // Manual Student Registration Form State
-  const [manualName, setManualName] = useState('');
-  const [manualPhone, setManualPhone] = useState('');
-  const [manualEmail, setManualEmail] = useState('');
-  const [sendPlatformInvite, setSendPlatformInvite] = useState(true);
-  const [manualGrade, setManualGrade] = useState('الصف الثالث الثانوي');
-  const [manualParentName, setManualParentName] = useState('');
-  const [manualParentPhone, setManualParentPhone] = useState('');
-
-  // Mobile screen responsiveness detection
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
+      setIsMobile(window.innerWidth < 768);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Barcode Scanner Input & Camera State
-  // Default: Manual/choice mode so camera does NOT open automatically on page load
-  const [scannerMode, setScannerMode] = useState('manual'); // 'manual' | 'camera'
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [scanCodeInput, setScanCodeInput] = useState('');
-  const [scanFeedback, setScanFeedback] = useState(null);
-  const [copiedCodeId, setCopiedCodeId] = useState(null);
-  const [isProcessingSnapshot, setIsProcessingSnapshot] = useState(false);
-
-  const scannerInputRef = useRef(null);
-  const fileSnapRef = useRef(null);
-
-  // Handle Snapshot / Phone Camera Photo Barcode Scan
-  const handleSnapshotChosen = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeGroup) return;
-
-    setIsProcessingSnapshot(true);
-    try {
-      const decoder = new Html5Qrcode('center-snap-decoder-box', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.UPC_A
-        ],
-        verbose: false
-      });
-      const decodedText = await decoder.scanFile(file, true);
-      if (decodedText) {
-        processScannedCode(decodedText);
-      } else {
-        alert('لم يتم العثور على باركود أو كود QR في الصورة الملتقطة. يرجى التأكد من وضوح الصورة وتكرار المحاولة.');
-      }
-    } catch (err) {
-      console.warn('Snapshot decode error:', err);
-      alert('تعذر قراءة الباركود من هذه الصورة. يرجى تقريب الكاميرا وضبط الإضاءة على الباركود جيداً.');
-    } finally {
-      setIsProcessingSnapshot(false);
-      if (e.target) e.target.value = '';
-    }
-  };
-
-  // Play realistic scanner beep audio on success
-  const playScannerBeep = () => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz beep
-      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.15);
-    } catch (err) {
-      // AudioContext not allowed or not supported
-    }
-  };
-
-  // Comprehensive scanner processor (processes Camera scan, Barcode Reader gun, or Manual typing)
-  const processScannedCode = (rawText) => {
-    if (!activeGroup || !rawText) return;
-    const raw = rawText.trim();
-    let candidateCodes = [raw];
-
-    // If format is like MOTAFAWWEQ:STUDENT:cls-1:STU-1042:20261042
-    if (raw.includes(':')) {
-      const parts = raw.split(':').map(p => p.trim()).filter(Boolean);
-      candidateCodes.push(...parts);
-    }
-
-    if (raw.startsWith('{') && raw.endsWith('}')) {
-      try {
-        const obj = JSON.parse(raw);
-        if (obj.barcode) candidateCodes.push(obj.barcode);
-        if (obj.passcode) candidateCodes.push(obj.passcode);
-        if (obj.id) candidateCodes.push(obj.id);
-        if (obj.phone) candidateCodes.push(obj.phone);
-        if (obj.studentNameAr) candidateCodes.push(obj.studentNameAr);
-      } catch (e) {}
-    }
-
-    let result = null;
-    for (const c of candidateCodes) {
-      const res = recordStudentAttendanceByCode(activeGroup.id, c);
-      if (res?.success) {
-        result = res;
-        break;
-      }
-    }
-
-    if (result && result.success) {
-      playScannerBeep();
-      setScanFeedback({
-        success: true,
-        message: `تم مسح الباركود بنجاح! تم تسجيل حضور «${result.student.nameAr}»`,
-        student: result.student
-      });
-      setScanCodeInput('');
-      if (scannerInputRef.current) {
-        scannerInputRef.current.focus();
-      }
-    } else {
-      setScanFeedback({
-        success: false,
-        message: `تم قراءة الباركود [${raw.slice(0, 30)}] ولكن لم يتم العثور على طالب يطابقه في هذه المجموعة.`
-      });
-    }
-
-    setTimeout(() => {
-      setScanFeedback(null);
-    }, 4500);
-  };
-
-  // Active Selected Group
-  const activeGroup = groups.find(g => g.id === activeGroupId) || null;
-  const activeGroupStudents = activeGroup ? (enrolledStudents[activeGroup.id] || []) : [];
-
-  // Filtered Students for the active group
-  const filteredStudents = activeGroupStudents.filter(std => {
-    const q = studentSearchTerm.trim().toLowerCase();
-    const matchQuery = !q || 
-      (std.nameAr || '').toLowerCase().includes(q) ||
-      (std.name || '').toLowerCase().includes(q) ||
-      (std.phone || '').includes(q) ||
-      (std.passcode || '').toLowerCase().includes(q) ||
-      (std.barcode || '').includes(q);
-
-    if (studentStatusFilter === 'present') return matchQuery && std.todayStatus === 'present';
-    if (studentStatusFilter === 'absent') return matchQuery && std.todayStatus !== 'present';
-    return matchQuery;
-  });
-
-  const presentCount = activeGroupStudents.filter(s => s.todayStatus === 'present').length;
-  const absentCount = activeGroupStudents.filter(s => s.todayStatus !== 'present').length;
-  const groupAttendanceRate = activeGroupStudents.length > 0 
-    ? Math.round((presentCount / activeGroupStudents.length) * 100) 
-    : 0;
-
-  // Room of active group
-  const activeGroupRoom = rooms.find(r => r.nameAr === activeGroup?.hallName || r.id === activeGroup?.hallName) || {
-    nameAr: activeGroup?.hallName || 'القاعة الرئيسية',
-    capacity: activeGroup?.maxStudents || 50
-  };
-
-  // Filtered Groups
-  const filteredGroups = groups.filter(g => {
-    const matchSearch = (g.nameAr || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (g.teacherNameAr || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (g.subjectAr || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (g.joinCode || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchSubject = selectedSubject === 'ALL' || g.subjectAr === selectedSubject;
-    const matchTeacher = selectedTeacher === 'ALL' || g.teacherNameAr === selectedTeacher;
-
-    return matchSearch && matchSubject && matchTeacher;
-  });
-
-  // Unique Subjects & Teachers for filters
-  const allSubjects = Array.from(new Set(groups.map(g => g.subjectAr).filter(Boolean)));
-  const allTeachers = Array.from(new Set(groups.map(g => g.teacherNameAr).filter(Boolean)));
-
-  // Format 24h to 12h Arabic
-  const formatTimeTo12h = (t24) => {
-    if (!t24) return '';
-    const [h, m] = t24.split(':').map(Number);
-    const period = h >= 12 ? 'م' : 'ص';
-    const h12 = h % 12 || 12;
-    return `${h12}:${m < 10 ? '0' + m : m} ${period}`;
-  };
-
-  // Multi-session Handlers
-  const handleSetSessionCount = (count) => {
-    const validCount = Math.max(1, Math.min(7, Number(count) || 1));
-    const extraDays = ['tuesday', 'thursday', 'saturday', 'monday', 'friday', 'sunday', 'wednesday'];
-    let next = [...sessions];
-    if (validCount > sessions.length) {
-      while (next.length < validCount) {
-        const nextDay = extraDays[(next.length) % extraDays.length] || 'saturday';
-        next.push({
-          id: `sess-${Date.now()}-${next.length}`,
-          day: nextDay,
-          startTime: '16:00',
-          endTime: '18:00',
-          hall: rooms[0]?.nameAr || 'القاعة 1'
-        });
-      }
-    } else {
-      next = next.slice(0, validCount);
-    }
-    setSessions(next);
-  };
-
-  const handleAddSingleSession = () => {
-    if (sessions.length >= 7) return;
-    const extraDays = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-    const unusedDay = extraDays.find(d => !sessions.some(s => s.day === d)) || 'saturday';
-    setSessions(prev => [
-      ...prev,
-      {
-        id: `sess-${Date.now()}`,
-        day: unusedDay,
-        startTime: '16:00',
-        endTime: '18:00',
-        hall: rooms[0]?.nameAr || 'القاعة 1'
-      }
-    ]);
-  };
-
-  const handleRemoveSessionSlot = (index) => {
-    if (sessions.length <= 1) return;
-    setSessions(prev => prev.filter((_, idx) => idx !== index));
-  };
-
-  const handleUpdateSession = (index, field, value) => {
-    setSessions(prev => prev.map((s, idx) => idx === index ? { ...s, [field]: value } : s));
-  };
-
-  // Helper: Get available and booked time slots for a specific session (by day & hall)
-  const getSlotAvailabilityForSession = (dayKey, hallName, currentSessionIdx) => {
-    const dayObj = WEEKDAYS.find(w => w.key === dayKey);
-    const dayAr = dayObj?.labelAr || dayKey;
-
-    return STANDARD_CENTER_SLOTS.map(slot => {
-      // 1. External conflict check against other cohorts in the center
-      const extConflict = checkScheduleConflict({
-        day: dayKey,
-        dayAr,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        hall: hallName
-      }, null, editingCohort?.id || null);
-
-      // 2. Internal conflict check against other session slots in this same modal
-      let internalConflict = false;
-      let internalReason = '';
-      sessions.forEach((otherSess, otherIdx) => {
-        if (otherIdx !== currentSessionIdx && otherSess.day === dayKey && (otherSess.hall || '').trim() === (hallName || '').trim()) {
-          const overlap = (slot.startTime < otherSess.endTime) && (slot.endTime > otherSess.startTime);
-          if (overlap) {
-            internalConflict = true;
-            internalReason = `الحصة رقم ${otherIdx + 1} محجوزة في نفس التوقيت`;
-          }
-        }
-      });
-
-      const isAvailable = !extConflict?.hasConflict && !internalConflict;
-      const conflictMsg = extConflict?.hasConflict
-        ? (extConflict.conflictingGroup ? `محجوز لـ «${extConflict.conflictingGroup.nameAr}»` : 'محجوز لمجموعة أخرى')
-        : (internalConflict ? internalReason : '');
-
-      return {
-        ...slot,
-        isAvailable,
-        conflictMsg
-      };
+  useEffect(() => {
+    if (!routeGroupId || !fetchGroupRoster) return undefined;
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) fetchGroupRoster(routeGroupId);
     });
-  };
-
-  // Conflict Checking across all session slots
-  const sessionConflicts = sessions.map((sess, idx) => {
-    const dayObj = WEEKDAYS.find(w => w.key === sess.day);
-    const conflictResult = checkScheduleConflict({
-      day: sess.day,
-      dayAr: dayObj?.labelAr || sess.day,
-      startTime: sess.startTime,
-      endTime: sess.endTime,
-      hall: sess.hall
-    }, null, editingCohort?.id || null);
-
-    let internalConflict = false;
-    let internalConflictMsg = '';
-    sessions.forEach((otherSess, otherIdx) => {
-      if (otherIdx !== idx && otherSess.day === sess.day && (otherSess.hall || '').trim() === (sess.hall || '').trim()) {
-        const overlap = (sess.startTime < otherSess.endTime) && (sess.endTime > otherSess.startTime);
-        if (overlap) {
-          internalConflict = true;
-          internalConflictMsg = `تعارض داخلي: يتطابق توقيت هذه الحصة مع الحصة رقم ${otherIdx + 1} في نفس القاعة!`;
-        }
-      }
-    });
-
-    const hasConflict = conflictResult?.hasConflict || internalConflict;
-    const messageAr = conflictResult?.hasConflict ? conflictResult.messageAr : internalConflictMsg;
-
-    return {
-      session: sess,
-      dayLabel: dayObj?.labelAr || sess.day,
-      hasConflict,
-      messageAr
+    return () => {
+      active = false;
     };
-  });
+  }, [routeGroupId, fetchGroupRoster]);
 
-  const hasAnyConflict = sessionConflicts.some(c => c.hasConflict);
+  const activeGroup = routeGroupId
+    ? groups.find((g) => g.id === routeGroupId) || null
+    : null;
 
-  // Generate schedule string summary
-  const generateScheduleSummary = () => {
-    if (!sessions || sessions.length === 0) return '';
-    const dayLabels = sessions.map(s => {
-      const found = WEEKDAYS.find(w => w.key === s.day);
-      return found ? found.labelAr : s.day;
-    });
-    const daysStr = dayLabels.join(' و');
-    const firstSess = sessions[0];
-    return `${daysStr} من ${formatTimeTo12h(firstSess.startTime)} إلى ${formatTimeTo12h(firstSess.endTime)}`;
-  };
+  const handleOpenGroupStudents = useCallback(
+    (groupId) => {
+      if (!groupId) return;
+      navigate(`/center/groups/${groupId}`);
+    },
+    [navigate]
+  );
 
-  // Cohort Form Reset & Open Add
-  const handleOpenAddCohort = () => {
+  const handleBackToGroups = useCallback(() => {
+    navigate('/center/groups');
+  }, [navigate]);
+
+  const handleOpenSchedule = useCallback(() => {
+    navigate('/center/halls?tab=schedule');
+  }, [navigate]);
+
+  const breadcrumbs = useMemo(
+    () =>
+      activeGroup
+        ? [
+            {
+              labelAr: activeGroup.nameAr,
+              labelEn: activeGroup.nameEn || activeGroup.nameAr,
+              onClick: handleBackToGroups,
+            },
+          ]
+        : [],
+    [activeGroup, handleBackToGroups]
+  );
+  useSetBreadcrumbs(breadcrumbs);
+
+  const handleOpenAddCohort = useCallback(() => {
+    const maxGroups = activeQuotas?.maxGroups;
+    if (maxGroups !== null && maxGroups !== undefined && groups.length >= maxGroups) {
+      showToast?.(
+        isAr
+          ? `وصلت للحد الأقصى للمجموعات (${maxGroups}) في باقتك الحالية. قم بالترقية لإضافة مجموعات جديدة.`
+          : `You reached the maximum cohorts limit (${maxGroups}). Upgrade your plan to add more.`,
+        'warning'
+      );
+      navigate('/center/billing?plan=plus');
+      return;
+    }
     setEditingCohort(null);
-    setCohortName('');
-    setTeacherName('د. سلمى السيد');
-    setSubject('الرياضيات البحتة');
-    setCohortPrice('500');
-    setCohortMaxStudents('50');
-    setCohortDefaultRoomId(rooms[0]?.id || '');
-    setSessions([
-      { id: 'sess-1', day: 'sunday', startTime: '16:00', endTime: '18:00', hall: rooms[0]?.nameAr || 'قاعة 1 (المحاضرات الكبرى)' },
-      { id: 'sess-2', day: 'wednesday', startTime: '16:00', endTime: '18:00', hall: rooms[0]?.nameAr || 'قاعة 1 (المحاضرات الكبرى)' }
-    ]);
     setIsAddCohortOpen(true);
-  };
+  }, [activeQuotas?.maxGroups, groups.length, showToast, isAr, navigate]);
 
-  // Open Edit Cohort Modal
-  const handleOpenEditCohort = (cohort, e) => {
+  const handleOpenEditCohort = useCallback((cohort, e) => {
     if (e) e.stopPropagation();
     setEditingCohort(cohort);
-    setCohortName(cohort.nameAr || cohort.nameEn || '');
-    setTeacherName(cohort.teacherNameAr || 'د. سلمى السيد');
-    setSubject(cohort.subjectAr || 'الرياضيات البحتة');
-    setCohortPrice(String(cohort.priceEgp || 500));
-    setCohortMaxStudents(String(cohort.maxStudents || 50));
-
-    const matchingRoom = rooms.find(r => r.nameAr === cohort.hallName || r.id === cohort.hallName);
-    setCohortDefaultRoomId(matchingRoom?.id || rooms[0]?.id || '');
-
-    const existingSlots = cohort.scheduleSlots || cohort.slots || [];
-    if (existingSlots.length > 0) {
-      setSessions(existingSlots.map((s, idx) => ({
-        id: s.id || `sess-${idx}-${Date.now()}`,
-        day: (s.day || 'sunday').toLowerCase(),
-        startTime: s.startTime || '16:00',
-        endTime: s.endTime || '18:00',
-        hall: s.hall || cohort.hallName || rooms[0]?.nameAr || 'قاعة 1'
-      })));
-    } else {
-      setSessions([
-        { id: 'sess-1', day: 'sunday', startTime: '16:00', endTime: '18:00', hall: cohort.hallName || rooms[0]?.nameAr || 'قاعة 1' }
-      ]);
-    }
-
     setIsAddCohortOpen(true);
-  };
+  }, []);
 
-  // Handle Save (Create or Update) Cohort Submit
-  const handleSaveCohort = (e) => {
-    e.preventDefault();
-    if (!cohortName.trim() || hasAnyConflict) return;
-
-    const matchedDefaultRoom = rooms.find(r => r.id === cohortDefaultRoomId) || rooms[0];
-
-    const formattedSlots = sessions.map((sess, idx) => {
-      const dayObj = WEEKDAYS.find(w => w.key === sess.day);
-      return {
-        id: `slot-${sess.day}-${idx}-${Date.now()}`,
-        day: sess.day,
-        dayAr: dayObj?.labelAr || sess.day,
-        dayEn: dayObj?.labelEn || sess.day,
-        startTime: sess.startTime,
-        endTime: sess.endTime,
-        hall: sess.hall || matchedDefaultRoom?.nameAr || 'القاعة 1'
-      };
-    });
-
-    const scheduleSummary = generateScheduleSummary();
-
-    const cohortPayload = {
-      nameAr: cohortName.trim(),
-      nameEn: cohortName.trim(),
-      subjectAr: subject,
-      teacherNameAr: teacherName,
-      centerName: matchedDefaultRoom?.branchNameAr || 'سنتر الرواد التعليمي',
-      hallName: matchedDefaultRoom?.nameAr || sessions[0]?.hall || 'القاعة 1',
-      scheduleAr: scheduleSummary,
-      maxStudents: parseInt(cohortMaxStudents) || matchedDefaultRoom?.capacity || 50,
-      priceEgp: parseInt(cohortPrice) || 500,
-      scheduleSlots: formattedSlots,
-      slots: formattedSlots
-    };
-
-    if (editingCohort) {
-      updateGroup(editingCohort.id, cohortPayload);
-      setEditingCohort(null);
-    } else {
-      const newGrp = addGroup(cohortPayload);
-      if (newGrp?.id) {
-        handleOpenGroupStudents(newGrp.id);
+  const handleSaveCohort = useCallback(
+    async (cohortPayload) => {
+      if (editingCohort) {
+        await updateGroup(editingCohort.id, cohortPayload);
+        setEditingCohort(null);
+        setIsAddCohortOpen(false);
+      } else {
+        const created = await addGroup(cohortPayload);
+        setIsAddCohortOpen(false);
+        if (created?.id) {
+          navigate(`/center/groups/${created.id}`);
+        }
       }
-    }
+    },
+    [editingCohort, updateGroup, addGroup, navigate]
+  );
 
-    setCohortName('');
-    setIsAddCohortOpen(false);
-  };
-
-  // Handle Delete Cohort Confirmation
-  const handleConfirmDeleteCohort = () => {
+  const handleConfirmDeleteCohort = useCallback(async () => {
     if (!deleteConfirmCohort) return;
     const deletedId = deleteConfirmCohort.id;
-    deleteGroup(deletedId);
+    await deleteGroup(deletedId);
     setDeleteConfirmCohort(null);
-    if (activeGroupId === deletedId) {
-      setActiveGroupId(null);
+    if (routeGroupId === deletedId) {
       navigate('/center/groups');
     }
-  };
+  }, [deleteConfirmCohort, deleteGroup, routeGroupId, navigate]);
 
-  // Navigation: Navigate to dedicated group students page
-  const handleOpenGroupStudents = (groupId) => {
-    setActiveGroupId(groupId);
-    navigate(`/center/groups/${groupId}`);
-    setStudentSearchTerm('');
-    setStudentStatusFilter('ALL');
-  };
+  const handleEnrollExisting = useCallback(
+    async (student) => {
+      if (!routeGroupId) return;
+      const res = await enrollStudentDirectly(routeGroupId, student);
+      if (res?.success) {
+        setIsAddStudentOpen(false);
+      }
+    },
+    [routeGroupId, enrollStudentDirectly]
+  );
 
-  // Navigation: Return to Groups Overview
-  const handleBackToGroups = () => {
-    setActiveGroupId(null);
-    navigate('/center/groups');
-  };
+  const handleEnrollManual = useCallback(
+    async (studentPayload) => {
+      if (!routeGroupId) return;
+      const res = await enrollStudentDirectly(routeGroupId, studentPayload);
+      if (res?.success) {
+        setIsAddStudentOpen(false);
+      }
+    },
+    [routeGroupId, enrollStudentDirectly]
+  );
 
-  // Handle Quick Barcode Scan Attendance
-  const handleScanSubmit = (e) => {
-    e?.preventDefault();
-    if (!activeGroup || !scanCodeInput.trim()) return;
-    processScannedCode(scanCodeInput.trim());
-  };
+  const handleRefreshAll = useCallback(async () => {
+    await Promise.all([
+      refreshGroups?.(),
+      loadCoreCenterData?.({ force: true }),
+      routeGroupId ? fetchGroupRoster?.(routeGroupId) : Promise.resolve(),
+    ]);
+  }, [refreshGroups, loadCoreCenterData, routeGroupId, fetchGroupRoster]);
 
-  // Handle Add Existing Platform Student
-  const handleEnrollExisting = (student) => {
-    if (!activeGroup) return;
-    enrollStudentDirectly(activeGroup.id, student);
-    setIsAddStudentOpen(false);
-    setSearchStudentQuery('');
-  };
+  if (authLoading) {
+    return (
+      <SPage maxWidth={1240}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <SSkeleton height={88} radius={16} />
+          <div className="cg-kpi-grid">
+            {[1, 2, 3, 4].map((i) => (
+              <SSkeleton key={i} height={82} radius={16} />
+            ))}
+          </div>
+          <SSkeleton height={360} radius={16} />
+        </div>
+      </SPage>
+    );
+  }
 
-  // Handle Manual Student Registration
-  const handleManualStudentRegister = (e) => {
-    e.preventDefault();
-    if (!activeGroup || !manualName.trim() || !manualPhone.trim()) return;
+  if (!isAuthenticated || !hasActiveToken || currentUser?.role !== 'center') {
+    return <Navigate to="/login" replace />;
+  }
 
-    enrollStudentDirectly(activeGroup.id, {
-      nameAr: manualName.trim(),
-      phone: manualPhone.trim(),
-      email: manualEmail.trim(),
-      gradeAr: manualGrade,
-      parentNameAr: manualParentName.trim() || 'ولي الأمر',
-      parentPhone: manualParentPhone.trim() || manualPhone.trim(),
-      sendPlatformInvite
-    });
+  const centerNameAr =
+    centerSettings?.nameAr ||
+    currentUser?.centerNameAr ||
+    currentUser?.center ||
+    (isAr ? 'السنتر التعليمي' : 'Educational Center');
 
-    setManualName('');
-    setManualPhone('');
-    setManualEmail('');
-    setManualParentName('');
-    setManualParentPhone('');
-    setIsAddStudentOpen(false);
-  };
+  const activeGroupStudents = activeGroup ? enrolledStudents[activeGroup.id] || [] : [];
+  const activeGroupPending = activeGroup ? pendingStudents[activeGroup.id] || [] : [];
 
-  // Copy code helper
-  const handleCopyCode = (code, id) => {
-    navigator.clipboard?.writeText(code);
-    setCopiedCodeId(id);
-    setTimeout(() => setCopiedCodeId(null), 2000);
-  };
-
-  // Platform Student Search Results
-  const searchResults = searchStudentQuery.trim()
-    ? ALL_REGISTERED_STUDENTS.filter(s => 
-        (s.nameAr || '').toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
-        (s.nameEn || '').toLowerCase().includes(searchStudentQuery.toLowerCase()) ||
-        (s.phone || '').includes(searchStudentQuery)
-      )
-    : [];
-
-  // Summary Metrics for the Center
-  const totalEnrolledAllGroups = Object.values(enrolledStudents).reduce((acc, list) => acc + (list?.length || 0), 0);
-  const totalCenterCapacity = rooms.reduce((acc, r) => acc + (parseInt(r.capacity) || 50), 0);
-  
-  // Occupied halls count (unique halls hosting cohorts)
-  const occupiedHallsCount = Math.min(rooms.length, new Set(groups.map(g => g.hallName).filter(Boolean)).size || 5);
+  const totalEnrolledAllGroups = groups.reduce(
+    (sum, g) => sum + (enrolledStudents[g.id]?.length ?? g.enrolledCount ?? 0),
+    0
+  );
+  const estimatedActiveUsers = totalEnrolledAllGroups + centerTeachers.length + staff.length;
 
   return (
-    <div style={{
-      maxWidth: '1280px',
-      margin: '0 auto',
-      padding: '24px 20px 80px',
-      fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
-    }}>
+    <SPage maxWidth={1240}>
+      <div
+        dir={isRtl ? 'rtl' : 'ltr'}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          paddingBottom: '48px',
+          fontFamily: isRtl
+            ? 'var(--font-arabic), "Cairo", system-ui, sans-serif'
+            : 'var(--font-heading), "Outfit", sans-serif',
+        }}
+      >
+        <CenterQuotaLimitBanner
+          resourceLabelAr="المستخدمون النشطون"
+          resourceLabelEn="Active Users"
+          used={estimatedActiveUsers}
+          limit={activeQuotas?.maxUsers}
+          planTier={centerPlanTier}
+          lang={lang}
+          isRtl={isRtl}
+        />
 
-      {/* =========================================================================
-          VIEW MODE 1: GROUPS LIST (Main Cohorts Catalog View)
-         ========================================================================= */}
-      {!activeGroupId && (
-        <div style={{ animation: 'fadeIn 0.25s ease' }}>
-          {/* Top Header */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
-            marginBottom: '24px',
-            backgroundColor: 'var(--bg-surface)',
-            padding: '20px 24px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '14px',
-                backgroundColor: 'var(--primary-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)'
-              }}>
-                <Users size={26} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
-                    {lang === 'ar' ? 'منظومة السنتر المركزية' : 'Center Academic Management'}
-                  </span>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '2px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: 'rgba(22, 163, 74, 0.12)',
-                    color: 'var(--success)',
-                    fontWeight: '800'
-                  }}>
-                    {groups.length} {lang === 'ar' ? 'مجموعات نشطة' : 'Active Cohorts'}
-                  </span>
-                </div>
-                <h1 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)', margin: '4px 0 0 0' }}>
-                  {lang === 'ar' ? 'المجموعات والصفوف الدراسية وإدارة الباركود' : 'Cohorts, Rooms & Barcode Attendance'}
-                </h1>
-              </div>
-            </div>
-
-            {/* Action Button: Create Cohort */}
-            <button
-              onClick={handleOpenAddCohort}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '11px 20px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(21, 136, 199, 0.25)',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--primary-hover)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--primary)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
+        {!routeGroupId && (
+          <CenterQuotaLimitBanner
+            resourceLabelAr="المجموعات الدراسية"
+            resourceLabelEn="Study Cohorts"
+            used={groups.length}
+            limit={activeQuotas?.maxGroups}
+            planTier={centerPlanTier}
+            lang={lang}
+            isRtl={isRtl}
+          />
+        )}
+        {groupsError && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '12px 16px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(220, 38, 38, 0.08)',
+              border: '1px solid rgba(220, 38, 38, 0.3)',
+              color: 'var(--danger, #DC2626)',
+              fontSize: '13px',
+              fontWeight: '700',
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} />
+              <span>{groupsError}</span>
+            </span>
+            <SButton
+              variant="ghost"
+              size="sm"
+              icon={<RefreshCw size={13} />}
+              onClick={handleRefreshAll}
             >
-              <Plus size={18} />
-              <span>{lang === 'ar' ? 'إنشاء مجموعة وربط قاعة ومدرس' : 'Create Cohort & Room'}</span>
-            </button>
+              {isAr ? 'إعادة المحاولة' : 'Retry'}
+            </SButton>
           </div>
+        )}
 
-          {/* Metric Cards Row */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-            gap: '16px',
-            marginBottom: '26px'
-          }}>
-            {/* Card 1: Total Groups */}
-            <div style={{
-              backgroundColor: 'var(--bg-surface)',
-              padding: '20px',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'transform 0.2s ease'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                  {lang === 'ar' ? 'إجمالي المجموعات' : 'Total Cohorts'}
-                </span>
-                <div style={{ width: '34px', height: '34px', borderRadius: '8px', backgroundColor: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Users size={18} color="var(--primary)" />
-                </div>
-              </div>
-              <div style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                {groups.length}
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                {lang === 'ar' ? 'موزعة على كافة قاعات السنتر' : 'Across all center halls'}
-              </div>
-            </div>
-
-            {/* Card 2: Total Enrolled Students (cleaned subtitle per audio instruction) */}
-            <div style={{
-              backgroundColor: 'var(--bg-surface)',
-              padding: '20px',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                  {lang === 'ar' ? 'إجمالي الطلاب المقيدين' : 'Total Students'}
-                </span>
-                <div style={{ width: '34px', height: '34px', borderRadius: '8px', backgroundColor: 'rgba(22, 163, 74, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <GraduationCap size={18} color="var(--success)" />
-                </div>
-              </div>
-              <div style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                {totalEnrolledAllGroups} <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'طالب' : 'Students'}</span>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                {lang === 'ar' ? 'مقيدين وموزعين بالسجلات الرسمية' : 'Enrolled in active cohorts'}
-              </div>
-            </div>
-
-            {/* Card 3: Halls In Use (per audio instruction) */}
-            <div style={{
-              backgroundColor: 'var(--bg-surface)',
-              padding: '20px',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                  {lang === 'ar' ? 'القاعات المشغولة حالياً' : 'Halls In Use'}
-                </span>
-                <div style={{ width: '34px', height: '34px', borderRadius: '8px', backgroundColor: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Building2 size={18} color="var(--primary)" />
-                </div>
-              </div>
-              <div style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                {occupiedHallsCount} <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? `قاعات من إجمالي ${rooms.length}` : `of ${rooms.length} Halls`}</span>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                {lang === 'ar' ? `سعة استيعابية ${totalCenterCapacity} مقعد` : `Total Capacity: ${totalCenterCapacity}`}
-              </div>
-            </div>
-
-            {/* Card 4: Attendance System Accuracy */}
-            <div style={{
-              backgroundColor: 'var(--bg-surface)',
-              padding: '20px',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-sm)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                  {lang === 'ar' ? 'نظام الحضور والباركود' : 'Barcode Attendance'}
-                </span>
-                <div style={{ width: '34px', height: '34px', borderRadius: '8px', backgroundColor: 'rgba(22, 163, 74, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <QrCode size={18} color="var(--success)" />
-                </div>
-              </div>
-              <div style={{ fontSize: '26px', fontWeight: '900', color: 'var(--success)' }}>
-                96.4%
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                {lang === 'ar' ? 'دقة مسح الحضور بالبوابة' : 'Gate scan accuracy rate'}
-              </div>
-            </div>
+        {!routeGroupId ? (
+          <CenterGroupsListSection
+            groups={groups}
+            groupsMeta={groupsMeta}
+            enrolledStudents={enrolledStudents}
+            pendingStudents={pendingStudents}
+            branches={branches}
+            rooms={rooms}
+            centerNameAr={centerNameAr}
+            loadingGroups={loadingGroups}
+            onRefresh={handleRefreshAll}
+            onOpenSchedule={handleOpenSchedule}
+            onOpenAddCohort={handleOpenAddCohort}
+            onOpenEditCohort={handleOpenEditCohort}
+            onDeleteCohort={setDeleteConfirmCohort}
+            onOpenGroupStudents={handleOpenGroupStudents}
+            onRegenerateJoinCode={regenerateGroupJoinCode}
+            lang={lang}
+            isRtl={isRtl}
+          />
+        ) : loadingGroups && !activeGroup ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <SSkeleton height={72} radius={16} />
+            <SSkeleton height={180} radius={16} />
+            <SSkeleton height={320} radius={16} />
           </div>
-
-          {/* Groups Catalog Section */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            {/* Header & Filter Controls */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-              marginBottom: '24px',
-              paddingBottom: '18px',
-              borderBottom: '1px solid var(--border-subtle)'
-            }}>
-              <div>
-                <h2 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'جدول مجموعات السنتر — اختر مجموعة لعرض طلابها والباركود' : 'Center Cohorts (Select cohort to view students)'}
-                </h2>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block' }}>
-                  {lang === 'ar' ? 'اضغط على أي كارد للدخول إلى صفحة تفاصيل المجموعة وإدارة مسح باركود الحضور' : 'Click on any cohort to open its dedicated barcode attendance view'}
-                </span>
-              </div>
-
-              {/* Filters */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                {/* Search */}
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text"
-                    placeholder={lang === 'ar' ? 'بحث باسم المجموعة أو المدرس...' : 'Search cohort...'}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{
-                      padding: '9px 12px 9px 34px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      width: '210px',
-                      fontWeight: '600'
-                    }}
-                  />
-                  <Search size={14} color="var(--text-secondary)" style={{ position: 'absolute', left: '10px', top: '11px' }} />
-                </div>
-
-                {/* Subject Filter */}
-                <select
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  style={{
-                    padding: '9px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="ALL">{lang === 'ar' ? 'كل المواد' : 'All Subjects'}</option>
-                  {allSubjects.map((sub, i) => (
-                    <option key={i} value={sub}>{sub}</option>
-                  ))}
-                </select>
-
-                {/* Teacher Filter */}
-                <select
-                  value={selectedTeacher}
-                  onChange={(e) => setSelectedTeacher(e.target.value)}
-                  style={{
-                    padding: '9px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="ALL">{lang === 'ar' ? 'كل المدرسين' : 'All Teachers'}</option>
-                  {allTeachers.map((t, i) => (
-                    <option key={i} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Groups Grid with Enhanced Aesthetics, Animations & Spacing */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-              gap: '20px'
-            }}>
-              {filteredGroups.map(group => {
-                const students = enrolledStudents[group.id] || [];
-                const room = rooms.find(r => r.nameAr === group.hallName || r.id === group.hallName) || {
-                  nameAr: group.hallName || 'القاعة 1',
-                  capacity: group.maxStudents || 50
-                };
-                const maxCap = parseInt(group.maxStudents) || parseInt(room.capacity) || 50;
-                const groupSlots = group.scheduleSlots || group.slots || [];
-
-                return (
-                  <div
-                    key={group.id}
-                    onClick={() => handleOpenGroupStudents(group.id)}
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      borderRadius: 'var(--radius-xl)',
-                      border: '1.5px solid var(--border-subtle)',
-                      padding: '20px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      boxShadow: 'var(--shadow-sm)',
-                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.borderColor = 'var(--primary)';
-                      e.currentTarget.style.boxShadow = '0 12px 24px -6px rgba(21, 136, 199, 0.18)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                      e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                    }}
-                  >
-                    <div>
-                      {/* Card Top: Subject Badge & Join Code */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '12px' }}>
-                        <span style={{
-                          fontSize: '11px',
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          backgroundColor: 'var(--primary-surface)',
-                          color: 'var(--primary)',
-                          fontWeight: '800',
-                          border: '1px solid rgba(21, 136, 199, 0.2)'
-                        }}>
-                          {group.subjectAr}
-                        </span>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyCode(group.joinCode, group.id);
-                            }}
-                            title="اضغط لنسخ كود المجموعة"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '11px',
-                              fontWeight: '800',
-                              fontFamily: 'monospace',
-                              backgroundColor: 'var(--bg-app)',
-                              padding: '3px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-subtle)',
-                              color: 'var(--text-secondary)',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <span>كود: {group.joinCode}</span>
-                            {copiedCodeId === group.id ? (
-                              <Check size={12} color="var(--success)" />
-                            ) : (
-                              <Copy size={12} />
-                            )}
-                          </div>
-
-                          {/* Edit Group Button */}
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenEditCohort(group, e)}
-                            title={lang === 'ar' ? 'تعديل بيانات المجموعة' : 'Edit Cohort'}
-                            aria-label={lang === 'ar' ? 'تعديل المجموعة' : 'Edit Cohort'}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '28px',
-                              height: '28px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-subtle)',
-                              backgroundColor: 'var(--bg-app)',
-                              color: 'var(--text-primary)',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.12)';
-                              e.currentTarget.style.borderColor = 'var(--primary)';
-                              e.currentTarget.style.color = 'var(--primary)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'var(--bg-app)';
-                              e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                              e.currentTarget.style.color = 'var(--text-primary)';
-                            }}
-                          >
-                            <Pencil size={13} />
-                          </button>
-
-                          {/* Delete Group Button */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmCohort(group);
-                            }}
-                            title={lang === 'ar' ? 'حذف المجموعة' : 'Delete Cohort'}
-                            aria-label={lang === 'ar' ? 'حذف المجموعة' : 'Delete Cohort'}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '28px',
-                              height: '28px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--border-subtle)',
-                              backgroundColor: 'var(--bg-app)',
-                              color: 'var(--danger, #EF4444)',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
-                              e.currentTarget.style.borderColor = 'var(--danger, #EF4444)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'var(--bg-app)';
-                              e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                            }}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Group Title */}
-                      <h3 style={{
-                        fontSize: '16px',
-                        fontWeight: '900',
-                        color: 'var(--text-primary)',
-                        margin: '0 0 8px 0',
-                        lineHeight: '1.4'
-                      }}>
-                        {group.nameAr}
-                      </h3>
-
-                      {/* Teacher Info */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        marginBottom: '12px'
-                      }}>
-                        <span>المدرس المسؤول:</span>
-                        <strong style={{ color: 'var(--text-primary)', fontWeight: '800' }}>
-                          {group.teacherNameAr || 'د. سلمى السيد'}
-                        </strong>
-                      </div>
-
-                      {/* Hall / Room Badge */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '12px',
-                        backgroundColor: 'var(--bg-app)',
-                        padding: '9px 12px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-subtle)',
-                        marginBottom: '12px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Building2 size={15} color="var(--primary)" />
-                          <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{room.nameAr}</span>
-                        </div>
-                        <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--primary)' }}>
-                          سعة القاعة: {room.capacity} مقعد
-                        </span>
-                      </div>
-
-                      {/* Weekly Sessions Pills */}
-                      <div style={{ marginBottom: '14px' }}>
-                        <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                          المواعيد الأسبوعية:
-                        </div>
-                        {groupSlots.length > 0 ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {groupSlots.map((slot, sIdx) => (
-                              <div
-                                key={sIdx}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  fontSize: '11px',
-                                  backgroundColor: 'var(--primary-surface)',
-                                  color: 'var(--primary)',
-                                  padding: '4px 8px',
-                                  borderRadius: 'var(--radius-sm)',
-                                  fontWeight: '700',
-                                  border: '1px solid rgba(21, 136, 199, 0.15)'
-                                }}
-                              >
-                                <Clock size={11} />
-                                <span>{slot.dayAr || slot.day}: {formatTimeTo12h(slot.startTime)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '11px',
-                            color: 'var(--text-secondary)'
-                          }}>
-                            <Clock size={12} />
-                            <span>{group.scheduleAr || 'السبت 02:00 PM'}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Clean Student Count Metric (No ugly percentage or progress bar) */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-lg)',
-                        backgroundColor: 'var(--bg-app)',
-                        border: '1px solid var(--border-subtle)',
-                        marginBottom: '16px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Users size={16} color="var(--primary)" />
-                          <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                            الطلاب المقيدون:
-                          </span>
-                        </div>
-                        <span style={{
-                          fontSize: '13px',
-                          fontWeight: '900',
-                          color: 'var(--primary)'
-                        }}>
-                          {students.length} / {maxCap} طالب
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Bottom Action Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenGroupStudents(group.id);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 16px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--primary)',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        fontSize: '13px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s ease',
-                        boxShadow: 'var(--shadow-xs)'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-                    >
-                      <span>عرض طلاب المجموعة وإدارة الباركود</span>
-                      {isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          VIEW MODE 2: DEDICATED GROUP STUDENTS & BARCODE ATTENDANCE VIEW
-         ========================================================================= */}
-      {activeGroupId && activeGroup && (
-        <div style={{ animation: 'fadeIn 0.25s ease' }}>
-          
-          {/* Dedicated Header & Navigation */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
-            marginBottom: '20px',
-            backgroundColor: 'var(--bg-surface)',
-            padding: '16px 22px',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            {/* Back Button */}
-            <button
-              onClick={handleBackToGroups}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '9px 16px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-medium)',
-                fontSize: '13px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--primary-surface)';
-                e.currentTarget.style.color = 'var(--primary)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--bg-app)';
-                e.currentTarget.style.color = 'var(--text-primary)';
-              }}
-            >
-              {isRtl ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
-              <span>{lang === 'ar' ? 'العودة إلى قائمة المجموعات' : 'Back to Cohorts'}</span>
-            </button>
-
-            {/* Quick Cohort Switcher Dropdown */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                {lang === 'ar' ? 'الانتقال لمجموعة أخرى:' : 'Switch Cohort:'}
-              </span>
-              <select
-                value={activeGroup.id}
-                onChange={(e) => handleOpenGroupStudents(e.target.value)}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-medium)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  maxWidth: '260px'
-                }}
+        ) : !activeGroup ? (
+          <SCard padding={36}>
+            <div style={{ textAlign: 'center', padding: '12px 16px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+                {isAr ? 'المجموعة المطلوبة غير موجودة أو تم حذفها' : 'Cohort not found'}
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '18px' }}>
+                {isAr
+                  ? 'يمكنك العودة إلى دليل المجموعات لاختيار مجموعة أخرى أو إنشاء مجموعة جديدة.'
+                  : 'Return to the cohorts catalog to select or create a cohort.'}
+              </p>
+              <SButton
+                variant="primary"
+                size="md"
+                icon={isRtl ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
+                onClick={handleBackToGroups}
               >
-                {groups.map(g => (
-                  <option key={g.id} value={g.id}>
-                    {g.nameAr}
-                  </option>
-                ))}
-              </select>
+                {isAr ? 'العودة إلى قائمة المجموعات' : 'Back to Cohorts'}
+              </SButton>
             </div>
-
-            {/* Action Buttons: Edit, Delete, Add Student */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={(e) => handleOpenEditCohort(activeGroup, e)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '9px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-medium)',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.12)';
-                  e.currentTarget.style.borderColor = 'var(--primary)';
-                  e.currentTarget.style.color = 'var(--primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--bg-app)';
-                  e.currentTarget.style.borderColor = 'var(--border-medium)';
-                  e.currentTarget.style.color = 'var(--text-primary)';
-                }}
-              >
-                <Pencil size={15} />
-                <span>{lang === 'ar' ? 'تعديل بيانات المجموعة' : 'Edit Cohort'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteConfirmCohort(activeGroup);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '9px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--danger, #EF4444)',
-                  border: '1px solid var(--border-medium)',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
-                  e.currentTarget.style.borderColor = 'var(--danger, #EF4444)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--bg-app)';
-                  e.currentTarget.style.borderColor = 'var(--border-medium)';
-                }}
-              >
-                <Trash2 size={15} />
-                <span>{lang === 'ar' ? 'حذف المجموعة' : 'Delete Cohort'}</span>
-              </button>
-
-              <button
-                onClick={() => setIsAddStudentOpen(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  boxShadow: 'var(--shadow-sm)',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-              >
-                <UserPlus size={16} />
-                <span>{lang === 'ar' ? '+ إضافة طالب للمجموعة' : 'Add Student'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Group Hero Details Banner */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1.5px solid var(--border-subtle)',
-            padding: '24px',
-            marginBottom: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-              marginBottom: '18px'
-            }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: 'var(--primary-surface)',
-                    color: 'var(--primary)',
-                    fontWeight: '800',
-                    border: '1px solid rgba(21, 136, 199, 0.2)'
-                  }}>
-                    {activeGroup.subjectAr}
-                  </span>
-
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    fontFamily: 'monospace',
-                    fontWeight: '800'
-                  }}>
-                    كود: {activeGroup.joinCode}
-                  </span>
-
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    fontWeight: '800'
-                  }}>
-                    القاعة: {activeGroupRoom.nameAr} ({activeGroupRoom.capacity} مقعد)
-                  </span>
-                </div>
-
-                <h1 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                  {activeGroup.nameAr}
-                </h1>
-
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  المدرس المسؤول: <strong style={{ color: 'var(--text-primary)' }}>{activeGroup.teacherNameAr || 'د. سلمى السيد'}</strong>
-                </div>
-              </div>
-
-              {/* Clean Unified Group Stats Cards */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'stretch',
-                gap: '12px',
-                flexWrap: 'wrap',
-                minWidth: '320px'
-              }}>
-                <div style={{
-                  flex: '1 1 120px',
-                  minWidth: '120px',
-                  padding: '12px 18px',
-                  backgroundColor: 'var(--bg-app)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '6px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                      إجمالي المقيدين
-                    </span>
-                    <Users size={14} color="var(--primary)" />
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                    {activeGroupStudents.length} <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>طالب</span>
-                  </div>
-                </div>
-
-                <div style={{
-                  flex: '1 1 120px',
-                  minWidth: '120px',
-                  padding: '12px 18px',
-                  backgroundColor: 'var(--bg-app)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '6px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                      حاضر اليوم
-                    </span>
-                    <UserCheck size={14} color="var(--success)" />
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                    <span>{presentCount}</span>
-                    <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--success)' }}>
-                      ({groupAttendanceRate}%)
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{
-                  flex: '1 1 120px',
-                  minWidth: '120px',
-                  padding: '12px 18px',
-                  backgroundColor: 'var(--bg-app)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '6px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                      غائب اليوم
-                    </span>
-                    <span style={{ 
-                      width: '7px', 
-                      height: '7px', 
-                      borderRadius: '50%', 
-                      backgroundColor: absentCount > 0 ? 'var(--text-muted)' : 'var(--border-medium)' 
-                    }} />
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                    {absentCount}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Weekly Sessions display */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              flexWrap: 'wrap',
-              paddingTop: '14px',
-              borderTop: '1px solid var(--border-subtle)'
-            }}>
-              <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                المواعيد الأسبوعية للحصص:
-              </span>
-              {(activeGroup.scheduleSlots || activeGroup.slots || []).map((slot, sIdx) => (
-                <div
-                  key={sIdx}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '5px 12px',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    border: '1px solid var(--border-subtle)'
-                  }}
-                >
-                  <Clock size={13} color="var(--primary)" />
-                  <span>{slot.dayAr || slot.day}: {formatTimeTo12h(slot.startTime)} - {formatTimeTo12h(slot.endTime)}</span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>({slot.hall || activeGroupRoom.nameAr})</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Interactive Barcode Scanner Terminal */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '2px solid var(--primary)',
-            padding: '22px',
-            marginBottom: '26px',
-            boxShadow: '0 8px 24px -4px rgba(21, 136, 199, 0.15)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '14px',
-              flexWrap: 'wrap',
-              gap: '10px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  backgroundColor: 'var(--primary-light)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--primary)'
-                }}>
-                  <Scan size={22} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                    {lang === 'ar' ? 'ماسح باركود الحضور الفوري (Barcode Attendance Scanner)' : 'Barcode Attendance Scanner'}
-                  </h3>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    جاهز للمسح المباشر بالماسح الضوئي (Barcode Reader Gun) أو كتابة الكود/الاسم
-                  </span>
-                </div>
-              </div>
-
-              {/* Status pulse */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--success)',
-                  boxShadow: '0 0 8px var(--success)'
-                }} />
-                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--success)' }}>
-                  {scannerMode === 'camera' && isCameraActive ? 'الكاميرا نشطة وجاهزة للمسح' : 'نظام المسح متصل ونشط'}
-                </span>
-              </div>
-            </div>
-
-            {/* Hidden file input for mobile snapshot barcode scan */}
-            <input 
-              ref={fileSnapRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleSnapshotChosen}
-              style={{ display: 'none' }}
-            />
-            <div id="center-snap-decoder-box" style={{ display: 'none' }} />
-
-            {/* Mode Switcher: 2 Options (Manual USB / Live Camera) */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-              backgroundColor: 'var(--bg-app)',
-              padding: '6px',
-              borderRadius: 'var(--radius-lg)',
-              marginBottom: '18px',
-              border: '1px solid var(--border-subtle)',
-              gap: '6px'
-            }}>
-              {/* Option 1: Manual Input / USB Gun (Default) */}
-              <button
-                type="button"
-                onClick={() => {
-                  setScannerMode('manual');
-                  setIsCameraActive(false);
-                  if (scannerInputRef.current) scannerInputRef.current.focus();
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '11px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  backgroundColor: scannerMode === 'manual' ? 'var(--primary)' : 'transparent',
-                  color: scannerMode === 'manual' ? '#FFFFFF' : 'var(--text-secondary)',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  boxShadow: scannerMode === 'manual' ? 'var(--shadow-sm)' : 'none',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <Keyboard size={16} />
-                <span>قارئ الباركود اليدوي / USB</span>
-              </button>
-
-              {/* Option 2: Live Video Camera */}
-              <button
-                type="button"
-                onClick={() => {
-                  setScannerMode('camera');
-                  setIsCameraActive(false); // Give choice first, user clicks to start
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '11px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  backgroundColor: scannerMode === 'camera' ? 'var(--primary)' : 'transparent',
-                  color: scannerMode === 'camera' ? '#FFFFFF' : 'var(--text-secondary)',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  boxShadow: scannerMode === 'camera' ? 'var(--shadow-sm)' : 'none',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <Camera size={16} />
-                <span>المسح عبر الكاميرا المباشرة</span>
-                {scannerMode === 'camera' && isCameraActive && (
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFFFF', boxShadow: '0 0 6px #FFFFFF' }} />
-                )}
-              </button>
-            </div>
-
-            {/* Live Camera Scanner View */}
-            {scannerMode === 'camera' && (
-              <div style={{ marginBottom: '18px' }}>
-                {isCameraActive ? (
-                  <CameraBarcodeScanner
-                    onScanSuccess={processScannedCode}
-                    isScanningActive={isCameraActive}
-                    showControls={true}
-                    onClose={() => setIsCameraActive(false)}
-                  />
-                ) : (
-                  <div style={{
-                    padding: '36px 20px',
-                    textAlign: 'center',
-                    backgroundColor: 'var(--bg-app)',
-                    borderRadius: 'var(--radius-xl)',
-                    border: '1.5px dashed var(--border-medium)'
-                  }}>
-                    <Camera size={38} color="var(--primary)" style={{ margin: '0 auto 12px' }} />
-                    <h4 style={{ fontSize: '16px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                      جاهز لتشغيل الكاميرا المباشرة
-                    </h4>
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto 18px', lineHeight: '1.5' }}>
-                      اضغط على الزر أدناه لتشغيل الكاميرا وتوجيه باركود أو كود QR الطالب أمامها ليتم تسجيل حضوره فوراً.
-                    </p>
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={() => setIsCameraActive(true)}
-                        style={{
-                          padding: '11px 24px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--primary)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          fontSize: '13px',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          boxShadow: 'var(--shadow-sm)'
-                        }}
-                      >
-                        <Camera size={16} />
-                        <span>تشغيل الكاميرا الآن</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => fileSnapRef.current?.click()}
-                        style={{
-                          padding: '11px 20px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--bg-surface)',
-                          color: 'var(--text-primary)',
-                          border: '1px solid var(--border-medium)',
-                          fontSize: '13px',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        <Scan size={15} color="var(--primary)" />
-                        <span>أو التقط صورة للباركود</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Scanner Input Form */}
-            <form onSubmit={handleScanSubmit} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
-                <input
-                  ref={scannerInputRef}
-                  type="text"
-                  placeholder={lang === 'ar' ? 'امسح بالباركود أو أدخل كود الطالب (مثال: STU-td-1 أو رقم الباركود 2026001)...' : 'Scan barcode or enter passcode...'}
-                  value={scanCodeInput}
-                  onChange={(e) => setScanCodeInput(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '13px 16px 13px 44px',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '2px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '14px',
-                    fontWeight: '800',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-                  onBlur={(e) => e.target.style.borderColor = 'var(--border-medium)'}
-                />
-                <Scan size={18} color="var(--primary)" style={{ position: 'absolute', left: '16px', top: '15px' }} />
-              </div>
-
-              <button
-                type="submit"
-                style={{
-                  padding: '13px 28px',
-                  borderRadius: 'var(--radius-lg)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '14px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 14px rgba(21, 136, 199, 0.28)',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-hover)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary)'}
-              >
-                <QrCode size={18} />
-                <span>{lang === 'ar' ? 'تسجيل الحضور' : 'Register Attendance'}</span>
-              </button>
-            </form>
-
-            {/* Visual Feedback on Scan */}
-            {scanFeedback && (
-              <div style={{
-                marginTop: '14px',
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-lg)',
-                backgroundColor: scanFeedback.success ? 'rgba(22, 163, 74, 0.12)' : 'rgba(220, 38, 38, 0.12)',
-                border: `1.5px solid ${scanFeedback.success ? 'var(--success)' : 'var(--danger)'}`,
-                color: scanFeedback.success ? 'var(--success)' : 'var(--danger)',
-                fontSize: '14px',
-                fontWeight: '800',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                animation: 'fadeIn 0.2s ease'
-              }}>
-                {scanFeedback.success ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-                <span>{scanFeedback.message}</span>
-              </div>
-            )}
-
-            {/* Quick Demo 1-Click Barcode Test Buttons for Students in This Group */}
-            {activeGroupStudents.length > 0 && (
-              <div style={{
-                marginTop: '16px',
-                paddingTop: '14px',
-                borderTop: '1px dashed var(--border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                flexWrap: 'wrap'
-              }}>
-                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                  تجربة سريعة لمسح باركود طلاب المجموعة:
-                </span>
-                {activeGroupStudents.slice(0, 5).map(std => (
-                  <button
-                    key={std.id}
-                    type="button"
-                    onClick={() => {
-                      const code = std.passcode || std.barcode || std.id;
-                      setScanCodeInput(code);
-                      const result = recordStudentAttendanceByCode(activeGroup.id, code);
-                      if (result.success) {
-                        playScannerBeep();
-                        setScanFeedback({
-                          success: true,
-                          message: `تم مسح الباركود بنجاح! تم تسجيل حضور الطالب «${result.student.nameAr}»`,
-                          student: result.student
-                        });
-                        setTimeout(() => setScanFeedback(null), 3500);
-                      }
-                    }}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-app)',
-                      border: '1px solid var(--border-medium)',
-                      fontSize: '11px',
-                      color: 'var(--primary)',
-                      cursor: 'pointer',
-                      fontWeight: '800',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'var(--primary-surface)';
-                      e.currentTarget.style.borderColor = 'var(--primary)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'var(--bg-app)';
-                      e.currentTarget.style.borderColor = 'var(--border-medium)';
-                    }}
-                  >
-                    {std.nameAr} ({std.passcode || 'STU'})
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Students Roster Section */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            {/* Table Controls Bar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '14px',
-              marginBottom: '20px'
-            }}>
-              <div>
-                <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? `قائمة الطلاب المقيدين (${filteredStudents.length} من أصل ${activeGroupStudents.length} طالب):` : `Enrolled Students (${filteredStudents.length}):`}
-                </h3>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  يمكنك البحث بالاسم أو الهاتف، وتغيير حالة الحضور، وطباعة بطاقات الباركود الذكية
-                </span>
-              </div>
-
-              {/* Search & Filter Tabs */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                {/* Search */}
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text"
-                    placeholder={lang === 'ar' ? 'بحث عن طالب...' : 'Search student...'}
-                    value={studentSearchTerm}
-                    onChange={(e) => setStudentSearchTerm(e.target.value)}
-                    style={{
-                      padding: '8px 12px 8px 32px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      width: '180px',
-                      fontWeight: '600'
-                    }}
-                  />
-                  <Search size={14} color="var(--text-secondary)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
-                </div>
-
-                {/* Status Filter */}
-                <div style={{ display: 'flex', backgroundColor: 'var(--bg-app)', padding: '3px', borderRadius: 'var(--radius-md)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setStudentStatusFilter('ALL')}
-                    style={{
-                      padding: '5px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      backgroundColor: studentStatusFilter === 'ALL' ? 'var(--bg-surface)' : 'transparent',
-                      color: studentStatusFilter === 'ALL' ? 'var(--primary)' : 'var(--text-secondary)',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    الكل ({activeGroupStudents.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStudentStatusFilter('present')}
-                    style={{
-                      padding: '5px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      backgroundColor: studentStatusFilter === 'present' ? 'var(--bg-surface)' : 'transparent',
-                      color: studentStatusFilter === 'present' ? 'var(--success)' : 'var(--text-secondary)',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    حاضر ({presentCount})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStudentStatusFilter('absent')}
-                    style={{
-                      padding: '5px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      backgroundColor: studentStatusFilter === 'absent' ? 'var(--bg-surface)' : 'transparent',
-                      color: studentStatusFilter === 'absent' ? 'var(--danger)' : 'var(--text-secondary)',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    غائب ({absentCount})
-                  </button>
-                </div>
-
-                {/* View Mode Toggle: Table vs Cards */}
-                <div style={{ display: 'flex', backgroundColor: 'var(--bg-app)', padding: '3px', borderRadius: 'var(--radius-md)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setStudentsViewMode('table')}
-                    title="عرض جدول"
-                    style={{
-                      padding: '6px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      backgroundColor: studentsViewMode === 'table' ? 'var(--bg-surface)' : 'transparent',
-                      color: studentsViewMode === 'table' ? 'var(--primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <List size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStudentsViewMode('cards')}
-                    title="عرض بطاقات"
-                    style={{
-                      padding: '6px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: 'none',
-                      backgroundColor: studentsViewMode === 'cards' ? 'var(--bg-surface)' : 'transparent',
-                      color: studentsViewMode === 'cards' ? 'var(--primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <LayoutGrid size={16} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Empty State */}
-            {activeGroupStudents.length === 0 ? (
-              <div style={{
-                padding: '48px 24px',
-                textAlign: 'center',
-                backgroundColor: 'var(--bg-app)',
-                borderRadius: 'var(--radius-xl)',
-                border: '1.5px dashed var(--border-medium)'
-              }}>
-                <div style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--primary-light)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--primary)',
-                  margin: '0 auto 16px'
-                }}>
-                  <Users size={28} />
-                </div>
-                <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                  {lang === 'ar' ? 'لا يوجد طلاب مقيدون في هذه المجموعة حتى الآن' : 'No students enrolled yet'}
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 20px', lineHeight: '1.5' }}>
-                  {lang === 'ar' ? 'اضغط على زر «إضافة طالب للمجموعة» للبحث في قاعدة بيانات المنصة أو تسجيل طلاب جدد فوراً وتوليد كود باركود شخصي.' : 'Add students to this group.'}
-                </p>
-                <button
-                  onClick={() => setIsAddStudentOpen(true)}
-                  style={{
-                    padding: '11px 24px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    boxShadow: 'var(--shadow-sm)'
-                  }}
-                >
-                  + إضافة أول طالب للمجموعة
-                </button>
-              </div>
-            ) : filteredStudents.length === 0 ? (
-              <div style={{ padding: '36px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                لا يوجد طلاب يطابقون خيارات البحث أو التصفية الحالية.
-              </div>
-            ) : studentsViewMode === 'table' ? (
-              /* Students Table View */
-              <div style={{ 
-                overflowX: 'auto',
-                WebkitOverflowScrolling: 'touch',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border-subtle)',
-                marginBottom: '10px'
-              }}>
-                {isMobile && (
-                  <div style={{
-                    padding: '8px 14px',
-                    backgroundColor: 'var(--primary-surface)',
-                    color: 'var(--primary)',
-                    fontSize: '11px',
-                    fontWeight: '800',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderBottom: '1px solid var(--border-subtle)'
-                  }}>
-                    <span>اسحب الجدول أفقياً للاطلاع على كامل بيانات الطلاب</span>
-                    <button
-                      type="button"
-                      onClick={() => setStudentsViewMode('cards')}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--primary)',
-                        textDecoration: 'underline',
-                        fontWeight: '900',
-                        fontSize: '11px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      التحويل لعرض البطاقات الذكية
-                    </button>
-                  </div>
-                )}
-                <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1.5px solid var(--border-subtle)' }}>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>الطالب</th>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>بيانات ولي الأمر</th>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>رقم تليفون الطالب</th>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>حضور اليوم</th>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>بطاقة الباركود</th>
-                      <th style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)' }}>إجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredStudents.map((std, idx) => {
-                      const isPresent = std.todayStatus === 'present';
-                      return (
-                        <tr 
-                          key={std.id || idx} 
-                          style={{ 
-                            borderBottom: '1px solid var(--border-subtle)', 
-                            transition: 'background-color 0.15s ease' 
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-app)'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
-                          {/* Student Info */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <img
-                                src={std.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                                alt={std.nameAr}
-                                style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--primary)' }}
-                              />
-                              <div>
-                                <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                                  {std.nameAr || std.name}
-                                </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                  {std.gradeAr || 'الصف الثالث الثانوي'}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Parent Details */}
-                          <td style={{ padding: '14px 16px', fontSize: '12px' }}>
-                            <div style={{ color: 'var(--text-primary)', fontWeight: '700' }}>
-                              {std.parentNameAr || std.parentName || 'ولي الأمر'}
-                            </div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '2px', fontFamily: 'monospace', direction: 'ltr', display: 'inline-block' }}>
-                              {std.parentPhone || '-'}
-                            </div>
-                          </td>
-
-                          {/* Student Phone (Replaced Code & Barcode) */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <Phone size={14} color="var(--primary)" />
-                              <a 
-                                href={std.phone ? `tel:${std.phone}` : '#'} 
-                                style={{ 
-                                  color: 'var(--text-primary)', 
-                                  fontWeight: '800', 
-                                  fontFamily: 'monospace', 
-                                  fontSize: '13px', 
-                                  direction: 'ltr', 
-                                  textDecoration: 'none' 
-                                }}
-                              >
-                                {std.phone || '-'}
-                              </a>
-                            </div>
-                          </td>
-
-                          {/* Today's Attendance Toggle */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <button
-                              type="button"
-                              onClick={() => toggleStudentAttendance(activeGroup.id, std.id)}
-                              style={{
-                                padding: '6px 14px',
-                                borderRadius: 'var(--radius-full)',
-                                backgroundColor: isPresent ? 'rgba(22, 163, 74, 0.12)' : 'rgba(220, 38, 38, 0.12)',
-                                color: isPresent ? 'var(--success)' : 'var(--danger)',
-                                border: `1.5px solid ${isPresent ? 'var(--success)' : 'var(--danger)'}`,
-                                fontSize: '11px',
-                                fontWeight: '800',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              {isPresent ? <Check size={13} /> : <X size={13} />}
-                              <span>{isPresent ? 'حاضر اليوم' : 'غائب'}</span>
-                            </button>
-                          </td>
-
-                          {/* Barcode ID Card Modal Trigger */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setStudentCardModal(std)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '6px 12px',
-                                borderRadius: 'var(--radius-md)',
-                                backgroundColor: 'var(--bg-app)',
-                                border: '1px solid var(--border-medium)',
-                                color: 'var(--primary)',
-                                fontSize: '12px',
-                                fontWeight: '800',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--primary-surface)';
-                                e.currentTarget.style.borderColor = 'var(--primary)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--bg-app)';
-                                e.currentTarget.style.borderColor = 'var(--border-medium)';
-                              }}
-                            >
-                              <QrCode size={14} />
-                              <span>عرض بطاقة الباركود</span>
-                            </button>
-                          </td>
-
-                          {/* Actions: Remove student */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (window.confirm(`هل أنت متأكد من إلغاء قيد الطالب «${std.nameAr || std.name}» من هذه المجموعة؟`)) {
-                                  removeStudentFromGroup(activeGroup.id, std.id);
-                                }
-                              }}
-                              title="إلغاء قيد الطالب من المجموعة"
-                              style={{
-                                padding: '8px',
-                                borderRadius: 'var(--radius-sm)',
-                                backgroundColor: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                transition: 'color 0.15s ease'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              /* Students Cards View - Mobile-First & Touch-Friendly */
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
-                gap: '16px'
-              }}>
-                {filteredStudents.map((std, idx) => {
-                  const isPresent = std.todayStatus === 'present';
-                  return (
-                    <div
-                      key={std.id || idx}
-                      style={{
-                        padding: '18px',
-                        borderRadius: 'var(--radius-xl)',
-                        border: isPresent ? '2px solid rgba(22, 163, 74, 0.4)' : '1.5px solid var(--border-subtle)',
-                        backgroundColor: 'var(--bg-app)',
-                        boxShadow: isPresent ? '0 6px 20px rgba(22, 163, 74, 0.08)' : 'var(--shadow-sm)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: '14px',
-                        transition: 'all 0.2s ease',
-                        position: 'relative'
-                      }}
-                    >
-                      {/* Top Header: Avatar + Student info + Remove button */}
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ position: 'relative' }}>
-                            <img
-                              src={std.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                              alt={std.nameAr}
-                              style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '50%',
-                                objectFit: 'cover',
-                                border: `2.5px solid ${isPresent ? 'var(--success)' : 'var(--primary)'}`
-                              }}
-                            />
-                            <div style={{
-                              position: 'absolute',
-                              bottom: 0,
-                              right: 0,
-                              width: '12px',
-                              height: '12px',
-                              borderRadius: '50%',
-                              backgroundColor: isPresent ? 'var(--success)' : 'var(--text-disabled)',
-                              border: '2px solid var(--bg-app)'
-                            }} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                              {std.nameAr || std.name}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                              {std.gradeAr || 'الصف الثالث الثانوي'}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Remove Student Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm(`هل أنت متأكد من إلغاء قيد الطالب «${std.nameAr || std.name}» من هذه المجموعة؟`)) {
-                              removeStudentFromGroup(activeGroup.id, std.id);
-                            }
-                          }}
-                          title="إلغاء قيد الطالب من المجموعة"
-                          style={{
-                            padding: '6px',
-                            borderRadius: 'var(--radius-sm)',
-                            backgroundColor: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--danger)'}
-                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-
-                      {/* Barcode & Passcode tags */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        backgroundColor: 'var(--bg-surface)',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: '11px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>كود الطالب:</span>
-                          <span 
-                            onClick={() => handleCopyCode(std.passcode || `STU-${std.id?.slice(-4)}`, `code-${std.id}`)}
-                            title="اضغط للنسخ"
-                            style={{
-                              fontFamily: 'monospace',
-                              fontWeight: '900',
-                              color: 'var(--primary)',
-                              cursor: 'pointer',
-                              backgroundColor: 'var(--bg-app)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              border: '1px solid var(--border-medium)'
-                            }}
-                          >
-                            {std.passcode || `STU-${std.id?.slice(-4)}`}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>الباركود:</span>
-                          <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--text-primary)' }}>
-                            ||| {std.barcode || '2026001'} |||
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Phone & Parent Contacts */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>هاتف الطالب:</span>
-                          <a 
-                            href={`tel:${std.phone}`} 
-                            style={{ 
-                              color: 'var(--primary)', 
-                              fontWeight: '800', 
-                              fontFamily: 'monospace', 
-                              textDecoration: 'none',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Phone size={12} />
-                            <span>{std.phone}</span>
-                          </a>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>ولي الأمر:</span>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: '700', fontSize: '11px' }}>
-                            {std.parentNameAr || std.parentName || 'ولي الأمر'} ({std.parentPhone || std.phone})
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Bottom Actions: Attendance Toggle & ID Card Modal */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                        <button
-                          type="button"
-                          onClick={() => toggleStudentAttendance(activeGroup.id, std.id)}
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            borderRadius: 'var(--radius-lg)',
-                            backgroundColor: isPresent ? 'var(--success)' : 'transparent',
-                            color: isPresent ? '#FFFFFF' : 'var(--danger)',
-                            border: `2px solid ${isPresent ? 'var(--success)' : 'var(--danger)'}`,
-                            fontSize: '13px',
-                            fontWeight: '900',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            boxShadow: isPresent ? '0 4px 12px rgba(22, 163, 74, 0.22)' : 'none',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          {isPresent ? <CheckCircle2 size={16} /> : <X size={16} />}
-                          <span>{isPresent ? 'حاضر اليوم (اضغط للإلغاء)' : 'غائب اليوم (اضغط لتسجيل الحضور)'}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setStudentCardModal(std)}
-                          style={{
-                            width: '100%',
-                            padding: '9px 12px',
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: 'var(--bg-surface)',
-                            border: '1px solid var(--border-medium)',
-                            color: 'var(--text-primary)',
-                            fontSize: '12px',
-                            fontWeight: '800',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.15s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--primary-surface)';
-                            e.currentTarget.style.color = 'var(--primary)';
-                            e.currentTarget.style.borderColor = 'var(--primary)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--bg-surface)';
-                            e.currentTarget.style.color = 'var(--text-primary)';
-                            e.currentTarget.style.borderColor = 'var(--border-medium)';
-                          }}
-                        >
-                          <QrCode size={14} color="var(--primary)" />
-                          <span>عرض بطاقة الباركود الذكية للطالب</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          MODAL 1: ADD COHORT (Multi-Session Support Like Teacher View)
-         ========================================================================= */}
-      {isAddCohortOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            maxWidth: '620px',
-            width: '100%',
-            padding: '26px',
-            maxHeight: '92vh',
-            overflowY: 'auto',
-            boxShadow: 'var(--shadow-xl)',
-            animation: 'fadeIn 0.2s ease'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  backgroundColor: 'var(--primary-light)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--primary)'
-                }}>
-                  <Plus size={20} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                    {editingCohort
-                      ? (lang === 'ar' ? 'تعديل بيانات المجموعة والمواعيد' : 'Edit Cohort & Schedule')
-                      : (lang === 'ar' ? 'إنشاء مجموعة جديدة وتحديد الحصص الأسبوعية' : 'Create New Cohort')}
-                  </h3>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {editingCohort
-                      ? (lang === 'ar' ? 'تعديل اسم ومدرس ومواعيد وقاعات المجموعة' : 'Update cohort details and schedule')
-                      : (lang === 'ar' ? 'إضافة حصة أو أكثر في الأسبوع وربط القاعات والجدول الزمني' : 'Add weekly sessions and room assignment')}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddCohortOpen(false);
-                  setEditingCohort(null);
-                }}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveCohort} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Group Name */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'اسم المجموعة *' : 'Cohort Name *'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={lang === 'ar' ? 'مثال: أحياء 3 ثانوي — مجموعة النخبة' : 'Cohort name...'}
-                  value={cohortName}
-                  onChange={(e) => setCohortName(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1.5px solid var(--border-medium)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontWeight: '700'
-                  }}
-                />
-              </div>
-
-              {/* Subject & Teacher */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'المادة *' : 'Subject *'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1.5px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      fontWeight: '700'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '800' }}>
-                      {lang === 'ar' ? 'المدرس المسؤول (من معلمي السنتر المعتمدين) *' : 'Assigned Teacher *'}
-                    </label>
-                    <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: '700' }}>
-                      {centerTeachers.length} {lang === 'ar' ? 'معلمين متاحين' : 'available'}
-                    </span>
-                  </div>
-                  <select
-                    required
-                    value={teacherName}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setTeacherName(val);
-                      const matched = centerTeachers.find(t => t.nameAr === val);
-                      if (matched?.subjectAr) {
-                        setSubject(matched.subjectAr);
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1.5px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {centerTeachers.map(tch => (
-                      <option key={tch.id} value={tch.nameAr}>
-                        {tch.nameAr} ({tch.subjectAr}) — {tch.branchNameAr || 'فرع معتمد'}
-                      </option>
-                    ))}
-                    {teacherName && !centerTeachers.some(t => t.nameAr === teacherName) && (
-                      <option value={teacherName}>{teacherName}</option>
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              {/* Capacity & Price */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'السعر الشهري (ج.م)' : 'Price (EGP)'}
-                  </label>
-                  <input
-                    type="number"
-                    value={cohortPrice}
-                    onChange={(e) => setCohortPrice(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1.5px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      fontWeight: '700'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'سعة الطلاب القصوى' : 'Max Students'}
-                  </label>
-                  <input
-                    type="number"
-                    value={cohortMaxStudents}
-                    onChange={(e) => setCohortMaxStudents(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1.5px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      fontWeight: '700'
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* MULTI-SESSION SCHEDULER SECTION (Like Teacher Manager) */}
-              <div style={{
-                backgroundColor: 'var(--bg-app)',
-                padding: '16px',
-                borderRadius: 'var(--radius-lg)',
-                border: '1.5px solid var(--border-medium)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Calendar size={16} color="var(--primary)" />
-                    <span style={{ fontSize: '13px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                      {lang === 'ar' ? 'حصص الأسبوع للمجموعة (مواعيد متعددة):' : 'Weekly Sessions per Cohort:'}
-                    </span>
-                  </div>
-
-                  {/* Preset quick buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>العدد:</span>
-                    {[1, 2, 3, 4].map(num => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => handleSetSessionCount(num)}
-                        style={{
-                          padding: '3px 8px',
-                          borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border-subtle)',
-                          backgroundColor: sessions.length === num ? 'var(--primary)' : 'var(--bg-surface)',
-                          color: sessions.length === num ? '#FFFFFF' : 'var(--text-primary)',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {num}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Session Slots List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {sessions.map((sess, idx) => {
-                    const slotAvailability = getSlotAvailabilityForSession(sess.day, sess.hall, idx);
-                    const availableSlots = slotAvailability.filter(s => s.isAvailable);
-                    const busySlots = slotAvailability.filter(s => !s.isAvailable);
-                    const currentConflict = sessionConflicts[idx];
-                    const currentDayObj = WEEKDAYS.find(w => w.key === sess.day);
-
-                    return (
-                      <div
-                        key={sess.id || idx}
-                        style={{
-                          backgroundColor: 'var(--bg-surface)',
-                          padding: '12px',
-                          borderRadius: 'var(--radius-md)',
-                          border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-subtle)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)' }}>
-                              الحصة رقم {idx + 1}
-                            </span>
-                            {currentConflict?.hasConflict && (
-                              <span style={{
-                                fontSize: '10px',
-                                fontWeight: '800',
-                                padding: '2px 6px',
-                                borderRadius: 'var(--radius-sm)',
-                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                color: 'var(--danger)'
-                              }}>
-                                يوجد تعارض في هذا الميعاد
-                              </span>
-                            )}
-                          </div>
-                          {sessions.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSessionSlot(idx)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--danger)',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '2px'
-                              }}
-                            >
-                              <Trash2 size={13} />
-                              <span>حذف الحصة</span>
-                            </button>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
-                          {/* Day */}
-                          <div>
-                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
-                              {lang === 'ar' ? 'اليوم' : 'Day'}
-                            </label>
-                            <select
-                              value={sess.day}
-                              onChange={(e) => handleUpdateSession(idx, 'day', e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '8px 10px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--border-medium)',
-                                backgroundColor: 'var(--bg-app)',
-                                color: 'var(--text-primary)',
-                                colorScheme: 'dark light',
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                outline: 'none',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {WEEKDAYS.map(w => (
-                                <option key={w.key} value={w.key} style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
-                                  {w.labelAr}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Start Time */}
-                          <div>
-                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
-                              {lang === 'ar' ? 'من' : 'From'}
-                            </label>
-                            <input
-                              type="time"
-                              value={sess.startTime}
-                              onChange={(e) => handleUpdateSession(idx, 'startTime', e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '7px 10px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-medium)',
-                                backgroundColor: 'var(--bg-app)',
-                                color: 'var(--text-primary)',
-                                colorScheme: 'dark light',
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                outline: 'none'
-                              }}
-                            />
-                          </div>
-
-                          {/* End Time */}
-                          <div>
-                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
-                              {lang === 'ar' ? 'إلى' : 'To'}
-                            </label>
-                            <input
-                              type="time"
-                              value={sess.endTime}
-                              onChange={(e) => handleUpdateSession(idx, 'endTime', e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '7px 10px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: currentConflict?.hasConflict ? '1.5px solid var(--danger)' : '1px solid var(--border-medium)',
-                                backgroundColor: 'var(--bg-app)',
-                                color: 'var(--text-primary)',
-                                colorScheme: 'dark light',
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                outline: 'none'
-                              }}
-                            />
-                          </div>
-
-                          {/* Room */}
-                          <div>
-                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
-                              {lang === 'ar' ? 'القاعة' : 'Hall'}
-                            </label>
-                            <select
-                              value={sess.hall}
-                              onChange={(e) => handleUpdateSession(idx, 'hall', e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '8px 10px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--border-medium)',
-                                backgroundColor: 'var(--bg-app)',
-                                color: 'var(--text-primary)',
-                                colorScheme: 'dark light',
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                outline: 'none',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {rooms.map(r => (
-                                <option key={r.id} value={r.nameAr} style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
-                                  {r.nameAr}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Interactive Conflict Warning & Available Alternatives Banner */}
-                        {currentConflict?.hasConflict ? (
-                          <div style={{
-                            padding: '12px',
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            border: '1px solid rgba(239, 68, 68, 0.35)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', fontSize: '12px', fontWeight: '800' }}>
-                              <AlertCircle size={16} />
-                              <span>{currentConflict.messageAr || `الميعاد (${formatTimeTo12h(sess.startTime)} - ${formatTimeTo12h(sess.endTime)}) غير متاح في «${sess.hall}» يوم ${currentDayObj?.labelAr}!`}</span>
-                            </div>
-
-                            {availableSlots.length > 0 ? (
-                              <div style={{ marginTop: '4px' }}>
-                                <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                                  {lang === 'ar' ? 'المواعيد المتاحة البديلة في هذا اليوم بقاعة' : 'Available slots on this day in'} «{sess.hall}» ({lang === 'ar' ? 'اضغط لاختيار الميعاد المتاح' : 'Click to select'}):
-                                </div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                  {availableSlots.map(av => (
-                                    <button
-                                      key={av.startTime}
-                                      type="button"
-                                      onClick={() => {
-                                        handleUpdateSession(idx, 'startTime', av.startTime);
-                                        handleUpdateSession(idx, 'endTime', av.endTime);
-                                      }}
-                                      style={{
-                                        padding: '5px 10px',
-                                        borderRadius: 'var(--radius-sm)',
-                                        backgroundColor: 'rgba(22, 163, 74, 0.18)',
-                                        border: '1.5px solid var(--success)',
-                                        color: 'var(--success)',
-                                        fontSize: '11.5px',
-                                        fontWeight: '800',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        transition: 'all 0.15s ease'
-                                      }}
-                                      title={lang === 'ar' ? 'اضغط لاختيار هذا الميعاد المتاح وحل التعارض فوراً' : 'Select slot'}
-                                    >
-                                      <Check size={12} />
-                                      <span>{av.label}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{ fontSize: '11.5px', color: 'var(--danger)', fontWeight: '700' }}>
-                                {lang === 'ar' ? 'لا توجد فترات شاغرة متبقية في هذه القاعة لهذا اليوم. يرجى اختيار قاعة أخرى أو يوم آخر.' : 'No slots remaining in this hall for this day.'}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          /* Quick Slots Picker When No Conflict */
-                          <div style={{
-                            padding: '10px 12px',
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: 'var(--bg-app)',
-                            border: '1px solid var(--border-subtle)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11.5px' }}>
-                              <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
-                                {lang === 'ar' ? 'المواعيد المتاحة يوم' : 'Available slots on'} {currentDayObj?.labelAr} {lang === 'ar' ? 'بقاعة' : 'in hall'} «{sess.hall}»:
-                              </span>
-                              <span style={{
-                                color: 'var(--success)',
-                                fontWeight: '800',
-                                backgroundColor: 'rgba(22, 163, 74, 0.12)',
-                                padding: '2px 8px',
-                                borderRadius: 'var(--radius-full)'
-                              }}>
-                                {availableSlots.length} {lang === 'ar' ? 'متاح' : 'available'}
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {availableSlots.map(av => {
-                                const isCurrentSelected = sess.startTime === av.startTime && sess.endTime === av.endTime;
-                                return (
-                                  <button
-                                    key={av.startTime}
-                                    type="button"
-                                    onClick={() => {
-                                      handleUpdateSession(idx, 'startTime', av.startTime);
-                                      handleUpdateSession(idx, 'endTime', av.endTime);
-                                    }}
-                                    style={{
-                                      padding: '6px 12px',
-                                      borderRadius: 'var(--radius-sm)',
-                                      border: isCurrentSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-medium)',
-                                      backgroundColor: isCurrentSelected ? 'rgba(21, 136, 199, 0.22)' : 'var(--bg-surface)',
-                                      color: isCurrentSelected ? 'var(--primary)' : 'var(--text-primary)',
-                                      fontSize: '11.5px',
-                                      fontWeight: isCurrentSelected ? '800' : '600',
-                                      cursor: 'pointer',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                  >
-                                    {isCurrentSelected && <Check size={12} />}
-                                    <span>{av.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {busySlots.length > 0 && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                <span>{lang === 'ar' ? 'المواعيد غير المتاحة (محجوزة):' : 'Booked slots:'}</span>
-                                {busySlots.map(bs => (
-                                  <span key={bs.startTime} style={{ color: 'var(--danger)', textDecoration: 'line-through', opacity: 0.85, fontSize: '11px' }}>
-                                    {bs.label}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Add Session Slot Button */}
-                {sessions.length < 7 && (
-                  <button
-                    type="button"
-                    onClick={handleAddSingleSession}
-                    style={{
-                      marginTop: '10px',
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px dashed var(--primary)',
-                      color: 'var(--primary)',
-                      fontSize: '12px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <Plus size={14} />
-                    <span>+ إضافة حصة أخرى في الأسبوع</span>
-                  </button>
-                )}
-
-                {/* Summary Preview */}
-                <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  ملخص المواعيد: <strong style={{ color: 'var(--primary)' }}>{generateScheduleSummary()}</strong>
-                </div>
-              </div>
-
-              {/* Conflict Warnings */}
-              {hasAnyConflict && (
-                <div style={{
-                  padding: '12px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                  border: '1px solid rgba(220, 38, 38, 0.3)',
-                  color: 'var(--danger)',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <AlertCircle size={18} />
-                  <span>توجد تعارضات زمنية في إحدى الحصص مع قاعات محجوزة مسبقاً! يرجى تغيير الوقت أو القاعة.</span>
-                </div>
-              )}
-
-              {/* Submit Buttons */}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button
-                  type="submit"
-                  disabled={hasAnyConflict || !cohortName.trim()}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: hasAnyConflict || !cohortName.trim() ? 'var(--border-medium)' : 'var(--primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontWeight: '800',
-                    fontSize: '14px',
-                    cursor: hasAnyConflict || !cohortName.trim() ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {editingCohort
-                    ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes')
-                    : (lang === 'ar' ? 'تأكيد الحجز وإنشاء المجموعة' : 'Confirm Cohort')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddCohortOpen(false);
-                    setEditingCohort(null);
-                  }}
-                  style={{
-                    padding: '12px 20px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-medium)',
-                    fontSize: '13px',
-                    fontWeight: '800',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: Confirm Delete Cohort */}
-      {deleteConfirmCohort && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(3px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            maxWidth: '460px',
-            width: '100%',
-            padding: '24px',
-            boxShadow: 'var(--shadow-xl)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-              <div style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--danger, #EF4444)',
-                flexShrink: 0
-              }}>
-                <Trash2 size={22} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
-                  {lang === 'ar' ? 'تأكيد حذف المجموعة' : 'Confirm Delete Cohort'}
-                </h3>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {deleteConfirmCohort.nameAr} • {deleteConfirmCohort.subjectAr}
-                </span>
-              </div>
-            </div>
-
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
-              {lang === 'ar'
-                ? `هل أنت متأكد من رغبتك في حذف المجموعة «${deleteConfirmCohort.nameAr}» نهائياً من النظام؟`
-                : `Are you sure you want to permanently delete cohort "${deleteConfirmCohort.nameAr}"?`}
-            </p>
-
-            {/* Warning about enrolled students */}
-            {(() => {
-              const enrolled = enrolledStudents[deleteConfirmCohort.id] || [];
-              if (enrolled.length > 0) {
-                return (
-                  <div style={{
-                    padding: '12px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    color: 'var(--danger, #EF4444)',
-                    fontSize: '12px',
-                    marginBottom: '16px',
-                    lineHeight: 1.5
-                  }}>
-                    <strong>{lang === 'ar' ? 'تحذير هام:' : 'Important Warning:'}</strong>{' '}
-                    {lang === 'ar'
-                      ? `يوجد ${enrolled.length} طالب مقيد في هذه المجموعة. حذفها سيؤدي لحذف قيود الطلاب وسجلات الحضور والغياب المرتبطة بهذه المجموعة نهائياً!`
-                      : `There are ${enrolled.length} students currently enrolled in this cohort.`}
-                  </div>
-                );
-              }
-              return null;
-            })()}
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteCohort}
-                style={{
-                  flex: 1,
-                  padding: '11px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--danger, #EF4444)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontWeight: '800',
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-              >
-                {lang === 'ar' ? 'نعم، حذف المجموعة' : 'Yes, Delete Cohort'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmCohort(null)}
-                style={{
-                  padding: '11px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  fontWeight: '700',
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-              >
-                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          MODAL 2: ADD STUDENT TO COHORT (Search or Register)
-         ========================================================================= */}
-      {isAddStudentOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            maxWidth: '560px',
-            width: '100%',
-            padding: '24px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: 'var(--shadow-xl)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <UserPlus size={20} color="var(--primary)" />
-                <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  إضافة طالب لمجموعة: {activeGroup?.nameAr}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddStudentOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Tabs */}
-            <div style={{
-              display: 'flex',
-              backgroundColor: 'var(--bg-app)',
-              padding: '4px',
-              borderRadius: 'var(--radius-lg)',
-              marginBottom: '18px'
-            }}>
-              <button
-                type="button"
-                onClick={() => setStudentModalTab('search')}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  backgroundColor: studentModalTab === 'search' ? 'var(--bg-surface)' : 'transparent',
-                  color: studentModalTab === 'search' ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontWeight: '800',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  boxShadow: studentModalTab === 'search' ? 'var(--shadow-xs)' : 'none'
-                }}
-              >
-                1. البحث في قاعدة بيانات متفوّق
-              </button>
-              <button
-                type="button"
-                onClick={() => setStudentModalTab('manual')}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  backgroundColor: studentModalTab === 'manual' ? 'var(--bg-surface)' : 'transparent',
-                  color: studentModalTab === 'manual' ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontWeight: '800',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  boxShadow: studentModalTab === 'manual' ? 'var(--shadow-xs)' : 'none'
-                }}
-              >
-                2. تسجيل طالب جديد وإصدار باركود
-              </button>
-            </div>
-
-            {/* TAB 1: Search Existing Platform Students */}
-            {studentModalTab === 'search' && (
-              <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                  ابحث عن الطالب بالاسم أو رقم الهاتف لقيده بضغطة زر وتوليد باركود السنتر تلقائياً:
-                </p>
-
-                <div style={{ position: 'relative', marginBottom: '16px' }}>
-                  <input
-                    type="text"
-                    placeholder="اكتب اسم الطالب (مثل: عمر طارق) أو رقم الهاتف..."
-                    value={searchStudentQuery}
-                    onChange={(e) => setSearchStudentQuery(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px 11px 36px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1.5px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      fontWeight: '700'
-                    }}
-                  />
-                  <Search size={16} color="var(--text-secondary)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
-                </div>
-
-                {searchStudentQuery.trim() && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
-                    {searchResults.length === 0 ? (
-                      <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                        لم يتم العثور على طالب بهذا الاسم. يمكنك التبديل إلى تبويب <strong>«تسجيل طالب جديد»</strong> لإضافته فوراً!
-                      </div>
-                    ) : (
-                      searchResults.map(std => {
-                        const alreadyIn = (activeGroupStudents || []).some(s => s.phone === std.phone || s.id === std.id);
-                        return (
-                          <div
-                            key={std.id}
-                            style={{
-                              padding: '12px 14px',
-                              borderRadius: 'var(--radius-md)',
-                              backgroundColor: 'var(--bg-app)',
-                              border: '1px solid var(--border-subtle)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '12px'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <img
-                                src={std.avatar}
-                                alt={std.nameAr}
-                                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
-                              />
-                              <div>
-                                <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                                  {std.nameAr}
-                                </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                  {std.phone} • {std.gradeAr}
-                                </div>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={alreadyIn}
-                              onClick={() => handleEnrollExisting(std)}
-                              style={{
-                                padding: '6px 14px',
-                                borderRadius: 'var(--radius-md)',
-                                backgroundColor: alreadyIn ? 'var(--bg-subtle)' : 'var(--primary)',
-                                color: alreadyIn ? 'var(--text-secondary)' : '#FFFFFF',
-                                border: 'none',
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                cursor: alreadyIn ? 'not-allowed' : 'pointer'
-                              }}
-                            >
-                              {alreadyIn ? 'مقيد بالفعل' : '+ قيد الطالب'}
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 2: Manual Student Registration */}
-            {studentModalTab === 'manual' && (
-              <form onSubmit={handleManualStudentRegister} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  تسجيل طالب غير مسجل مسبقاً وتوليد كود باركود شخصي له للطباعة والحضور الفوري:
-                </p>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
-                    اسم الطالب بالكامل *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="مثال: حسام طارق محمد"
-                    value={manualName}
-                    onChange={(e) => setManualName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1.5px solid var(--border-medium)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
-                      رقم هاتف الطالب *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="010XXXXXXXX"
-                      value={manualPhone}
-                      onChange={(e) => setManualPhone(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1.5px solid var(--border-medium)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px'
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
-                      الصف الدراسي
-                    </label>
-                    <select
-                      value={manualGrade}
-                      onChange={(e) => setManualGrade(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1.5px solid var(--border-medium)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px'
-                      }}
-                    >
-                      <option value="الصف الأول الثانوي">الصف الأول الثانوي</option>
-                      <option value="الصف الثاني الثانوي">الصف الثاني الثانوي</option>
-                      <option value="الصف الثالث الثانوي">الصف الثالث الثانوي</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
-                      اسم ولي الأمر
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="أ. طارق محمد"
-                      value={manualParentName}
-                      onChange={(e) => setManualParentName(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1.5px solid var(--border-medium)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px'
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
-                      رقم هاتف ولي الأمر
-                    </label>
-                    <input
-                      type="tel"
-                      placeholder="012XXXXXXXX"
-                      value={manualParentPhone}
-                      onChange={(e) => setManualParentPhone(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1.5px solid var(--border-medium)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Student Email & Platform Invitation (Requested feature) */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px', color: 'var(--text-secondary)' }}>
-                    البريد الإلكتروني للطالب (اختياري / لدعوة المنصة والباركود الرقمي)
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="email"
-                      placeholder="student@example.com"
-                      value={manualEmail}
-                      onChange={(e) => setManualEmail(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px 10px 38px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1.5px solid var(--border-medium)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px'
-                      }}
-                    />
-                    <Mail size={16} color="var(--text-secondary)" style={{ position: 'absolute', left: '12px', top: '13px' }} />
-                  </div>
-                </div>
-
-                {manualEmail.trim() && (
-                  <div style={{
-                    padding: '10px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'rgba(21, 136, 199, 0.08)',
-                    border: '1px solid rgba(21, 136, 199, 0.25)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '10px'
-                  }}>
-                    <input
-                      type="checkbox"
-                      id="inviteCheckbox"
-                      checked={sendPlatformInvite}
-                      onChange={(e) => setSendPlatformInvite(e.target.checked)}
-                      style={{ marginTop: '3px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="inviteCheckbox" style={{ fontSize: '11.5px', color: 'var(--text-primary)', lineHeight: 1.5, cursor: 'pointer' }}>
-                      <strong style={{ color: 'var(--primary)' }}>إرسال رابط دعوة وتفعيل المنصة تلقائياً:</strong>
-                      <span style={{ display: 'block', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        سيتم إرسال بريد إلكتروني للطالب يحتوي على رابط التفعيل؛ وبمجرد أن يقبل الطالب الرابط، يسجل دخوله للمنصة ويظهر له باركود الحضور الذكي فوراً على هاتفه.
-                      </span>
-                    </label>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  style={{
-                    padding: '12px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontWeight: '800',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    marginTop: '8px'
-                  }}
-                >
-                  تسجيل الطالب وإصدار الباركود فوراً
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          MODAL 3: STUDENT ATTENDANCE BARCODE CARD MODAL (Printable ID Card)
-         ========================================================================= */}
-      {studentCardModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.68)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '2px solid var(--primary)',
-            maxWidth: '430px',
-            width: '100%',
-            padding: '26px',
-            textAlign: 'center',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
-            animation: 'fadeIn 0.2s ease'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setStudentCardModal(null)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Center Branding */}
-            <div style={{ fontSize: '11px', fontWeight: '900', color: 'var(--primary)', letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: '4px' }}>
-              سنتر الرواد التعليمي — بطاقة الحضور والباركود الذكية
-            </div>
-
-            <img
-              src={studentCardModal.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-              alt={studentCardModal.nameAr}
-              style={{
-                width: '72px',
-                height: '72px',
-                borderRadius: '50%',
-                objectFit: 'cover',
-                border: '3px solid var(--primary)',
-                margin: '10px auto'
-              }}
-            />
-
-            <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', margin: '4px 0' }}>
-              {studentCardModal.nameAr || studentCardModal.name}
-            </h3>
-
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              {studentCardModal.gradeAr || 'الصف الثالث الثانوي'} • هاتف: {studentCardModal.phone}
-            </div>
-
-            {studentCardModal.email && (
-              <div style={{
-                backgroundColor: 'rgba(21, 136, 199, 0.08)',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid rgba(21, 136, 199, 0.2)',
-                fontSize: '11.5px',
-                marginBottom: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '8px'
-              }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                  دعوة المنصة: <strong style={{ color: 'var(--primary)' }}>{studentCardModal.email}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (showToast) showToast(`تمت إعادة إرسال رابط تفعيل المنصة والباركود إلى (${studentCardModal.email}) بنجاح! ✉️`);
-                  }}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    backgroundColor: 'var(--primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontSize: '10.5px',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  إعادة الإرسال
-                </button>
-              </div>
-            )}
-
-            {/* Real QR Code */}
-            <div style={{ marginBottom: '14px' }}>
-              <RealQRCode 
-                value={`MOTAFAWWEQ:STUDENT:${studentCardModal.id}:${studentCardModal.passcode || 'STU-101'}:${studentCardModal.barcode || '2026001'}`} 
-                size={140} 
-              />
-            </div>
-
-            {/* Visual Barcode Display */}
-            <div style={{
-              backgroundColor: '#FFFFFF',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1.5px solid var(--border-medium)',
-              marginBottom: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              {/* Simulated crisp Barcode SVG lines */}
-              <div style={{ display: 'flex', alignItems: 'center', height: '42px', gap: '3px' }}>
-                {[4, 2, 6, 2, 4, 8, 2, 4, 6, 2, 8, 4, 2, 6, 4, 2, 8, 4, 6, 2, 4, 2].map((w, i) => (
-                  <div key={i} style={{ width: `${w}px`, height: '100%', backgroundColor: '#06254E' }} />
-                ))}
-              </div>
-              <div style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: '900', color: '#06254E', letterSpacing: '4px' }}>
-                {studentCardModal.barcode || '20261042'}
-              </div>
-            </div>
-
-            {/* Passcode Badge */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: 'var(--bg-app)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              marginBottom: '16px'
-            }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700' }}>كود الطالب السريع:</span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: '900', color: 'var(--primary)' }}>
-                {studentCardModal.passcode || 'STU-1042'}
-              </span>
-            </div>
-
-            {/* Print button */}
-            <button
-              type="button"
-              onClick={() => window.print()}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                border: 'none',
-                fontSize: '13px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: 'var(--shadow-sm)'
-              }}
-            >
-              <Printer size={16} />
-              <span>طباعة بطاقة الباركود للطالب</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-    </div>
+          </SCard>
+        ) : (
+          <CenterGroupDetailSection
+            activeGroup={activeGroup}
+            groups={groups}
+            rooms={rooms}
+            activeGroupStudents={activeGroupStudents}
+            pendingStudentsList={activeGroupPending}
+            loadingRoster={loadingRoster}
+            isMobile={isMobile}
+            onBackToGroups={handleBackToGroups}
+            onSelectGroup={handleOpenGroupStudents}
+            onEditCohort={handleOpenEditCohort}
+            onDeleteCohort={setDeleteConfirmCohort}
+            onRegenerateJoinCode={regenerateGroupJoinCode}
+            onOpenAddStudent={() => setIsAddStudentOpen(true)}
+            onOpenStudentCard={setStudentCardModal}
+            onToggleAttendance={toggleStudentAttendance}
+            onScanCode={recordStudentAttendanceByCode}
+            onAcceptPending={acceptPendingStudent}
+            onRejectPending={rejectPendingStudent}
+            onRemoveStudent={removeStudentFromGroup}
+            onUpdatePayment={updateStudentPayment}
+            showToast={showToast}
+            lang={lang}
+            isRtl={isRtl}
+          />
+        )}
+
+        {isAddCohortOpen && (
+          <CenterCohortFormModal
+            key={editingCohort?.id || 'create-cohort'}
+            isOpen={isAddCohortOpen}
+            editingCohort={editingCohort}
+            onClose={() => {
+              setIsAddCohortOpen(false);
+              setEditingCohort(null);
+            }}
+            onSave={handleSaveCohort}
+            branches={branches}
+            rooms={rooms}
+            centerTeachers={centerTeachers}
+            checkScheduleConflict={checkScheduleConflict}
+            lang={lang}
+          />
+        )}
+
+        {deleteConfirmCohort && (
+          <CenterDeleteCohortModal
+            cohort={deleteConfirmCohort}
+            enrolledCount={
+              enrolledStudents[deleteConfirmCohort.id]?.length ??
+              deleteConfirmCohort.enrolledCount ??
+              0
+            }
+            onConfirm={handleConfirmDeleteCohort}
+            onCancel={() => setDeleteConfirmCohort(null)}
+            lang={lang}
+          />
+        )}
+
+        {isAddStudentOpen && activeGroup && (
+          <CenterAddStudentModal
+            key={activeGroup.id}
+            isOpen={isAddStudentOpen}
+            onClose={() => setIsAddStudentOpen(false)}
+            activeGroup={activeGroup}
+            activeGroupStudents={activeGroupStudents}
+            activeGroupPending={activeGroupPending}
+            onEnrollExisting={handleEnrollExisting}
+            onEnrollManual={handleEnrollManual}
+            isBackendCenter={isBackendCenter}
+            lang={lang}
+          />
+        )}
+
+        {studentCardModal && (
+          <CenterStudentCardModal
+            key={studentCardModal.id || studentCardModal.enrollmentId}
+            student={studentCardModal}
+            activeGroup={activeGroup}
+            centerNameAr={centerNameAr}
+            onClose={() => setStudentCardModal(null)}
+            isBackendCenter={isBackendCenter}
+            lang={lang}
+          />
+        )}
+      </div>
+    </SPage>
   );
 };

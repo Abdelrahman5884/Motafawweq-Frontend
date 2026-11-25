@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useGroups } from '../../../context/GroupsContext';
 import { useAuth } from '../../../context/AuthContext';
+import { copyTextToClipboard } from '../../../utils';
 import {
   Calendar,
   Clock,
@@ -13,297 +14,643 @@ import {
   Circle,
   Plus,
   Trash2,
-  Sparkles,
+  Pencil,
   Flame,
   Search,
   Check,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Layers,
   GraduationCap,
-  Award,
   AlertCircle,
   StickyNote,
-  UserCheck,
-  Target
+  Target,
+  Printer,
+  RefreshCw,
+  X,
+  Copy,
+  Maximize2,
 } from 'lucide-react';
+import {
+  DAYS_CONFIG,
+  NOTE_PRIORITIES,
+  DEFAULT_SUBJECTS,
+  getTodayDayKey,
+  getColorPreset,
+  parseTimeToMinutes,
+  formatTimeTo12h,
+  formatDurationLabel,
+  formatStudyHoursValue,
+  formatSlotsCount,
+  formatArabicSessionsUnit,
+  findScheduleConflict,
+} from './scheduleUtils';
+import { StudySessionModal } from './StudySessionModal';
+import { ScheduleNoteModal } from './ScheduleNoteModal';
+import { printStudentWeeklySchedule } from './studentSchedulePrintTemplate';
 
-export const DAYS_CONFIG = [
-  { key: 'saturday', ar: 'السبت', en: 'Saturday', shortAr: 'سبت', shortEn: 'Sat', dayIndex: 6 },
-  { key: 'sunday', ar: 'الأحد', en: 'Sunday', shortAr: 'أحد', shortEn: 'Sun', dayIndex: 0 },
-  { key: 'monday', ar: 'الاثنين', en: 'Monday', shortAr: 'اثنين', shortEn: 'Mon', dayIndex: 1 },
-  { key: 'tuesday', ar: 'الثلاثاء', en: 'Tuesday', shortAr: 'ثلاثاء', shortEn: 'Tue', dayIndex: 2 },
-  { key: 'wednesday', ar: 'الأربعاء', en: 'Wednesday', shortAr: 'أربعاء', shortEn: 'Wed', dayIndex: 3 },
-  { key: 'thursday', ar: 'الخميس', en: 'Thursday', shortAr: 'خميس', shortEn: 'Thu', dayIndex: 4 },
-  { key: 'friday', ar: 'الجمعة', en: 'Friday', shortAr: 'جمعة', shortEn: 'Fri', dayIndex: 5 },
-];
+const EMPTY_TIMETABLE = () => ({
+  saturday: [],
+  sunday: [],
+  monday: [],
+  tuesday: [],
+  wednesday: [],
+  thursday: [],
+  friday: [],
+});
 
 export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
-  const { lang, isRtl } = useLanguage();
+  const { lang } = useLanguage();
   const { isDark } = useTheme();
   const { currentUser } = useAuth();
   const isAr = lang === 'ar';
 
   const {
     groups,
+    loadingGroups,
+    groupsError,
+    loadingSchedule,
+    scheduleError,
+    refreshGroups,
     enrolledStudents,
     studentStudySessions,
     addStudySession,
+    updateStudySession,
     toggleStudySession,
     deleteStudySession,
     scheduleNotes,
     addScheduleNote,
+    updateScheduleNote,
     toggleScheduleNote,
-    deleteScheduleNote
+    deleteScheduleNote,
   } = useGroups();
 
-  // Detect Real-World Today
-  const todayKey = useMemo(() => {
-    const dayNum = new Date().getDay();
-    const found = DAYS_CONFIG.find(d => d.dayIndex === dayNum);
-    return found ? found.key : 'tuesday';
-  }, []);
+  const todayKey = useMemo(() => getTodayDayKey(), []);
 
   const [selectedDayKey, setSelectedDayKey] = useState(todayKey);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'focus' | 'agenda'
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'focus'
   const [filterType, setFilterType] = useState('all'); // 'all' | 'center' | 'study'
   const [searchQuery, setSearchQuery] = useState('');
+  const [copiedCodeId, setCopiedCodeId] = useState('');
+  const [busyIds, setBusyIds] = useState(() => new Set());
 
-  // Add Study Session Modal State
+  // Add / Edit Study Session Modal State
   const [studyModalOpen, setStudyModalOpen] = useState(false);
-  const [newStudy, setNewStudy] = useState({
-    subject: 'الأحياء (الثانوية العامة)',
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [isSavingStudy, setIsSavingStudy] = useState(false);
+  const [studyServerError, setStudyServerError] = useState('');
+  const [studyForm, setStudyForm] = useState({
+    subject: DEFAULT_SUBJECTS[0],
     title: '',
     day: todayKey,
     startTime: '19:00',
     endTime: '21:00',
-    durationMinutes: 120,
     notes: '',
-    color: '#1588C7'
+    color: '#1588C7',
   });
 
-  // Add Note Modal State
+  // Add / Edit Daily Note Modal State
   const [noteModalOpen, setNoteModalOpen] = useState(false);
-  const [noteTargetDay, setNoteTargetDay] = useState(todayKey);
-  const [noteText, setNoteText] = useState('');
-  const [noteTime, setNoteTime] = useState('18:00');
-  const [notePriority, setNotePriority] = useState('medium');
+  const [editingNote, setEditingNote] = useState(null); // { id, previousDay } | null
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [noteServerError, setNoteServerError] = useState('');
+  const [noteForm, setNoteForm] = useState({
+    day: todayKey,
+    text: '',
+    time: '',
+    priority: 'medium',
+  });
 
-  const studentNameAr = currentUser?.nameAr || 'عمر طارق القاضي';
-  const studentPhone = currentUser?.phone || '+20 102 458 9912';
+  const studentNameAr = currentUser?.nameAr || currentUser?.name || '';
+  const studentPhone = currentUser?.phone || '';
 
-  // Extract enrolled center groups
+  // Strictly confirmed ENROLLED center groups only (matches backend overlap & timetable rules)
   const enrolledGroups = useMemo(() => {
-    return groups.filter(g => {
-      const list = enrolledStudents[g.id] || [];
-      return list.some(s => s.nameAr === studentNameAr || s.phone === studentPhone || s.name === currentUser?.name);
+    const list = Array.isArray(groups) ? groups : [];
+    if (currentUser?.role === 'student') {
+      return list.filter((g) => g.enrollmentStatus === 'enrolled');
+    }
+    return list.filter((g) => {
+      const roster = enrolledStudents[g.id] || [];
+      return roster.some(
+        (s) =>
+          s.nameAr === studentNameAr ||
+          s.phone === studentPhone ||
+          s.name === currentUser?.name
+      );
     });
   }, [groups, enrolledStudents, studentNameAr, studentPhone, currentUser]);
 
-  // Combine Center Sessions and Self-Study Sessions per day
-  const timetableByDay = useMemo(() => {
-    const map = {
-      saturday: [],
-      sunday: [],
-      monday: [],
-      tuesday: [],
-      wednesday: [],
-      thursday: [],
-      friday: []
-    };
+  // 1. Unfiltered complete timetable (used for conflict checking, stats & print)
+  const allTimetableByDay = useMemo(() => {
+    const map = EMPTY_TIMETABLE();
 
-    const q = searchQuery.trim().toLowerCase();
-
-    // 1. Center Sessions
-    enrolledGroups.forEach(group => {
+    enrolledGroups.forEach((group) => {
       const slots = group.scheduleSlots || [];
-      slots.forEach(slot => {
-        const d = (slot.day || '').toLowerCase();
+      slots.forEach((slot) => {
+        const d = String(slot.day || '').toLowerCase();
         if (!map[d]) return;
 
-        if (q) {
-          const match = (group.nameAr && group.nameAr.toLowerCase().includes(q)) ||
-            (group.subjectAr && group.subjectAr.toLowerCase().includes(q)) ||
-            (group.centerName && group.centerName.toLowerCase().includes(q)) ||
-            (slot.hall && slot.hall.toLowerCase().includes(q));
-          if (!match) return;
-        }
+        const start = slot.startTime || '16:00';
+        const end = slot.endTime || '18:00';
+        const dur = Math.max(
+          0,
+          parseTimeToMinutes(end) - parseTimeToMinutes(start)
+        );
 
-        if (filterType === 'all' || filterType === 'center') {
-          map[d].push({
-            id: `center-slot-${group.id}-${slot.id}`,
-            type: 'center',
-            group,
-            subject: group.subjectAr || 'المادة الدراسية',
-            title: group.nameAr,
-            centerName: group.centerName,
-            hall: slot.hall || group.hallName || 'القاعة الرئيسية',
-            teacherName: group.teacherNameAr || 'د. سلمى السيد',
-            startTime: slot.startTime || '16:00',
-            endTime: slot.endTime || '18:00',
-            priceEgp: group.priceEgp,
-            joinCode: group.joinCode
-          });
-        }
+        map[d].push({
+          id: `center-slot-${group.id}-${slot.id}`,
+          type: 'center',
+          group,
+          subject: isAr
+            ? group.subjectAr || 'المادة الدراسية'
+            : group.subjectEn || group.subjectAr || 'Subject',
+          title: isAr
+            ? group.nameAr || group.nameEn || ''
+            : group.nameEn || group.nameAr || '',
+          centerName: group.centerName || '',
+          hall: slot.hall || group.hallName || (isAr ? 'القاعة الرئيسية' : 'Main Hall'),
+          teacherName: group.teacherName || group.teacherNameAr || '',
+          startTime: start,
+          endTime: end,
+          durationMinutes: dur || 120,
+          priceEgp: group.priceEgp,
+          joinCode: group.joinCode || '',
+        });
       });
     });
 
-    // 2. Self-Study Sessions
-    (studentStudySessions || []).forEach(sess => {
-      const d = (sess.day || '').toLowerCase();
+    (studentStudySessions || []).forEach((sess) => {
+      const d = String(sess.day || '').toLowerCase();
       if (!map[d]) return;
 
-      if (q) {
-        const match = (sess.subject && sess.subject.toLowerCase().includes(q)) ||
-          (sess.title && sess.title.toLowerCase().includes(q)) ||
-          (sess.notes && sess.notes.toLowerCase().includes(q));
-        if (!match) return;
-      }
+      const start = sess.startTime || '19:00';
+      const end = sess.endTime || '21:00';
+      const computedDur =
+        Number(sess.durationMinutes) > 0
+          ? Number(sess.durationMinutes)
+          : Math.max(15, parseTimeToMinutes(end) - parseTimeToMinutes(start));
 
-      if (filterType === 'all' || filterType === 'study') {
-        map[d].push({
-          id: sess.id,
-          type: 'study',
-          subject: sess.subject,
-          title: sess.title,
-          startTime: sess.startTime,
-          endTime: sess.endTime,
-          durationMinutes: sess.durationMinutes || 120,
-          isCompleted: sess.isCompleted,
-          color: sess.color || '#1588C7',
-          notes: sess.notes
-        });
-      }
+      map[d].push({
+        id: sess.id,
+        type: 'study',
+        subject: sess.subject || (isAr ? 'مذاكرة عامة' : 'General Study'),
+        title: sess.title || '',
+        startTime: start,
+        endTime: end,
+        durationMinutes: computedDur,
+        isCompleted: Boolean(sess.isCompleted),
+        color: sess.color || '#1588C7',
+        notes: sess.notes || '',
+      });
     });
 
-    // Sort chronologically by start time
-    Object.keys(map).forEach(k => {
-      map[k].sort((a, b) => (a.startTime || '00:00').localeCompare(b.startTime || '00:00'));
+    Object.keys(map).forEach((k) => {
+      map[k].sort((a, b) =>
+        (a.startTime || '00:00').localeCompare(b.startTime || '00:00')
+      );
     });
 
     return map;
-  }, [enrolledGroups, studentStudySessions, filterType, searchQuery]);
+  }, [enrolledGroups, studentStudySessions, isAr]);
 
-  // Statistics
+  // 2. Filtered timetable for display (applies filterType & searchQuery)
+  const filteredTimetableByDay = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const map = EMPTY_TIMETABLE();
+
+    Object.keys(map).forEach((dayKey) => {
+      map[dayKey] = (allTimetableByDay[dayKey] || []).filter((item) => {
+        if (filterType !== 'all' && item.type !== filterType) return false;
+        if (!q) return true;
+        const haystack = [
+          item.title,
+          item.subject,
+          item.centerName,
+          item.hall,
+          item.teacherName,
+          item.notes,
+          item.joinCode,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(q);
+      });
+    });
+
+    return map;
+  }, [allTimetableByDay, filterType, searchQuery]);
+
+  // Weekly KPI statistics (always derived from confirmed unfiltered schedule)
   const stats = useMemo(() => {
     let totalCenterSessions = 0;
-    enrolledGroups.forEach(g => {
+    enrolledGroups.forEach((g) => {
       totalCenterSessions += (g.scheduleSlots || []).length;
     });
 
     const studyList = studentStudySessions || [];
     const totalStudySessions = studyList.length;
-    const completedStudySessions = studyList.filter(s => s.isCompleted).length;
-    const studyHours = Math.round(studyList.reduce((acc, s) => acc + (Number(s.durationMinutes) || 120) / 60, 0));
-    const completionRate = totalStudySessions > 0 ? Math.round((completedStudySessions / totalStudySessions) * 100) : 100;
+    const completedStudySessions = studyList.filter((s) => s.isCompleted).length;
+    const totalStudyMinutes = studyList.reduce((acc, s) => {
+      const explicit = Number(s.durationMinutes);
+      if (explicit > 0) return acc + explicit;
+      const diff = parseTimeToMinutes(s.endTime) - parseTimeToMinutes(s.startTime);
+      return acc + (diff > 0 ? diff : 60);
+    }, 0);
+    const completionRate =
+      totalStudySessions > 0
+        ? Math.round((completedStudySessions / totalStudySessions) * 100)
+        : 0;
 
     return {
       totalCenterSessions,
       totalStudySessions,
       completedStudySessions,
-      studyHours,
-      completionRate
+      totalStudyMinutes,
+      completionRate,
     };
   }, [enrolledGroups, studentStudySessions]);
 
-  const formatTimeTo12h = (t24) => {
-    if (!t24) return '';
-    const [h, m] = t24.split(':').map(Number);
-    const period = h >= 12 ? (isAr ? 'م' : 'PM') : (isAr ? 'ص' : 'AM');
-    const h12 = h % 12 || 12;
-    return `${h12}:${m < 10 ? '0' + m : m} ${period}`;
-  };
+  const studyHoursDisplay = useMemo(
+    () => formatStudyHoursValue(stats.totalStudyMinutes, isAr),
+    [stats.totalStudyMinutes, isAr]
+  );
 
-  const handleSaveStudySession = (e) => {
-    e.preventDefault();
-    if (!newStudy.title.trim()) return;
-    addStudySession(newStudy);
-    setNewStudy({
-      subject: 'الأحياء (الثانوية العامة)',
-      title: '',
-      day: todayKey,
-      startTime: '19:00',
-      endTime: '21:00',
-      durationMinutes: 120,
-      notes: '',
-      color: '#1588C7'
+  const availableSubjects = useMemo(() => {
+    const enrolledSubjs = enrolledGroups
+      .map((g) => (g.subjectAr || '').trim())
+      .filter(Boolean);
+    return Array.from(new Set([...enrolledSubjs, ...DEFAULT_SUBJECTS]));
+  }, [enrolledGroups]);
+
+  // Conflict check against ALL sessions (unfiltered!)
+  const studyConflictError = useMemo(
+    () =>
+      findScheduleConflict({
+        day: studyForm.day,
+        startTime: studyForm.startTime,
+        endTime: studyForm.endTime,
+        allTimetableByDay,
+        editingSessionId,
+        isAr,
+      }),
+    [
+      studyForm.day,
+      studyForm.startTime,
+      studyForm.endTime,
+      allTimetableByDay,
+      editingSessionId,
+      isAr,
+    ]
+  );
+
+  const hasActiveFilters = filterType !== 'all' || searchQuery.trim().length > 0;
+  const totalFilteredCount = useMemo(
+    () =>
+      Object.values(filteredTimetableByDay).reduce(
+        (sum, arr) => sum + arr.length,
+        0
+      ),
+    [filteredTimetableByDay]
+  );
+  const totalUnfilteredCount = stats.totalCenterSessions + stats.totalStudySessions;
+
+  const markBusy = useCallback((id, busy) => {
+    setBusyIds((prev) => {
+      const next = new Set(prev);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
     });
+  }, []);
+
+  // Study Session Modal Handlers
+  const closeStudyModal = useCallback(() => {
     setStudyModalOpen(false);
+    setEditingSessionId(null);
+    setStudyServerError('');
+  }, []);
+
+  const openCreateStudyModal = useCallback(
+    (dayKey) => {
+      setEditingSessionId(null);
+      setStudyServerError('');
+      setStudyForm({
+        subject: availableSubjects[0] || DEFAULT_SUBJECTS[0],
+        title: '',
+        day: dayKey || selectedDayKey,
+        startTime: '19:00',
+        endTime: '21:00',
+        notes: '',
+        color: '#1588C7',
+      });
+      setStudyModalOpen(true);
+    },
+    [availableSubjects, selectedDayKey]
+  );
+
+  const openEditStudyModal = useCallback(
+    (item, dayKey) => {
+      setEditingSessionId(item.id);
+      setStudyServerError('');
+      setStudyForm({
+        subject: item.subject || availableSubjects[0] || DEFAULT_SUBJECTS[0],
+        title: item.title || '',
+        day: dayKey || selectedDayKey,
+        startTime: item.startTime || '19:00',
+        endTime: item.endTime || '21:00',
+        notes: item.notes || '',
+        color: item.color || '#1588C7',
+      });
+      setStudyModalOpen(true);
+    },
+    [availableSubjects, selectedDayKey]
+  );
+
+  const handleSaveStudySession = async (e) => {
+    e.preventDefault();
+    if (studyForm.title.trim().length < 2 || studyConflictError || isSavingStudy) {
+      return;
+    }
+
+    setIsSavingStudy(true);
+    setStudyServerError('');
+
+    const startMin = parseTimeToMinutes(studyForm.startTime);
+    const endMin = parseTimeToMinutes(studyForm.endTime);
+    const computedDuration = Math.max(15, endMin - startMin);
+
+    try {
+      const payload = {
+        ...studyForm,
+        title: studyForm.title.trim(),
+        notes: (studyForm.notes || '').trim(),
+        durationMinutes: computedDuration,
+      };
+      if (editingSessionId) {
+        await updateStudySession(editingSessionId, payload);
+      } else {
+        await addStudySession(payload);
+      }
+      setSelectedDayKey(studyForm.day);
+      closeStudyModal();
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      setStudyServerError(
+        firstErr ||
+          err?.message ||
+          (isAr ? 'تعذر حفظ جلسة المذاكرة.' : 'Failed to save study session.')
+      );
+    } finally {
+      setIsSavingStudy(false);
+    }
   };
 
-  const handleSaveNote = (e) => {
-    e.preventDefault();
-    if (!noteText.trim()) return;
-    addScheduleNote(noteTargetDay, {
-      text: noteText.trim(),
-      time: noteTime,
-      priority: notePriority
-    });
-    setNoteText('');
+  // Daily Note Modal Handlers
+  const closeNoteModal = useCallback(() => {
     setNoteModalOpen(false);
+    setEditingNote(null);
+    setNoteServerError('');
+  }, []);
+
+  const openCreateNoteModal = useCallback(
+    (dayKey) => {
+      setEditingNote(null);
+      setNoteServerError('');
+      setNoteForm({
+        day: dayKey || selectedDayKey,
+        text: '',
+        time: '',
+        priority: 'medium',
+      });
+      setNoteModalOpen(true);
+    },
+    [selectedDayKey]
+  );
+
+  const openEditNoteModal = useCallback((note, dayKey) => {
+    setEditingNote({ id: note.id, previousDay: dayKey });
+    setNoteServerError('');
+    setNoteForm({
+      day: dayKey,
+      text: note.text || '',
+      time: note.time || '',
+      priority: note.priority || 'medium',
+    });
+    setNoteModalOpen(true);
+  }, []);
+
+  const handleSaveNote = async (e) => {
+    e.preventDefault();
+    if (!noteForm.text.trim() || isSavingNote) return;
+
+    setIsSavingNote(true);
+    setNoteServerError('');
+
+    try {
+      const payload = {
+        day: noteForm.day,
+        text: noteForm.text.trim(),
+        time: noteForm.time || null,
+        priority: noteForm.priority || 'medium',
+      };
+      if (editingNote) {
+        await updateScheduleNote(editingNote.previousDay, editingNote.id, payload);
+      } else {
+        await addScheduleNote(noteForm.day, payload);
+      }
+      setSelectedDayKey(noteForm.day);
+      closeNoteModal();
+    } catch (err) {
+      const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+      setNoteServerError(
+        firstErr ||
+          err?.message ||
+          (isAr ? 'تعذر حفظ الملحوظة.' : 'Failed to save note.')
+      );
+    } finally {
+      setIsSavingNote(false);
+    }
   };
+
+  const handleToggleStudy = async (id) => {
+    if (busyIds.has(id)) return;
+    markBusy(id, true);
+    try {
+      await toggleStudySession(id);
+    } finally {
+      markBusy(id, false);
+    }
+  };
+
+  const handleDeleteStudy = async (id) => {
+    if (busyIds.has(id)) return;
+    markBusy(id, true);
+    try {
+      await deleteStudySession(id);
+    } finally {
+      markBusy(id, false);
+    }
+  };
+
+  const handleToggleNote = async (dayKey, noteId) => {
+    if (busyIds.has(noteId)) return;
+    markBusy(noteId, true);
+    try {
+      await toggleScheduleNote(dayKey, noteId);
+    } finally {
+      markBusy(noteId, false);
+    }
+  };
+
+  const handleDeleteNote = async (dayKey, noteId) => {
+    if (busyIds.has(noteId)) return;
+    markBusy(noteId, true);
+    try {
+      await deleteScheduleNote(dayKey, noteId);
+    } finally {
+      markBusy(noteId, false);
+    }
+  };
+
+  const handleCopyCode = async (itemId, code) => {
+    if (!code) return;
+    const ok = await copyTextToClipboard(code);
+    if (ok) {
+      setCopiedCodeId(itemId);
+      window.setTimeout(() => setCopiedCodeId(''), 1800);
+    }
+  };
+
+  const handlePrintSchedule = () => {
+    printStudentWeeklySchedule({
+      studentName: studentNameAr,
+      timetableByDay: allTimetableByDay,
+      scheduleNotes,
+      stats,
+      lang,
+    });
+  };
+
+  const openDayFocus = (dayKey) => {
+    setSelectedDayKey(dayKey);
+    setViewMode('focus');
+  };
+
+  const isInitialLoading = (loadingGroups || loadingSchedule) && totalUnfilteredCount === 0;
+  const activeError = scheduleError || groupsError;
+
+  const selectedDayMeta = DAYS_CONFIG.find((d) => d.key === selectedDayKey) || DAYS_CONFIG[0];
+  const focusItems = filteredTimetableByDay[selectedDayKey] || [];
+  const focusNotes = scheduleNotes[selectedDayKey] || [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      {/* ── TOP STATS BAR (Sleek, Animated, Clean) ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
-        gap: '14px'
-      }}>
-        {/* Center Classes Stat */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          boxShadow: 'var(--shadow-xs)',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-        }}
-        >
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            backgroundColor: 'var(--primary-surface)',
-            color: 'var(--primary)',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+      {/* ── ERROR ALERT WITH RETRY ── */}
+      {activeError && (
+        <div
+          role="alert"
+          style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '12px 16px',
+            borderRadius: '14px',
+            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+            border: '1px solid rgba(220, 38, 38, 0.3)',
+            color: '#DC2626',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '13px', fontWeight: '700' }}>{activeError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={refreshGroups}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: '1px solid rgba(220, 38, 38, 0.35)',
+              backgroundColor: 'var(--bg-surface)',
+              color: '#DC2626',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <RefreshCw size={13} />
+            <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── TOP STATS BAR ── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+          gap: '14px',
+        }}
+      >
+        {/* 1. Center Classes Stat */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '16px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            boxShadow: 'var(--shadow-xs)',
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--primary-surface)',
+              color: 'var(--primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
             <Building2 size={22} />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
               <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-muted)' }}>
                 {isAr ? 'حصص السناتر الأسبوعية' : 'Weekly Center Classes'}
               </span>
-              <span style={{
-                fontSize: '9.5px',
-                fontWeight: '900',
-                padding: '2px 6px',
-                borderRadius: '999px',
-                backgroundColor: 'rgba(21, 136, 199, 0.12)',
-                color: 'var(--primary)'
-              }}>
-                {isAr ? 'مؤكدة' : 'Fixed'}
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: '900',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(21, 136, 199, 0.12)',
+                  color: 'var(--primary)',
+                  flexShrink: 0,
+                }}
+              >
+                {isAr ? 'مؤكدة' : 'Confirmed'}
               </span>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>{stats.totalCenterSessions} <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{isAr ? 'حصص سنتر' : 'Classes'}</span></span>
+            <div style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <span>
+                {stats.totalCenterSessions}{' '}
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                  {formatArabicSessionsUnit(stats.totalCenterSessions, 'حصة', 'حصتان', 'حصص', isAr, 'Class', 'Classes')}
+                </span>
+              </span>
               {onSwitchToGroups && (
                 <button
                   type="button"
@@ -314,211 +661,238 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                     color: 'var(--primary)',
                     fontSize: '11px',
                     fontWeight: '800',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
+                    padding: '4px 9px',
+                    borderRadius: '7px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {isAr ? 'إدارة المجموعات ←' : 'Cohorts →'}
+                  {isAr ? 'المجموعات ←' : 'Groups →'}
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Self-Study Sessions Stat */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          boxShadow: 'var(--shadow-xs)',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-        }}
-        >
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(92, 182, 219, 0.15)',
-            color: 'var(--primary-light, #5CB6DB)',
+        {/* 2. Self-Study Sessions Stat */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '16px 18px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
+            gap: '14px',
+            boxShadow: 'var(--shadow-xs)',
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(124, 58, 237, 0.12)',
+              color: '#7C3AED',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
             <BookOpen size={22} />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
               <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-muted)' }}>
                 {isAr ? 'جلسات المذاكرة الخاصة' : 'Self-Study Sessions'}
               </span>
-              <span style={{
-                fontSize: '9.5px',
-                fontWeight: '900',
-                padding: '2px 6px',
-                borderRadius: '999px',
-                backgroundColor: 'rgba(92, 182, 219, 0.15)',
-                color: 'var(--primary-light, #5CB6DB)'
-              }}>
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: '900',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(124, 58, 237, 0.12)',
+                  color: '#7C3AED',
+                  flexShrink: 0,
+                }}
+              >
                 {isAr ? 'مخططة' : 'Planned'}
               </span>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {stats.totalStudySessions} <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{isAr ? 'جلسات' : 'Sessions'}</span>
+            <div style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)' }}>
+              {stats.totalStudySessions}{' '}
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                {formatArabicSessionsUnit(stats.totalStudySessions, 'جلسة', 'جلستان', 'جلسات', isAr, 'Session', 'Sessions')}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Total Planned Study Hours */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          boxShadow: 'var(--shadow-xs)',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-        }}
-        >
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(21, 136, 199, 0.12)',
-            color: 'var(--primary)',
+        {/* 3. Target Study Hours Stat */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '16px 18px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
+            gap: '14px',
+            boxShadow: 'var(--shadow-xs)',
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(5, 150, 105, 0.12)',
+              color: '#059669',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
             <Clock size={22} />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
               <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                {isAr ? 'ساعات المذاكرة المستهدفة' : 'Target Study Hours'}
+                {isAr ? 'ساعات المذاكرة المستهدفة' : 'Target Study Time'}
               </span>
-              <span style={{
-                fontSize: '9.5px',
-                fontWeight: '900',
-                padding: '2px 6px',
-                borderRadius: '999px',
-                backgroundColor: 'rgba(21, 136, 199, 0.12)',
-                color: 'var(--primary)'
-              }}>
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: '900',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(5, 150, 105, 0.12)',
+                  color: '#059669',
+                  flexShrink: 0,
+                }}
+              >
                 {isAr ? 'أسبوعياً' : 'Weekly'}
               </span>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {stats.studyHours} <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{isAr ? 'ساعة أسبوعياً' : 'Hours'}</span>
+            <div style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)' }}>
+              {studyHoursDisplay.value}{' '}
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                {studyHoursDisplay.unit}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Study Completion Rate */}
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-xl)',
-          padding: '16px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          boxShadow: 'var(--shadow-xs)',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-        }}
-        >
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)',
-            color: '#F59E0B',
+        {/* 4. Weekly Completion Rate Stat */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '16px 18px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
+            gap: '14px',
+            boxShadow: 'var(--shadow-xs)',
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : 'rgba(245, 158, 11, 0.12)',
+              color: '#F59E0B',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
             <Flame size={22} />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
               <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                {isAr ? 'نسبة الإنجاز الأسبوعي' : 'Completion Rate'}
+                {isAr ? 'نسبة الإنجاز الأسبوعي' : 'Weekly Completion'}
               </span>
-              <span style={{
-                fontSize: '9.5px',
-                fontWeight: '900',
-                padding: '2px 6px',
-                borderRadius: '999px',
-                backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                color: '#F59E0B'
-              }}>
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: '900',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                  color: '#D97706',
+                  flexShrink: 0,
+                }}
+              >
                 {stats.completedStudySessions}/{stats.totalStudySessions}
               </span>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {stats.completionRate}%
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '21px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                {stats.completionRate}%
+              </span>
+              <div
+                style={{
+                  flex: 1,
+                  height: '6px',
+                  borderRadius: '999px',
+                  backgroundColor: 'var(--bg-subtle)',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${stats.completionRate}%`,
+                    height: '100%',
+                    borderRadius: '999px',
+                    backgroundColor: stats.completionRate === 100 && stats.totalStudySessions > 0 ? '#059669' : '#F59E0B',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* ── CONTROLS & FILTER BAR ── */}
-      <div style={{
-        backgroundColor: 'var(--bg-surface-elevated)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '14px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        boxShadow: 'var(--shadow-xs)'
-      }}>
-        {/* Left: View Modes & Filter Toggles */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          boxShadow: 'var(--shadow-xs)',
+        }}
+      >
+        {/* View Mode + Filter Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* View Mode Toggle */}
-          <div style={{
-            display: 'inline-flex',
-            backgroundColor: 'var(--bg-subtle)',
-            padding: '3px',
-            borderRadius: '10px',
-            border: '1px solid var(--border-subtle)'
-          }}>
+          {/* View Mode Switcher */}
+          <div
+            style={{
+              display: 'inline-flex',
+              backgroundColor: 'var(--bg-subtle)',
+              padding: '3px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
             <button
+              type="button"
               onClick={() => setViewMode('grid')}
               style={{
                 display: 'inline-flex',
@@ -532,7 +906,6 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 fontSize: '12px',
                 fontWeight: '800',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease'
               }}
             >
               <Calendar size={13} />
@@ -540,6 +913,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
             </button>
 
             <button
+              type="button"
               onClick={() => {
                 setViewMode('focus');
                 setSelectedDayKey(todayKey);
@@ -556,89 +930,67 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 fontSize: '12px',
                 fontWeight: '800',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease'
               }}
             >
               <Target size={13} />
-              <span>{isAr ? 'اليوم' : 'Today'}</span>
+              <span>{isAr ? 'عرض اليوم' : 'Day Focus'}</span>
             </button>
           </div>
 
           {/* Type Filter Pills */}
-          <div style={{
-            display: 'inline-flex',
-            backgroundColor: 'var(--bg-subtle)',
-            padding: '3px',
-            borderRadius: '10px',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <button
-              onClick={() => setFilterType('all')}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: filterType === 'all' ? 'var(--bg-surface)' : 'transparent',
-                color: filterType === 'all' ? 'var(--primary)' : 'var(--text-secondary)',
-                fontWeight: filterType === 'all' ? '800' : '600',
-                fontSize: '11.5px',
-                cursor: 'pointer',
-                boxShadow: filterType === 'all' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
-              }}
-            >
-              {isAr ? 'الكل' : 'All'}
-            </button>
-            <button
-              onClick={() => setFilterType('center')}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: filterType === 'center' ? 'var(--bg-surface)' : 'transparent',
-                color: filterType === 'center' ? 'var(--primary)' : 'var(--text-secondary)',
-                fontWeight: filterType === 'center' ? '800' : '600',
-                fontSize: '11.5px',
-                cursor: 'pointer',
-                boxShadow: filterType === 'center' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
-              }}
-            >
-              {isAr ? 'حصص السنتر' : 'Center Classes'}
-            </button>
-            <button
-              onClick={() => setFilterType('study')}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: filterType === 'study' ? 'var(--bg-surface)' : 'transparent',
-                color: filterType === 'study' ? 'var(--primary)' : 'var(--text-secondary)',
-                fontWeight: filterType === 'study' ? '800' : '600',
-                fontSize: '11.5px',
-                cursor: 'pointer',
-                boxShadow: filterType === 'study' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
-              }}
-            >
-              {isAr ? 'المذاكرة الخاصة' : 'Self-Study'}
-            </button>
+          <div
+            style={{
+              display: 'inline-flex',
+              backgroundColor: 'var(--bg-subtle)',
+              padding: '3px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            {[
+              { id: 'all', ar: 'الكل', en: 'All' },
+              { id: 'center', ar: 'حصص السنتر', en: 'Center' },
+              { id: 'study', ar: 'المذاكرة الخاصة', en: 'Self-Study' },
+            ].map((pill) => (
+              <button
+                key={pill.id}
+                type="button"
+                onClick={() => setFilterType(pill.id)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: filterType === pill.id ? 'var(--bg-surface)' : 'transparent',
+                  color: filterType === pill.id ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: filterType === pill.id ? '800' : '600',
+                  fontSize: '11.5px',
+                  cursor: 'pointer',
+                  boxShadow: filterType === pill.id ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                }}
+              >
+                {isAr ? pill.ar : pill.en}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Right: Search & Add Study Session Action */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Quick Search */}
-          <div style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: '9px',
-            border: '1px solid var(--border-subtle)',
-            padding: '5px 10px'
-          }}>
-            <Search size={14} color="var(--text-muted)" style={{ marginInlineEnd: '6px' }} />
+        {/* Search + Print + Add Study Session */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-subtle)',
+              borderRadius: '9px',
+              border: '1px solid var(--border-subtle)',
+              padding: '6px 10px',
+              gap: '6px',
+            }}
+          >
+            <Search size={14} color="var(--text-muted)" />
             <input
               type="text"
-              placeholder={isAr ? 'بحث في المادة أو السنتر...' : 'Search subjects, centers...'}
+              placeholder={isAr ? 'بحث في المادة أو الموضوع...' : 'Search subject or topic...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -647,23 +999,59 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 color: 'var(--text-primary)',
                 fontSize: '12px',
                 outline: 'none',
-                width: '140px',
-                fontFamily: 'inherit'
+                width: '155px',
+                fontFamily: 'inherit',
               }}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label={isAr ? 'مسح البحث' : 'Clear search'}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'inline-flex',
+                }}
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
-          {/* Add Study Session Button */}
           <button
-            onClick={() => {
-              setNewStudy(prev => ({ ...prev, day: selectedDayKey }));
-              setStudyModalOpen(true);
-            }}
+            type="button"
+            onClick={handlePrintSchedule}
+            title={isAr ? 'طباعة الجدول الأسبوعي (A4 أفقي)' : 'Print Weekly Schedule'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 16px',
+              padding: '8px 12px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <Printer size={14} color="var(--primary)" />
+            <span>{isAr ? 'طباعة الجدول' : 'Print'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openCreateStudyModal(selectedDayKey)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 15px',
               borderRadius: '10px',
               backgroundColor: 'var(--primary)',
               color: '#FFFFFF',
@@ -672,10 +1060,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
               fontWeight: '800',
               cursor: 'pointer',
               boxShadow: 'var(--shadow-primary)',
-              transition: 'opacity 0.15s ease'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             <Plus size={15} />
             <span>{isAr ? 'إضافة جلسة مذاكرة' : 'Add Study Session'}</span>
@@ -683,67 +1068,145 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
         </div>
       </div>
 
-      {/* ── FOCUS MODE DAY SELECTOR TABS ONLY ── */}
-      {viewMode === 'focus' && (
-        <div style={{
-          display: 'flex',
-          gap: '6px',
-          overflowX: 'auto',
-          paddingBottom: '4px',
-          scrollbarWidth: 'none'
-        }}>
-          {DAYS_CONFIG.map(day => {
+      {/* ── NO RESULTS BANNER WHEN FILTERING ── */}
+      {!isInitialLoading && hasActiveFilters && totalFilteredCount === 0 && totalUnfilteredCount > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px dashed var(--border-subtle)',
+            fontSize: '12.5px',
+            color: 'var(--text-secondary)',
+            fontWeight: '700',
+          }}
+        >
+          <span>
+            {isAr
+              ? 'لا توجد مواعيد مطابقة لخيارات البحث أو الفلتر الحالية.'
+              : 'No schedule slots match your current search or filter.'}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterType('all');
+              setSearchQuery('');
+            }}
+            style={{
+              padding: '5px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--primary)',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            {isAr ? 'إعادة ضبط الفلاتر' : 'Reset Filters'}
+          </button>
+        </div>
+      )}
+
+      {/* ── INITIAL LOADING SKELETON ── */}
+      {isInitialLoading && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 172px), 1fr))',
+            gap: '12px',
+          }}
+        >
+          {DAYS_CONFIG.map((day) => (
+            <div
+              key={day.key}
+              style={{
+                backgroundColor: 'var(--bg-surface-elevated)',
+                borderRadius: '16px',
+                border: '1px solid var(--border-subtle)',
+                padding: '14px',
+                minHeight: '220px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ height: '18px', width: '60%', borderRadius: '6px', backgroundColor: 'var(--bg-subtle)' }} />
+              <div style={{ height: '74px', width: '100%', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)' }} />
+              <div style={{ height: '56px', width: '100%', borderRadius: '10px', backgroundColor: 'var(--bg-subtle)', opacity: 0.65 }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── FOCUS MODE DAY SELECTOR TABS ── */}
+      {!isInitialLoading && viewMode === 'focus' && (
+        <div
+          style={{
+            display: 'flex',
+            gap: '6px',
+            overflowX: 'auto',
+            paddingBottom: '4px',
+            scrollbarWidth: 'none',
+          }}
+        >
+          {DAYS_CONFIG.map((day) => {
             const isToday = day.key === todayKey;
             const isSelected = day.key === selectedDayKey;
-            const dayItems = timetableByDay[day.key] || [];
-            const centerCount = dayItems.filter(i => i.type === 'center').length;
-            const studyCount = dayItems.filter(i => i.type === 'study').length;
+            const dayItems = filteredTimetableByDay[day.key] || [];
+            const centerCount = dayItems.filter((i) => i.type === 'center').length;
+            const studyCount = dayItems.filter((i) => i.type === 'study').length;
 
             return (
               <button
                 key={day.key}
-                onClick={() => {
-                  setSelectedDayKey(day.key);
-                }}
+                type="button"
+                onClick={() => setSelectedDayKey(day.key)}
                 style={{
-                  flex: '1 0 110px',
+                  flex: '1 0 112px',
                   padding: '9px 12px',
                   borderRadius: '12px',
                   border: isSelected
                     ? '2px solid var(--primary)'
                     : isToday
-                      ? '1.5px solid rgba(21, 136, 199, 0.4)'
+                      ? '1.5px solid rgba(21, 136, 199, 0.45)'
                       : '1px solid var(--border-subtle)',
                   backgroundColor: isSelected
                     ? 'var(--primary-surface)'
-                    : isToday
-                      ? 'var(--bg-surface)'
-                      : 'var(--bg-surface-elevated)',
+                    : 'var(--bg-surface-elevated)',
                   cursor: 'pointer',
                   textAlign: 'center',
-                  transition: 'all 0.15s ease',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '3px'
+                  gap: '3px',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                  <span style={{
-                    fontSize: '13px',
-                    fontWeight: isSelected || isToday ? '900' : '700',
-                    color: isSelected ? 'var(--primary)' : 'var(--text-primary)'
-                  }}>
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: isSelected || isToday ? '900' : '700',
+                      color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
+                    }}
+                  >
                     {isAr ? day.ar : day.en}
                   </span>
                   {isToday && (
-                    <span style={{
-                      fontSize: '8.5px',
-                      fontWeight: '900',
-                      padding: '1px 4px',
-                      borderRadius: '4px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF'
-                    }}>
+                    <span
+                      style={{
+                        fontSize: '8.5px',
+                        fontWeight: '900',
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        backgroundColor: 'var(--primary)',
+                        color: '#FFFFFF',
+                      }}
+                    >
                       {isAr ? 'اليوم' : 'Today'}
                     </span>
                   )}
@@ -751,19 +1214,13 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '10.5px' }}>
                   {centerCount > 0 && (
-                    <span style={{
-                      color: 'var(--primary)',
-                      fontWeight: '800'
-                    }}>
+                    <span style={{ color: 'var(--primary)', fontWeight: '800' }}>
                       {centerCount} {isAr ? 'سنتر' : 'Class'}
                     </span>
                   )}
                   {centerCount > 0 && studyCount > 0 && <span>•</span>}
                   {studyCount > 0 && (
-                    <span style={{
-                      color: 'var(--primary-light, #5CB6DB)',
-                      fontWeight: '800'
-                    }}>
+                    <span style={{ color: '#7C3AED', fontWeight: '800' }}>
                       {studyCount} {isAr ? 'مذاكرة' : 'Study'}
                     </span>
                   )}
@@ -780,17 +1237,19 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
       )}
 
       {/* ── VIEW MODE 1: 7-DAY GRID VIEW ── */}
-      {viewMode === 'grid' && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 155px), 1fr))',
-          gap: '12px',
-          alignItems: 'stretch'
-        }}>
-          {DAYS_CONFIG.map(day => {
+      {!isInitialLoading && viewMode === 'grid' && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 172px), 1fr))',
+            gap: '12px',
+            alignItems: 'stretch',
+          }}
+        >
+          {DAYS_CONFIG.map((day) => {
             const isToday = day.key === todayKey;
             const isSelected = day.key === selectedDayKey;
-            const items = timetableByDay[day.key] || [];
+            const items = filteredTimetableByDay[day.key] || [];
             const dayNotes = scheduleNotes[day.key] || [];
 
             return (
@@ -798,6 +1257,8 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                 key={day.key}
                 onClick={() => setSelectedDayKey(day.key)}
                 style={{
+                  minWidth: 0,
+                  overflow: 'hidden',
                   backgroundColor: 'var(--bg-surface-elevated)',
                   borderRadius: '16px',
                   border: isToday
@@ -806,293 +1267,473 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                       ? '1.5px solid rgba(21, 136, 199, 0.4)'
                       : '1px solid var(--border-subtle)',
                   boxShadow: isToday
-                    ? '0 0 0 1px rgba(21, 136, 199, 0.3), var(--shadow-sm)'
+                    ? '0 0 0 1px rgba(21, 136, 199, 0.25), var(--shadow-sm)'
                     : 'var(--shadow-xs)',
-                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
                   height: '100%',
-                  transition: 'transform 0.18s ease, box-shadow 0.18s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = isToday ? '0 8px 24px rgba(21, 136, 199, 0.22)' : 'var(--shadow-md)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = isToday ? '0 0 0 1px rgba(21, 136, 199, 0.3), var(--shadow-sm)' : 'var(--shadow-xs)';
+                  transition: 'box-shadow 0.18s ease',
                 }}
               >
-                {/* Column Day Header */}
-                <div style={{
-                  padding: '12px',
-                  backgroundColor: isToday
-                    ? 'var(--primary-surface)'
-                    : isSelected
-                      ? 'var(--bg-subtle)'
-                      : 'var(--bg-surface)',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{
-                      fontSize: '13.5px',
-                      fontWeight: '900',
-                      color: isToday ? 'var(--primary)' : 'var(--text-primary)'
-                    }}>
+                {/* Column Day Header (Click to expand Day Focus) */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openDayFocus(day.key);
+                  }}
+                  title={isAr ? `عرض تفاصيل يوم ${day.ar}` : `Focus on ${day.en}`}
+                  style={{
+                    width: '100%',
+                    padding: '11px 12px',
+                    backgroundColor: isToday
+                      ? 'var(--primary-surface)'
+                      : isSelected
+                        ? 'var(--bg-subtle)'
+                        : 'var(--bg-surface)',
+                    border: 'none',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    textAlign: 'inherit',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+                    <span
+                      style={{
+                        fontSize: '13.5px',
+                        fontWeight: '900',
+                        color: isToday ? 'var(--primary)' : 'var(--text-primary)',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {isAr ? day.ar : day.en}
                     </span>
                     {isToday && (
-                      <span style={{
-                        fontSize: '9px',
-                        fontWeight: '900',
-                        padding: '1px 5px',
-                        borderRadius: '4px',
-                        backgroundColor: 'var(--primary)',
-                        color: '#FFFFFF'
-                      }}>
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: '900',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--primary)',
+                          color: '#FFFFFF',
+                          flexShrink: 0,
+                        }}
+                      >
                         {isAr ? 'اليوم' : 'Today'}
                       </span>
                     )}
                   </div>
 
-                  <span style={{
-                    fontSize: '10.5px',
-                    fontWeight: '800',
-                    color: items.length > 0 ? 'var(--primary)' : 'var(--text-muted)'
-                  }}>
-                    {items.length} {isAr ? 'مواعيد' : 'Slots'}
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: '800',
+                      color: items.length > 0 ? 'var(--primary)' : 'var(--text-muted)',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {formatSlotsCount(items.length, isAr)}
                   </span>
-                </div>
+                </button>
 
                 {/* Day Items List */}
-                <div style={{
-                  padding: '10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  flex: 1
-                }}>
+                <div
+                  style={{
+                    padding: '10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
                   {items.length === 0 ? (
-                    <div style={{
-                      flex: 1,
-                      minHeight: '140px',
-                      padding: '24px 8px',
-                      textAlign: 'center',
-                      color: 'var(--text-muted)',
-                      fontSize: '11px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: 'var(--bg-subtle)',
-                      borderRadius: '10px',
-                      border: '1px dashed var(--border-subtle)',
-                      gap: '6px'
-                    }}>
-                      <Calendar size={20} style={{ opacity: 0.35 }} />
-                      <span style={{ fontWeight: '600' }}>{isAr ? 'لا توجد مواعيد' : 'Free day'}</span>
+                    <div
+                      style={{
+                        flex: 1,
+                        minHeight: '132px',
+                        padding: '20px 8px',
+                        textAlign: 'center',
+                        color: 'var(--text-muted)',
+                        fontSize: '11px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'var(--bg-subtle)',
+                        borderRadius: '10px',
+                        border: '1px dashed var(--border-subtle)',
+                        gap: '6px',
+                      }}
+                    >
+                      <Calendar size={18} style={{ opacity: 0.35 }} />
+                      <span style={{ fontWeight: '700' }}>
+                        {isAr ? 'لا توجد مواعيد' : 'Free day'}
+                      </span>
                     </div>
                   ) : (
-                    items.map(item => (
-                      <div
-                        key={item.id}
-                        style={{
-                          backgroundColor: item.type === 'center'
-                            ? (isDark ? 'rgba(21, 136, 199, 0.12)' : 'rgba(21, 136, 199, 0.06)')
-                            : (item.isCompleted
-                              ? 'rgba(16, 185, 129, 0.08)'
-                              : (isDark ? 'rgba(139, 92, 246, 0.12)' : 'rgba(139, 92, 246, 0.06)')),
-                          border: '1px solid',
-                          borderColor: item.type === 'center'
-                            ? 'rgba(21, 136, 199, 0.3)'
-                            : (item.isCompleted ? 'rgba(16, 185, 129, 0.3)' : 'rgba(139, 92, 246, 0.3)'),
-                          borderRadius: '10px',
-                          padding: '9px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '5px',
-                          transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = 'var(--shadow-xs)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
-                      >
-                        {/* Type Badge & Time */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{
-                            fontSize: '9.5px',
-                            fontWeight: '900',
-                            padding: '1px 5px',
-                            borderRadius: '4px',
-                            backgroundColor: item.type === 'center' ? 'var(--primary)' : 'var(--primary-light, #5CB6DB)',
-                            color: '#FFFFFF'
-                          }}>
-                            {item.type === 'center'
-                              ? (isAr ? 'سنتر' : 'Center')
-                              : (isAr ? 'مذاكرة' : 'Study')}
-                          </span>
+                    items.map((item) => {
+                      const isCenter = item.type === 'center';
+                      const preset = getColorPreset(item.color);
+                      const accentColor = isCenter
+                        ? '#1588C7'
+                        : item.isCompleted
+                          ? '#059669'
+                          : preset.hex;
+                      const cardBg = isCenter
+                        ? isDark
+                          ? 'rgba(21, 136, 199, 0.14)'
+                          : 'rgba(21, 136, 199, 0.06)'
+                        : item.isCompleted
+                          ? isDark
+                            ? 'rgba(5, 150, 105, 0.15)'
+                            : 'rgba(5, 150, 105, 0.07)'
+                          : isDark
+                            ? preset.darkBg
+                            : preset.lightBg;
+                      const cardBorder = isCenter
+                        ? 'rgba(21, 136, 199, 0.32)'
+                        : item.isCompleted
+                          ? 'rgba(5, 150, 105, 0.35)'
+                          : preset.border;
+                      const isBusy = busyIds.has(item.id);
 
-                          <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-secondary)' }}>
-                            {formatTimeTo12h(item.startTime)}
-                          </span>
-                        </div>
-
-                        {/* Title & Subject */}
-                        <div>
-                          <div style={{
-                            fontSize: '11.5px',
-                            fontWeight: '800',
-                            color: 'var(--text-primary)',
-                            lineHeight: 1.3,
-                            textDecoration: item.isCompleted ? 'line-through' : 'none'
-                          }}>
-                            {item.title}
-                          </div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {item.subject}
-                          </div>
-                        </div>
-
-                        {/* Center specific info */}
-                        {item.type === 'center' && (
-                          <div style={{
-                            fontSize: '10px',
-                            color: 'var(--text-secondary)',
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDayFocus(day.key);
+                          }}
+                          style={{
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            backgroundColor: cardBg,
+                            border: `1px solid ${cardBorder}`,
+                            borderInlineStart: `3.5px solid ${accentColor}`,
+                            borderRadius: '10px',
+                            padding: '9px',
                             display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            backgroundColor: 'rgba(0,0,0,0.03)',
-                            padding: '3px 6px',
-                            borderRadius: '5px'
-                          }}>
-                            <MapPin size={11} color="var(--primary)" />
-                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {item.hall}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Study specific completion toggle */}
-                        {item.type === 'study' && (
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            paddingTop: '2px',
-                            marginTop: '2px',
-                            borderTop: '1px dashed var(--border-subtle)'
-                          }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleStudySession(item.id);
-                              }}
+                            flexDirection: 'column',
+                            gap: '5px',
+                            cursor: 'pointer',
+                            opacity: isBusy ? 0.65 : 1,
+                          }}
+                        >
+                          {/* Badge & Time */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '6px',
+                              minWidth: 0,
+                            }}
+                          >
+                            <span
                               style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
+                                fontSize: '9.5px',
+                                fontWeight: '900',
+                                padding: '2px 6px',
+                                borderRadius: '5px',
+                                backgroundColor: accentColor,
+                                color: '#FFFFFF',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {isCenter
+                                ? isAr
+                                  ? 'سنتر'
+                                  : 'Center'
+                                : isAr
+                                  ? 'مذاكرة'
+                                  : 'Study'}
+                            </span>
+
+                            <span
+                              style={{
                                 fontSize: '10px',
                                 fontWeight: '800',
-                                color: item.isCompleted ? 'var(--primary)' : 'var(--text-muted)'
+                                color: 'var(--text-secondary)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
                               }}
                             >
-                              {item.isCompleted ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                              <span>{item.isCompleted ? (isAr ? 'تم الإنجاز' : 'Done') : (isAr ? 'إنجاز' : 'Mark done')}</span>
-                            </button>
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteStudySession(item.id);
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                padding: '2px'
-                              }}
-                              title={isAr ? 'حذف جلسة المذاكرة' : 'Delete'}
-                            >
-                              <Trash2 size={11} />
-                            </button>
+                              {formatTimeTo12h(item.startTime, isAr)}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    ))
+
+                          {/* Title & Subject — strict wrap & clamp so long text NEVER overflows */}
+                          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <div
+                              title={item.title}
+                              style={{
+                                fontSize: '11.5px',
+                                fontWeight: '800',
+                                color: 'var(--text-primary)',
+                                lineHeight: 1.4,
+                                textDecoration: item.isCompleted ? 'line-through' : 'none',
+                                opacity: item.isCompleted ? 0.72 : 1,
+                                overflowWrap: 'anywhere',
+                                wordBreak: 'break-word',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {item.title}
+                            </div>
+                            <div
+                              title={item.subject}
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: '600',
+                                color: 'var(--text-muted)',
+                                marginTop: '2px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {item.subject}
+                            </div>
+                          </div>
+
+                          {/* Center Hall Pill */}
+                          {isCenter && (
+                            <div
+                              style={{
+                                fontSize: '10px',
+                                color: 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)',
+                                padding: '3px 6px',
+                                borderRadius: '6px',
+                                minWidth: 0,
+                              }}
+                            >
+                              <MapPin size={11} color="var(--primary)" style={{ flexShrink: 0 }} />
+                              <span
+                                title={item.hall}
+                                style={{
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  minWidth: 0,
+                                }}
+                              >
+                                {item.hall}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Study Card Actions (Complete + Edit + Delete) */}
+                          {!isCenter && (
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '4px',
+                                paddingTop: '5px',
+                                marginTop: '2px',
+                                borderTop: '1px dashed var(--border-subtle)',
+                              }}
+                            >
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleStudy(item.id);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: isBusy ? 'wait' : 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '10px',
+                                  fontWeight: '800',
+                                  padding: 0,
+                                  color: item.isCompleted ? '#059669' : 'var(--text-secondary)',
+                                }}
+                              >
+                                {item.isCompleted ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                                <span>
+                                  {item.isCompleted
+                                    ? isAr
+                                      ? 'مكتملة'
+                                      : 'Done'
+                                    : isAr
+                                      ? 'إنجاز'
+                                      : 'Done'}
+                                </span>
+                              </button>
+
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditStudyModal(item, day.key);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-muted)',
+                                    cursor: 'pointer',
+                                    padding: '3px',
+                                    borderRadius: '5px',
+                                    display: 'inline-flex',
+                                  }}
+                                  title={isAr ? 'تعديل الجلسة' : 'Edit session'}
+                                  aria-label={isAr ? 'تعديل الجلسة' : 'Edit session'}
+                                >
+                                  <Pencil size={11.5} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteStudy(item.id);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-muted)',
+                                    cursor: isBusy ? 'wait' : 'pointer',
+                                    padding: '3px',
+                                    borderRadius: '5px',
+                                    display: 'inline-flex',
+                                  }}
+                                  title={isAr ? 'حذف الجلسة' : 'Delete session'}
+                                  aria-label={isAr ? 'حذف الجلسة' : 'Delete session'}
+                                >
+                                  <Trash2 size={11.5} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
 
-                  {/* Daily Notes Quick Pill */}
+                  {/* Daily Notes Quick Preview (Click opens Day Focus) */}
                   {dayNotes.length > 0 && (
-                    <div style={{
-                      backgroundColor: 'var(--bg-subtle)',
-                      borderRadius: '8px',
-                      padding: '6px 8px',
-                      marginTop: 'auto',
-                      border: '1px dashed var(--border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '9.5px', fontWeight: '800', color: 'var(--text-muted)' }}>
-                          <StickyNote size={10} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDayFocus(day.key);
+                      }}
+                      style={{
+                        width: '100%',
+                        minWidth: 0,
+                        textAlign: 'inherit',
+                        backgroundColor: 'var(--bg-subtle)',
+                        borderRadius: '8px',
+                        padding: '6px 8px',
+                        marginTop: 'auto',
+                        border: '1px dashed var(--border-subtle)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span style={{ fontSize: '9.5px', fontWeight: '800', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <StickyNote size={10} color="var(--primary)" />
                           {isAr ? 'ملاحظات' : 'Notes'}
                         </span>
-                        <span style={{ fontSize: '9px', fontWeight: '900', color: 'var(--primary)' }}>
+                        <span style={{ fontSize: '9.5px', fontWeight: '900', color: 'var(--primary)' }}>
                           {dayNotes.length}
                         </span>
                       </div>
-                      <div style={{
-                        fontSize: '10.5px',
-                        color: 'var(--text-secondary)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
+                      <div
+                        title={dayNotes[0].text}
+                        style={{
+                          width: '100%',
+                          fontSize: '10.5px',
+                          color: 'var(--text-secondary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
                         {dayNotes[0].text}
                       </div>
-                    </div>
+                    </button>
                   )}
 
-                  {/* Add Study Session / Note trigger */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNewStudy(prev => ({ ...prev, day: day.key }));
-                      setStudyModalOpen(true);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '5px',
-                      borderRadius: '6px',
-                      border: '1px dashed var(--border-subtle)',
-                      backgroundColor: 'transparent',
-                      color: 'var(--text-muted)',
-                      fontSize: '10.5px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      marginTop: '4px'
-                    }}
-                  >
-                    <Plus size={11} />
-                    <span>{isAr ? 'جلسة مذاكرة' : 'Study Slot'}</span>
-                  </button>
+                  {/* Column Footer Quick Actions */}
+                  <div style={{ display: 'flex', gap: '5px', marginTop: dayNotes.length > 0 ? '2px' : 'auto' }}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCreateStudyModal(day.key);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 4px',
+                        borderRadius: '7px',
+                        border: '1px dashed var(--border-subtle)',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-muted)',
+                        fontSize: '10.5px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '3px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <Plus size={11} />
+                      <span>{isAr ? 'مذاكرة' : 'Study'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCreateNoteModal(day.key);
+                      }}
+                      title={isAr ? `إضافة ملحوظة ليوم ${day.ar}` : `Add note for ${day.en}`}
+                      aria-label={isAr ? `إضافة ملحوظة ليوم ${day.ar}` : `Add note for ${day.en}`}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '7px',
+                        border: '1px dashed var(--border-subtle)',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <StickyNote size={11.5} />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -1100,319 +1741,495 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
         </div>
       )}
 
-      {/* ── VIEW MODE 2: EXPANDED DAY FOCUS ("يكبر كده ويشوف الجدول حلو") ── */}
-      {viewMode === 'focus' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface-elevated)',
-          borderRadius: '18px',
-          border: selectedDayKey === todayKey ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '20px'
-        }}>
-          {/* Day Focus Header */}
-          <div style={{
+      {/* ── VIEW MODE 2: EXPANDED DAY FOCUS ── */}
+      {!isInitialLoading && viewMode === 'focus' && (
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface-elevated)',
+            borderRadius: '18px',
+            border: selectedDayKey === todayKey ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+            padding: '22px',
+            boxShadow: 'var(--shadow-sm)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            borderBottom: '1px solid var(--border-subtle)',
-            paddingBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--primary)',
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '900',
-                fontSize: '16px'
-              }}>
+            flexDirection: 'column',
+            gap: '20px',
+            minWidth: 0,
+          }}
+        >
+          {/* Day Focus Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              borderBottom: '1px solid var(--border-subtle)',
+              paddingBottom: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
                 <Calendar size={20} />
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                    {isAr ? `جدول ومذاكرة يوم ${DAYS_CONFIG.find(d => d.key === selectedDayKey)?.ar}` : `${DAYS_CONFIG.find(d => d.key === selectedDayKey)?.en} Schedule`}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: '19px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
+                    {isAr
+                      ? `جدول ومذاكرة يوم ${selectedDayMeta.ar}`
+                      : `${selectedDayMeta.en} Schedule`}
                   </h2>
                   {selectedDayKey === todayKey && (
-                    <span style={{
-                      fontSize: '10.5px',
-                      fontWeight: '900',
-                      padding: '2px 8px',
-                      borderRadius: '999px',
-                      backgroundColor: 'var(--primary)',
-                      color: '#FFFFFF'
-                    }}>
+                    <span
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: '900',
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        backgroundColor: 'var(--primary)',
+                        color: '#FFFFFF',
+                      }}
+                    >
                       {isAr ? 'اليوم النشط' : 'TODAY'}
                     </span>
                   )}
                 </div>
                 <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '3px 0 0' }}>
                   {isAr
-                    ? 'عرض موسع لكافة حصص السنتر وجلسات الاستذكار والمهام الخاصة بهذا اليوم'
-                    : 'Expanded view of all center sessions, self-study goals, and daily tasks'}
+                    ? 'عرض موسّع لحصص السنتر وجلسات المذاكرة الشخصية والمهام اليومية'
+                    : 'Detailed timeline of confirmed center classes, self-study goals, and daily notes'}
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <button
-                onClick={() => {
-                  setNoteTargetDay(selectedDayKey);
-                  setNoteModalOpen(true);
-                }}
+                type="button"
+                onClick={() => openCreateNoteModal(selectedDayKey)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 14px',
+                  padding: '8px 13px',
                   borderRadius: '9px',
                   border: '1px solid var(--border-subtle)',
                   backgroundColor: 'var(--bg-subtle)',
                   color: 'var(--text-primary)',
                   fontSize: '12px',
                   fontWeight: '700',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 <StickyNote size={13} color="var(--primary)" />
-                <span>{isAr ? 'إضافة ملحوظة اليوم' : 'Add Day Note'}</span>
+                <span>{isAr ? 'إضافة ملحوظة' : 'Add Note'}</span>
               </button>
 
               <button
-                onClick={() => {
-                  setNewStudy(prev => ({ ...prev, day: selectedDayKey }));
-                  setStudyModalOpen(true);
-                }}
+                type="button"
+                onClick={() => openCreateStudyModal(selectedDayKey)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 14px',
+                  padding: '8px 14px',
                   borderRadius: '9px',
                   backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   border: 'none',
                   fontSize: '12px',
                   fontWeight: '800',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 <Plus size={14} />
-                <span>{isAr ? 'جلسة استذكار جديدة' : 'Add Study Session'}</span>
+                <span>{isAr ? 'جلسة مذاكرة جديدة' : 'Add Study Session'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '8px 11px',
+                  borderRadius: '9px',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+                title={isAr ? 'العودة للجدول الأسبوعي الكامل' : 'Back to 7-day grid'}
+              >
+                <Maximize2 size={13} />
+                <span>{isAr ? 'كل الأسبوع' : 'Full Week'}</span>
               </button>
             </div>
           </div>
 
-          {/* Expanded Sessions Cards */}
-          {(timetableByDay[selectedDayKey] || []).length === 0 ? (
-            <div style={{
-              padding: '48px 24px',
-              textAlign: 'center',
-              backgroundColor: 'var(--bg-subtle)',
-              borderRadius: '14px',
-              color: 'var(--text-muted)'
-            }}>
-              <Calendar size={36} color="var(--primary)" style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+          {/* Expanded Session Cards */}
+          {focusItems.length === 0 ? (
+            <div
+              style={{
+                padding: '44px 20px',
+                textAlign: 'center',
+                backgroundColor: 'var(--bg-subtle)',
+                borderRadius: '14px',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <Calendar size={34} color="var(--primary)" style={{ margin: '0 auto 8px', opacity: 0.5 }} />
               <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px' }}>
-                {isAr ? 'لا توجد حصص أو جلسات مذاكرة مسجلة في هذا اليوم' : 'No sessions scheduled for this day'}
+                {isAr ? 'لا توجد حصص أو جلسات مذاكرة في هذا اليوم' : 'No sessions scheduled for this day'}
               </h4>
-              <p style={{ fontSize: '12px', margin: 0 }}>
-                {isAr ? 'استغل اليوم في الراحة أو أضف جلسة استذكار جديدة لمراجعة دروسك' : 'Add a study session to organize your day'}
+              <p style={{ fontSize: '12.5px', margin: '0 0 14px' }}>
+                {isAr
+                  ? 'استغل اليوم في الراحة أو أضف جلسة مذاكرة منظمة لمراجعة دروسك'
+                  : 'Use this day to rest or add a planned study session'}
               </p>
+              <button
+                type="button"
+                onClick={() => openCreateStudyModal(selectedDayKey)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={14} />
+                <span>{isAr ? 'إضافة جلسة مذاكرة لهذا اليوم' : 'Add Study Session'}</span>
+              </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {(timetableByDay[selectedDayKey] || []).map(item => (
-                <div
-                  key={item.id}
-                  style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid',
-                    borderColor: item.type === 'center'
-                      ? 'rgba(21, 136, 199, 0.4)'
-                      : (item.isCompleted ? 'rgba(16, 185, 129, 0.4)' : 'rgba(139, 92, 246, 0.4)'),
-                    borderRadius: '14px',
-                    padding: '16px 20px',
-                    boxShadow: 'var(--shadow-xs)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '14px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{
-                      width: '46px',
-                      height: '46px',
-                      borderRadius: '12px',
-                      backgroundColor: item.type === 'center'
-                        ? 'var(--primary-surface)'
-                        : (item.isCompleted ? 'rgba(21, 136, 199, 0.15)' : 'rgba(92, 182, 219, 0.15)'),
-                      color: item.type === 'center'
-                        ? 'var(--primary)'
-                        : (item.isCompleted ? 'var(--primary)' : 'var(--primary-light, #5CB6DB)'),
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {focusItems.map((item) => {
+                const isCenter = item.type === 'center';
+                const preset = getColorPreset(item.color);
+                const accentColor = isCenter
+                  ? '#1588C7'
+                  : item.isCompleted
+                    ? '#059669'
+                    : preset.hex;
+                const isBusy = busyIds.has(item.id);
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      border: `1px solid ${isCenter ? 'rgba(21, 136, 199, 0.35)' : item.isCompleted ? 'rgba(5, 150, 105, 0.4)' : preset.border}`,
+                      borderInlineStart: `4.5px solid ${accentColor}`,
+                      borderRadius: '14px',
+                      padding: '16px 18px',
+                      boxShadow: 'var(--shadow-xs)',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
-                    }}>
-                      {item.type === 'center' ? <Building2 size={24} /> : <BookOpen size={24} />}
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: '900',
-                          padding: '2px 8px',
-                          borderRadius: '999px',
-                          backgroundColor: item.type === 'center' ? 'var(--primary)' : 'var(--primary-light, #5CB6DB)',
-                          color: '#FFFFFF'
-                        }}>
-                          {item.type === 'center' ? (isAr ? 'حصة سنتر معتمدة' : 'Center Class') : (isAr ? 'جلسة استذكار خاصة' : 'Self-Study')}
-                        </span>
-                        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)' }}>
-                          {item.subject}
-                        </span>
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '14px',
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      opacity: isBusy ? 0.65 : 1,
+                    }}
+                  >
+                    {/* Left Info Block (strict minWidth: 0 & flex: 1 so long titles wrap cleanly) */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flex: '1 1 260px', minWidth: 0 }}>
+                      <div
+                        style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          backgroundColor: `${accentColor}1A`,
+                          color: accentColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isCenter ? <Building2 size={22} /> : <BookOpen size={22} />}
                       </div>
 
-                      <h3 style={{
-                        fontSize: '16px',
-                        fontWeight: '900',
-                        color: 'var(--text-primary)',
-                        margin: 0,
-                        textDecoration: item.isCompleted ? 'line-through' : 'none'
-                      }}>
-                        {item.title}
-                      </h3>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '900',
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              backgroundColor: accentColor,
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            {isCenter
+                              ? isAr
+                                ? 'حصة سنتر معتمدة'
+                                : 'Center Class'
+                              : isAr
+                                ? 'جلسة مذاكرة خاصة'
+                                : 'Self-Study'}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              color: 'var(--text-muted)',
+                              overflowWrap: 'anywhere',
+                            }}
+                          >
+                            {item.subject}
+                          </span>
+                          {item.durationMinutes > 0 && (
+                            <span
+                              style={{
+                                fontSize: '10.5px',
+                                fontWeight: '800',
+                                color: 'var(--text-secondary)',
+                                backgroundColor: 'var(--bg-subtle)',
+                                padding: '2px 7px',
+                                borderRadius: '6px',
+                              }}
+                            >
+                              {formatDurationLabel(item.durationMinutes, isAr)}
+                            </span>
+                          )}
+                        </div>
 
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        marginTop: '6px',
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        flexWrap: 'wrap'
-                      }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Clock size={13} color="var(--primary)" />
-                          {formatTimeTo12h(item.startTime)} - {formatTimeTo12h(item.endTime)}
-                        </span>
+                        <h3
+                          style={{
+                            fontSize: '15.5px',
+                            fontWeight: '900',
+                            color: 'var(--text-primary)',
+                            margin: 0,
+                            lineHeight: 1.45,
+                            textDecoration: item.isCompleted ? 'line-through' : 'none',
+                            opacity: item.isCompleted ? 0.72 : 1,
+                            overflowWrap: 'anywhere',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {item.title}
+                        </h3>
 
-                        {item.type === 'center' ? (
-                          <>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <Building2 size={13} color="var(--primary-light, #5CB6DB)" />
-                              {item.centerName}
-                            </span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <MapPin size={13} color="var(--primary)" />
-                              {item.hall}
-                            </span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <GraduationCap size={13} />
-                              {item.teacherName}
-                            </span>
-                          </>
-                        ) : (
-                          item.notes && (
-                            <span style={{ color: 'var(--text-muted)' }}>
-                              🎯 {item.notes}
-                            </span>
-                          )
-                        )}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            marginTop: '7px',
+                            fontSize: '12px',
+                            color: 'var(--text-secondary)',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}>
+                            <Clock size={13} color="var(--primary)" />
+                            {formatTimeTo12h(item.startTime, isAr)} - {formatTimeTo12h(item.endTime, isAr)}
+                          </span>
+
+                          {isCenter ? (
+                            <>
+                              {item.centerName && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Building2 size={13} color="var(--primary)" />
+                                  {item.centerName}
+                                </span>
+                              )}
+                              {item.hall && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <MapPin size={13} color="var(--primary)" />
+                                  {item.hall}
+                                </span>
+                              )}
+                              {item.teacherName && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <GraduationCap size={13} />
+                                  {item.teacherName}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            item.notes && (
+                              <span
+                                style={{
+                                  color: 'var(--text-muted)',
+                                  overflowWrap: 'anywhere',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {item.notes}
+                              </span>
+                            )
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {item.type === 'study' ? (
-                      <>
+                    {/* Right Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      {!isCenter ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => handleToggleStudy(item.id)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '8px 13px',
+                              borderRadius: '9px',
+                              border: 'none',
+                              backgroundColor: item.isCompleted ? '#059669' : 'var(--bg-subtle)',
+                              color: item.isCompleted ? '#FFFFFF' : 'var(--text-primary)',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              cursor: isBusy ? 'wait' : 'pointer',
+                            }}
+                          >
+                            <Check size={14} />
+                            <span>
+                              {item.isCompleted
+                                ? isAr
+                                  ? 'مكتملة'
+                                  : 'Completed'
+                                : isAr
+                                  ? 'تحديد كمكتملة'
+                                  : 'Mark Done'}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => openEditStudyModal(item, selectedDayKey)}
+                            style={{
+                              padding: '8px',
+                              borderRadius: '9px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'transparent',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                            }}
+                            title={isAr ? 'تعديل الجلسة' : 'Edit session'}
+                            aria-label={isAr ? 'تعديل الجلسة' : 'Edit session'}
+                          >
+                            <Pencil size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => handleDeleteStudy(item.id)}
+                            style={{
+                              padding: '8px',
+                              borderRadius: '9px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'transparent',
+                              color: '#DC2626',
+                              cursor: isBusy ? 'wait' : 'pointer',
+                              display: 'inline-flex',
+                            }}
+                            title={isAr ? 'حذف الجلسة' : 'Delete session'}
+                            aria-label={isAr ? 'حذف الجلسة' : 'Delete session'}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      ) : item.joinCode ? (
                         <button
-                          onClick={() => toggleStudySession(item.id)}
+                          type="button"
+                          onClick={() => handleCopyCode(item.id, item.joinCode)}
+                          title={isAr ? 'نسخ كود المجموعة' : 'Copy group code'}
+                          dir="ltr"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '6px',
-                            padding: '8px 14px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            backgroundColor: item.isCompleted ? 'var(--primary)' : 'var(--bg-subtle)',
-                            color: item.isCompleted ? '#FFFFFF' : 'var(--text-primary)',
-                            fontSize: '12px',
+                            fontSize: '11.5px',
                             fontWeight: '800',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Check size={14} />
-                          <span>{item.isCompleted ? (isAr ? 'مكتملة' : 'Completed') : (isAr ? 'تحديد كمكتملة' : 'Mark Done')}</span>
-                        </button>
-
-                        <button
-                          onClick={() => deleteStudySession(item.id)}
-                          style={{
-                            padding: '8px',
+                            fontFamily: 'monospace',
+                            color: copiedCodeId === item.id ? '#059669' : 'var(--primary)',
+                            backgroundColor:
+                              copiedCodeId === item.id
+                                ? 'rgba(5, 150, 105, 0.12)'
+                                : 'var(--primary-surface)',
+                            border: '1px solid transparent',
+                            padding: '6px 11px',
                             borderRadius: '8px',
-                            border: '1px solid var(--border-subtle)',
-                            backgroundColor: 'transparent',
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
                           }}
-                          title={isAr ? 'حذف الجلسة' : 'Delete'}
                         >
-                          <Trash2 size={14} />
+                          {copiedCodeId === item.id ? <Check size={13} /> : <Copy size={13} />}
+                          <span>{item.joinCode}</span>
                         </button>
-                      </>
-                    ) : (
-                      <span style={{
-                        fontSize: '11.5px',
-                        fontWeight: '800',
-                        color: 'var(--primary)',
-                        backgroundColor: 'var(--primary-surface)',
-                        padding: '6px 12px',
-                        borderRadius: '8px'
-                      }}>
-                        {isAr ? 'كود: ' + item.joinCode : item.joinCode}
-                      </span>
-                    )}
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* Daily Notes section for the day */}
-          <div style={{
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: '14px',
-            padding: '16px',
-            border: '1px solid var(--border-subtle)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          {/* Daily Notes & Reminders Section */}
+          <div
+            style={{
+              backgroundColor: 'var(--bg-subtle)',
+              borderRadius: '14px',
+              padding: '16px',
+              border: '1px solid var(--border-subtle)',
+              minWidth: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <StickyNote size={16} color="var(--primary)" />
                 <h4 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
                   {isAr ? 'قائمة المهام والملاحظات اليومية' : 'Daily Tasks & Reminders'}
                 </h4>
+                {focusNotes.length > 0 && (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      padding: '1px 7px',
+                      borderRadius: '999px',
+                      backgroundColor: 'var(--primary-surface)',
+                      color: 'var(--primary)',
+                    }}
+                  >
+                    {focusNotes.length}
+                  </span>
+                )}
               </div>
 
               <button
-                onClick={() => {
-                  setNoteTargetDay(selectedDayKey);
-                  setNoteModalOpen(true);
-                }}
+                type="button"
+                onClick={() => openCreateNoteModal(selectedDayKey)}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -1422,7 +2239,7 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '4px',
                 }}
               >
                 <Plus size={13} />
@@ -1430,404 +2247,163 @@ export const StudentWeeklySchedule = ({ onSwitchToGroups }) => {
               </button>
             </div>
 
-            {(scheduleNotes[selectedDayKey] || []).length === 0 ? (
+            {focusNotes.length === 0 ? (
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                {isAr ? 'لا توجد مهام أو ملاحظات مسجلة لهذا اليوم.' : 'No notes added for today.'}
+                {isAr ? 'لا توجد مهام أو ملاحظات مسجلة لهذا اليوم.' : 'No notes added for this day.'}
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(scheduleNotes[selectedDayKey] || []).map(note => (
-                  <div
-                    key={note.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      backgroundColor: 'var(--bg-surface)',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      border: '1px solid var(--border-subtle)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <button
-                        onClick={() => toggleScheduleNote(selectedDayKey, note.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: note.isDone ? 'var(--primary)' : 'var(--text-muted)',
-                          padding: 0
-                        }}
-                      >
-                        {note.isDone ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                      </button>
+                {focusNotes.map((note) => {
+                  const prMeta = NOTE_PRIORITIES[note.priority] || NOTE_PRIORITIES.medium;
+                  const isBusy = busyIds.has(note.id);
+                  return (
+                    <div
+                      key={note.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        backgroundColor: 'var(--bg-surface)',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        border: '1px solid var(--border-subtle)',
+                        minWidth: 0,
+                        opacity: isBusy ? 0.65 : 1,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleToggleNote(selectedDayKey, note.id)}
+                          aria-label={isAr ? 'تغيير حالة الإنجاز' : 'Toggle completion'}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: isBusy ? 'wait' : 'pointer',
+                            color: note.isDone ? '#059669' : 'var(--text-muted)',
+                            padding: '1px 0 0',
+                            flexShrink: 0,
+                            display: 'inline-flex',
+                          }}
+                        >
+                          {note.isDone ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+                        </button>
 
-                      <span style={{
-                        fontSize: '12.5px',
-                        fontWeight: '700',
-                        color: 'var(--text-primary)',
-                        textDecoration: note.isDone ? 'line-through' : 'none'
-                      }}>
-                        {note.text}
-                      </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span
+                            style={{
+                              display: 'block',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              lineHeight: 1.45,
+                              color: 'var(--text-primary)',
+                              textDecoration: note.isDone ? 'line-through' : 'none',
+                              opacity: note.isDone ? 0.65 : 1,
+                              overflowWrap: 'anywhere',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {note.text}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: '800',
+                                padding: '1px 7px',
+                                borderRadius: '999px',
+                                backgroundColor: isDark ? prMeta.bgDark : prMeta.bgLight,
+                                color: prMeta.color,
+                                border: `1px solid ${prMeta.border}`,
+                              }}
+                            >
+                              {isAr ? prMeta.labelAr : prMeta.labelEn}
+                            </span>
+                            {note.time && (
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: '700' }}>
+                                <Clock size={11} />
+                                {formatTimeTo12h(note.time, isAr)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => openEditNoteModal(note, selectedDayKey)}
+                          title={isAr ? 'تعديل الملحوظة' : 'Edit note'}
+                          aria-label={isAr ? 'تعديل الملحوظة' : 'Edit note'}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'inline-flex',
+                          }}
+                        >
+                          <Pencil size={13} />
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleDeleteNote(selectedDayKey, note.id)}
+                          title={isAr ? 'حذف الملحوظة' : 'Delete note'}
+                          aria-label={isAr ? 'حذف الملحوظة' : 'Delete note'}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#DC2626',
+                            cursor: isBusy ? 'wait' : 'pointer',
+                            padding: '4px',
+                            display: 'inline-flex',
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {note.time && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {formatTimeTo12h(note.time)}
-                        </span>
-                      )}
-
-                      <button
-                        onClick={() => deleteScheduleNote(selectedDayKey, note.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          padding: '2px'
-                        }}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ── MODAL: ADD STUDY SESSION ── */}
-      {studyModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(4, 25, 53, 0.75)',
-          backdropFilter: 'blur(6px)',
-          zIndex: 10001,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: '18px',
-            padding: '24px',
-            maxWidth: '480px',
-            width: '100%',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-lg)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BookOpen size={20} color="var(--primary)" />
-                <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                  {isAr ? 'إضافة جلسة استذكار ومراجعة' : 'Add Self-Study Session'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setStudyModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-              >
-                ✕
-              </button>
-            </div>
+      {/* ── MODALS ── */}
+      <StudySessionModal
+        isOpen={studyModalOpen}
+        isEditing={Boolean(editingSessionId)}
+        formState={studyForm}
+        onChange={setStudyForm}
+        availableSubjects={availableSubjects}
+        conflictError={studyConflictError}
+        serverError={studyServerError}
+        isSaving={isSavingStudy}
+        isAr={isAr}
+        onSubmit={handleSaveStudySession}
+        onClose={closeStudyModal}
+      />
 
-            <form onSubmit={handleSaveStudySession} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Subject */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {isAr ? 'المادة الدراسية' : 'Subject'} *
-                </label>
-                <select
-                  value={newStudy.subject}
-                  onChange={(e) => setNewStudy({ ...newStudy, subject: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="الأحياء (الثانوية العامة)">{isAr ? 'الأحياء (الثانوية العامة)' : 'Biology'}</option>
-                  <option value="الفيزياء (الثانوية العامة)">{isAr ? 'الفيزياء (الثانوية العامة)' : 'Physics'}</option>
-                  <option value="الكيمياء">{isAr ? 'الكيمياء' : 'Chemistry'}</option>
-                  <option value="اللغة العربية">{isAr ? 'اللغة العربية' : 'Arabic'}</option>
-                  <option value="اللغة الإنجليزية">{isAr ? 'اللغة الإنجليزية' : 'English'}</option>
-                  <option value="الرياضيات">{isAr ? 'الرياضيات والرياضيات التطبيقية' : 'Mathematics'}</option>
-                  <option value="الجيولوجيا وعلوم البيئة">{isAr ? 'الجيولوجيا وعلوم البيئة' : 'Geology'}</option>
-                </select>
-              </div>
-
-              {/* Title / Goal */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {isAr ? 'موضوع الجلسة والهدف من المذاكرة' : 'Topic & Goal'} *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={isAr ? 'مثال: مراجعة الباب الثاني وحل شيت كيرشوف 30 سؤال' : 'e.g. Solve 30 practice problems'}
-                  value={newStudy.title}
-                  onChange={(e) => setNewStudy({ ...newStudy, title: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    outline: 'none',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Day */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {isAr ? 'يوم المذاكرة' : 'Day of Week'} *
-                </label>
-                <select
-                  value={newStudy.day}
-                  onChange={(e) => setNewStudy({ ...newStudy, day: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    outline: 'none'
-                  }}
-                >
-                  {DAYS_CONFIG.map(d => (
-                    <option key={d.key} value={d.key}>
-                      {isAr ? d.ar : d.en}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Start & End Time */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    {isAr ? 'من الساعة' : 'Start Time'}
-                  </label>
-                  <input
-                    type="time"
-                    value={newStudy.startTime}
-                    onChange={(e) => setNewStudy({ ...newStudy, startTime: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-subtle)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    {isAr ? 'إلى الساعة' : 'End Time'}
-                  </label>
-                  <input
-                    type="time"
-                    value={newStudy.endTime}
-                    onChange={(e) => setNewStudy({ ...newStudy, endTime: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-subtle)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {isAr ? 'ملاحظات إضافية (اختياري)' : 'Notes'}
-                </label>
-                <input
-                  type="text"
-                  placeholder={isAr ? 'مثال: التركيز على المسائل المقالية' : 'e.g. Focus on essay questions'}
-                  value={newStudy.notes}
-                  onChange={(e) => setNewStudy({ ...newStudy, notes: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    outline: 'none',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Submit Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setStudyModalOpen(false)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'transparent',
-                    color: 'var(--text-secondary)',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {isAr ? 'إلغاء' : 'Cancel'}
-                </button>
-
-                <button
-                  type="submit"
-                  style={{
-                    padding: '8px 18px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    backgroundColor: 'var(--primary)',
-                    color: '#FFFFFF',
-                    fontWeight: '800',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {isAr ? 'تأكيد الإضافة للجدول' : 'Add to Schedule'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: ADD DAILY NOTE ── */}
-      {noteModalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(4, 25, 53, 0.75)',
-          backdropFilter: 'blur(6px)',
-          zIndex: 10001,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: '18px',
-            padding: '24px',
-            maxWidth: '440px',
-            width: '100%',
-            border: '1px solid var(--border-subtle)',
-            boxShadow: 'var(--shadow-lg)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <StickyNote size={20} color="var(--primary)" />
-                <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                  {isAr ? `إضافة ملحوظة ليوم ${DAYS_CONFIG.find(d => d.key === noteTargetDay)?.ar}` : 'Add Daily Note'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setNoteModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveNote} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                  {isAr ? 'نص الملحوظة / المهمة' : 'Note Content'} *
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder={isAr ? 'مثال: طباعة ملزمة البلاغة ومراجعة 10 تدريبات قبل الحصة' : 'Write your note here...'}
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    resize: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setNoteModalOpen(false)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'transparent',
-                    color: 'var(--text-secondary)',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {isAr ? 'إلغاء' : 'Cancel'}
-                </button>
-
-                <button
-                  type="submit"
-                  style={{
-                    padding: '8px 18px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    backgroundColor: 'var(--primary)',
-                    color: '#FFFFFF',
-                    fontWeight: '800',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {isAr ? 'حفظ الملحوظة' : 'Save Note'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ScheduleNoteModal
+        isOpen={noteModalOpen}
+        isEditing={Boolean(editingNote)}
+        formState={noteForm}
+        onChange={setNoteForm}
+        serverError={noteServerError}
+        isSaving={isSavingNote}
+        isAr={isAr}
+        isDark={isDark}
+        onSubmit={handleSaveNote}
+        onClose={closeNoteModal}
+      />
     </div>
   );
 };

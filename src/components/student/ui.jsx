@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Motafawweq — Student UI Design System
  * Shared reusable components for all Student pages.
  * Use these components consistently across every student view.
@@ -9,6 +9,7 @@
 
 import React from 'react';
 import { ChevronLeft } from 'lucide-react';
+import { InfoTooltip } from '../common/InfoTooltip';
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 // JavaScript token bridge — exposes CSS variable names only. No hex duplication.
@@ -65,7 +66,7 @@ export const SPage = ({ children, maxWidth = 1100 }) => (
 );
 
 // ─── PAGE HEADER ──────────────────────────────────────────────────────────────
-export const SPageHeader = ({ title, subtitle, action }) => (
+export const SPageHeader = ({ title, subtitle, info, action }) => (
   <div style={{
     display: 'flex',
     alignItems: 'flex-start',
@@ -81,9 +82,13 @@ export const SPageHeader = ({ title, subtitle, action }) => (
         color: 'var(--text-primary)',
         margin: 0,
         lineHeight: 1.3,
-        fontFamily: 'var(--font-arabic)'
+        fontFamily: 'var(--font-arabic)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
       }}>
-        {title}
+        <span>{title}</span>
+        {info && <InfoTooltip text={info} size={14} />}
       </h1>
       {subtitle && (
         <p style={{
@@ -101,7 +106,7 @@ export const SPageHeader = ({ title, subtitle, action }) => (
 );
 
 // ─── SECTION ──────────────────────────────────────────────────────────────────
-export const SSection = ({ title, action, children, gap = 12, style = {} }) => (
+export const SSection = ({ title, info, action, children, gap = 12, style = {} }) => (
   <div style={{ marginBottom: '32px', ...style }}>
     {(title || action) && (
       <div style={{
@@ -117,9 +122,13 @@ export const SSection = ({ title, action, children, gap = 12, style = {} }) => (
             fontWeight: '600',
             color: 'var(--text-primary)',
             margin: 0,
-            fontFamily: 'var(--font-arabic)'
+            fontFamily: 'var(--font-arabic)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            {title}
+            <span>{title}</span>
+            {info && <InfoTooltip text={info} size={13} />}
           </h2>
         )}
         {action && (

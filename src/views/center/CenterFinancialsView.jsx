@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { InfoTooltip } from '../../components/common/InfoTooltip';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCenter } from '../../context/CenterContext';
 import { useGroups } from '../../context/GroupsContext';
+import { centerApi } from '../../services/centerApi';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -27,14 +29,25 @@ import {
 export const CenterFinancialsView = () => {
   const { lang, isRtl } = useLanguage();
   const { 
+    isBackendCenter,
+    loadFinancialsData,
     expenses, 
     addExpense, 
     financialSummary, 
+    teacherSettlements = [],
+    approveTeacherSettlement,
+    outstandingDues,
+    remindStudentDue,
+    markStudentDuePaid,
     branches, 
     selectedBranchId,
     exportToCsv
   } = useCenter();
-  const { groups, enrolledStudents } = useGroups();
+  const { groups, enrolledStudents, showToast } = useGroups();
+
+  useEffect(() => {
+    loadFinancialsData?.();
+  }, [loadFinancialsData]);
 
   const [activeTab, setActiveTab] = useState('pl'); // 'pl' | 'settlements' | 'expenses' | 'dues'
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -46,50 +59,9 @@ export const CenterFinancialsView = () => {
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseBranch, setExpenseBranch] = useState(selectedBranchId);
 
-  // Calculate teacher settlements dynamically per teacher
-  const teacherSettlementList = [
-    {
-      id: 't-1',
-      teacherNameAr: 'أ. سامح عبدالحميد',
-      subjectAr: 'الرياضيات البحتة',
-      groupsCount: 3,
-      studentsCount: 142,
-      grossCollectedEgp: 71000,
-      settlementRate: 0.75, // 75% for teacher, 25% for center
-      teacherShareEgp: 53250,
-      centerShareEgp: 17750,
-      status: 'pending',
-      statusAr: 'بانتظار الاعتماد'
-    },
-    {
-      id: 't-2',
-      teacherNameAr: 'د. سلمى السيد',
-      subjectAr: 'الفيزياء للثانوية',
-      groupsCount: 2,
-      studentsCount: 110,
-      grossCollectedEgp: 55000,
-      settlementRate: 0.75,
-      teacherShareEgp: 41250,
-      centerShareEgp: 13750,
-      status: 'approved',
-      statusAr: 'تم الصرف والتحويل'
-    },
-    {
-      id: 't-3',
-      teacherNameAr: 'أ. أحمد جلال',
-      subjectAr: 'الكيمياء للغات',
-      groupsCount: 2,
-      studentsCount: 78,
-      grossCollectedEgp: 39000,
-      settlementRate: 0.70, // 70%
-      teacherShareEgp: 27300,
-      centerShareEgp: 11700,
-      status: 'pending',
-      statusAr: 'بانتظار الاعتماد'
-    }
-  ];
+  const teacherSettlementList = Array.isArray(teacherSettlements) ? teacherSettlements : [];
 
-  const handleCreateExpense = (e) => {
+  const handleCreateExpense = async (e) => {
     e.preventDefault();
     if (!expenseTitle.trim() || !expenseAmount) return;
 
@@ -101,26 +73,39 @@ export const CenterFinancialsView = () => {
       maintenance: 'الصيانة والتجهيزات'
     };
 
-    addExpense({
-      titleAr: expenseTitle,
-      titleEn: expenseTitle,
-      category: expenseCategory,
-      categoryAr: categoryNames[expenseCategory] || 'مصروفات عامة',
-      amountEgp: parseFloat(expenseAmount) || 0,
-      branchId: expenseBranch,
-      branchNameAr: branches.find(b => b.id === expenseBranch)?.nameAr || 'الفرع الرئيسي'
-    });
-
-    setExpenseTitle('');
-    setExpenseAmount('');
-    setIsAddExpenseOpen(false);
+    try {
+      await addExpense({
+        titleAr: expenseTitle,
+        titleEn: expenseTitle,
+        category: expenseCategory,
+        categoryAr: categoryNames[expenseCategory] || 'مصروفات عامة',
+        amountEgp: parseFloat(expenseAmount) || 0,
+        branchId: expenseBranch,
+        branchNameAr: branches.find(b => b.id === expenseBranch)?.nameAr || 'الفرع الرئيسي'
+      });
+      setExpenseTitle('');
+      setExpenseAmount('');
+      setIsAddExpenseOpen(false);
+      if (showToast) showToast('تم تسجيل سند الصرف المالي بنجاح!');
+    } catch {
+      // toast handled by CenterContext
+    }
   };
 
-  const handleApprovePayout = (id) => {
-    setApprovedPayoutId(id);
-    setTimeout(() => {
-      setApprovedPayoutId(null);
-    }, 3000);
+  const handleApprovePayout = async (teacherOrId) => {
+    const targetId = typeof teacherOrId === 'object' ? (teacherOrId.teacherId || teacherOrId.id) : teacherOrId;
+    try {
+      if (approveTeacherSettlement) {
+        await approveTeacherSettlement(targetId);
+      }
+      setApprovedPayoutId(targetId);
+      if (showToast) showToast('تم اعتماد وصرف تسوية المدرس بنجاح!');
+      setTimeout(() => {
+        setApprovedPayoutId(null);
+      }, 3000);
+    } catch (err) {
+      if (showToast) showToast(err?.message || 'تعذر اعتماد التسوية حالياً.', 'warning');
+    }
   };
 
   return (
@@ -182,7 +167,15 @@ export const CenterFinancialsView = () => {
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
-            onClick={() => {
+            onClick={async () => {
+              if (isBackendCenter) {
+                try {
+                  await centerApi.financials.exportExpensesCsv({}, 'سجل_مصروفات_السنتر.csv');
+                  return;
+                } catch {
+                  // fallback
+                }
+              }
               const headers = ['رقم السند', 'بيان المصروف', 'التصنيف', 'الفرع', 'المبلغ (ج.م)', 'التاريخ', 'الحالة'];
               const rows = expenses.map(e => [
                 e.receiptNumber,
@@ -487,12 +480,15 @@ export const CenterFinancialsView = () => {
             gap: '10px'
           }}>
             <div>
-              <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'تسويات مستحقات المدرسين التلقائية' : 'Automated Teacher Settlements'}
+              <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{lang === 'ar' ? 'تسويات المدرسين التلقائية' : 'Teacher Settlements'}</span>
+                <InfoTooltip
+                  size={13}
+                  text={lang === 'ar'
+                    ? 'حساب تلقائي للنسبة المئوية بناءً على الطلاب المسجلين والتحصيل الفعلي'
+                    : 'Automatic percentage split based on active student enrollments'}
+                />
               </h3>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                {lang === 'ar' ? 'حساب تلقائي للنسبة المئوية بناءً على الطلاب المسجلين والتحصيل الفعلي' : 'Automatic percentage split based on active student enrollments'}
-              </div>
             </div>
           </div>
 
@@ -524,7 +520,16 @@ export const CenterFinancialsView = () => {
                 </tr>
               </thead>
               <tbody>
-                {teacherSettlementList.map(t => {
+                {teacherSettlementList.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '28px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      {lang === 'ar'
+                        ? 'لا توجد تسويات مالية للمعلمين مسجلة حالياً.'
+                        : 'No teacher settlements recorded yet.'}
+                    </td>
+                  </tr>
+                ) : (
+                  teacherSettlementList.map(t => {
                   const isApproved = t.status === 'approved' || approvedPayoutId === t.id;
                   return (
                     <tr key={t.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -567,7 +572,7 @@ export const CenterFinancialsView = () => {
                           </span>
                         ) : (
                           <button
-                            onClick={() => handleApprovePayout(t.id)}
+                            onClick={() => handleApprovePayout(t)}
                             style={{
                               padding: '6px 14px',
                               borderRadius: 'var(--radius-md)',
@@ -585,7 +590,8 @@ export const CenterFinancialsView = () => {
                       </td>
                     </tr>
                   );
-                })}
+                })
+                )}
               </tbody>
             </table>
           </div>
@@ -697,18 +703,31 @@ export const CenterFinancialsView = () => {
               </h3>
             </div>
             <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--warning)' }}>
-              {lang === 'ar' ? 'إجمالي المتبقي: 38,500 ج.م' : 'Total: 38,500 EGP'}
+              {lang === 'ar'
+                ? `إجمالي المتبقي: ${Number(outstandingDues?.totalDuesEgp ?? 0).toLocaleString()} ج.م`
+                : `Total: ${Number(outstandingDues?.totalDuesEgp ?? 0).toLocaleString()} EGP`}
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {[
-              { name: 'عمر شريف الدسوقي', phone: '01022334455', group: 'فيزياء الثانوية العامة', amount: 450, daysDue: 8 },
-              { name: 'ندى وائل الحسيني', phone: '01199887766', group: 'كيمياء اللغات', amount: 500, daysDue: 14 },
-              { name: 'ياسين محمود كامل', phone: '01233445566', group: 'الرياضيات البحتة', amount: 450, daysDue: 21 }
-            ].map((due, idx) => (
+            {(!Array.isArray(outstandingDues?.items) || outstandingDues.items.length === 0) ? (
+              <div style={{
+                padding: '24px 16px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px dashed var(--border-subtle)',
+                textAlign: 'center',
+                fontSize: '13px',
+                color: 'var(--text-secondary)'
+              }}>
+                {lang === 'ar'
+                  ? 'لا توجد متأخرات أو أقساط غير محصلة حالياً.'
+                  : 'No outstanding student receivables.'}
+              </div>
+            ) : (
+              outstandingDues.items.map((due, idx) => (
               <div
-                key={idx}
+                key={due.id || idx}
                 style={{
                   padding: '12px 16px',
                   borderRadius: 'var(--radius-md)',
@@ -730,12 +749,20 @@ export const CenterFinancialsView = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--danger)' }}>
                     {due.amount} ج.م
                   </span>
                   <button
-                    onClick={() => alert(`تم إرسال رسالة تذكير بالسداد للطالب: ${due.name}`)}
+                    onClick={async () => {
+                      if (!isBackendCenter || !remindStudentDue || !due.id) return;
+                      try {
+                        await remindStudentDue(due.id);
+                        if (showToast) showToast(`تم إرسال رسالة تذكير بالسداد للطالب: ${due.name}`);
+                      } catch (err) {
+                        if (showToast) showToast(err?.message || 'تعذر إرسال التذكير.', 'warning');
+                      }
+                    }}
                     style={{
                       padding: '6px 12px',
                       borderRadius: 'var(--radius-sm)',
@@ -753,9 +780,38 @@ export const CenterFinancialsView = () => {
                     <Send size={12} />
                     <span>{lang === 'ar' ? 'إرسال تذكير سداد' : 'Remind'}</span>
                   </button>
+                  {isBackendCenter && due.id && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await markStudentDuePaid(due.id);
+                          if (showToast) showToast(`تم تحصيل المتأخرات للطالب «${due.name}» بنجاح!`);
+                        } catch (err) {
+                          if (showToast) showToast(err?.message || 'تعذر تحديث حالة السداد.', 'warning');
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'var(--success-light)',
+                        color: 'var(--success)',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Check size={12} />
+                      <span>{lang === 'ar' ? 'تم التحصيل' : 'Mark Paid'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}

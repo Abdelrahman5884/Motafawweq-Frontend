@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { PlexusBackground } from '../../components/common/PlexusBackground';
 import { AuthSidePanel } from '../../features/auth/common';
-import { RegisterRoleCards, RegisterForm } from '../../features/auth/register';
+import { RoleSelectorTabs } from '../../features/auth/login';
+import { RegisterForm } from '../../features/auth/register';
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [grade, setGrade] = useState('3rd Secondary (Thanawya Amma)');
   const [track, setTrack] = useState('علمي علوم');
   const [governorate, setGovernorate] = useState('الجيزة');
@@ -34,25 +36,31 @@ export const RegisterPage = () => {
   const [studentCode, setStudentCode] = useState('');
   const [agreedTerms, setAgreedTerms] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     if (!agreedTerms) return;
+
+    setErrorMsg('');
+    setFieldErrors({});
+
+    if (password !== passwordConfirmation) {
+      setErrorMsg(lang === 'ar' ? 'تأكيد كلمة المرور غير متطابق.' : 'Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-
-      const targetRoute = register({
+    try {
+      const targetRoute = await register({
         role,
         fullName,
         email,
         phone,
+        password,
+        passwordConfirmation,
         parentPhone,
         grade,
         track,
@@ -62,39 +70,35 @@ export const RegisterPage = () => {
         studentCode
       });
 
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch {
+        // ignore confetti error
+      }
+
       navigate(targetRoute);
-    }, 700);
+    } catch (err) {
+      if (err?.getFieldErrors) {
+        setFieldErrors(err.getFieldErrors());
+      }
+      setErrorMsg(
+        err?.message ||
+          (lang === 'ar' ? 'تعذر إنشاء الحساب، يرجى مراجعة البيانات المدخلة.' : 'Registration failed. Please check your input.')
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const roleCards = [
-    {
-      id: 'student',
-      title: lang === 'ar' ? 'أنا طالب' : 'I am a Student',
-      subtitle: lang === 'ar' ? 'مذاكرة ذكية لجميع المراحل: ابتدائي → إعدادي → ثانوي' : 'Smart Learning for All Grades: Primary → Prep → Secondary',
-      icon: BookOpen,
-      color: '#06B6D4'
-    },
-    {
-      id: 'teacher',
-      title: lang === 'ar' ? 'أنا معلم' : 'I am a Teacher',
-      subtitle: lang === 'ar' ? 'تسجيل الحصص، إنتاج الخرائط، وإدارة القاعات والطلاب' : 'Studio Recording, Cornell Summaries & Roster',
-      icon: GraduationCap,
-      color: 'var(--primary)'
-    },
-    {
-      id: 'parent',
-      title: lang === 'ar' ? 'أنا ولي أمر' : 'I am a Parent',
-      subtitle: lang === 'ar' ? 'متابعة حضور ودرجات ومستوى الأبناء أسبوعياً' : 'Track Children Attendance & Weekly Progress',
-      icon: Users,
-      color: 'var(--success, #16A34A)'
-    },
-    {
-      id: 'center',
-      title: lang === 'ar' ? 'إدارة سنتر تعليمي' : 'Learning Center Academy',
-      subtitle: lang === 'ar' ? 'جدولة الحصص، تقارير المعلمين، وحسابات القاعات' : 'Multi-teacher Oversight, Halls & Branding',
-      icon: Building2,
-      color: 'var(--warning, #F59E0B)'
-    }
+  const roleOptions = [
+    { id: 'student', label: lang === 'ar' ? 'طالب' : 'Student', icon: BookOpen },
+    { id: 'teacher', label: lang === 'ar' ? 'معلم' : 'Teacher', icon: GraduationCap },
+    { id: 'parent', label: lang === 'ar' ? 'ولي أمر' : 'Parent', icon: Users },
+    { id: 'center', label: lang === 'ar' ? 'سنتر' : 'Center', icon: Building2 }
   ];
 
   const roleCharacters = {
@@ -145,16 +149,15 @@ export const RegisterPage = () => {
             </p>
           </div>
 
-          <div style={{ marginBottom: '18px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-              {t('selectRolePrompt')}
-            </label>
-            <RegisterRoleCards
-              roleCards={roleCards}
-              selectedRole={role}
-              onSelectRole={setRole}
-            />
-          </div>
+          <RoleSelectorTabs
+            roleOptions={roleOptions}
+            selectedRole={role}
+            onRoleChange={(r) => {
+              setRole(r);
+              setErrorMsg('');
+              setFieldErrors({});
+            }}
+          />
 
           <RegisterForm
             role={role}
@@ -166,6 +169,8 @@ export const RegisterPage = () => {
             setPhone={setPhone}
             password={password}
             setPassword={setPassword}
+            passwordConfirmation={passwordConfirmation}
+            setPasswordConfirmation={setPasswordConfirmation}
             grade={grade}
             setGrade={setGrade}
             track={track}
@@ -183,6 +188,8 @@ export const RegisterPage = () => {
             agreedTerms={agreedTerms}
             setAgreedTerms={setAgreedTerms}
             isLoading={isLoading}
+            errorMsg={errorMsg}
+            fieldErrors={fieldErrors}
             onSubmit={handleRegisterSubmit}
           />
 

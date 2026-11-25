@@ -1,51 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { studentApi } from '../../services/studentApi';
 import { AlertTriangle } from 'lucide-react';
 import { WeakAreaCard } from '../../features/student/analytics';
 
 export const WeakAreasHub = () => {
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
+  const [weakConcepts, setWeakConcepts] = useState([]);
 
-  const weakConcepts = [
-    {
-      id: 'node-nadph',
-      title: 'NADP+ & ATP Synthesis',
-      titleAr: 'مركبا الطاقة التثبيتية (NADPH و ATP)',
-      mastery: 64,
-      status: 'Needs Immediate Review',
-      statusAr: 'يحتاج مراجعة فورية',
-      timestamp: '11:20',
-      seconds: 680,
-      mistakePattern: 'Confusing the role of NADP+ with chlorophyll pigments in photolysis.',
-      mistakePatternAr: 'الخلط بين دور مستقبل الهيدروجين NADP+ وبين امتصاص الأصباغ للضوء.'
-    },
-    {
-      id: 'node-pgal',
-      title: 'PGAL Synthesis in Calvin Cycle',
-      titleAr: 'تكوين فوسفو جليسرالدهيد (PGAL) في دورة كالفن',
-      mastery: 68,
-      status: 'Moderate Difficulty',
-      statusAr: 'صعوبة متوسطة',
-      timestamp: '19:00',
-      seconds: 1140,
-      mistakePattern: 'Forgetting that PGAL is formed after 2 seconds only and is a 3-carbon intermediate.',
-      mistakePatternAr: 'نسيان أن PGAL يتكون بعد ثانيتين فقط وهو أول مركب ثابت ثلاثي الكربون.'
-    },
-    {
-      id: 'node-dark',
-      title: 'Dark Reactions in Stroma',
-      titleAr: 'التفاعلات اللاضوئية في الستروما',
-      mastery: 72,
-      status: 'Improving',
-      statusAr: 'قيد التحسن',
-      timestamp: '14:45',
-      seconds: 885,
-      mistakePattern: 'Believing dark reactions can only occur at night.',
-      mistakePatternAr: 'الاعتقاد الخاطئ بأن التفاعلات اللاضوئية تحدث في الليل فقط.'
-    }
-  ];
+  useEffect(() => {
+    let mounted = true;
+    studentApi.exams.mistakeBank()
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res?.data) ? res.data : [];
+        setWeakConcepts(list.map((m, idx) => ({
+          id: m.id || `weak-${idx}`,
+          title: m.questionAr,
+          titleAr: m.questionAr,
+          mastery: 60,
+          status: 'Needs Review',
+          statusAr: 'يحتاج مراجعة',
+          timestamp: '00:00',
+          seconds: 0,
+          mistakePattern: m.explanationAr || '',
+          mistakePatternAr: m.explanationAr || m.examTitleAr || ''
+        })));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div style={{
@@ -77,6 +65,25 @@ export const WeakAreasHub = () => {
 
       {/* Weak Concept Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        {weakConcepts.length === 0 && (
+          <div style={{
+            padding: '48px 24px',
+            textAlign: 'center',
+            borderRadius: '20px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)'
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+              {lang === 'ar' ? 'لا توجد نقاط ضعف مسجلة حالياً' : 'No Weak Areas Detected'}
+            </div>
+            <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+              {lang === 'ar'
+                ? 'سيقوم النظام بتحليل إجاباتك في الامتحانات وتحديد الجزئيات التي تحتاج للمراجعة تلقائياً.'
+                : 'Your exam answers will be analyzed automatically to highlight concepts that need review.'}
+            </div>
+          </div>
+        )}
         {weakConcepts.map(c => (
           <WeakAreaCard
             key={c.id}

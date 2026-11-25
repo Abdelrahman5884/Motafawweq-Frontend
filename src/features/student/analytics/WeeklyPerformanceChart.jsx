@@ -13,6 +13,11 @@ export const WeeklyPerformanceChart = ({ weeklyScores, maxScore, lang }) => {
         {lang === 'ar' ? 'تطور الدرجات عبر الأسابيع الأخيرة' : 'Recent weekly test performance'}
       </h3>
 
+      {(!weeklyScores || weeklyScores.length === 0) ? (
+        <div style={{ padding: '28px 16px', textAlign: 'center', color: S.textSecondary, fontSize: '13.5px', fontWeight: '700' }}>
+          {lang === 'ar' ? 'لا توجد درجات مسجلة عبر الأسابيع الأخيرة حالياً.' : 'No weekly exam scores recorded yet.'}
+        </div>
+      ) : (
       <div style={{
         display: 'flex',
         alignItems: 'flex-end',
@@ -54,6 +59,7 @@ export const WeeklyPerformanceChart = ({ weeklyScores, maxScore, lang }) => {
           );
         })}
       </div>
+      )}
     </SCard>
   );
 };

@@ -1,32 +1,43 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { 
-  Sparkles, 
-  Mic, 
-  FileText, 
-  Share2, 
-  Video, 
+import {
+  Sparkles,
+  FileText,
+  Share2,
+  Video,
   ArrowRight,
-  CheckCircle2,
   Clock
 } from 'lucide-react';
 import { ProcessingStepper } from '../../features/teacher/ai-processing';
 
 export const AIProcessingScreen = () => {
+  const [searchParams] = useSearchParams();
   const { navigate } = useAuth();
   const { lang, isRtl } = useLanguage();
   const [progress, setProgress] = useState(15);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  const lessonUuid =
+    searchParams.get('lesson') ||
+    (() => {
+      try {
+        return sessionStorage.getItem('currentLessonUuid') || '';
+      } catch {
+        return '';
+      }
+    })();
 
   // Read selected AI features from Recording Studio (Text, Graph, Chapters)
-  const selectedFeatures = React.useMemo(() => {
+  const [selectedFeatures] = useState(() => {
     try {
       const stored = sessionStorage.getItem('selectedAIFeatures');
       if (stored) return JSON.parse(stored);
-    } catch (e) {}
+    } catch {
+      // ignore storage errors
+    }
     return { speechToText: true, conceptGraph: true, chapterIndexing: true };
-  }, []);
+  });
 
   // Dynamically constructed pipeline matching selected features (Question generation step removed per user request)
   const steps = React.useMemo(() => {
@@ -85,14 +96,10 @@ export const AIProcessingScreen = () => {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const current = steps.findIndex(s => progress < s.threshold);
-    if (current === -1) {
-      setCurrentStepIndex(steps.length - 1);
-    } else {
-      setCurrentStepIndex(current);
-    }
-  }, [progress]);
+  const currentStepIndex = React.useMemo(() => {
+    const current = steps.findIndex((s) => progress < s.threshold);
+    return current === -1 ? steps.length - 1 : current;
+  }, [progress, steps]);
 
   const isComplete = progress >= 100;
 
@@ -130,7 +137,7 @@ export const AIProcessingScreen = () => {
           marginBottom: '20px'
         }}>
           <Sparkles size={16} />
-          <span>{lang === 'ar' ? 'محرك ليرنورا للذكاء الاصطناعي قيد العمل' : 'Learnora Intelligence Engine Active'}</span>
+          <span>{lang === 'ar' ? 'محرك متفوق للذكاء الاصطناعي قيد العمل' : 'Motafawweq Intelligence Engine Active'}</span>
         </div>
 
         <h1 style={{
@@ -188,7 +195,10 @@ export const AIProcessingScreen = () => {
         {/* Action Button */}
         {isComplete ? (
           <button
-            onClick={() => navigate('/teacher/workspace')}
+            type="button"
+            onClick={() =>
+              navigate(lessonUuid ? `/teacher/workspace?lesson=${encodeURIComponent(lessonUuid)}` : '/teacher/workspace')
+            }
             style={{
               display: 'inline-flex',
               alignItems: 'center',

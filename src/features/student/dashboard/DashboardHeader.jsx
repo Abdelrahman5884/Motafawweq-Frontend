@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, ChevronDown, Check } from 'lucide-react';
+import { AvatarLightboxModal } from '../../../components/common/AvatarCropperModal';
+import { getInitials, getAvatarColor } from '../../../utils';
 
 export const DashboardHeader = ({
   student,
@@ -14,6 +16,37 @@ export const DashboardHeader = ({
   filterOptions,
   currentSubjectLabel
 }) => {
+  const [isAvatarLightboxOpen, setIsAvatarLightboxOpen] = useState(false);
+  const [failedAvatarSrc, setFailedAvatarSrc] = useState(null);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!subjectDropdownOpen) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setSubjectDropdownOpen(false);
+      }
+    };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setSubjectDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [subjectDropdownOpen, setSubjectDropdownOpen]);
+
+  const firstName = (lang === 'ar' ? (student.nameAr || student.name) : (student.name || student.nameAr) || '')
+    .trim()
+    .split(/\s+/)[0] || (lang === 'ar' ? 'بطل' : 'Student');
+
+  const gradeBadge = student.gradeNameAr || (lang === 'ar' ? 'بوابة الطالب' : 'Student Portal');
+  const showAvatarImage = Boolean(student.avatar) && failedAvatarSrc !== student.avatar;
+
   return (
     <div style={{
       display: 'flex',
@@ -33,11 +66,31 @@ export const DashboardHeader = ({
           overflow: 'hidden',
           flexShrink: 0
         }}>
-          <img
-            src={student.avatar}
-            alt={student.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          {showAvatarImage ? (
+            <img
+              src={student.avatar}
+              alt={student.name || 'Student'}
+              onClick={() => setIsAvatarLightboxOpen(true)}
+              onError={() => setFailedAvatarSrc(student.avatar)}
+              title={lang === 'ar' ? 'اضغط لتكبير الصورة' : 'Click to enlarge'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
+            />
+          ) : (
+            <div style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: getAvatarColor(student.nameAr || student.name),
+              color: '#FFFFFF',
+              fontWeight: '800',
+              fontSize: '18px',
+              userSelect: 'none'
+            }}>
+              {getInitials(student.nameAr || student.name)}
+            </div>
+          )}
           <span style={{
             position: 'absolute',
             bottom: '3px',
@@ -62,11 +115,13 @@ export const DashboardHeader = ({
               color: themeAccent,
               border: `1px solid ${isDark ? 'rgba(56, 189, 248, 0.25)' : 'rgba(2, 132, 199, 0.25)'}`
             }}>
-              {student.gradeNameAr}
+              {gradeBadge}
             </span>
-            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-              {student.trackAr}
-            </span>
+            {student.trackAr && (
+              <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                {student.trackAr}
+              </span>
+            )}
           </div>
 
           <h1 style={{
@@ -81,19 +136,20 @@ export const DashboardHeader = ({
             gap: '8px'
           }}>
             <span>{lang === 'ar' ? 'مرحباً' : 'Welcome,'}</span>
-            <span style={{ color: themeAccent }}>
-              {lang === 'ar' ? student.nameAr.split(' ')[0] : student.name.split(' ')[0]}
-            </span>
+            <span style={{ color: themeAccent }}>{firstName}</span>
           </h1>
         </div>
       </div>
 
       {/* Subject Filter Dropdown */}
-      <div style={{ position: 'relative' }}>
+      <div ref={dropdownRef} style={{ position: 'relative' }}>
         <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={subjectDropdownOpen}
           onClick={() => setSubjectDropdownOpen(!subjectDropdownOpen)}
           className="executive-filter-btn"
-          style={{ minWidth: '155px', justifyContent: 'space-between' }}
+          style={{ minWidth: '165px', justifyContent: 'space-between' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <BookOpen size={15} style={{ color: themeAccent }} />
@@ -109,23 +165,28 @@ export const DashboardHeader = ({
           />
         </button>
 
-        {/* Dropdown Menu */}
         {subjectDropdownOpen && (
-          <div style={{
-            position: 'absolute',
-            top: 'calc(100% + 6px)',
-            insetInlineEnd: 0,
-            width: '180px',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '12px',
-            boxShadow: isDark ? '0 12px 30px rgba(0, 0, 0, 0.5)' : '0 12px 30px rgba(0, 0, 0, 0.12)',
-            padding: '6px',
-            zIndex: 50
-          }}>
+          <div
+            role="listbox"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              insetInlineEnd: 0,
+              minWidth: '205px',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              boxShadow: isDark ? '0 12px 30px rgba(0, 0, 0, 0.5)' : '0 12px 30px rgba(0, 0, 0, 0.12)',
+              padding: '6px',
+              zIndex: 50
+            }}
+          >
             {filterOptions.map((opt) => (
               <button
                 key={opt.id}
+                type="button"
+                role="option"
+                aria-selected={selectedSubject === opt.id}
                 onClick={() => {
                   setSelectedSubject(opt.id);
                   setSubjectDropdownOpen(false);
@@ -135,6 +196,7 @@ export const DashboardHeader = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  gap: '8px',
                   padding: '8px 12px',
                   background: selectedSubject === opt.id ? (isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.12)') : 'transparent',
                   color: selectedSubject === opt.id ? themeAccent : 'var(--text-primary)',
@@ -148,12 +210,22 @@ export const DashboardHeader = ({
                 }}
               >
                 <span>{lang === 'ar' ? opt.labelAr : opt.labelEn}</span>
-                {selectedSubject === opt.id && <Check size={14} style={{ color: themeAccent }} />}
+                {selectedSubject === opt.id && <Check size={14} style={{ color: themeAccent, flexShrink: 0 }} />}
               </button>
             ))}
           </div>
         )}
       </div>
+
+      {showAvatarImage && (
+        <AvatarLightboxModal
+          isOpen={isAvatarLightboxOpen}
+          imageSrc={student.avatar}
+          altText={student.nameAr || student.name || 'Student'}
+          isAr={lang === 'ar'}
+          onClose={() => setIsAvatarLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 };

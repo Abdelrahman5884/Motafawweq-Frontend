@@ -1,5 +1,12 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Mic, Play, Pause, Square, Sparkles, RotateCcw, Volume2, AlertCircle } from 'lucide-react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { Mic, Play, Pause, Square, AlertCircle, Trash2 } from 'lucide-react';
+import { getOptimalAudioConfig, MAX_STORAGE_FILE_SIZE_BYTES } from '../../../services/storageService';
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 KB';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export const LiveMicRecorder = ({
   isRecording,
@@ -7,94 +14,197 @@ export const LiveMicRecorder = ({
   elapsedSeconds,
   formatTime,
   lang,
+  recordedFile,
   onStartRecording,
   onPauseRecording,
-  onStopAndProcess
+  onResetTimer,
+  onRecordedFileReady,
 }) => {
-  const [recordedAudioUrl, setRecordedAudioUrl] = useState(null);
-  const [micPermissionError, setMicPermissionError] = useState(null);
+  const isAr = lang === 'ar';
+  const [micError, setMicError] = useState('');
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
 
-  // Real mic recording integration
-  const startRealRecording = async () => {
-    setMicPermissionError(null);
-    setRecordedAudioUrl(null);
-    audioChunksRef.current = [];
+  const recordedAudioUrl = useMemo(
+    () => (recordedFile ? URL.createObjectURL(recordedFile) : ''),
+    [recordedFile]
+  );
 
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        streamRef.current = stream;
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
+  useEffect(() => {
+    if (!recordedAudioUrl) return undefined;
+    return () => URL.revokeObjectURL(recordedAudioUrl);
+  }, [recordedAudioUrl]);
 
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const url = URL.createObjectURL(audioBlob);
-          setRecordedAudioUrl(url);
-          // Stop mic tracks
-          stream.getTracks().forEach(track => track.stop());
-        };
-
-        mediaRecorder.start(250);
+  // Cleanup active media stream on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
       }
-    } catch (err) {
-      console.warn('Microphone permission not granted or device unavailable, falling back to simulated studio recording:', err);
-      // We still allow simulated recording smoothly
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  const stopStreamTracks = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const startRealRecording = async () => {
+    setMicError('');
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof window.MediaRecorder === 'undefined') {
+      setMicError(
+        isAr
+          ? 'المتصفح لا يدعم التسجيل المباشر بالميكروفون. يرجى استخدام تبويب «رفع ملف صوتي».'
+          : 'Live microphone recording is not supported in this browser. Please use Upload Audio.'
+      );
+      return;
     }
 
-    onStartRecording();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+
+      const audioConfig = getOptimalAudioConfig();
+      let mediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, audioConfig);
+      } catch {
+        mediaRecorder = new MediaRecorder(stream);
+      }
+
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onerror = () => {
+        stopStreamTracks();
+        setMicError(
+          isAr
+            ? 'حدث خطأ أثناء التسجيل الصوتي. يرجى المحاولة مرة أخرى.'
+            : 'An error occurred during audio recording. Please try again.'
+        );
+      };
+
+      if (onRecordedFileReady) onRecordedFileReady(null);
+      if (onResetTimer) onResetTimer();
+
+      mediaRecorder.start(250);
+      onStartRecording();
+    } catch (err) {
+      stopStreamTracks();
+      const denied = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+      setMicError(
+        denied
+          ? isAr
+            ? 'تم رفض صلاحية الوصول للميكروفون. يرجى السماح بالوصول للميكروفون من إعدادات المتصفح ثم المحاولة مرة أخرى.'
+            : 'Microphone permission was denied. Please allow access in your browser settings.'
+          : isAr
+            ? 'تعذر العثور على ميكروفون متصل بهذا الجهاز. يمكنك رفع ملف صوتي جاهز من تبويب «رفع ملف صوتي».'
+            : `Microphone unavailable: ${err?.message || 'No device found'}`
+      );
+    }
   };
 
   const pauseRealRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.pause();
-    } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
-      mediaRecorderRef.current.resume();
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      if (recorder.state === 'recording') {
+        recorder.pause();
+      } else if (recorder.state === 'paused') {
+        recorder.resume();
+      }
     }
     onPauseRecording();
   };
 
   const stopRealRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.onstop = () => {
+        const audioConfig = getOptimalAudioConfig();
+        const rawMime = recorder.mimeType || audioConfig.mimeType || 'audio/webm';
+        const baseMime = rawMime.split(';')[0].trim().toLowerCase() || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: baseMime });
+        stopStreamTracks();
+
+        if (audioBlob.size === 0) {
+          setMicError(
+            isAr
+              ? 'لم يتم التقاط أي صوت في التسجيل. تأكد من عمل الميكروفون ثم أعد المحاولة.'
+              : 'No audio data was captured. Please check your microphone and try again.'
+          );
+          if (onRecordedFileReady) onRecordedFileReady(null);
+          return;
+        }
+
+        if (audioBlob.size > MAX_STORAGE_FILE_SIZE_BYTES) {
+          setMicError(
+            isAr
+              ? 'حجم التسجيل يتجاوز الحد الأقصى المسموح به (50 ميجابايت). يرجى تقليل مدة التسجيل.'
+              : 'Recording exceeds the 50 MB cloud storage limit.'
+          );
+          if (onRecordedFileReady) onRecordedFileReady(null);
+          return;
+        }
+
+        const ext = baseMime.includes('mp4') ? 'm4a' : baseMime.includes('ogg') ? 'ogg' : 'webm';
+        const audioFile = new File([audioBlob], `lecture_${Date.now()}.${ext}`, { type: baseMime });
+        if (onRecordedFileReady) onRecordedFileReady(audioFile);
+      };
+      recorder.stop();
+    } else {
+      stopStreamTracks();
+      if (onRecordedFileReady) onRecordedFileReady(null);
     }
-    onStopAndProcess();
   };
 
-  // Cleanup stream on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
+  const handleDeleteRecording = () => {
+    audioChunksRef.current = [];
+    setMicError('');
+    if (onResetTimer) onResetTimer();
+    if (onRecordedFileReady) onRecordedFileReady(null);
+  };
 
   return (
     <div>
-      {/* Waveform / Visualizer */}
-      <div style={{
-        height: '74px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '4px',
-        marginBottom: '24px',
-        padding: '0 16px'
-      }}>
-        {Array.from({ length: 42 }).map((_, idx) => {
-          const height = isRecording && !isPaused
-            ? Math.max(10, Math.sin(idx * 0.45 + elapsedSeconds * 2.5) * 48 + 24)
-            : 12;
+      {/* Waveform Visualizer */}
+      <div
+        style={{
+          height: '68px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '4px',
+          marginBottom: '20px',
+          padding: '0 12px',
+        }}
+      >
+        {Array.from({ length: 38 }).map((_, idx) => {
+          const height =
+            isRecording && !isPaused
+              ? Math.max(10, Math.sin(idx * 0.45 + elapsedSeconds * 2.5) * 26 + 34)
+              : 12;
           return (
             <div
               key={idx}
@@ -102,10 +212,12 @@ export const LiveMicRecorder = ({
                 width: '4px',
                 height: `${height}px`,
                 borderRadius: '3px',
-                backgroundColor: isRecording 
-                  ? (idx % 2 === 0 ? 'var(--primary)' : 'var(--primary-light)') 
+                backgroundColor: isRecording
+                  ? idx % 2 === 0
+                    ? 'var(--primary)'
+                    : 'var(--primary-light)'
                   : 'var(--border-subtle)',
-                transition: 'height 0.12s ease, background-color 0.2s ease'
+                transition: 'height 0.14s ease, background-color 0.2s ease',
               }}
             />
           );
@@ -113,43 +225,51 @@ export const LiveMicRecorder = ({
       </div>
 
       {/* Timer Display */}
-      <div style={{
-        fontSize: '44px',
-        fontWeight: '900',
-        fontFamily: 'var(--font-mono)',
-        color: isRecording ? 'var(--primary)' : 'var(--text-primary)',
-        marginBottom: '24px',
-        letterSpacing: '2px'
-      }}>
+      <div
+        dir="ltr"
+        style={{
+          fontSize: '42px',
+          fontWeight: '900',
+          fontFamily: 'var(--font-mono)',
+          color: isRecording ? 'var(--primary)' : 'var(--text-primary)',
+          marginBottom: '22px',
+          letterSpacing: '2px',
+        }}
+      >
         {formatTime(elapsedSeconds)}
       </div>
 
       {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
         {!isRecording ? (
           <button
             type="button"
             onClick={startRealRecording}
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '12px',
-              padding: '16px 38px',
+              gap: '10px',
+              padding: '14px 32px',
               borderRadius: 'var(--radius-full)',
               backgroundColor: 'var(--primary)',
               color: '#FFFFFF',
               border: 'none',
-              fontSize: '16px',
+              fontSize: '15px',
               fontWeight: '800',
               cursor: 'pointer',
-              boxShadow: '0 8px 25px rgba(21, 136, 199, 0.4)',
-              transition: 'transform 0.15s ease'
+              boxShadow: '0 8px 22px rgba(21, 136, 199, 0.35)',
             }}
-            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
-            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            <Mic size={22} />
-            <span>{lang === 'ar' ? 'بدء تسجيل الحصة مباشرة' : 'Start Live Recording'}</span>
+            <Mic size={20} />
+            <span>
+              {recordedFile
+                ? isAr
+                  ? 'إعادة التسجيل بالميكروفون'
+                  : 'Record Again'
+                : isAr
+                  ? 'بدء تسجيل الحصة مباشرة'
+                  : 'Start Live Recording'}
+            </span>
           </button>
         ) : (
           <>
@@ -157,52 +277,126 @@ export const LiveMicRecorder = ({
               type="button"
               onClick={pauseRealRecording}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '12px 24px',
+                padding: '12px 22px',
                 borderRadius: 'var(--radius-full)',
                 backgroundColor: 'var(--bg-subtle)',
                 border: '1px solid var(--border-subtle)',
                 color: 'var(--text-primary)',
                 fontSize: '14px',
                 fontWeight: '700',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               {isPaused ? <Play size={16} /> : <Pause size={16} />}
-              <span>{isPaused ? (lang === 'ar' ? 'استئناف' : 'Resume') : (lang === 'ar' ? 'إيقاف مؤقت' : 'Pause')}</span>
+              <span>{isPaused ? (isAr ? 'استئناف' : 'Resume') : isAr ? 'إيقاف مؤقت' : 'Pause'}</span>
             </button>
 
             <button
               type="button"
               onClick={stopRealRecording}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '10px',
-                padding: '14px 30px',
+                padding: '13px 28px',
                 borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--danger)',
+                backgroundColor: '#EF4444',
                 color: '#FFFFFF',
                 border: 'none',
-                fontSize: '15px',
+                fontSize: '14.5px',
                 fontWeight: '800',
                 cursor: 'pointer',
-                boxShadow: '0 6px 20px rgba(220, 38, 38, 0.35)'
+                boxShadow: '0 6px 20px rgba(220, 38, 38, 0.35)',
               }}
             >
-              <Square size={16} fill="#FFFFFF" />
-              <span>{lang === 'ar' ? 'إنهاء وبدء المعالجة بالذكاء الاصطناعي' : 'Finish & Process with AI'}</span>
+              <Square size={15} fill="#FFFFFF" />
+              <span>{isAr ? 'إيقاف وحفظ التسجيل' : 'Stop & Save Recording'}</span>
             </button>
           </>
         )}
       </div>
 
-      <div style={{ marginTop: '16px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-        {lang === 'ar'
-          ? 'الميكروفون مزود بعزل الضوضاء التلقائي وتصفية صدى القاعات الدراسية'
-          : 'Microphone features automatic noise cancellation and classroom echo suppression'}
+      {/* Inline Mic Error */}
+      {micError && (
+        <div
+          style={{
+            marginTop: '14px',
+            padding: '10px 14px',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            color: '#EF4444',
+            fontSize: '12.5px',
+            fontWeight: '700',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            textAlign: 'start',
+          }}
+        >
+          <AlertCircle size={15} style={{ flexShrink: 0 }} />
+          <span>{micError}</span>
+        </div>
+      )}
+
+      {/* Recorded Audio Preview */}
+      {recordedAudioUrl && recordedFile && !isRecording && (
+        <div
+          style={{
+            marginTop: '18px',
+            padding: '14px 16px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              flexWrap: 'wrap',
+              marginBottom: '10px',
+            }}
+          >
+            <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#10B981' }}>
+              {isAr
+                ? `✓ تسجيل جاهز للرفع (${formatBytes(recordedFile.size)})`
+                : `✓ Recording ready (${formatBytes(recordedFile.size)})`}
+            </span>
+            <button
+              type="button"
+              onClick={handleDeleteRecording}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                color: '#EF4444',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              <Trash2 size={13} />
+              <span>{isAr ? 'حذف التسجيل' : 'Delete Recording'}</span>
+            </button>
+          </div>
+          <audio controls src={recordedAudioUrl} style={{ width: '100%', maxWidth: '460px' }} />
+        </div>
+      )}
+
+      <div style={{ marginTop: '14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+        {isAr
+          ? 'تسجيل مضغوط تلقائياً (48 kbps) مناسب لساعة كاملة بجودة عالية وحجم أقل من 50 ميجابايت'
+          : 'Auto-compressed (48 kbps) — fits ~60 min lectures comfortably under the 50 MB cloud limit'}
       </div>
     </div>
   );

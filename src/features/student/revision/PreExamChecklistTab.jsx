@@ -17,6 +17,20 @@ export const PreExamChecklistTab = ({ checklist, lang, onToggleChecklistItem }) 
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {(!checklist || checklist.length === 0) && (
+          <div style={{
+            padding: '28px 16px',
+            textAlign: 'center',
+            borderRadius: '14px',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-secondary)',
+            fontSize: '13.5px',
+            fontWeight: '700'
+          }}>
+            {lang === 'ar' ? 'لا توجد عناصر في قائمة المراجعة حالياً.' : 'No checklist items available.'}
+          </div>
+        )}
         {checklist.map((item) => (
           <div
             key={item.id}

@@ -2,6 +2,27 @@ import React from 'react';
 import { Bookmark, Play } from 'lucide-react';
 
 export const BookmarkedLessonsTab = ({ lesson, lang, onOpenLesson }) => {
+  if (!lesson || !lesson.titleAr) {
+    return (
+      <div style={{
+        padding: '48px 24px',
+        textAlign: 'center',
+        borderRadius: '20px',
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px dashed var(--border-subtle)',
+        color: 'var(--text-secondary)'
+      }}>
+        <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+          {lang === 'ar' ? 'لا توجد دروس محفوظة للمراجعة حالياً' : 'No Bookmarked Lessons'}
+        </div>
+        <div style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+          {lang === 'ar'
+            ? 'احفظ أي درس أثناء المشاهدة ليظهر هنا للوصول السريع قبل الامتحان.'
+            : 'Bookmark any lesson while watching to find it here quickly.'}
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
       <div style={{

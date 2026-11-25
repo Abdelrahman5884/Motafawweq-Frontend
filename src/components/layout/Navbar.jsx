@@ -18,10 +18,11 @@ import {
   Flame,
   Trophy,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  ShieldCheck
 } from 'lucide-react';
-import { STUDENT_PROFILE } from '../../data/studentData';
 import { Breadcrumbs } from './Breadcrumbs';
+import { Avatar } from '../common/Avatar';
 
 export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, hasSidebar }) => {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
     currentRole, 
     currentUser, 
     isAuthenticated, 
+    isVerifiedAdmin,
     logout, 
     setSearchModalOpen,
     switchRole
@@ -39,7 +41,10 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
   const { theme, isDark, toggleTheme } = useTheme();
 
   const currentPath = location.pathname;
-  const isPublicPage = ['/', '/features', '/pricing', '/marketplace'].includes(currentPath);
+  const isPublicPage =
+    ['/', '/features', '/pricing', '/marketplace'].includes(currentPath) ||
+    currentPath === '/verify' ||
+    currentPath.startsWith('/verify/');
   const isDashboardLayout = hasSidebar && !isFullPage;
 
   useEffect(() => {
@@ -257,33 +262,53 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
 
         {/* ── RIGHT / END AREA: Global Controls & Actions ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Quick Portal Switcher (Center / Teacher / Student / Admin) */}
-          <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
-            <select
-              value={currentPath.startsWith('/admin') ? 'admin' : (currentPath.startsWith('/center') ? 'center' : (currentPath.startsWith('/teacher') ? 'teacher' : (currentPath.startsWith('/student') ? 'student' : (currentPath.startsWith('/parent') ? 'parent' : currentRole))))}
-              onChange={(e) => {
-                switchRole(e.target.value);
-              }}
+          {/* Quick Portal Switcher (Hidden on Admin Console; never exposes Admin role switch) */}
+          {currentPath.startsWith('/admin') ? (
+            <div
+              className="desktop-only"
               style={{
-                padding: '5px 10px',
-                borderRadius: 'var(--radius-md)',
-                border: '1.5px solid var(--border-medium)',
-                backgroundColor: 'var(--bg-surface)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 11px',
+                borderRadius: '999px',
+                backgroundColor: 'rgba(21, 136, 199, 0.12)',
+                border: '1px solid rgba(21, 136, 199, 0.28)',
                 color: 'var(--primary)',
-                fontSize: '12px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                outline: 'none',
-                fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
+                fontSize: '11.5px',
+                fontWeight: '800'
               }}
             >
-              <option value="student">{lang === 'ar' ? 'بوابة الطالب' : 'Student Portal'}</option>
-              <option value="teacher">{lang === 'ar' ? 'بوابة المعلم' : 'Teacher Portal'}</option>
-              <option value="parent">{lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal'}</option>
-              <option value="center">{lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Portal'}</option>
-              <option value="admin">{lang === 'ar' ? 'لوحة المشرف العام' : 'Platform Administrator'}</option>
-            </select>
-          </div>
+              <ShieldCheck size={14} />
+              <span>{lang === 'ar' ? 'جلسة مشرف موثّقة' : 'Verified SuperAdmin'}</span>
+            </div>
+          ) : (
+            <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
+              <select
+                value={currentPath.startsWith('/center') ? 'center' : (currentPath.startsWith('/teacher') ? 'teacher' : (currentPath.startsWith('/student') ? 'student' : (currentPath.startsWith('/parent') ? 'parent' : (currentRole === 'admin' ? 'student' : currentRole))))}
+                onChange={(e) => {
+                  switchRole(e.target.value);
+                }}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1.5px solid var(--border-medium)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--primary)',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
+                }}
+              >
+                <option value="student">{lang === 'ar' ? 'بوابة الطالب' : 'Student Portal'}</option>
+                <option value="teacher">{lang === 'ar' ? 'بوابة المعلم' : 'Teacher Portal'}</option>
+                <option value="parent">{lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal'}</option>
+                <option value="center">{lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Portal'}</option>
+              </select>
+            </div>
+          )}
 
           {/* Global Cmd+K Search Bar Button (Desktop) */}
           <button
@@ -395,7 +420,7 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                   width: '36px',
                   height: '36px',
                   borderRadius: '50%',
-                  backgroundColor: 'var(--bg-subtle)',
+                  backgroundColor: 'transparent',
                   border: '1.5px solid var(--border-subtle)',
                   padding: 0,
                   cursor: 'pointer',
@@ -403,14 +428,10 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                   transition: 'all 0.18s ease'
                 }}
               >
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
+                <Avatar
+                  src={currentUser?.avatar}
+                  name={currentUser?.nameAr || currentUser?.name || ''}
+                  size={34}
                 />
               </button>
 
@@ -576,25 +597,27 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
               <Layers size={16} />
               <span>{t('navDashboard')}</span>
             </Link>
-            <Link
-              to="/admin/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 14px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: currentPath.startsWith('/admin') ? 'var(--primary)' : 'var(--text-primary)',
-                backgroundColor: currentPath.startsWith('/admin') ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                borderRadius: 'var(--radius-md)',
-                textDecoration: 'none'
-              }}
-            >
-              <ShieldCheck size={16} color="var(--primary)" />
-              <span>{lang === 'ar' ? 'لوحة المشرف العام' : 'Platform Administrator'}</span>
-            </Link>
+            {isVerifiedAdmin && (
+              <Link
+                to="/admin/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: currentPath.startsWith('/admin') ? 'var(--primary)' : 'var(--text-primary)',
+                  backgroundColor: currentPath.startsWith('/admin') ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  textDecoration: 'none'
+                }}
+              >
+                <ShieldCheck size={16} color="var(--primary)" />
+                <span>{lang === 'ar' ? 'لوحة المشرف العام' : 'Platform Administrator'}</span>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Auth Actions */}
@@ -617,10 +640,10 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
                     borderRadius: 'var(--radius-md)'
                   }}
                 >
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
+                  <Avatar
+                    src={currentUser?.avatar}
+                    name={currentUser?.nameAr || currentUser?.name || ''}
+                    size={36}
                   />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>

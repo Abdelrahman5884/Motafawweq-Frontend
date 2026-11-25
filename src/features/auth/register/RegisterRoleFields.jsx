@@ -41,7 +41,8 @@ export const RegisterRoleFields = ({
   subject,
   setSubject,
   centerName,
-  setCenterName
+  setCenterName,
+  fieldErrors = {}
 }) => {
   const { lang, t } = useLanguage();
 
@@ -185,7 +186,7 @@ export const RegisterRoleFields = ({
             type="tel"
             value={parentPhone || ''}
             onChange={(e) => setParentPhone && setParentPhone(e.target.value)}
-            placeholder="01223344556"
+            placeholder="012 3456 7890"
             dir="ltr"
             style={{
               width: '100%',
@@ -208,7 +209,7 @@ export const RegisterRoleFields = ({
             type="text"
             value={studentCode}
             onChange={(e) => setStudentCode(e.target.value)}
-            placeholder={lang === 'ar' ? 'مثال: ROWAD-301 أو اتركه فارغاً' : 'e.g. ROWAD-301 or leave empty'}
+            placeholder={lang === 'ar' ? 'ROWAD-301' : 'ROWAD-301'}
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -260,7 +261,7 @@ export const RegisterRoleFields = ({
             type="text"
             value={centerName}
             onChange={(e) => setCenterName(e.target.value)}
-            placeholder={lang === 'ar' ? 'مثال: سنتر الرواد بالدقي' : 'e.g. Dokki Center'}
+            placeholder={lang === 'ar' ? 'سنتر الرواد بالدقي' : 'Dokki Center'}
             style={{
               width: '100%',
               padding: '10px 12px',
@@ -280,24 +281,38 @@ export const RegisterRoleFields = ({
     return (
       <div>
         <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-          {lang === 'ar' ? 'كود الطالب لربط المتابعة' : 'Student Link Code'}
+          {lang === 'ar' ? 'كود الطالب لربط المتابعة *' : 'Student Link Code *'}
         </label>
         <input
           type="text"
           required
           value={studentCode}
-          onChange={(e) => setStudentCode(e.target.value)}
-          placeholder={lang === 'ar' ? 'أدخل كود ابنك المسجل بالمنصة (مثال: OMAR-2026)' : 'e.g. OMAR-2026'}
+          onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
+          placeholder="OMAR-2026"
+          dir="ltr"
           style={{
             width: '100%',
             padding: '10px 12px',
             borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-medium)',
+            border: fieldErrors.student_code ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
             backgroundColor: 'var(--bg-subtle)',
             color: 'var(--text-primary)',
-            fontSize: '13px'
+            fontSize: '13px',
+            fontFamily: 'monospace',
+            letterSpacing: '0.5px'
           }}
         />
+        {fieldErrors.student_code ? (
+          <span style={{ fontSize: '11.5px', color: 'var(--error, #dc2626)', marginTop: '4px', display: 'block' }}>
+            {fieldErrors.student_code}
+          </span>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+            {lang === 'ar'
+              ? 'يمكن للطالب العثور على الكود الخاص به داخل صفحة الإعدادات في حسابه (للتجربة استخدم: OMAR-2026).'
+              : 'Your child can find their unique Student Code in their Account Settings (Demo code: OMAR-2026).'}
+          </span>
+        )}
       </div>
     );
   }
@@ -319,12 +334,15 @@ export const RegisterRoleFields = ({
               width: '100%',
               padding: '10px 12px',
               borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-medium)',
+              border: fieldErrors.center_name ? '1px solid var(--error, #dc2626)' : '1px solid var(--border-medium)',
               backgroundColor: 'var(--bg-subtle)',
               color: 'var(--text-primary)',
               fontSize: '13px'
             }}
           />
+          {fieldErrors.center_name && (
+            <span style={{ fontSize: '11.5px', color: 'var(--error, #dc2626)', marginTop: '4px', display: 'block' }}>{fieldErrors.center_name}</span>
+          )}
         </div>
         <div>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '5px' }}>
@@ -333,6 +351,8 @@ export const RegisterRoleFields = ({
           <input
             type="text"
             required
+            value={governorate || ''}
+            onChange={(e) => setGovernorate && setGovernorate(e.target.value)}
             placeholder={lang === 'ar' ? 'الجيزة / الدقي' : 'Giza / Dokki'}
             style={{
               width: '100%',

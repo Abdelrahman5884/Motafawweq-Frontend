@@ -1,8 +1,10 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useStudentActivity } from '../../context/StudentActivityContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { Avatar } from '../common/Avatar';
 import {
   LayoutDashboard,
   Calendar,
@@ -17,7 +19,6 @@ import {
   ChevronLeft,
   Award,
   X,
-  GraduationCap,
   QrCode,
   Layers,
   Activity,
@@ -35,14 +36,29 @@ import {
   Flame,
   Settings,
   Target,
-  Megaphone
+  Megaphone,
+  Lock
 } from 'lucide-react';
+import {
+  hasStudentFeatureAccess,
+  getStudentFeatureGate,
+  STUDENT_PLANS
+} from '../../constants/studentPlanFeatures';
+import {
+  hasTeacherFeatureAccess,
+  getTeacherFeatureGate,
+  TEACHER_PLANS
+} from '../../constants/teacherPlanFeatures';
+import { CENTER_PLANS, normalizeCenterPlanTier } from '../../constants/centerPlanFeatures';
 
 export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
-  const { currentRole, currentUser } = useAuth();
+  const { currentRole, currentUser, studentPlanTier, teacherPlanTier, centerPlanTier } = useAuth();
+  const activeCenterPlan = CENTER_PLANS[normalizeCenterPlanTier(centerPlanTier)] || CENTER_PLANS.free;
+  const { streakDays: liveStreakDays } = useStudentActivity();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
+  const sidebarStreakDays = Number(liveStreakDays || currentUser?.streakDays || 0);
 
   // Effective role derived from path or current user role
   const effectiveRole = location.pathname.startsWith('/center')
@@ -56,6 +72,33 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
     : location.pathname.startsWith('/admin')
     ? 'admin'
     : currentRole;
+
+  const profileSettingsPath =
+    effectiveRole === 'student'
+      ? '/student/settings'
+      : effectiveRole === 'teacher'
+      ? '/teacher/settings'
+      : effectiveRole === 'center'
+      ? '/center/settings'
+      : '#';
+
+  const sidebarProfileName =
+    effectiveRole === 'center'
+      ? lang === 'ar'
+        ? currentUser?.centerNameAr || currentUser?.center || 'السنتر التعليمي'
+        : currentUser?.centerNameEn || currentUser?.center || 'Educational Center'
+      : lang === 'ar'
+      ? currentUser?.nameAr || currentUser?.name || ''
+      : currentUser?.name || '';
+
+  const sidebarProfileSubtitle =
+    effectiveRole === 'center' && currentUser?.name && currentUser.name !== sidebarProfileName
+      ? lang === 'ar'
+        ? `إدارة: ${currentUser.name}`
+        : `Manager: ${currentUser.name}`
+      : lang === 'ar'
+      ? currentUser?.roleLabelAr || currentUser?.roleLabel || ''
+      : currentUser?.roleLabel || '';
 
   // Role accent color strictly adhering to platform palette (#1588C7)
   const roleAccent = {
@@ -76,21 +119,21 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
             items: [
               { id: 'dashboard', path: '/teacher/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
               { id: 'teacher-courses', path: '/teacher/courses', label: lang === 'ar' ? 'المقررات والمناهج' : 'Courses & Curriculum', icon: BookOpen },
-              { id: 'teacher-exams', path: '/teacher/exams', label: lang === 'ar' ? 'بنك الأسئلة والامتحانات' : 'Question Bank & Exams', icon: ClipboardList },
-              { id: 'teacher-homework', path: '/teacher/homework', label: lang === 'ar' ? 'تصحيح الواجبات' : 'Homework & Grading', icon: FileText },
-              { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: 'AI' },
+              { id: 'teacher-exams', path: '/teacher/exams', label: lang === 'ar' ? 'بنك الأسئلة والامتحانات' : 'Question Bank & Exams', icon: ClipboardList, featureKey: 'exams' },
+              { id: 'teacher-homework', path: '/teacher/homework', label: lang === 'ar' ? 'تصحيح الواجبات' : 'Homework & Grading', icon: FileText, featureKey: 'homework' },
+              { id: 'recording-studio', path: '/teacher/studio', label: lang === 'ar' ? 'استوديو التسجيل' : 'Recording Studio', icon: Mic, badge: teacherPlanTier === 'pro' ? 'AI' : null },
               { id: 'lesson-workspace', path: '/teacher/workspace', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Workspace', icon: BookMarked },
             ]
           },
           {
             group: lang === 'ar' ? 'متابعة الطلاب والتقييم' : 'Students & Performance',
             items: [
-              { id: 'teacher-league', path: '/teacher/league', label: lang === 'ar' ? 'دوري الكورس والتحدي' : 'Course League', icon: Trophy },
-              { id: 'teacher-certificates', path: '/teacher/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
+              { id: 'teacher-league', path: '/teacher/league', label: lang === 'ar' ? 'دوري الكورس والتحدي' : 'Course League', icon: Trophy, featureKey: 'leagues' },
+              { id: 'teacher-certificates', path: '/teacher/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award, featureKey: 'certificates' },
               { id: 'students', path: '/teacher/students', label: lang === 'ar' ? 'سجل الطلاب' : 'Student Roster', icon: Users },
               { id: 'classes', path: '/teacher/classes', label: lang === 'ar' ? 'المجموعات والقاعات' : 'Classes & Groups', icon: Building2 },
-              { id: 'teacher-schedule', path: '/teacher/schedule', label: lang === 'ar' ? 'جدول المواعيد والقاعات' : 'Weekly Schedule', icon: Calendar },
-              { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign },
+              { id: 'teacher-schedule', path: '/teacher/schedule', label: lang === 'ar' ? 'جدول المواعيد والقاعات' : 'Weekly Schedule', icon: Calendar, featureKey: 'schedule' },
+              { id: 'financials', path: '/teacher/financials', label: lang === 'ar' ? 'الأرباح والمحفظة' : 'Earnings & Payouts', icon: DollarSign, featureKey: 'financials' },
               { id: 'teacher-billing', path: '/teacher/billing', label: lang === 'ar' ? 'الاشتراكات وباقات المعلم' : 'Plans & Billing', icon: CreditCard },
               { id: 'teacher-settings', path: '/teacher/settings', label: lang === 'ar' ? 'إعدادات المعلم' : 'Teacher Settings', icon: Settings },
             ]
@@ -108,16 +151,16 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               { id: 'courses', path: '/student/courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
               { id: 'take-exam', path: '/student/exam', label: lang === 'ar' ? 'الاختبارات' : 'Exams', icon: ClipboardList },
               { id: 'homework', path: '/student/homework', label: lang === 'ar' ? 'الواجبات' : 'Homework', icon: FileText },
-              { id: 'league', path: '/student/league', label: lang === 'ar' ? 'الدوري' : 'League', icon: Trophy },
+              { id: 'league', path: '/student/league', label: lang === 'ar' ? 'الدوري' : 'League', icon: Trophy, featureKey: 'league' },
             ]
           },
           {
             group: lang === 'ar' ? 'أدوات التعلم الذكية' : 'Smart Learning Tools',
             items: [
-              { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic, badge: 'AI' },
-              { id: 'converted-lectures', path: '/student/converted-lectures', label: lang === 'ar' ? 'المحاضرات المحولة' : 'Converted Lectures', icon: FolderCheck },
-              { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal },
-              { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award },
+              { id: 'smart-lecture', path: '/student/smart-lecture', label: lang === 'ar' ? 'تحويل المحاضرة' : 'Lecture Tool', icon: Mic, badge: 'AI', featureKey: 'smart-lecture' },
+              { id: 'converted-lectures', path: '/student/converted-lectures', label: lang === 'ar' ? 'المحاضرات المحولة' : 'Converted Lectures', icon: FolderCheck, featureKey: 'converted-lectures' },
+              { id: 'gamification', path: '/student/gamification', label: lang === 'ar' ? 'الإنجازات والجوائز' : 'Achievements', icon: Medal, featureKey: 'gamification' },
+              { id: 'certificates', path: '/student/certificates', label: lang === 'ar' ? 'الشهادات المعتمدة' : 'Certificates', icon: Award, featureKey: 'certificates' },
               { id: 'billing', path: '/student/billing', label: lang === 'ar' ? 'الاشتراك والباقات' : 'Subscription', icon: CreditCard },
               { id: 'student-settings', path: '/student/settings', label: lang === 'ar' ? 'الإعدادات والملف الشخصي' : 'Settings', icon: Settings },
             ]
@@ -136,32 +179,31 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       case 'center':
         return [
           {
-            group: lang === 'ar' ? 'القيادة والتشغيل اليومي' : 'Command & Daily Operations',
+            group: lang === 'ar' ? 'التشغيل اليومي' : 'Operations',
             items: [
               { id: 'center-portal', path: '/center/dashboard', label: lang === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: Building2 },
-              { id: 'center-groups', path: '/center/groups', label: lang === 'ar' ? 'المجموعات والصفوف الدراسية' : 'Cohorts & Groups', icon: Users },
-              { id: 'center-halls', path: '/center/halls', label: lang === 'ar' ? 'القاعات وجداول التشغيل' : 'Rooms & Schedule', icon: Calendar },
+              { id: 'center-groups', path: '/center/groups', label: lang === 'ar' ? 'المجموعات' : 'Cohorts', icon: Users },
+              { id: 'center-halls', path: '/center/halls', label: lang === 'ar' ? 'القاعات والجدول' : 'Halls & Schedule', icon: Calendar },
             ]
           },
           {
-            group: lang === 'ar' ? 'الفروع وشبكة المعلمين' : 'Branches & Teachers',
+            group: lang === 'ar' ? 'الإدارة' : 'Management',
             items: [
-              { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'إدارة الفروع وشبكة المعلمين' : 'Branches & Teachers', icon: Layers },
-              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الاشتراك وباقات السنتر' : 'Plans & Pricing', icon: CreditCard, badge: lang === 'ar' ? 'الأسعار' : 'Pricing' },
-              { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'إعدادات المنظومة والمهام' : 'Settings & Tasks', icon: Settings },
+              { id: 'center-operations', path: '/center/operations', label: lang === 'ar' ? 'الفروع والمعلمون' : 'Branches & Faculty', icon: Layers },
+              { id: 'center-billing', path: '/center/billing', label: lang === 'ar' ? 'الباقات والاشتراك' : 'Plans & Billing', icon: CreditCard, badge: lang === 'ar' ? activeCenterPlan.shortAr : activeCenterPlan.shortEn },
+              { id: 'center-settings', path: '/center/settings', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings },
             ]
           }
         ];
       case 'admin':
         return [
-          { id: 'admin-overview', path: '/admin/dashboard?tab=overview', label: lang === 'ar' ? 'الرئيسية والإحصائيات' : 'Overview & KPIs', icon: LayoutDashboard },
-          { id: 'admin-champions', path: '/admin/dashboard?tab=champions', label: lang === 'ar' ? 'لوحة الشرف وأبطال الكؤوس' : 'Cup Champions', icon: Trophy, badge: lang === 'ar' ? 'مميز' : 'Cups' },
-          { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'إدارة المستخدمين والتوثيق' : 'User Management', icon: Users },
-          { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات والمحتوى التعليمي' : 'Courses & Content', icon: BookOpen },
-          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'المالية وسحب الأرباح' : 'Financials & Payouts', icon: DollarSign },
-          { id: 'admin-attendance', path: '/admin/dashboard?tab=attendance', label: lang === 'ar' ? 'بوابات الحضور والباركود' : 'QR Gate Attendance', icon: QrCode },
-          { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'شريط الأخبار والإعلانات' : 'Broadcast & News', icon: Megaphone },
-          { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الذكاء الاصطناعي والإعدادات' : 'AI & Settings', icon: Settings },
+          { id: 'admin-overview', path: '/admin/dashboard?tab=overview', label: lang === 'ar' ? 'الرئيسية' : 'Overview', icon: LayoutDashboard },
+          { id: 'admin-champions', path: '/admin/dashboard?tab=champions', label: lang === 'ar' ? 'الأبطال والدوري' : 'Champions', icon: Trophy, badge: lang === 'ar' ? 'مميز' : 'Cups' },
+          { id: 'admin-users', path: '/admin/dashboard?tab=users', label: lang === 'ar' ? 'المستخدمون' : 'Users', icon: Users },
+          { id: 'admin-courses', path: '/admin/dashboard?tab=courses', label: lang === 'ar' ? 'المقررات' : 'Courses', icon: BookOpen },
+          { id: 'admin-financials', path: '/admin/dashboard?tab=financials', label: lang === 'ar' ? 'الماليات' : 'Financials', icon: DollarSign },
+          { id: 'admin-announcements', path: '/admin/dashboard?tab=announcements', label: lang === 'ar' ? 'الإعلانات' : 'Announcements', icon: Megaphone },
+          { id: 'admin-system', path: '/admin/dashboard?tab=system', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings },
         ];
       default:
         return [];
@@ -182,7 +224,25 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
     const currentFullPath = location.pathname + (location.search || '');
     const isActive = item.path.includes('?')
       ? (currentFullPath === item.path || (location.pathname === item.path.split('?')[0] && !location.search && item.path.endsWith('?tab=overview')))
-      : location.pathname === item.path;
+      : (location.pathname === item.path || (item.path === '/center/groups' && location.pathname.startsWith('/center/groups/')));
+
+    const isStudentLocked =
+      effectiveRole === 'student' &&
+      Boolean(item.featureKey) &&
+      !hasStudentFeatureAccess(studentPlanTier, item.featureKey);
+    const isTeacherLocked =
+      effectiveRole === 'teacher' &&
+      Boolean(item.featureKey) &&
+      !hasTeacherFeatureAccess(teacherPlanTier, item.featureKey);
+    const isLocked = isStudentLocked || isTeacherLocked;
+    const gate = isStudentLocked
+      ? getStudentFeatureGate(item.featureKey)
+      : isTeacherLocked
+      ? getTeacherFeatureGate(item.featureKey)
+      : null;
+    const requiredPlan = gate
+      ? (isTeacherLocked ? TEACHER_PLANS[gate.requiredTier] : STUDENT_PLANS[gate.requiredTier])
+      : null;
 
     return (
       <div key={item.id} className="sidebar-item-wrapper">
@@ -190,14 +250,45 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
           to={item.path}
           onClick={handleLinkClick}
           className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+          title={
+            isLocked && requiredPlan
+              ? (lang === 'ar'
+                ? `مقفول — يتطلب ${requiredPlan.nameAr}`
+                : `Locked — Requires ${requiredPlan.nameEn}`)
+              : undefined
+          }
           style={{
             color: isActive ? accent : undefined,
+            opacity: isLocked && !isActive ? 0.72 : 1,
           }}
         >
-          <ItemIcon
-            size={18}
-            style={{ flexShrink: 0 }}
-          />
+          <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+            <ItemIcon
+              size={18}
+              style={{ flexShrink: 0 }}
+            />
+            {isCollapsed && isLocked && (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  insetInlineEnd: '-6px',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-medium)',
+                  color: 'var(--warning, #D97706)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Lock size={8} />
+              </span>
+            )}
+          </span>
           {!isCollapsed && (
             <span style={{
               whiteSpace: 'nowrap',
@@ -208,7 +299,35 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
               {item.label}
             </span>
           )}
-          {!isCollapsed && item.badge && (
+          {!isCollapsed && isLocked && requiredPlan && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                padding: '2px 6px',
+                borderRadius: '999px',
+                fontSize: '9.5px',
+                fontWeight: '800',
+                backgroundColor: requiredPlan.tier === 'pro'
+                  ? 'rgba(21, 136, 199, 0.14)'
+                  : 'rgba(245, 158, 11, 0.14)',
+                color: requiredPlan.tier === 'pro'
+                  ? 'var(--primary)'
+                  : 'var(--warning, #D97706)',
+                border: `1px solid ${
+                  requiredPlan.tier === 'pro'
+                    ? 'rgba(21, 136, 199, 0.28)'
+                    : 'rgba(245, 158, 11, 0.3)'
+                }`,
+                flexShrink: 0,
+              }}
+            >
+              <Lock size={10} />
+              <span>{lang === 'ar' ? requiredPlan.shortAr : requiredPlan.shortEn}</span>
+            </span>
+          )}
+          {!isCollapsed && !isLocked && item.badge && (
             <span
               className="sidebar-badge-ai"
             >
@@ -221,10 +340,29 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
         {isCollapsed && (
           <div className="sidebar-tooltip">
             <span>{item.label}</span>
-            {item.badge && (
-              <span className="sidebar-badge-ai" style={{ fontSize: '8.5px', padding: '1px 5px' }}>
-                {item.badge}
+            {isLocked && requiredPlan ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '9px',
+                  fontWeight: '800',
+                  padding: '1px 6px',
+                  borderRadius: '99px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                  color: '#F59E0B',
+                }}
+              >
+                <Lock size={9} />
+                <span>{lang === 'ar' ? requiredPlan.shortAr : requiredPlan.shortEn}</span>
               </span>
+            ) : (
+              item.badge && (
+                <span className="sidebar-badge-ai" style={{ fontSize: '8.5px', padding: '1px 5px' }}>
+                  {item.badge}
+                </span>
+              )
             )}
           </div>
         )}
@@ -316,9 +454,15 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                   textOverflow: 'ellipsis',
                   marginTop: '1px'
                 }}>
-                  {currentRole === 'student'
+                  {effectiveRole === 'student'
                     ? (lang === 'ar' ? 'منصة المتفوقين الذكية' : 'Smart Learning Hub')
-                    : (lang === 'ar' ? 'بوابة المعلم' : 'Workspace')}
+                    : effectiveRole === 'center'
+                    ? (lang === 'ar' ? 'بوابة إدارة السنتر' : 'Center Management')
+                    : effectiveRole === 'parent'
+                    ? (lang === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal')
+                    : effectiveRole === 'admin'
+                    ? (lang === 'ar' ? 'لوحة الإدارة العامة' : 'Admin Console')
+                    : (lang === 'ar' ? 'بوابة المعلم' : 'Educator Workspace')}
                 </div>
               </div>
             </Link>
@@ -376,37 +520,17 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
       {currentUser && (
         !isCollapsed ? (
           <Link
-            to={currentRole === 'student' ? '/student/settings' : (currentRole === 'teacher' ? '/teacher/settings' : '#')}
+            to={profileSettingsPath}
             onClick={handleLinkClick}
             className="sidebar-user-card"
-            style={{ textDecoration: 'none', cursor: (currentRole === 'student' || currentRole === 'teacher') ? 'pointer' : 'default' }}
+            style={{ textDecoration: 'none', cursor: profileSettingsPath !== '#' ? 'pointer' : 'default' }}
           >
             <div className="sidebar-avatar-wrapper">
-              {currentUser.avatar ? (
-                <img
-                  src={currentUser.avatar}
-                  alt={currentUser.name}
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '50%',
-                    objectFit: 'cover'
-                  }}
-                />
-              ) : (
-                <div style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '50%',
-                  backgroundColor: `${accent}20`,
-                  color: accent,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <GraduationCap size={16} />
-                </div>
-              )}
+              <Avatar
+                src={currentUser?.avatar}
+                name={sidebarProfileName}
+                size={34}
+              />
               <span className="sidebar-online-dot" />
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -424,9 +548,9 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}>
-                  {lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}
+                  {sidebarProfileName}
                 </div>
-                {currentRole === 'student' && (
+                {currentRole === 'student' && sidebarStreakDays > 0 && (
                   <div
                     title={lang === 'ar' ? 'سلسلة الاستريك المتتالية' : 'Daily Streak'}
                     style={{
@@ -444,8 +568,32 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                     }}
                   >
                     <Flame size={12} color="#F59E0B" />
-                    <span>16 {lang === 'ar' ? 'يوم' : 'd'}</span>
+                    <span>{sidebarStreakDays} {lang === 'ar' ? 'يوم' : 'd'}</span>
                   </div>
+                )}
+                {effectiveRole === 'teacher' && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '1.5px 7px',
+                      borderRadius: '8px',
+                      backgroundColor: teacherPlanTier === 'pro'
+                        ? 'rgba(21, 136, 199, 0.15)'
+                        : teacherPlanTier === 'plus'
+                        ? 'rgba(2, 132, 199, 0.12)'
+                        : 'var(--bg-subtle)',
+                      color: teacherPlanTier === 'free' ? 'var(--text-secondary)' : 'var(--primary)',
+                      fontSize: '10px',
+                      fontWeight: '800',
+                      border: '1px solid var(--border-subtle)',
+                      flexShrink: 0
+                    }}
+                  >
+                    {lang === 'ar'
+                      ? (TEACHER_PLANS[teacherPlanTier]?.shortAr || 'مجاني')
+                      : (TEACHER_PLANS[teacherPlanTier]?.shortEn || 'Free')}
+                  </span>
                 )}
               </div>
               <div style={{
@@ -457,32 +605,27 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
               }}>
-                {lang === 'ar' ? (currentUser.roleLabelAr || currentUser.roleLabel) : currentUser.roleLabel}
+                {sidebarProfileSubtitle}
               </div>
             </div>
           </Link>
         ) : (
           <Link
-            to={currentRole === 'student' ? '/student/settings' : (currentRole === 'teacher' ? '/teacher/settings' : '#')}
+            to={profileSettingsPath}
             onClick={handleLinkClick}
             className="sidebar-item-wrapper"
             style={{ margin: '10px auto 4px auto', display: 'flex', justifyContent: 'center', textDecoration: 'none' }}
           >
             <div className="sidebar-avatar-wrapper">
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
+              <Avatar
+                src={currentUser?.avatar}
+                name={sidebarProfileName}
+                size={32}
               />
               <span className="sidebar-online-dot" />
             </div>
             <div className="sidebar-tooltip">
-              <span>{lang === 'ar' ? (currentUser.nameAr || currentUser.name) : currentUser.name}</span>
+              <span>{sidebarProfileName}</span>
             </div>
           </Link>
         )

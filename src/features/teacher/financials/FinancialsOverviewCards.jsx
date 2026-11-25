@@ -20,7 +20,7 @@ export const FinancialsOverviewCards = ({ earnings, lang }) => {
           {isAr ? 'إجمالي التحويلات المستلمة مباشرة' : 'Direct Payments Received'}
         </div>
         <div style={{ fontSize: '30px', fontWeight: '900', color: 'var(--success)', fontFamily: 'var(--font-heading)' }}>
-          {earnings.totalRevenueEgp.toLocaleString()} <span style={{ fontSize: '14px' }}>{isAr ? 'ج.م' : 'EGP'}</span>
+          {(earnings?.totalRevenueEgp ?? 0).toLocaleString()} <span style={{ fontSize: '14px' }}>{isAr ? 'ج.م' : 'EGP'}</span>
         </div>
         <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '6px' }}>
           {isAr ? 'محولة مباشرة لحساباتك (إنستاباي / فودافون كاش / بنكي)' : 'Deposited directly to your personal accounts'}
@@ -38,7 +38,7 @@ export const FinancialsOverviewCards = ({ earnings, lang }) => {
           {isAr ? 'إجمالي اشتراكات الطلاب المؤكدة' : 'Active Student Purchases'}
         </div>
         <div style={{ fontSize: '30px', fontWeight: '900', color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>
-          3,890 <span style={{ fontSize: '14px' }}>{isAr ? 'طالباً مسجلاً' : 'students'}</span>
+          {(earnings?.confirmedStudentsCount ?? earnings?.activePurchasesCount ?? 0).toLocaleString()} <span style={{ fontSize: '14px' }}>{isAr ? 'طالباً مسجلاً' : 'students'}</span>
         </div>
         <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '6px' }}>
           {isAr ? 'مستلمة ومفعلة عبر السناتر والمنصة أونلاين' : 'Direct enrollments across centers and online'}
@@ -56,7 +56,7 @@ export const FinancialsOverviewCards = ({ earnings, lang }) => {
           {isAr ? 'المقررات والكورسات النشطة' : 'Active Paid Courses'}
         </div>
         <div style={{ fontSize: '30px', fontWeight: '900', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-          4 <span style={{ fontSize: '14px' }}>{isAr ? 'كورسات مفعلة' : 'courses'}</span>
+          {(earnings?.activeCoursesCount ?? 0).toLocaleString()} <span style={{ fontSize: '14px' }}>{isAr ? 'كورسات مفعلة' : 'courses'}</span>
         </div>
         <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '6px' }}>
           {isAr ? 'شاملة الملازم وامتحانات البابل شيت' : 'Including study packs and Bubble Sheet quizzes'}

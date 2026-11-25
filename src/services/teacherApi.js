@@ -1,0 +1,499 @@
+/**
+ * Motafawweq — Teacher Domain API Client
+ * Enterprise-grade typed API module covering all 15 stages of the Teacher Portal.
+ * Strictly aligned with routes/api.php and backend controllers.
+ */
+
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, tokenStorage } from './api';
+import { API_BASE_URL } from '../constants';
+import storageService from './storageService';
+
+export const teacherApi = {
+  // ─── Stage 1 & 2: Settings, Profile & Preferences ────────────────────────────
+  settings: {
+    get: () => apiGet('/teacher/settings'),
+    update: (data) => apiPut('/teacher/settings', data),
+    updateProfile: (data) => apiPut('/teacher/settings/profile', data),
+    updateStages: (stagesTaught) =>
+      apiPut('/teacher/settings/stages', { stages_taught: stagesTaught }),
+    updatePreferences: (data) => apiPut('/teacher/settings/preferences', data),
+    uploadAvatar: async (file) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const token = tokenStorage.getAccessToken();
+      const res = await fetch(`${API_BASE_URL}/teacher/settings/avatar`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || payload?.success === false) {
+        const firstFieldErr = payload?.errors && typeof payload.errors === 'object'
+          ? Object.values(payload.errors).flat().find(Boolean)
+          : null;
+        throw new Error(firstFieldErr || payload?.message || 'فشل رفع الصورة الشخصية.');
+      }
+      return payload;
+    },
+    deleteAvatar: () => apiDelete('/teacher/settings/avatar'),
+  },
+
+  // ─── Stage 3: Encrypted Payout Accounts ──────────────────────────────────────
+  payoutAccounts: {
+    list: () => apiGet('/teacher/payout-accounts'),
+    create: (data) => apiPost('/teacher/payout-accounts', data),
+    toggleActive: (uuid) => apiPatch(`/teacher/payout-accounts/${uuid}/toggle-active`),
+    setDefault: (uuid) => apiPatch(`/teacher/payout-accounts/${uuid}/set-default`),
+    delete: (uuid) => apiDelete(`/teacher/payout-accounts/${uuid}`),
+  },
+
+  // ─── Stage 4: Course Management ──────────────────────────────────────────────
+  courses: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/courses${qs ? `?${qs}` : ''}`);
+    },
+    get: (uuid) => apiGet(`/teacher/courses/${uuid}`),
+    create: (data) => apiPost('/teacher/courses', data),
+    update: (uuid, data) => apiPut(`/teacher/courses/${uuid}`, data),
+    delete: (uuid) => apiDelete(`/teacher/courses/${uuid}`),
+  },
+
+  // ─── Stage 5: Studio Lessons & Attachments ──────────────────────────────────
+  studio: {
+    listLessons: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/lessons${qs ? `?${qs}` : ''}`);
+    },
+    getLesson: (uuid) => apiGet(`/teacher/lessons/${uuid}`),
+    createLesson: (data) => apiPost('/teacher/lessons', data),
+    updateLesson: (uuid, data) => apiPut(`/teacher/lessons/${uuid}`, data),
+    deleteLesson: (uuid) => apiDelete(`/teacher/lessons/${uuid}`),
+
+    uploadMedia: async (uuid, file, options = {}) => {
+      const formData = new FormData();
+      formData.append('media', file);
+      if (options.mode) formData.append('mode', options.mode);
+      if (options.duration_seconds !== undefined && options.duration_seconds !== null) {
+        formData.append('duration_seconds', String(options.duration_seconds));
+      }
+
+      return uploadFormDataWithProgress(`/teacher/lessons/${uuid}/media`, formData, {
+        onProgress: options.onProgress || null,
+        fallbackError: 'فشل رفع ملف الوسائط.',
+      });
+    },
+
+    uploadPdf: async (uuid, file, titleAr = '', pagesCount = null, { onProgress = null } = {}) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (titleAr) formData.append('title', titleAr);
+      if (pagesCount) formData.append('pagesCount', String(pagesCount));
+
+      return uploadFormDataWithProgress(`/teacher/lessons/${uuid}/attachments/pdfs`, formData, {
+        onProgress,
+        fallbackError: 'فشل رفع ملف الـ PDF.',
+      });
+    },
+
+    uploadImage: async (uuid, file, { titleAr = '', captionAr = '', order = 1, onProgress = null } = {}) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (titleAr) formData.append('title', titleAr);
+      if (captionAr) formData.append('caption', captionAr);
+      if (order !== undefined && order !== null) formData.append('order', String(order));
+
+      return uploadFormDataWithProgress(`/teacher/lessons/${uuid}/attachments/images`, formData, {
+        onProgress,
+        fallbackError: 'فشل رفع الصورة.',
+      });
+    },
+
+    uploadAttachment: async (uuid, file, type = 'pdf', options = {}) => {
+      if (type === 'audio' || type === 'media') {
+        return teacherApi.studio.uploadMedia(uuid, file, options);
+      }
+      if (type === 'pdf') {
+        return teacherApi.studio.uploadPdf(uuid, file, options.titleAr || file.name, options.pagesCount || null, options);
+      }
+      return teacherApi.studio.uploadImage(uuid, file, options);
+    },
+
+    uploadMediaDirect: async (uuid, file, { onProgress = null, durationSeconds = null } = {}) => {
+      return storageService.uploadFile({
+        entityType: 'lesson_media',
+        entityId: uuid,
+        file,
+        duration: durationSeconds,
+        onProgress,
+      });
+    },
+
+    uploadAttachmentDirect: async (uuid, file, { titleAr = '', captionAr = '', onProgress = null } = {}) => {
+      return storageService.uploadFile({
+        entityType: 'lesson_attachment',
+        entityId: uuid,
+        file,
+        title: titleAr || file.name,
+        caption: captionAr,
+        onProgress,
+      });
+    },
+
+    reorderAttachments: (uuid, attachmentUuids, type = 'whiteboard_image') =>
+      apiPut(`/teacher/lessons/${uuid}/attachments/reorder`, {
+        ordered_ids: attachmentUuids,
+        type,
+      }),
+
+    deleteAttachment: (uuid, attachmentUuid) =>
+      apiDelete(`/teacher/lessons/${uuid}/attachments/${attachmentUuid}`),
+
+    getMediaStreamUrl: (uuid) => `${API_BASE_URL}/teacher/lessons/${uuid}/media/stream`,
+    getAttachmentStreamUrl: (uuid, attachmentUuid) =>
+      `${API_BASE_URL}/teacher/lessons/${uuid}/attachments/${attachmentUuid}/stream`,
+  },
+
+  // ─── Stage 6: Lesson Workspace (Chapters, Transcript, Concept Graph) ─────────
+  workspace: {
+    index: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/workspace${qs ? `?${qs}` : ''}`);
+    },
+    getLesson: (uuid) => apiGet(`/teacher/workspace/lessons/${uuid}`),
+    syncChapters: (uuid, chapters) =>
+      apiPut(`/teacher/workspace/lessons/${uuid}/chapters`, { chapters }),
+    syncTranscript: (uuid, transcript) =>
+      apiPut(`/teacher/workspace/lessons/${uuid}/transcript`, { transcript }),
+    saveConceptGraph: (uuid, treeData) =>
+      apiPut(`/teacher/workspace/lessons/${uuid}/concept-graph`, { tree_data: treeData }),
+  },
+
+  // ─── Stage 7: Study Groups ───────────────────────────────────────────────────
+  groups: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/groups${qs ? `?${qs}` : ''}`);
+    },
+    get: (uuid) => apiGet(`/teacher/groups/${uuid}`),
+    create: (data) => apiPost('/teacher/groups', data),
+    update: (uuid, data) => apiPut(`/teacher/groups/${uuid}`, data),
+    delete: (uuid) => apiDelete(`/teacher/groups/${uuid}`),
+    regenerateCode: (uuid) => apiPost(`/teacher/groups/${uuid}/regenerate-code`),
+    listAnnouncements: (uuid) => apiGet(`/teacher/groups/${uuid}/announcements`),
+    sendAnnouncement: (uuid, { type = 'announcement', message }) =>
+      apiPost(`/teacher/groups/${uuid}/announcements`, { type, message }),
+  },
+
+  // ─── Stage 8: Student Roster & Invites ───────────────────────────────────────
+  roster: {
+    list: (groupUuid, params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/groups/${groupUuid}/roster${qs ? `?${qs}` : ''}`);
+    },
+    searchStudents: (query) =>
+      apiGet(`/teacher/students/search?search=${encodeURIComponent(query)}`),
+    invite: (groupUuid, payload) => {
+      const body =
+        payload && typeof payload === 'object'
+          ? payload
+          : { student_id: String(payload ?? '') };
+      return apiPost(`/teacher/groups/${groupUuid}/invite`, body);
+    },
+    accept: (groupUuid, enrollmentUuid) =>
+      apiPost(`/teacher/groups/${groupUuid}/enrollments/${enrollmentUuid}/accept`),
+    reject: (groupUuid, enrollmentUuid, reason = '') =>
+      apiPost(`/teacher/groups/${groupUuid}/enrollments/${enrollmentUuid}/reject`, { reason }),
+    remove: (groupUuid, enrollmentUuid) =>
+      apiDelete(`/teacher/groups/${groupUuid}/enrollments/${enrollmentUuid}`),
+  },
+
+  // ─── Stage 9: Attendance & Schedule ──────────────────────────────────────────
+  attendance: {
+    scan: (groupUuid, code, method = 'barcode_input', date = null) =>
+      apiPost(`/teacher/groups/${groupUuid}/attendance/scan`, {
+        code,
+        method,
+        ...(date ? { date } : {}),
+      }),
+    toggleManual: (groupUuid, data) =>
+      apiPost(`/teacher/groups/${groupUuid}/attendance/toggle`, data),
+    listSessions: (groupUuid) =>
+      apiGet(`/teacher/groups/${groupUuid}/attendance/sessions`),
+    getSessionDetails: (groupUuid, sessionUuid) =>
+      apiGet(`/teacher/groups/${groupUuid}/attendance/sessions/${sessionUuid}`),
+  },
+
+  schedule: {
+    getWeekly: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/schedule${qs ? `?${qs}` : ''}`);
+    },
+    createNote: (data) => apiPost('/teacher/schedule/notes', data),
+    toggleNote: (uuid) => apiPatch(`/teacher/schedule/notes/${uuid}/toggle`),
+    deleteNote: (uuid) => apiDelete(`/teacher/schedule/notes/${uuid}`),
+  },
+
+  // ─── Stage 10 & 11: Exams & Grading ─────────────────────────────────────────
+  exams: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/exams${qs ? `?${qs}` : ''}`);
+    },
+    get: (uuid) => apiGet(`/teacher/exams/${uuid}`),
+    create: (data) => apiPost('/teacher/exams', data),
+    update: (uuid, data) => apiPut(`/teacher/exams/${uuid}`, data),
+    toggleStatus: (uuid) => apiPatch(`/teacher/exams/${uuid}/toggle-status`),
+    toggleResults: (uuid) => apiPatch(`/teacher/exams/${uuid}/toggle-results`),
+    duplicate: (uuid) => apiPost(`/teacher/exams/${uuid}/duplicate`),
+    delete: (uuid) => apiDelete(`/teacher/exams/${uuid}`),
+
+    listSubmissions: (uuid, params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/exams/${uuid}/submissions${qs ? `?${qs}` : ''}`);
+    },
+    getSubmission: (uuid, submissionUuid) =>
+      apiGet(`/teacher/exams/${uuid}/submissions/${submissionUuid}`),
+    gradeSubmission: (uuid, submissionUuid, { answers = [], teacherFeedback = '' }) =>
+      apiPatch(`/teacher/exams/${uuid}/submissions/${submissionUuid}/grade-essay`, {
+        answers: answers.map((a) => ({
+          question_uuid: a.questionUuid || a.question_uuid || a.answerId,
+          points_awarded: Number(a.pointsAwarded ?? a.points_awarded ?? 0),
+          teacher_feedback: a.teacherFeedback ?? a.teacher_feedback ?? '',
+        })),
+        teacher_feedback: teacherFeedback,
+      }),
+    gradeEssayAnswer: (uuid, submissionUuid, { questionUuid, answerId, pointsAwarded, teacherFeedback = '' }) =>
+      apiPatch(`/teacher/exams/${uuid}/submissions/${submissionUuid}/grade-essay`, {
+        answers: [
+          {
+            question_uuid: questionUuid || answerId,
+            points_awarded: Number(pointsAwarded ?? 0),
+            teacher_feedback: teacherFeedback,
+          },
+        ],
+        teacher_feedback: teacherFeedback,
+      }),
+  },
+
+  // ─── Stage 12: Homework Management & Grading ────────────────────────────────
+  homeworks: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/homeworks${qs ? `?${qs}` : ''}`);
+    },
+    get: (uuid) => apiGet(`/teacher/homeworks/${uuid}`),
+    create: async (data, file = null, { onProgress = null } = {}) => {
+      if (file instanceof File) {
+        const formData = new FormData();
+        Object.entries(data).forEach(([key, val]) => {
+          if (val !== undefined && val !== null && val !== '') {
+            formData.append(key, String(val));
+          }
+        });
+        formData.append('file', file);
+        return uploadFormDataWithProgress('/teacher/homeworks', formData, {
+          onProgress,
+          fallbackError: 'فشل رفع الملف وإنشاء الواجب.',
+        });
+      }
+      return apiPost('/teacher/homeworks', data);
+    },
+    update: async (uuid, data, file = null, { onProgress = null } = {}) => {
+      if (file instanceof File) {
+        const formData = new FormData();
+        formData.append('_method', 'PUT');
+        Object.entries(data).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            formData.append(key, typeof val === 'boolean' ? (val ? '1' : '0') : String(val));
+          }
+        });
+        formData.append('file', file);
+        return uploadFormDataWithProgress(`/teacher/homeworks/${uuid}`, formData, {
+          onProgress,
+          fallbackError: 'فشل تحديث الواجب ورفع الملف.',
+        });
+      }
+      return apiPut(`/teacher/homeworks/${uuid}`, data);
+    },
+    uploadAttachmentDirect: async (uuid, file, { onProgress = null } = {}) => {
+      return storageService.uploadFile({
+        entityType: 'homework_attachment',
+        entityId: uuid,
+        file,
+        title: file.name,
+        onProgress,
+      });
+    },
+    delete: (uuid) => apiDelete(`/teacher/homeworks/${uuid}`),
+
+    listSubmissions: (uuid, params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/homeworks/${uuid}/submissions${qs ? `?${qs}` : ''}`);
+    },
+    getSubmission: (uuid, submissionUuid) =>
+      apiGet(`/teacher/homeworks/${uuid}/submissions/${submissionUuid}`),
+    gradeSubmission: (uuid, submissionUuid, { status = 'graded', score, gradeScore, feedbackAr = '' }) =>
+      apiPatch(`/teacher/homeworks/${uuid}/submissions/${submissionUuid}/grade`, {
+        status,
+        score: score !== undefined ? score : gradeScore,
+        feedback_ar: feedbackAr,
+      }),
+    downloadAttachmentUrl: (uuid) => `${API_BASE_URL}/teacher/homeworks/${uuid}/attachment`,
+    downloadSubmissionAttachmentUrl: (submissionUuid) =>
+      `${API_BASE_URL}/teacher/homeworks/submissions/${submissionUuid}/attachment`,
+  },
+
+  // ─── Stage 13: Course Leagues & XP ──────────────────────────────────────────
+  leagues: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/leagues${qs ? `?${qs}` : ''}`);
+    },
+    get: (uuid) => apiGet(`/teacher/leagues/${uuid}`),
+    create: (data) => apiPost('/teacher/leagues', data),
+    update: (uuid, data) => apiPut(`/teacher/leagues/${uuid}`, data),
+    addParticipant: (uuid, data) => apiPost(`/teacher/leagues/${uuid}/participants`, data),
+    removeParticipant: (uuid, participantId) =>
+      apiDelete(`/teacher/leagues/${uuid}/participants/${encodeURIComponent(participantId)}`),
+    awardXp: (uuid, { studentId, xpPoints, xpAmount, reason = '' }) =>
+      apiPost(`/teacher/leagues/${uuid}/award-xp`, {
+        student_id: studentId,
+        xp_amount: xpAmount ?? xpPoints,
+        reason_ar: reason,
+      }),
+    recalculate: (uuid) => apiPost(`/teacher/leagues/${uuid}/recalculate`),
+    crown: (uuid) => apiPost(`/teacher/leagues/${uuid}/crown`),
+    delete: (uuid) => apiDelete(`/teacher/leagues/${uuid}`),
+  },
+
+  // ─── Stage 14: Analytics & Dashboard ────────────────────────────────────────
+  dashboard: {
+    get: () => apiGet('/teacher/dashboard'),
+  },
+
+  analytics: {
+    getOverview: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/analytics/overview${qs ? `?${qs}` : ''}`);
+    },
+    getWeakAreas: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/analytics/weak-areas${qs ? `?${qs}` : ''}`);
+    },
+    getAtRiskRadar: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/analytics/at-risk-radar${qs ? `?${qs}` : ''}`);
+    },
+    resolveRiskSignal: (uuid, { action = 'resolve', notes = '' } = {}) =>
+      apiPost(`/teacher/analytics/at-risk/${uuid}/resolve`, { action, notes }),
+  },
+
+  // ─── Stage 15: Certificates, Financials & Billing ───────────────────────────
+  certificates: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/certificates${qs ? `?${qs}` : ''}`);
+    },
+    getEligibilityContext: (courseId = '') => {
+      const qs = courseId ? `?course_id=${encodeURIComponent(courseId)}` : '';
+      return apiGet(`/teacher/certificates/eligibility-context${qs}`);
+    },
+    issue: (data) => apiPost('/teacher/certificates', data),
+    bulkIssue: (data) => apiPost('/teacher/certificates/bulk-issue', data),
+    revoke: (uuid, reason = '') =>
+      apiPatch(`/teacher/certificates/${uuid}/revoke`, { reason }),
+    verifyPublic: (serialNumber) =>
+      apiGet(`/verify-certificate/${encodeURIComponent(serialNumber)}`),
+  },
+
+  financials: {
+    getOverview: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return apiGet(`/teacher/financials${qs ? `?${qs}` : ''}`);
+    },
+    confirmPayment: (uuid) =>
+      apiPost(`/teacher/financials/payments/${uuid}/confirm`),
+    rejectPayment: (uuid, { reason = '', notes = '' } = {}) =>
+      apiPost(`/teacher/financials/payments/${uuid}/reject`, { reason, notes }),
+  },
+
+  billing: {
+    getSummary: () => apiGet('/teacher/billing'),
+    validateCoupon: (code, orderAmount = 0) =>
+      apiPost('/teacher/billing/validate-coupon', { code, order_amount: orderAmount }),
+    subscribe: (data) => apiPost('/teacher/billing/subscribe', data),
+    cancel: () => apiPost('/teacher/billing/cancel', {}),
+  },
+
+  centerInvitations: {
+    list: () => apiGet('/teacher/center-invitations'),
+    accept: (uuid) => apiPost(`/teacher/center-invitations/${uuid}/accept`, {}),
+    decline: (uuid) => apiPost(`/teacher/center-invitations/${uuid}/decline`, {}),
+  },
+
+  // Centralized Supabase Storage
+  storage: storageService,
+};
+
+/**
+ * Multipart FormData upload helper with granular progress tracking and validation error extraction.
+ */
+function uploadFormDataWithProgress(path, formData, { onProgress = null, fallbackError = 'فشل رفع الملف.' } = {}) {
+  const token = tokenStorage.getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}${path}`, true);
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    if (onProgress && xhr.upload) {
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const pct = Math.min(99, Math.round((evt.loaded / evt.total) * 100));
+          onProgress(pct);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let payload = {};
+      try {
+        payload = JSON.parse(xhr.responseText || '{}');
+      } catch {
+        payload = {};
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && payload?.success !== false) {
+        if (onProgress) onProgress(100);
+        resolve(payload);
+      } else {
+        const firstFieldErr = payload?.errors && typeof payload.errors === 'object'
+          ? Object.values(payload.errors).flat().find(Boolean)
+          : null;
+        reject(new Error(firstFieldErr || payload?.message || fallbackError));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('تعذر الاتصال بالخادم أثناء رفع الملف. يرجى التحقق من الاتصال والمحاولة مرة أخرى.'));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new Error('انتهت مهلة رفع الملف. يرجى المحاولة مرة أخرى.'));
+    };
+
+    xhr.timeout = 120000;
+    xhr.send(formData);
+  });
+}
+
+export default teacherApi;

@@ -19,19 +19,34 @@ import {
 } from 'lucide-react';
 import { CENTER_SUBSCRIPTION_PLANS } from '../../data/centerData';
 import { TEACHER_SUBSCRIPTION_PLANS } from '../../data/teacherData';
-import { getSubscriptionPlans } from '../../services/pricingStorage';
+import { publicPlatformApi } from '../../services/adminApi';
 
 export const PricingPage = () => {
   const { navigate, switchRole } = useAuth();
   const { lang, isRtl } = useLanguage();
   const [selectedRole, setSelectedRole] = useState('center'); // 'center' | 'teacher' | 'student'
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
-  const [storedPlans, setStoredPlans] = useState(() => getSubscriptionPlans());
+  const [livePlans, setLivePlans] = useState([]);
 
   React.useEffect(() => {
-    const handleSync = () => setStoredPlans(getSubscriptionPlans());
+    let active = true;
+    const fetchPlans = async () => {
+      try {
+        const res = await publicPlatformApi.pricingPlans();
+        if (active && Array.isArray(res?.data) && res.data.length > 0) {
+          setLivePlans(res.data);
+        }
+      } catch {
+        // Keep static defaults if backend catalog is temporarily unreachable
+      }
+    };
+    fetchPlans();
+    const handleSync = () => fetchPlans();
     window.addEventListener('pricing-updated', handleSync);
-    return () => window.removeEventListener('pricing-updated', handleSync);
+    return () => {
+      active = false;
+      window.removeEventListener('pricing-updated', handleSync);
+    };
   }, []);
 
   const discount = billingCycle === 'yearly' ? 0.8 : 1;
@@ -74,34 +89,64 @@ export const PricingPage = () => {
       nameAr: 'طالب بلس (Student Plus)',
       nameEn: 'Student Plus',
       tier: 'plus',
-      taglineAr: 'للطالب الراغب في الفهم العميق وأعلى الدرجات',
-      taglineEn: 'For ambitious students aiming for top marks',
-      price: Math.round(49 * discount),
+      taglineAr: 'الدوريات والتحديات والأوسمة والشهادات المعتمدة',
+      taglineEn: 'Honors Leagues, badges, challenges & verified certificates',
+      price: Math.round(50 * discount),
+      periodAr: 'جنيه مصري / شهرياً',
+      periodEn: 'EGP / month',
+      color: '#0284C7',
+      popular: false,
+      usersLimitAr: 'حساب طالب متميز',
+      usersLimitEn: 'Plus Student account',
+      featuresAr: [
+        'المنافسة الكاملة في دوري المعلمين ودوري أبطال الجمهورية ونظام النقاط',
+        'لوحة إنجازاتي الكاملة: التحديات الأسبوعية وشارات التميز وخريطة الالتزام',
+        'شهادات إتمام وتفوق رسمية موثّقة برقم تسلسلي وكود QR',
+        'اختبارات تدريبية وبنوك أسئلة غير محدودة مع تحليلات الأداء',
+        'تقارير أسبوعية منتظمة لولي الأمر بمتابعة الالتزام والدرجات'
+      ],
+      featuresEn: [
+        'Full access to Course Leagues, Republic League & official rankings',
+        'Achievements hub: weekly challenges, badges & study activity heatmap',
+        'Verified certificates with serial ID and QR verification',
+        'Unlimited practice exams & detailed subject analytics',
+        'Weekly parent progress & attendance reports'
+      ],
+      role: 'student',
+      ctaAr: 'اشترك كطالب بلس (50 ج.م)',
+      ctaEn: 'Upgrade to Student Plus (50 EGP)'
+    },
+    {
+      id: 'student-pro',
+      nameAr: 'طالب برو (Student Pro)',
+      nameEn: 'Student Pro',
+      tier: 'pro',
+      taglineAr: 'كل مزايا بلس والدوريات + كامل أدوات الذكاء الاصطناعي AI',
+      taglineEn: 'Everything in Plus & Leagues + full AI study suite',
+      price: Math.round(80 * discount),
       periodAr: 'جنيه مصري / شهرياً',
       periodEn: 'EGP / month',
       color: 'var(--primary, #1588C7)',
       popular: true,
-      usersLimitAr: 'حساب طالب VIP مميز',
-      usersLimitEn: 'VIP Student account',
+      usersLimitAr: 'حساب طالب VIP شامل AI',
+      usersLimitEn: 'VIP Student Pro + AI account',
       featuresAr: [
-        'الوصول الكامل لغرفة المذاكرة التفاعلية بالذكاء الاصطناعي',
-        'القفز اللحظي من النص لتسجيل الحصة (Hyperlinked Timestamps)',
-        'مركز تقوية نقاط الضعف الذكي والتدريب الموجه (Weak Areas Hub)',
-        'تصفح خرائط المفاهيم التفاعلية ثلاثية الأبعاد',
-        'امتحانات تدريبية تفاعلية غير محدودة مع شرح الإجابات',
-        'جمع نقاط الخبرة (XP) والتنافس في دوري المتفوقين'
+        'كل مزايا باقة طالب بلس (الدوريات والأوسمة والشهادات) بلا حدود',
+        'تحويل المحاضرات الذكي بالـ AI (تفريغ صوت وفيديو وPDF إلى ملخصات)',
+        'توليد كويزات البابل شيت الفورية من المحاضرات مع شرح كل إجابة',
+        'مركز تقوية نقاط الضعف الذكي وخرائط المفاهيم وخطة المراجعة الشخصية',
+        'أولوية كاملة في معسكرات المراجعة النهائية ودعم فني سريع'
       ],
       featuresEn: [
-        'Full AI interactive audio-linked study room',
-        'Click-to-jump audio seeker in lecture transcripts',
-        'AI Weak Areas Diagnostics & personalized drills',
-        'Interactive 3D knowledge concept maps',
-        'Unlimited practice smart quizzes with solution keys',
-        'XP leaderboards & weekly student challenge leagues'
+        'Everything in Student Plus (Leagues, Badges & Certificates) unlimited',
+        'AI Smart Lecture Converter (Audio, Video & PDF to smart summaries)',
+        'Instant Bubble-Sheet quizzes generated from lectures with explanations',
+        'AI Weak Areas Diagnostics, concept maps & personalized revision plan',
+        'Priority access to final revision bootcamps & fast support'
       ],
       role: 'student',
-      ctaAr: 'اشترك كطالب بلس',
-      ctaEn: 'Upgrade to Student Plus'
+      ctaAr: 'اشترك كطالب برو (80 ج.م)',
+      ctaEn: 'Upgrade to Student Pro (80 EGP)'
     }
   ];
 
@@ -111,20 +156,20 @@ export const PricingPage = () => {
     nameAr: p.nameAr,
     nameEn: p.nameEn,
     tier: p.tier,
-    taglineAr: p.tier === 'free' ? 'لتجربة محرك التسجيل والخرائط' : (p.tier === 'plus' ? 'الأنسب لمعلمي المجموعات والسناتر' : 'الخيار الأكثر شعبية لمعلمي الثانوية والإعدادية'),
-    taglineEn: p.tier === 'free' ? 'Try the core transcription engine' : (p.tier === 'plus' ? 'Ideal for tutoring cohorts' : 'Most popular for top Egyptian tutors'),
+    taglineAr: p.subtitleAr || (p.tier === 'free' ? 'ابدأ بكورس واحد و3 حصص ومجموعة واحدة' : (p.tier === 'plus' ? 'كل أدوات التدريس ماعدا الذكاء الاصطناعي AI' : 'كل مزايا بلس + مجموعات مفتوحة + كامل أدوات AI')),
+    taglineEn: p.subtitleEn || (p.tier === 'free' ? 'Start with 1 course, 3 lessons & 1 group' : (p.tier === 'plus' ? 'All teaching tools except AI' : 'Everything in Plus + unlimited groups + AI')),
     price: Math.round(p.pricing[billingCycle === 'yearly' ? 'annual' : 'monthly'].priceEgp * (billingCycle === 'yearly' ? (1/10) : 1)),
     periodAr: p.tier === 'free' ? 'دائماً مجاناً' : (billingCycle === 'yearly' ? 'ج.م / شهرياً (تدفع سنوياً)' : 'جنيه مصري / شهرياً'),
     periodEn: p.tier === 'free' ? 'Forever Free' : (billingCycle === 'yearly' ? 'EGP / mo (billed yearly)' : 'EGP / month'),
-    usersLimitAr: p.tier === 'free' ? 'حتى 50 طالباً' : (p.tier === 'plus' ? 'حتى 500 طالب نشط' : 'طلاب غير محدودين (Unlimited)'),
-    usersLimitEn: p.tier === 'free' ? 'Up to 50 students' : (p.tier === 'plus' ? 'Up to 500 active students' : 'Unlimited students'),
-    color: p.color,
+    usersLimitAr: p.tier === 'free' ? 'كورس واحد • 3 حصص • مجموعة (50 طالب)' : (p.tier === 'plus' ? 'حتى 12 مجموعة • كورسات وحصص غير محدودة' : 'مجموعات غير محدودة • شامل AI بالكامل'),
+    usersLimitEn: p.tier === 'free' ? '1 course • 3 lessons • 1 group (50 students)' : (p.tier === 'plus' ? 'Up to 12 groups • Unlimited courses & lessons' : 'Unlimited groups • Full AI included'),
+    color: p.color || (p.tier === 'pro' ? '#1588C7' : p.tier === 'plus' ? '#0284C7' : 'var(--text-secondary)'),
     popular: p.popular,
     featuresAr: p.featuresAr.slice(0, 6),
     featuresEn: p.featuresEn.slice(0, 6),
     role: 'teacher',
-    ctaAr: p.tier === 'free' ? 'ابدأ كمعلم مجاناً' : (p.tier === 'plus' ? 'اشترك في باقة بلس' : 'اشترك في باقة برو'),
-    ctaEn: p.tier === 'free' ? 'Start as Teacher Free' : (p.tier === 'plus' ? 'Get Teacher Plus' : 'Get Teacher Pro')
+    ctaAr: p.tier === 'free' ? 'ابدأ كمعلم مجاناً' : (p.tier === 'plus' ? 'اشترك في بلس (120 ج.م)' : 'اشترك في برو (150 ج.م)'),
+    ctaEn: p.tier === 'free' ? 'Start as Teacher Free' : (p.tier === 'plus' ? 'Get Teacher Plus (120 EGP)' : 'Get Teacher Pro (150 EGP)')
   }));
 
   // Convert center plans to display cards (Free, Plus 200 EGP, Pro 400 EGP)
@@ -149,8 +194,57 @@ export const PricingPage = () => {
     ctaEn: p.tier === 'free' ? 'Start Center Free' : (p.tier === 'plus' ? 'Get Center Plus (200 EGP)' : 'Get Center Pro (400 EGP)')
   }));
 
-  // Active cards according to selected role
-  const activePlans = selectedRole === 'center' ? centerCards : (selectedRole === 'teacher' ? teacherCards : studentPlans);
+  // Merge live admin-configured pricing plans when available for the selected role
+  const buildLiveCardsForRole = (role, fallbackCards) => {
+    const matching = livePlans.filter(p => p.targetRole === role && p.isActive !== false);
+    if (matching.length === 0) return fallbackCards;
+
+    return matching.map((p, idx) => {
+      const tier = p.tierKey || (Number(p.priceEgp) === 0 ? 'free' : (p.isPopular ? 'pro' : 'plus'));
+      const matchedFallback = fallbackCards.find(f => f.tier === tier) || fallbackCards[idx] || {};
+      const monthlyPrice = Math.round(Number(p.priceEgp || 0));
+      const annualPrice = Math.round(Number(p.annualPriceEgp || 0));
+      const displayPrice =
+        monthlyPrice === 0
+          ? 0
+          : billingCycle === 'yearly'
+            ? (annualPrice > 0 ? Math.round(annualPrice / 10) : Math.round(monthlyPrice * 0.8))
+            : monthlyPrice;
+
+      const color =
+        matchedFallback.color ||
+        (tier === 'pro' ? '#1588C7' : tier === 'plus' ? '#0284C7' : 'var(--text-secondary)');
+
+      return {
+        id: p.id,
+        nameAr: p.nameAr || matchedFallback.nameAr,
+        nameEn: p.nameEn || p.nameAr || matchedFallback.nameEn,
+        tier,
+        taglineAr: p.badgeAr || matchedFallback.taglineAr || (monthlyPrice === 0 ? 'ابدأ مجاناً على منصة متفوق' : 'باقة رسمية معتمدة على منصة متفوق'),
+        taglineEn: p.badgeEn || matchedFallback.taglineEn || (monthlyPrice === 0 ? 'Start free on Motafawweq' : 'Official verified Motafawweq plan'),
+        price: displayPrice,
+        periodAr: displayPrice === 0 ? 'دائماً مجاناً' : (billingCycle === 'yearly' ? 'ج.م / شهرياً (تدفع سنوياً)' : 'جنيه مصري / شهرياً'),
+        periodEn: displayPrice === 0 ? 'Forever Free' : (billingCycle === 'yearly' ? 'EGP / mo (billed yearly)' : 'EGP / month'),
+        usersLimitAr: matchedFallback.usersLimitAr || (p.commissionPercent !== null && p.commissionPercent !== undefined ? `عمولة المنصة: ${p.commissionPercent}%` : 'وصول كامل لمزايا الباقة'),
+        usersLimitEn: matchedFallback.usersLimitEn || (p.commissionPercent !== null && p.commissionPercent !== undefined ? `Platform commission: ${p.commissionPercent}%` : 'Full tier entitlements'),
+        color,
+        popular: Boolean(p.isPopular),
+        featuresAr: Array.isArray(p.featuresAr) && p.featuresAr.length > 0 ? p.featuresAr : (matchedFallback.featuresAr || []),
+        featuresEn: Array.isArray(p.featuresEn) && p.featuresEn.length > 0 ? p.featuresEn : (matchedFallback.featuresEn || p.featuresAr || []),
+        role,
+        ctaAr: displayPrice === 0 ? (matchedFallback.ctaAr || 'ابدأ مجاناً') : `اشترك الآن (${displayPrice} ج.م)`,
+        ctaEn: displayPrice === 0 ? (matchedFallback.ctaEn || 'Start Free') : `Subscribe Now (${displayPrice} EGP)`,
+      };
+    });
+  };
+
+  // Active cards according to selected role (live backend with static fallback)
+  const activePlans =
+    selectedRole === 'center'
+      ? buildLiveCardsForRole('center', centerCards)
+      : selectedRole === 'teacher'
+        ? buildLiveCardsForRole('teacher', teacherCards)
+        : buildLiveCardsForRole('student', studentPlans);
 
   return (
     <div style={{
@@ -506,8 +600,11 @@ export const PricingPage = () => {
                 onClick={() => {
                   switchRole(plan.role);
                   if (plan.role === 'center') navigate('/center/dashboard');
-                  else if (plan.role === 'teacher') navigate('/teacher/studio');
-                  else navigate('/student/dashboard');
+                  else if (plan.role === 'teacher') {
+                    navigate(plan.tier === 'free' ? '/teacher/dashboard' : `/teacher/billing?plan=${plan.tier}`);
+                  } else {
+                    navigate(plan.tier === 'free' ? '/student/dashboard' : `/student/billing?plan=${plan.tier}`);
+                  }
                 }}
                 style={{
                   width: '100%',

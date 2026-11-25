@@ -1,63 +1,148 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { X, Download, Check, Copy, ShieldCheck, Loader2, Share2 } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { X, Download, Check, Copy, ShieldCheck, Loader2, Share2, ExternalLink } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { OfficialCertificateDocument } from './OfficialCertificateDocument';
+
+function waitForQrImage(node, timeoutMs = 700) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      const qrImg = node?.querySelector('img[alt="QR"]');
+      if (qrImg && typeof qrImg.src === 'string' && qrImg.src.startsWith('data:')) {
+        requestAnimationFrame(() => resolve());
+        return;
+      }
+      if (Date.now() - start >= timeoutMs) {
+        resolve();
+        return;
+      }
+      setTimeout(check, 30);
+    };
+    requestAnimationFrame(check);
+  });
+}
+
+function resolveLiveVerifyUrl(cert) {
+  if (!cert) return '';
+  const serial = cert.serialId || cert.certificateNumber || cert.certNumber || '';
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+  if (cert.verifyPath && origin) {
+    return `${origin}${cert.verifyPath}`;
+  }
+  if (serial && origin) {
+    return `${origin}/verify/${encodeURIComponent(serial)}`;
+  }
+  return cert.verificationUrl || '';
+}
 
 export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [shareNotice, setShareNotice] = useState(null);
+  const [mountExport, setMountExport] = useState(false);
+  const [notice, setNotice] = useState(null);
   const exportCertRef = useRef(null);
+  const timersRef = useRef([]);
   const isAr = lang === 'ar';
+
+  const scheduleTimer = useCallback((fn, ms) => {
+    const id = setTimeout(fn, ms);
+    timersRef.current.push(id);
+    return id;
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose?.();
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+    };
   }, [onClose]);
+
+  const renderExportPng = useCallback(async () => {
+    setMountExport(true);
+    await new Promise((r) => setTimeout(r, 60));
+    if (!exportCertRef.current) {
+      throw new Error('Export canvas not ready');
+    }
+    await waitForQrImage(exportCertRef.current);
+    return toPng(exportCertRef.current, {
+      pixelRatio: 2.3,
+      cacheBust: true,
+      backgroundColor: '#FFFFFF',
+    });
+  }, []);
 
   if (!selectedCert) return null;
 
+  const serialId = selectedCert.serialId || selectedCert.certificateNumber || selectedCert.certNumber || '';
+  const liveVerifyUrl = resolveLiveVerifyUrl(selectedCert);
+
   const handleCopyLink = () => {
-    const url = selectedCert.verificationUrl || `https://motafawweq.me/verify/${selectedCert.serialId}`;
-    navigator.clipboard?.writeText(url);
+    if (!liveVerifyUrl) return;
+    navigator.clipboard?.writeText(liveVerifyUrl).catch(() => {});
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    scheduleTimer(() => setCopied(false), 2500);
   };
 
-  const handleShareWhatsApp = async () => {
-    if (isSharing || !exportCertRef.current) return;
-    setIsSharing(true);
+  const handleDownloadPng = async () => {
+    if (isDownloading || isSharing) return;
+    setIsDownloading(true);
+    setNotice(null);
     try {
-      const dataUrl = await toPng(exportCertRef.current, {
-        pixelRatio: 2.5,
-        cacheBust: true,
-        backgroundColor: '#FFFFFF'
+      const dataUrl = await renderExportPng();
+      const link = document.createElement('a');
+      const studentName = isAr ? selectedCert.studentNameAr || 'الطالب' : selectedCert.studentNameEn || 'Student';
+      const courseName = isAr
+        ? selectedCert.courseNameAr || selectedCert.titleAr || 'الشهادة'
+        : selectedCert.courseNameEn || selectedCert.titleEn || 'Certificate';
+      link.download = `certificate-${studentName}-${courseName}.png`
+        .replace(/[/\\?%*:|"<>]/g, '-')
+        .replace(/\s+/g, '-');
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      setNotice({
+        type: 'error',
+        text: isAr ? 'تعذر حفظ الشهادة كصورة، حاول مرة أخرى.' : 'Failed to save certificate PNG.',
       });
+    } finally {
+      setMountExport(false);
+      setIsDownloading(false);
+    }
+  };
+
+  const handleShareImage = async () => {
+    if (isSharing || isDownloading) return;
+    setIsSharing(true);
+    setNotice(null);
+    try {
+      const dataUrl = await renderExportPng();
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      const studentName = isAr ? (selectedCert.studentNameAr || selectedCert.studentName || 'الطالب') : (selectedCert.studentNameEn || 'Student');
-      const courseName = isAr ? (selectedCert.courseNameAr || selectedCert.titleAr || 'المقرر') : (selectedCert.courseNameEn || selectedCert.titleEn || 'Course');
-      const fileName = `شهادة-${studentName}.png`.replace(/\s+/g, '-');
+      const studentName = isAr
+        ? selectedCert.studentNameAr || 'الطالب'
+        : selectedCert.studentNameEn || 'Student';
+      const courseName = isAr
+        ? selectedCert.courseNameAr || selectedCert.titleAr || 'المقرر'
+        : selectedCert.courseNameEn || selectedCert.titleEn || 'Course';
+      const fileName = `certificate-${studentName}.png`.replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '-');
       const file = new File([blob], fileName, { type: 'image/png' });
-      const serialCode = selectedCert.serialId || selectedCert.certNumber || 'MTF-2026';
-      const verifyUrl = selectedCert.verificationUrl || `https://motafawweq.me/verify/${serialCode}`;
       const message = isAr
-        ? `شهادة تقدير وتفوق معتمدة للطالب: *${studentName}*\nفي مقرر: *${courseName}*\nمنصة متفوّق التعليمية 🎓\nرابط التوثيق: ${verifyUrl}`
-        : `Official Certificate of Excellence for: *${studentName}*\nCourse: *${courseName}*\nMotafawweq Platform 🎓\nVerification: ${verifyUrl}`;
+        ? `شهادة تقدير وتفوق معتمدة للطالب: *${studentName}*\nفي مقرر: *${courseName}*\nمنصة متفوّق التعليمية\nرابط التحقق الرسمي: ${liveVerifyUrl}`
+        : `Official Verified Certificate for: *${studentName}*\nCourse: *${courseName}*\nMotafawweq Platform\nVerification: ${liveVerifyUrl}`;
 
-      // 1. Mobile & Web Share API with actual image file
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `شهادة تقدير - ${studentName}`,
-          text: message
+          title: isAr ? `شهادة معتمدة - ${studentName}` : `Certificate - ${studentName}`,
+          text: message,
         });
       } else {
-        // 2. Desktop Fallback: Download PNG image + copy to clipboard + open WhatsApp Web
         const link = document.createElement('a');
         link.download = fileName;
         link.href = dataUrl;
@@ -65,42 +150,29 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
 
         try {
           if (navigator.clipboard && window.ClipboardItem) {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ]);
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
           }
-        } catch (clipErr) {}
+        } catch {
+          // Clipboard image write not supported in all browsers
+        }
 
         window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-        setShareNotice(isAr ? 'تم حفظ صورة الشهادة ونسخها للحافظة للمشاركة المباشرة.' : 'Certificate image saved & copied for direct sharing.');
-        setTimeout(() => setShareNotice(null), 5000);
+        setNotice({
+          type: 'info',
+          text: isAr
+            ? 'تم حفظ صورة الشهادة وفتح رابط المشاركة بنجاح.'
+            : 'Certificate PNG saved and sharing link opened.',
+        });
+        scheduleTimer(() => setNotice(null), 5000);
       }
-    } catch (err) {
-      console.error('WhatsApp image share failed:', err);
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
-  const handleDownloadPng = async () => {
-    if (isDownloading || !exportCertRef.current) return;
-    setIsDownloading(true);
-    try {
-      const dataUrl = await toPng(exportCertRef.current, {
-        pixelRatio: 2.5,
-        cacheBust: true,
-        backgroundColor: '#FFFFFF'
+    } catch {
+      setNotice({
+        type: 'error',
+        text: isAr ? 'تعذر تجهيز الشهادة للمشاركة.' : 'Failed to prepare certificate for sharing.',
       });
-      const link = document.createElement('a');
-      const studentName = isAr ? (selectedCert.studentNameAr || 'الطالب') : (selectedCert.studentNameEn || 'Student');
-      const courseName = isAr ? (selectedCert.courseNameAr || selectedCert.titleAr || 'الشهادة') : (selectedCert.courseNameEn || selectedCert.titleEn || 'Certificate');
-      link.download = `شهادة-${studentName}-${courseName}.png`.replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '-');
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Download PNG failed:', err);
     } finally {
-      setIsDownloading(false);
+      setMountExport(false);
+      setIsSharing(false);
     }
   };
 
@@ -118,7 +190,6 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '20px 16px',
-        animation: 'fadeIn 0.2s ease-out'
       }}
       onClick={onClose}
     >
@@ -137,43 +208,57 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          gap: '18px'
+          gap: '18px',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Modal Chrome Bar */}
-        <div className="certificate-modal-chrome" style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
-          paddingBottom: '14px',
-          direction: isAr ? 'rtl' : 'ltr'
-        }}>
+        {/* Top Modal Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+            paddingBottom: '14px',
+            direction: isAr ? 'rtl' : 'ltr',
+            gap: '12px',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(21, 136, 199, 0.2)',
-              color: 'var(--primary-light)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(21, 136, 199, 0.2)',
+                color: '#7DD3FC',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
               <ShieldCheck size={20} />
             </div>
             <div>
               <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#FFFFFF', margin: 0 }}>
                 {isAr ? 'المعاينة الرسمية للشهادة المعتمدة' : 'Official Certificate Verification Preview'}
               </h3>
-              <div style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '2px', fontFamily: 'var(--font-mono), monospace' }}>
-                {isAr ? `رقم السيريال: ${selectedCert.serialId}` : `Serial: ${selectedCert.serialId}`}
+              <div
+                style={{
+                  fontSize: '11.5px',
+                  color: '#94A3B8',
+                  marginTop: '2px',
+                  fontFamily: 'var(--font-mono), monospace',
+                }}
+              >
+                {isAr ? `رقم السيريال: ${serialId}` : `Serial: ${serialId}`}
               </div>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             aria-label={isAr ? 'إغلاق' : 'Close'}
             style={{
@@ -187,89 +272,89 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
               justifyContent: 'center',
               cursor: 'pointer',
               color: '#CBD5E1',
-              transition: 'background-color 0.15s ease'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.18)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* ── Hidden full-scale certificate for crystal-sharp 1-click PNG image generation ── */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'fixed',
-            left: '-9999px',
-            top: '0',
-            width: '960px',
-            pointerEvents: 'none',
-            zIndex: -1
-          }}
-        >
-          <OfficialCertificateDocument
-            ref={exportCertRef}
-            cert={selectedCert}
-            lang={lang}
-            isExport={true}
-          />
-        </div>
+        {/* Lazy Offscreen Export Canvas */}
+        {mountExport && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: '0',
+              width: '960px',
+              pointerEvents: 'none',
+              zIndex: -1,
+            }}
+          >
+            <OfficialCertificateDocument ref={exportCertRef} cert={selectedCert} lang={lang} isExport={true} />
+          </div>
+        )}
 
         {/* Certificate Rendering Container */}
-        <div style={{
-          overflowX: 'auto',
-          padding: '4px 0',
-          display: 'flex',
-          justifyContent: 'center',
-          width: '100%'
-        }}>
-          <OfficialCertificateDocument
-            cert={selectedCert}
-            lang={lang}
-            className="in-modal-certificate"
-          />
+        <div
+          style={{
+            overflowX: 'auto',
+            padding: '4px 0',
+            display: 'flex',
+            justifyContent: 'center',
+            width: '100%',
+          }}
+        >
+          <OfficialCertificateDocument cert={selectedCert} lang={lang} className="in-modal-certificate" />
         </div>
 
-        {shareNotice && (
-          <div style={{
-            padding: '10px 16px',
-            borderRadius: '10px',
-            backgroundColor: 'rgba(21, 136, 199, 0.15)',
-            border: '1px solid rgba(21, 136, 199, 0.35)',
-            color: 'var(--primary-light)',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            direction: isAr ? 'rtl' : 'ltr'
-          }}>
+        {notice && (
+          <div
+            style={{
+              padding: '10px 16px',
+              borderRadius: '10px',
+              backgroundColor:
+                notice.type === 'error' ? 'rgba(239, 68, 68, 0.18)' : 'rgba(21, 136, 199, 0.18)',
+              border:
+                notice.type === 'error'
+                  ? '1px solid rgba(239, 68, 68, 0.4)'
+                  : '1px solid rgba(21, 136, 199, 0.35)',
+              color: notice.type === 'error' ? '#FCA5A5' : '#BAE6FD',
+              fontSize: '13px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              direction: isAr ? 'rtl' : 'ltr',
+            }}
+          >
             <Check size={16} />
-            <span>{shareNotice}</span>
+            <span>{notice.text}</span>
           </div>
         )}
 
         {/* Bottom Actions Bar */}
-        <div className="certificate-modal-chrome" style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-          paddingTop: '16px',
-          flexWrap: 'wrap',
-          gap: '12px',
-          direction: isAr ? 'rtl' : 'ltr'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderTop: '1px solid rgba(255, 255, 255, 0.12)',
+            paddingTop: '16px',
+            flexWrap: 'wrap',
+            gap: '12px',
+            direction: isAr ? 'rtl' : 'ltr',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Copy Verification Link */}
             <button
+              type="button"
               onClick={handleCopyLink}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '10px 16px',
+                padding: '10px 14px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 color: '#FFFFFF',
@@ -277,24 +362,53 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
                 fontSize: '12.5px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                transition: 'background-color 0.15s ease'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.14)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
             >
               {copied ? <Check size={15} color="#38BDF8" /> : <Copy size={15} />}
-              <span>{copied ? (isAr ? 'تم نسخ رابط التوثيق!' : 'Link Copied!') : (isAr ? 'نسخ رابط التوثيق الرسمي' : 'Copy Verification Link')}</span>
+              <span>
+                {copied
+                  ? isAr
+                    ? 'تم نسخ رابط التحقق!'
+                    : 'Link Copied!'
+                  : isAr
+                    ? 'نسخ رابط التحقق'
+                    : 'Copy Verification Link'}
+              </span>
             </button>
 
-            {/* Share as Image */}
+            {liveVerifyUrl && (
+              <a
+                href={liveVerifyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  color: '#BAE6FD',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  textDecoration: 'none',
+                }}
+              >
+                <ExternalLink size={15} />
+                <span>{isAr ? 'فتح صفحة التحقق' : 'Verify Online'}</span>
+              </a>
+            )}
+
             <button
-              onClick={handleShareWhatsApp}
-              disabled={isSharing}
+              type="button"
+              onClick={handleShareImage}
+              disabled={isSharing || isDownloading}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '10px 16px',
+                padding: '10px 14px',
                 borderRadius: '12px',
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 color: '#FFFFFF',
@@ -303,27 +417,31 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
                 fontWeight: '700',
                 cursor: isSharing ? 'wait' : 'pointer',
                 opacity: isSharing ? 0.7 : 1,
-                transition: 'all 0.15s ease'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.14)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
-              title={isAr ? 'مشاركة صورة الشهادة' : 'Share certificate image'}
             >
               {isSharing ? <Loader2 size={15} className="animate-spin" /> : <Share2 size={15} />}
-              <span>{isSharing ? (isAr ? 'جاري تجهيز الصورة...' : 'Preparing...') : (isAr ? 'مشاركة كصورة' : 'Share Image')}</span>
+              <span>
+                {isSharing
+                  ? isAr
+                    ? 'جاري التجهيز...'
+                    : 'Preparing...'
+                  : isAr
+                    ? 'مشاركة كصورة'
+                    : 'Share Image'}
+              </span>
             </button>
           </div>
 
-          {/* Download PNG & Close */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
+              type="button"
               onClick={handleDownloadPng}
-              disabled={isDownloading}
+              disabled={isDownloading || isSharing}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '10px 22px',
+                padding: '10px 20px',
                 borderRadius: '12px',
                 backgroundColor: 'var(--primary)',
                 color: '#FFFFFF',
@@ -333,27 +451,23 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
                 cursor: isDownloading ? 'wait' : 'pointer',
                 boxShadow: '0 4px 14px rgba(21, 136, 199, 0.4)',
                 opacity: isDownloading ? 0.75 : 1,
-                transition: 'opacity 0.15s ease'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-              title={isAr ? 'حفظ الشهادة كصورة PNG عالية الدقة' : 'Save certificate as high-resolution PNG image'}
             >
               {isDownloading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>{isAr ? 'جاري حفظ الصورة...' : 'Saving Image...'}</span>
+                  <span>{isAr ? 'جاري حفظ الصورة...' : 'Saving...'}</span>
                 </>
               ) : (
                 <>
                   <Download size={16} />
-                  <span>{isAr ? 'حفظ كـ صورة PNG' : 'Save as PNG Image'}</span>
+                  <span>{isAr ? 'حفظ كـ صورة PNG' : 'Save as PNG'}</span>
                 </>
               )}
             </button>
 
             <button
-              className="certificate-modal-btn-close"
+              type="button"
               onClick={onClose}
               style={{
                 padding: '9px 16px',
@@ -363,15 +477,7 @@ export const CertificateModal = ({ selectedCert, onClose, lang = 'ar' }) => {
                 border: '1px solid rgba(255, 255, 255, 0.15)',
                 fontSize: '12.5px',
                 fontWeight: '700',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#FFFFFF';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#94A3B8';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                cursor: 'pointer',
               }}
             >
               {isAr ? 'إغلاق' : 'Close'}

@@ -1,67 +1,106 @@
 import React from 'react';
+import { BookOpen, Users, Type, AlignRight, GraduationCap } from 'lucide-react';
 
 export const StudioLessonConfigCard = ({
   title,
   setTitle,
   description,
   setDescription,
-  subject,
-  setSubject,
-  grade,
-  setGrade,
   classGroup,
   setClassGroup,
+  groups = [],
+  courses = [],
+  selectedCourseId = '',
+  setSelectedCourseId,
+  subject = '',
+  grade = '',
   lang,
-  isRtl
+  isRtl,
 }) => {
-  return (
-    <div style={{
-      backgroundColor: 'var(--bg-surface-elevated)',
-      border: '1px solid var(--border-medium)',
-      borderRadius: 'var(--radius-xl)',
-      padding: '24px',
-      marginBottom: '28px',
-      boxShadow: 'var(--shadow-sm)'
-    }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '16px' }}>
-        {lang === 'ar' ? '1. بيانات الحصة والمجموعة' : '1. Lesson & Class Details'}
-      </h3>
+  const isAr = lang === 'ar';
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+  return (
+    <div
+      style={{
+        backgroundColor: 'var(--bg-surface-elevated)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '22px',
+        boxShadow: 'var(--shadow-sm)',
+        textAlign: isRtl ? 'right' : 'left',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--primary-surface)',
+              color: 'var(--primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '13px',
+              fontWeight: '800',
+            }}
+          >
+            1
+          </div>
+          <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+            {isAr ? 'بيانات الحصة والمقرر' : 'Lesson & Course Details'}
+          </h3>
+        </div>
+
+        {(subject || grade) && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '11px',
+              fontWeight: '700',
+              padding: '3px 9px',
+              borderRadius: '999px',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <GraduationCap size={12} color="var(--primary)" />
+            <span>{[subject, grade].filter(Boolean).join(' • ')}</span>
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {/* Lesson Title */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'عنوان الحصة أو المحاضرة' : 'Lesson Title'}
+        <div>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: '700',
+              color: 'var(--text-secondary)',
+              marginBottom: '6px',
+            }}
+          >
+            <Type size={13} color="var(--primary)" />
+            <span>{isAr ? 'عنوان الحصة أو المحاضرة' : 'Lesson Title'}</span>
+            <span style={{ color: '#EF4444' }}>*</span>
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '14px',
-              fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-latin)'
-            }}
-          />
-        </div>
-
-        {/* Lesson Description */}
-        <div style={{ gridColumn: '1 / -1' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'وصف الحصة ومحاور الشرح (Description)' : 'Lesson Description & Key Topics'}
-          </label>
-          <textarea
-            rows={3}
-            value={description || ''}
-            onChange={(e) => setDescription && setDescription(e.target.value)}
-            placeholder={lang === 'ar' 
-              ? 'اكتب نبذة مختصرة عن أهم النقاط المشروحة في هذه الحصة، وملاحظات المذاكرة لطلابك...' 
-              : 'Add an overview of concepts explained in this lesson and study notes for students...'}
+            placeholder={
+              isAr
+                ? 'مثال: شرح الفصل الأول — الدعامة في الكائنات الحية'
+                : 'e.g., Chapter 1: Support in Living Organisms'
+            }
             style={{
               width: '100%',
               padding: '10px 14px',
@@ -70,46 +109,131 @@ export const StudioLessonConfigCard = ({
               backgroundColor: 'var(--bg-subtle)',
               color: 'var(--text-primary)',
               fontSize: '13.5px',
-              lineHeight: 1.5,
-              resize: 'vertical',
-              fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-latin)'
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+              outline: 'none',
             }}
           />
         </div>
 
-        {/* Subject */}
-        <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'المادة الدراسية' : 'Subject'}
-          </label>
-          <select
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '13.5px'
-            }}
-          >
-            <option value="Biology">{lang === 'ar' ? 'الأحياء' : 'Biology'}</option>
-            <option value="Physics">{lang === 'ar' ? 'الفيزياء' : 'Physics'}</option>
-            <option value="Chemistry">{lang === 'ar' ? 'الكيمياء' : 'Chemistry'}</option>
-            <option value="Mathematics">{lang === 'ar' ? 'الرياضيات' : 'Mathematics'}</option>
-          </select>
+        {/* Course & Study Group Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
+          <div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+              }}
+            >
+              <BookOpen size={13} color="var(--primary)" />
+              <span>{isAr ? 'المقرر الدراسي (الكورس)' : 'Target Course'}</span>
+            </label>
+            <select
+              value={selectedCourseId || ''}
+              onChange={(e) => setSelectedCourseId && setSelectedCourseId(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            >
+              <option value="">{isAr ? '-- بدون ربط بمقرر --' : '-- No Course Linked --'}</option>
+              {courses.map((c) => {
+                const cid = c.uuid || c.id;
+                return (
+                  <option key={cid} value={cid}>
+                    {isAr ? c.titleAr || c.title_ar || c.title : c.titleEn || c.title || c.titleAr}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+              }}
+            >
+              <Users size={13} color="var(--primary)" />
+              <span>{isAr ? 'المجموعة والقاعة' : 'Target Group / Hall'}</span>
+            </label>
+            <select
+              value={classGroup}
+              onChange={(e) => setClassGroup(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            >
+              <option value="">{isAr ? '-- جميع المجموعات --' : '-- All Study Groups --'}</option>
+              {groups.map((grp) => {
+                const val = grp.code || grp.uuid || grp.id;
+                const name = isAr
+                  ? grp.nameAr || grp.name_ar || grp.name || grp.title || grp.code
+                  : grp.nameEn || grp.name || grp.name_en || grp.title || grp.code;
+                const hall = grp.hallName || grp.hall || grp.centerName || grp.center || '';
+                return (
+                  <option key={grp.uuid || grp.id || grp.code} value={val}>
+                    {hall ? `${name} — ${hall}` : name}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </div>
 
-        {/* Grade */}
+        {/* Lesson Description */}
         <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'المرحلة الدراسية' : 'Educational Stage'}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: '700',
+              color: 'var(--text-secondary)',
+              marginBottom: '6px',
+            }}
+          >
+            <AlignRight size={13} color="var(--primary)" />
+            <span>{isAr ? 'وصف الحصة وأهم النقاط' : 'Lesson Overview & Notes'}</span>
           </label>
-          <select
-            value={grade}
-            onChange={(e) => setGrade(e.target.value)}
+          <textarea
+            rows={3}
+            value={description || ''}
+            onChange={(e) => setDescription && setDescription(e.target.value)}
+            placeholder={
+              isAr
+                ? 'اكتب نبذة مختصرة عن أهم النقاط المشروحة في هذه الحصة وملاحظات المذاكرة لطلابك...'
+                : 'Add a short overview of concepts covered in this lesson...'
+            }
             style={{
               width: '100%',
               padding: '10px 14px',
@@ -117,38 +241,14 @@ export const StudioLessonConfigCard = ({
               border: '1px solid var(--border-subtle)',
               backgroundColor: 'var(--bg-subtle)',
               color: 'var(--text-primary)',
-              fontSize: '13.5px'
+              fontSize: '13px',
+              lineHeight: 1.55,
+              resize: 'vertical',
+              boxSizing: 'border-box',
+              outline: 'none',
+              fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-latin)',
             }}
-          >
-            <option value="3rd Secondary">{lang === 'ar' ? 'الصف الثالث الثانوي (ثانوية عامة)' : '3rd Secondary (Thanawya)'}</option>
-            <option value="2nd Secondary">{lang === 'ar' ? 'الصف الثاني الثانوي' : '2nd Secondary'}</option>
-            <option value="1st Secondary">{lang === 'ar' ? 'الصف الأول الثانوي' : '1st Secondary'}</option>
-            <option value="3rd Prep">{lang === 'ar' ? 'الصف الثالث الإعدادي (شهادة إعدادية)' : '3rd Prep'}</option>
-          </select>
-        </div>
-
-        {/* Class Group */}
-        <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            {lang === 'ar' ? 'المجموعة والقاعة' : 'Target Group / Hall'}
-          </label>
-          <select
-            value={classGroup}
-            onChange={(e) => setClassGroup(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-subtle)',
-              color: 'var(--text-primary)',
-              fontSize: '13.5px'
-            }}
-          >
-            <option value="cls-dokki-301">{lang === 'ar' ? 'سنتر الدقي - قاعة النخبة (الأحد 4 عصراً)' : 'Dokki Elite Hall (Sun 4 PM)'}</option>
-            <option value="cls-nasr-302">{lang === 'ar' ? 'سنتر مدينة نصر - قاعة 1 (الثلاثاء 6 مساءً)' : 'Nasr City Hall 1 (Tue 6 PM)'}</option>
-            <option value="cls-online-303">{lang === 'ar' ? 'مجموعة الأونلاين التفاعلية (الجمعة)' : 'Online Interactive Cohort'}</option>
-          </select>
+          />
         </div>
       </div>
     </div>

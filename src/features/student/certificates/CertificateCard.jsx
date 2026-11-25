@@ -1,46 +1,97 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Eye, Download, Copy, Check, Loader2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { OfficialCertificateDocument } from './OfficialCertificateDocument';
 
+function waitForNodeQrReady(node, timeoutMs = 700) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      const qrImg = node?.querySelector('img[alt="QR"]');
+      if (qrImg && typeof qrImg.src === 'string' && qrImg.src.startsWith('data:')) {
+        requestAnimationFrame(() => resolve());
+        return;
+      }
+      if (Date.now() - start >= timeoutMs) {
+        resolve();
+        return;
+      }
+      setTimeout(check, 30);
+    };
+    requestAnimationFrame(check);
+  });
+}
+
 export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [mountExport, setMountExport] = useState(false);
+  const [downloadError, setDownloadError] = useState(null);
   const fullCertRef = useRef(null);
+  const copyTimerRef = useRef(null);
   const isAr = lang === 'ar';
 
-  const isTeacher = cert.issuerType === 'teacher' || cert.category === 'teacher';
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
   const isLeague = cert.issuerType === 'league' || cert.category === 'league';
 
-  const handleCopySerial = (e) => {
-    e.stopPropagation();
-    navigator.clipboard?.writeText(cert.serialId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const handleCopySerial = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (!cert.serialId) return;
+      navigator.clipboard?.writeText(cert.serialId).catch(() => {});
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    },
+    [cert.serialId]
+  );
 
-  const handleDownloadPng = async (e) => {
-    e.stopPropagation();
-    if (isDownloading || !fullCertRef.current) return;
-    setIsDownloading(true);
-    try {
-      const dataUrl = await toPng(fullCertRef.current, {
-        pixelRatio: 2.5,
-        cacheBust: true,
-        backgroundColor: '#FFFFFF'
-      });
-      const link = document.createElement('a');
-      const studentName = isAr ? (cert.studentNameAr || 'الطالب') : (cert.studentNameEn || 'Student');
-      const courseName = isAr ? (cert.courseNameAr || cert.titleAr || 'الشهادة') : (cert.courseNameEn || cert.titleEn || 'Certificate');
-      link.download = `شهادة-${studentName}-${courseName}.png`.replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '-');
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error('Download PNG failed:', err);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+  const handleDownloadPng = useCallback(
+    async (e) => {
+      e.stopPropagation();
+      if (isDownloading) return;
+      setIsDownloading(true);
+      setDownloadError(null);
+      setMountExport(true);
+
+      try {
+        // Wait for React to mount the offscreen export node and generate its offline QR
+        await new Promise((r) => setTimeout(r, 60));
+        if (!fullCertRef.current) {
+          throw new Error('Export canvas not ready');
+        }
+        await waitForNodeQrReady(fullCertRef.current);
+
+        const dataUrl = await toPng(fullCertRef.current, {
+          pixelRatio: 2.2,
+          cacheBust: true,
+          backgroundColor: '#FFFFFF',
+        });
+
+        const link = document.createElement('a');
+        const studentName = isAr ? cert.studentNameAr || 'الطالب' : cert.studentNameEn || 'Student';
+        const courseName = isAr
+          ? cert.courseNameAr || cert.titleAr || 'الشهادة'
+          : cert.courseNameEn || cert.titleEn || 'Certificate';
+        link.download = `certificate-${studentName}-${courseName}.png`
+          .replace(/[/\\?%*:|"<>]/g, '-')
+          .replace(/\s+/g, '-');
+        link.href = dataUrl;
+        link.click();
+      } catch {
+        setDownloadError(isAr ? 'تعذر حفظ صورة الشهادة، حاول مرة أخرى.' : 'Failed to save PNG image.');
+      } finally {
+        setMountExport(false);
+        setIsDownloading(false);
+      }
+    },
+    [cert, isAr, isDownloading]
+  );
 
   return (
     <div
@@ -53,102 +104,67 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: 'all 0.25s ease',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
         position: 'relative',
-        direction: isAr ? 'rtl' : 'ltr'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-3px)';
-        e.currentTarget.style.boxShadow = '0 12px 32px rgba(6, 37, 78, 0.1)';
-        e.currentTarget.style.borderColor = 'rgba(21, 136, 199, 0.35)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'none';
-        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+        direction: isAr ? 'rtl' : 'ltr',
       }}
     >
-      {/* ── Hidden full-scale certificate for crystal-sharp 1-click PNG image generation ── */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          left: '-9999px',
-          top: '0',
-          width: '960px',
-          pointerEvents: 'none',
-          zIndex: -1
-        }}
-      >
-        <OfficialCertificateDocument
-          ref={fullCertRef}
-          cert={cert}
-          lang={lang}
-          isExport={true}
-        />
-      </div>
+      {/* Lazy offscreen export DOM: ONLY mounted while downloading PNG */}
+      {mountExport && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: '0',
+            width: '960px',
+            pointerEvents: 'none',
+            zIndex: -1,
+          }}
+        >
+          <OfficialCertificateDocument ref={fullCertRef} cert={cert} lang={lang} isExport={true} />
+        </div>
+      )}
 
-      {/* ── Visual Certificate Canvas (Clean, Solid, Standing Beautifully) ── */}
+      {/* Visual Certificate Preview Canvas */}
       <div
+        role="button"
+        tabIndex={0}
         onClick={() => onSelectCert(cert)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectCert(cert);
+          }
+        }}
         style={{
           position: 'relative',
           borderRadius: '14px',
           overflow: 'hidden',
           cursor: 'pointer',
-          marginBottom: '12px'
+          marginBottom: '12px',
         }}
         title={isAr ? 'انقر لمعاينة الشهادة وتكبيرها بالكامل' : 'Click to preview full certificate'}
       >
         <OfficialCertificateDocument cert={cert} lang={lang} />
-
-        {/* Hover Overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: 'rgba(6, 37, 78, 0.35)',
-            backdropFilter: 'blur(2px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: 0,
-            transition: 'opacity 0.2s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-          onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
-        >
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 18px',
-            borderRadius: '20px',
-            backgroundColor: '#FFFFFF',
-            color: '#06254E',
-            fontSize: '12px',
-            fontWeight: '900',
-            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.2)'
-          }}>
-            <Eye size={15} color="var(--primary)" />
-            <span>{isAr ? 'معاينة وتكبير الشهادة' : 'Preview & Enlarge'}</span>
-          </div>
-        </div>
       </div>
 
-      {/* ── Card Metrics Summary Chip ── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 12px',
-        backgroundColor: 'rgba(21, 136, 199, 0.05)',
-        border: '1px solid rgba(21, 136, 199, 0.15)',
-        borderRadius: '10px',
-        marginBottom: '12px',
-        fontSize: '11.5px',
-        gap: '8px'
-      }}>
+      {/* Real Metrics Summary Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          backgroundColor: 'rgba(21, 136, 199, 0.05)',
+          border: '1px solid rgba(21, 136, 199, 0.15)',
+          borderRadius: '10px',
+          marginBottom: '12px',
+          fontSize: '11.5px',
+          gap: '8px',
+          flexWrap: 'wrap',
+        }}
+      >
         {isLeague ? (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -156,19 +172,19 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
                 {isAr ? 'المركز:' : 'Rank:'}
               </span>
               <span style={{ color: 'var(--primary)', fontWeight: '900' }}>
-                {isAr ? (cert.rankAr || 'المركز الأول 🥇') : (cert.rankEn || '1st Place 🥇')}
+                {isAr ? cert.rankAr || '—' : cert.rankEn || cert.rankAr || '—'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>
-                {isAr ? 'النقاط:' : 'XP:'}
+                {isAr ? 'النقاط:' : 'Points:'}
               </span>
               <span style={{ color: 'var(--text-primary)', fontWeight: '900' }}>
-                {isAr ? (cert.pointsAr || '3,980') : (cert.pointsEn || '3,980 XP')}
+                {isAr ? cert.pointsAr || '—' : cert.pointsEn || cert.pointsAr || '—'}
               </span>
             </div>
           </>
-        ) : isTeacher ? (
+        ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>
@@ -183,42 +199,38 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
                 {isAr ? 'التقييم:' : 'Score:'}
               </span>
               <span style={{ color: 'var(--text-primary)', fontWeight: '900' }}>
-                {cert.score || '96.5%'}
-              </span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>
-                {isAr ? 'إتمام المادة:' : 'Completion:'}
-              </span>
-              <span style={{ color: 'var(--primary)', fontWeight: '900' }}>
-                {cert.completionRate || '100%'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: '700' }}>
-                {isAr ? 'الامتحانات:' : 'Exams:'}
-              </span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: '900' }}>
-                {cert.score || '98.5%'}
+                {cert.score || '—'}
               </span>
             </div>
           </>
         )}
       </div>
 
-      {/* ── Footer Bar: Serial Number & Action Buttons ── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '8px',
-        flexWrap: 'wrap'
-      }}>
-        {/* Serial Chip */}
+      {downloadError && (
+        <div
+          style={{
+            fontSize: '11.5px',
+            fontWeight: '700',
+            color: 'var(--danger, #DC2626)',
+            marginBottom: '8px',
+          }}
+        >
+          {downloadError}
+        </div>
+      )}
+
+      {/* Footer Bar: Serial Copy + Preview + Save PNG */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          flexWrap: 'wrap',
+        }}
+      >
         <button
+          type="button"
           onClick={handleCopySerial}
           style={{
             display: 'inline-flex',
@@ -232,7 +244,6 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
             fontSize: '11px',
             fontFamily: 'var(--font-mono), monospace',
             cursor: 'pointer',
-            transition: 'all 0.15s ease'
           }}
           title={isAr ? 'نسخ رقم السيريال' : 'Copy Serial Number'}
         >
@@ -240,9 +251,9 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
           <span style={{ fontWeight: '700' }}>{cert.serialId}</span>
         </button>
 
-        {/* Actions: Preview & Save PNG */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
+            type="button"
             onClick={() => onSelectCert(cert)}
             style={{
               display: 'inline-flex',
@@ -256,13 +267,6 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
               fontSize: '12px',
               fontWeight: '800',
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(21, 136, 199, 0.08)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
             <Eye size={14} />
@@ -270,6 +274,7 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
           </button>
 
           <button
+            type="button"
             onClick={handleDownloadPng}
             disabled={isDownloading}
             style={{
@@ -285,10 +290,8 @@ export const CertificateCard = ({ cert, lang = 'ar', onSelectCert }) => {
               fontWeight: '800',
               cursor: isDownloading ? 'wait' : 'pointer',
               opacity: isDownloading ? 0.75 : 1,
-              transition: 'opacity 0.15s ease',
-              boxShadow: '0 2px 8px rgba(21, 136, 199, 0.25)'
+              boxShadow: '0 2px 8px rgba(21, 136, 199, 0.25)',
             }}
-            title={isAr ? 'حفظ الشهادة كصورة PNG عالية الدقة' : 'Save Certificate as high-res PNG image'}
           >
             {isDownloading ? (
               <>

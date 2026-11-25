@@ -1,10 +1,21 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import {
-  FileText, AlignLeft, Map, Folder, HelpCircle,
-  ChevronRight, ChevronLeft, ArrowLeft, ArrowRight, CheckCircle2,
-  BookOpen, X
+  FileText,
+  AlignLeft,
+  Map,
+  Folder,
+  HelpCircle,
+  ChevronRight,
+  ChevronLeft,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  BookOpen,
+  X,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   LessonVideoPlayer,
@@ -17,19 +28,27 @@ import {
   LessonQuestionsTab,
   LessonModals,
   LessonTodayCard,
-  useLesson
+  useLesson,
 } from '../../features/student/lesson';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 
 export const StudentLessonView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
+  const isAr = lang === 'ar';
   const lessonState = useLesson(lang);
 
   const {
+    loadingLesson,
+    switchingLesson,
+    lessonError,
+    retryLoad,
     courseInfo,
     lesson,
     playlist,
+    prevLesson,
+    nextLesson,
+    switchLesson,
     completedCount,
     courseCompletionPct,
     currentCh,
@@ -39,6 +58,8 @@ export const StudentLessonView = () => {
     isPlaying,
     setIsPlaying,
     currentTime,
+    embedSeekSec,
+    embedSeekNonce,
     seekTo,
     seekBy,
     speed,
@@ -52,9 +73,12 @@ export const StudentLessonView = () => {
     isLandscape,
     setIsLandscape,
     isCompleted,
+    isTogglingComplete,
     isBookmarked,
+    isTogglingBookmark,
     showCelebrationModal,
     setShowCelebrationModal,
+    lastEarnedXp,
     lessonChecklist,
     toggleChecklistItem,
     confirmDialog,
@@ -77,17 +101,21 @@ export const StudentLessonView = () => {
     setSelectedGraphNode,
     graphNodes,
     graphEdges,
+    graphCanvas,
     transcriptSearch,
     setTranscriptSearch,
     transcriptSegments,
     notes,
     noteInput,
     setNoteInput,
+    isSavingNote,
     handleAddNote,
+    handleUpdateNote,
     handleDeleteNote,
+    relatedExams,
     questions,
     savedQ,
-    setSavedQ,
+    toggleSavedQuestion,
     revealedA,
     setRevealedA,
     attachments,
@@ -100,36 +128,67 @@ export const StudentLessonView = () => {
     handleBookmarkClick,
     fmt,
     playerRef,
+    mediaElRef,
+    onMediaTimeUpdate,
+    onMediaLoadedMetadata,
     kmRef,
     activeLessonId,
     mobilePlaylistOpen,
-    setMobilePlaylistOpen
+    setMobilePlaylistOpen,
   } = lessonState;
 
-  useSetBreadcrumbs(
-    courseInfo && lesson
-      ? [
-          {
-            labelAr: courseInfo.subjectAr || 'المقررات الدراسية',
-            labelEn: courseInfo.subjectEn || 'Courses',
-            path: '/student/courses'
-          },
-          {
-            labelAr: lesson.titleAr,
-            labelEn: lesson.titleEn || lesson.titleAr
-          }
-        ]
-      : []
+  // Keep fullscreen state strictly in sync even when user exits via Escape
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const fsEl = document.fullscreenElement;
+      setIsPlayerFS(Boolean(fsEl && playerRef.current && fsEl === playerRef.current));
+      setIsKMFS(Boolean(fsEl && kmRef.current && fsEl === kmRef.current));
+      if (!fsEl) {
+        setIsLandscape(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, [playerRef, kmRef, setIsPlayerFS, setIsKMFS, setIsLandscape]);
+
+  const lessonTitleAr = lesson?.titleAr || '';
+  const lessonTitleEn = lesson?.titleEn || lessonTitleAr;
+  const courseSubjectAr = courseInfo?.subjectAr || 'المقررات الدراسية';
+  const courseSubjectEn = courseInfo?.subjectEn || 'Courses';
+
+  const breadcrumbItems = useMemo(
+    () =>
+      lessonTitleAr
+        ? [
+            {
+              labelAr: courseSubjectAr,
+              labelEn: courseSubjectEn,
+              path: '/student/courses',
+            },
+            {
+              labelAr: lessonTitleAr,
+              labelEn: lessonTitleEn,
+            },
+          ]
+        : [],
+    [courseSubjectAr, courseSubjectEn, lessonTitleAr, lessonTitleEn]
   );
 
-  // 5 Clean Tabs
-  const tabs = [
-    { id: 'notes', label: lang === 'ar' ? 'ملاحظات الدرس' : 'Lesson Notes', icon: FileText },
-    { id: 'transcript', label: lang === 'ar' ? 'نص الحصة' : 'Transcript', icon: AlignLeft },
-    { id: 'roadmap', label: lang === 'ar' ? 'خريطة الحصة' : 'Lesson Map', icon: Map },
-    { id: 'materials', label: lang === 'ar' ? 'الملفات' : 'Files', icon: Folder },
-    { id: 'questions', label: lang === 'ar' ? 'الأسئلة' : 'Questions', icon: HelpCircle },
-  ];
+  useSetBreadcrumbs(breadcrumbItems);
+
+  const materialsCount = attachments.length + whiteboardImages.length;
+  const questionsBadgeCount = questions.length + relatedExams.length;
+
+  const tabs = useMemo(
+    () => [
+      { id: 'notes', label: isAr ? 'ملاحظات الدرس' : 'Lesson Notes', icon: FileText, count: notes.length },
+      { id: 'transcript', label: isAr ? 'نص الحصة' : 'Transcript', icon: AlignLeft, count: transcriptSegments.length },
+      { id: 'roadmap', label: isAr ? 'خريطة الحصة' : 'Lesson Map', icon: Map, count: (lesson.chapters || []).length },
+      { id: 'materials', label: isAr ? 'الملفات' : 'Files', icon: Folder, count: materialsCount },
+      { id: 'questions', label: isAr ? 'الأسئلة' : 'Questions', icon: HelpCircle, count: questionsBadgeCount },
+    ],
+    [isAr, notes.length, transcriptSegments.length, lesson.chapters, materialsCount, questionsBadgeCount]
+  );
 
   const toggleLandscape = async () => {
     if (!playerRef.current) return;
@@ -143,7 +202,7 @@ export const StudentLessonView = () => {
         }
         setIsLandscape(true);
       } else {
-        if (document.exitFullscreen) {
+        if (document.fullscreenElement && document.exitFullscreen) {
           await document.exitFullscreen().catch(() => {});
         }
         if (window.screen?.orientation?.unlock) {
@@ -151,8 +210,8 @@ export const StudentLessonView = () => {
         }
         setIsLandscape(false);
       }
-    } catch (e) {
-      setIsLandscape(!isLandscape);
+    } catch {
+      setIsLandscape((v) => !v);
     }
   };
 
@@ -161,13 +220,11 @@ export const StudentLessonView = () => {
     try {
       if (!document.fullscreenElement) {
         await playerRef.current.requestFullscreen();
-        setIsPlayerFS(true);
       } else {
         await document.exitFullscreen();
-        setIsPlayerFS(false);
       }
-    } catch (e) {
-      setIsPlayerFS(!isPlayerFS);
+    } catch {
+      setIsPlayerFS((v) => !v);
     }
   };
 
@@ -176,65 +233,89 @@ export const StudentLessonView = () => {
     try {
       if (!document.fullscreenElement) {
         await kmRef.current.requestFullscreen();
-        setIsKMFS(true);
       } else {
         await document.exitFullscreen();
-        setIsKMFS(false);
       }
-    } catch (e) {
-      setIsKMFS(!isKMFS);
+    } catch {
+      setIsKMFS((v) => !v);
     }
   };
 
   const handleSummaryClick = () => {
+    const firstPdf = attachments[0];
+    if (!firstPdf) return;
     triggerConfirm({
-      title: lang === 'ar' ? 'تأكيد تحميل ملخص الحصة' : 'Download Summary PDF',
-      message: lang === 'ar'
-        ? `هل تريد بدء تحميل ملخص المحاضرة الشامل بصيغة PDF (${courseInfo.summaryPdf})؟`
-        : 'Do you want to download the comprehensive lesson summary PDF?',
-      confirmText: lang === 'ar' ? 'نعم، ابدأ التحميل' : 'Yes, Download',
+      title: isAr ? 'تأكيد تحميل ملخص الحصة' : 'Download Summary PDF',
+      message: isAr
+        ? `هل تريد بدء تحميل ملف "${firstPdf.titleAr || 'ملخص الحصة'}"؟`
+        : `Do you want to download "${firstPdf.titleAr || 'Lesson Summary PDF'}"?`,
+      confirmText: isAr ? 'نعم، ابدأ التحميل' : 'Yes, Download',
       confirmColor: 'primary',
-      onConfirm: () => handleDL({ id: 'summary', titleAr: courseInfo.summaryPdf })
+      onConfirm: () => handleDL(firstPdf),
     });
   };
 
   const handleAttachmentDownloadClick = (att) => {
     triggerConfirm({
-      title: lang === 'ar' ? `تحميل ملف: ${att.titleAr}` : `Download: ${att.titleAr}`,
-      message: lang === 'ar'
-        ? `هل تريد تحميل ملف "${att.titleAr}" (${att.size} • ${att.pages}) إلى جهازك؟`
-        : `Download "${att.titleAr}" (${att.size})?`,
-      confirmText: lang === 'ar' ? 'بدء التنزيل' : 'Download Now',
+      title: isAr ? `تحميل ملف: ${att.titleAr}` : `Download: ${att.titleAr}`,
+      message: isAr
+        ? `هل تريد تحميل ملف "${att.titleAr}" (${att.size || ''}${att.pages ? ` • ${att.pages}` : ''}) إلى جهازك؟`
+        : `Download "${att.titleAr}" (${att.size || ''})?`,
+      confirmText: isAr ? 'بدء التنزيل' : 'Download Now',
       confirmColor: 'emerald',
-      onConfirm: () => handleDL(att)
+      onConfirm: () => handleDL(att),
     });
   };
 
   const handleSaveQuestionClick = (q) => {
-    const isSaved = savedQ[q.id];
+    const isSaved = Boolean(savedQ[q.id]);
     triggerConfirm({
-      title: isSaved ? (lang === 'ar' ? 'إلغاء حفظ السؤال' : 'Unsave Question') : (lang === 'ar' ? 'حفظ السؤال للمراجعة' : 'Save Question'),
+      title: isSaved
+        ? isAr
+          ? 'إلغاء حفظ السؤال'
+          : 'Unsave Question'
+        : isAr
+          ? 'حفظ السؤال للمراجعة'
+          : 'Save Question',
       message: isSaved
-        ? (lang === 'ar' ? 'هل تريد إزالة هذا السؤال من بنك أسئلتك المحفوظة؟' : 'Remove this question from saved list?')
-        : (lang === 'ar' ? 'سيتم حفظ هذا السؤال في بنك أسئلتك المخصصة للتدريب الذكي قبل الامتحانات.' : 'Save this question to your practice bank?'),
-      confirmText: isSaved ? (lang === 'ar' ? 'نعم، إزالة' : 'Remove') : (lang === 'ar' ? 'تأكيد الحفظ' : 'Save'),
+        ? isAr
+          ? 'هل تريد إزالة هذا السؤال من قائمة أسئلتك المحفوظة؟'
+          : 'Remove this question from saved list?'
+        : isAr
+          ? 'سيتم حفظ هذا السؤال في قائمتك المخصصة للمراجعة السريعة قبل الامتحانات.'
+          : 'Save this question to your revision list?',
+      confirmText: isSaved ? (isAr ? 'نعم، إزالة' : 'Remove') : isAr ? 'تأكيد الحفظ' : 'Save',
       confirmColor: isSaved ? 'amber' : 'emerald',
-      onConfirm: () => setSavedQ(p => ({ ...p, [q.id]: !p[q.id] }))
+      onConfirm: () => toggleSavedQuestion(q.id),
     });
   };
 
   const handleToggleMasteredClick = (ch) => {
-    const isMastered = !!masteredConcepts[ch.id];
+    const isMastered = Boolean(masteredConcepts[ch.id]);
     triggerConfirm({
       title: isMastered
-        ? (lang === 'ar' ? 'إلغاء تأكيد استيعاب المفهوم' : 'Unmark Concept')
-        : (lang === 'ar' ? `تأكيد استيعاب: ${ch.titleAr}` : 'Confirm Concept Mastery'),
+        ? isAr
+          ? 'إلغاء تأكيد استيعاب المحطة'
+          : 'Unmark Chapter'
+        : isAr
+          ? `تأكيد استيعاب: ${ch.titleAr}`
+          : 'Confirm Chapter Mastery',
       message: isMastered
-        ? (lang === 'ar' ? 'هل تريد إرجاع هذا المفهوم إلى قائمة المفاهيم الجاري مراجعتها؟' : 'Revert this concept to review status?')
-        : (lang === 'ar' ? 'سيتم تسجيل هذا المفهوم ضمن المفاهيم المتقنة في سجلك التعليمي لرفع نسبة التحصيل.' : 'Mark this concept as mastered in your learning report?'),
-      confirmText: isMastered ? (lang === 'ar' ? 'نعم، إلغاء التأكيد' : 'Unmark') : (lang === 'ar' ? 'نعم، أتقنت المفهوم' : 'Confirm Mastery'),
+        ? isAr
+          ? 'هل تريد إرجاع هذه المحطة إلى قائمة المحطات الجاري مراجعتها؟'
+          : 'Revert this chapter to review status?'
+        : isAr
+          ? 'سيتم تسجيل هذه المحطة ضمن المفاهيم المتقنة في خطة مذاكرتك.'
+          : 'Mark this chapter as mastered in your study plan?',
+      confirmText: isMastered
+        ? isAr
+          ? 'نعم، إلغاء التأكيد'
+          : 'Unmark'
+        : isAr
+          ? 'نعم، أتقنت المحطة'
+          : 'Confirm Mastery',
       confirmColor: isMastered ? 'amber' : 'emerald',
-      onConfirm: () => toggleConceptMastered(ch.id)
+      onConfirm: () => toggleConceptMastered(ch.id),
     });
   };
 
@@ -246,7 +327,9 @@ export const StudentLessonView = () => {
             notes={notes}
             noteInput={noteInput}
             setNoteInput={setNoteInput}
+            isSavingNote={isSavingNote}
             handleAddNote={handleAddNote}
+            handleUpdateNote={handleUpdateNote}
             handleDeleteNote={handleDeleteNote}
             seekTo={seekTo}
             currentTime={currentTime}
@@ -287,6 +370,7 @@ export const StudentLessonView = () => {
             setSelectedGraphNode={setSelectedGraphNode}
             graphNodes={graphNodes}
             graphEdges={graphEdges}
+            graphCanvas={graphCanvas}
             seekTo={seekTo}
             setIsPlaying={setIsPlaying}
             fmt={fmt}
@@ -306,6 +390,7 @@ export const StudentLessonView = () => {
       case 'questions':
         return (
           <LessonQuestionsTab
+            relatedExams={relatedExams}
             questions={questions}
             savedQ={savedQ}
             handleSaveQuestionClick={handleSaveQuestionClick}
@@ -319,36 +404,217 @@ export const StudentLessonView = () => {
     }
   };
 
+  if (loadingLesson) {
+    return (
+      <div className="lv">
+        <div className="lv-layout">
+          <div className="lv-content">
+            <div className="lv-skeleton-player" />
+            <div className="lv-skeleton-bar" style={{ width: '60%', height: '26px' }} />
+            <div className="lv-skeleton-bar" style={{ width: '40%', height: '16px' }} />
+          </div>
+          <aside className="lv-sidebar">
+            <div className="lv-skeleton-card" style={{ height: '190px' }} />
+            <div className="lv-skeleton-card" style={{ height: '320px' }} />
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  if (lessonError && playlist.length === 0 && !lesson?.titleAr) {
+    return (
+      <div
+        style={{
+          maxWidth: '640px',
+          margin: '48px auto',
+          padding: '40px 24px',
+          textAlign: 'center',
+          borderRadius: '20px',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid rgba(220, 38, 38, 0.3)',
+          fontFamily: 'var(--font-arabic)',
+        }}
+      >
+        <AlertCircle size={38} color="#DC2626" style={{ marginBottom: '12px' }} />
+        <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+          {isAr ? 'تعذر تحميل الحصة الدراسية' : 'Unable to Load Lesson'}
+        </h2>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px' }}>
+          {lessonError}
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={retryLoad}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 20px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '13px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <RefreshCw size={15} />
+            <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/student/courses')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+            }}
+          >
+            {isAr ? 'العودة للمقررات' : 'Back to Courses'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loadingLesson && playlist.length === 0 && !lesson?.titleAr) {
+    return (
+      <div
+        style={{
+          maxWidth: '720px',
+          margin: '48px auto',
+          padding: '48px 24px',
+          textAlign: 'center',
+          borderRadius: '20px',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px dashed var(--border-subtle)',
+          color: 'var(--text-secondary)',
+          fontFamily: 'var(--font-arabic)',
+        }}
+      >
+        <BookOpen size={40} color="var(--primary)" style={{ marginBottom: '12px', opacity: 0.7 }} />
+        <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 8px' }}>
+          {isAr ? 'لا توجد حصص متاحة للمشاهدة حالياً' : 'No Lessons Available Yet'}
+        </h2>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 20px' }}>
+          {isAr
+            ? 'انضم إلى مجموعة دراسية بكود المعلم أو استعرض المقررات المتاحة لتظهر حصصك هنا.'
+            : 'Join a study group or browse available courses to access lessons here.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/student/courses')}
+          style={{
+            padding: '10px 22px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--primary)',
+            color: '#FFFFFF',
+            border: 'none',
+            fontSize: '13.5px',
+            fontWeight: '800',
+            cursor: 'pointer',
+          }}
+        >
+          {isAr ? 'الذهاب إلى المقررات' : 'Go to Courses'}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="lv">
       {/* Feedback Toast */}
       {dlToast && (
-        <div className="lv-toast">
+        <div className="lv-toast" role="status" aria-live="polite">
           <CheckCircle2 size={16} />
           <span>{dlToast}</span>
+        </div>
+      )}
+
+      {/* Non-blocking Error Banner when switching fails */}
+      {lessonError && (
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            padding: '10px 14px',
+            marginBottom: '12px',
+            borderRadius: '12px',
+            backgroundColor: 'rgba(220, 38, 38, 0.08)',
+            border: '1px solid rgba(220, 38, 38, 0.3)',
+            color: '#DC2626',
+            fontSize: '12.5px',
+            fontWeight: '700',
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            {lessonError}
+          </span>
+          <button
+            type="button"
+            onClick={retryLoad}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '7px',
+              border: '1px solid rgba(220, 38, 38, 0.35)',
+              backgroundColor: 'var(--bg-surface)',
+              color: '#DC2626',
+              fontSize: '11.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            {isAr ? 'إعادة المحاولة' : 'Retry'}
+          </button>
         </div>
       )}
 
       {/* BREADCRUMB BAR */}
       <div className="lv-top-bar">
         <nav className="lv-crumb" aria-label="Breadcrumb">
-          <button className="lv-crumb-link" onClick={() => navigate('/student/courses')}>
-            {lang === 'ar' ? 'مقرراتي (حصصي)' : 'My Courses'}
+          <button
+            type="button"
+            className="lv-crumb-link"
+            onClick={() => navigate('/student/courses')}
+          >
+            {isAr ? 'مقرراتي (حصصي)' : 'My Courses'}
           </button>
-          {isRtl ? <ChevronLeft size={13} className="lv-crumb-sep" /> : <ChevronRight size={13} className="lv-crumb-sep" />}
+          {isRtl ? (
+            <ChevronLeft size={13} className="lv-crumb-sep" />
+          ) : (
+            <ChevronRight size={13} className="lv-crumb-sep" />
+          )}
           <span className="lv-crumb-item">{courseInfo.subjectAr}</span>
-          {isRtl ? <ChevronLeft size={13} className="lv-crumb-sep" /> : <ChevronRight size={13} className="lv-crumb-sep" />}
+          {isRtl ? (
+            <ChevronLeft size={13} className="lv-crumb-sep" />
+          ) : (
+            <ChevronRight size={13} className="lv-crumb-sep" />
+          )}
           <span className="lv-crumb-current">{lesson.titleAr}</span>
         </nav>
       </div>
 
-      {/* WORKSPACE GRID (2-Column Layout: Main Content + Sticky Playlist Sidebar) */}
-      <div className="lv-layout">
-        {/* MAIN COLUMN: Video Player + Actions + Tabs */}
+      {/* WORKSPACE GRID */}
+      <div className="lv-layout" style={{ opacity: switchingLesson ? 0.72 : 1, transition: 'opacity 0.2s ease' }}>
+        {/* MAIN COLUMN */}
         <main className="lv-content">
-          {/* Video / Audio Player Container */}
           <LessonVideoPlayer
             playerRef={playerRef}
+            mediaElRef={mediaElRef}
+            onMediaTimeUpdate={onMediaTimeUpdate}
+            onMediaLoadedMetadata={onMediaLoadedMetadata}
             lesson={lesson}
             courseInfo={courseInfo}
             currentCh={currentCh}
@@ -357,6 +623,8 @@ export const StudentLessonView = () => {
             isPlaying={isPlaying}
             setIsPlaying={setIsPlaying}
             currentTime={currentTime}
+            embedSeekSec={embedSeekSec}
+            embedSeekNonce={embedSeekNonce}
             seekTo={seekTo}
             seekBy={seekBy}
             speed={speed}
@@ -374,19 +642,23 @@ export const StudentLessonView = () => {
             lang={lang}
           />
 
-          {/* Lesson Header Details & Actions */}
           <LessonHeaderActions
             lesson={lesson}
             courseInfo={courseInfo}
+            hasSummaryPdf={attachments.length > 0}
             isCompleted={isCompleted}
+            isTogglingComplete={isTogglingComplete}
             isBookmarked={isBookmarked}
+            isTogglingBookmark={isTogglingBookmark}
+            prevLesson={prevLesson}
+            nextLesson={nextLesson}
+            onSelectLesson={handlePlaylistLessonClick}
             handleCompleteButtonClick={handleCompleteButtonClick}
             handleSummaryClick={handleSummaryClick}
             handleBookmarkClick={handleBookmarkClick}
             lang={lang}
           />
 
-          {/* Mobile "درس اليوم" Card with Live Sync Timer & Checklist */}
           <LessonTodayCard
             className="mobile-only"
             lessonChecklist={lessonChecklist}
@@ -394,12 +666,12 @@ export const StudentLessonView = () => {
             progress={progress}
             isCompleted={isCompleted}
             currentTime={currentTime}
+            durationSec={lesson.durationSec}
             durationFmt={lesson.durationFmt}
             fmt={fmt}
             lang={lang}
           />
 
-          {/* Mobile In-flow Course Playlist Card (Never overlaps content) */}
           <button
             type="button"
             className="lv-mobile-playlist-card mobile-only"
@@ -411,10 +683,12 @@ export const StudentLessonView = () => {
               </div>
               <div className="lv-mobile-playlist-card__text">
                 <span className="lv-mobile-playlist-card__title">
-                  {lang === 'ar' ? 'فهرس حصص المنهج ومحتوى الدورة' : 'Course Modules & Lessons'}
+                  {isAr ? 'فهرس حصص المنهج ومحتوى الدورة' : 'Course Modules & Lessons'}
                 </span>
                 <span className="lv-mobile-playlist-card__sub">
-                  {lang === 'ar' ? `${completedCount} من ${playlist.length} حصص مكتملة` : `${completedCount} of ${playlist.length} completed`}
+                  {isAr
+                    ? `${completedCount} من ${playlist.length} حصص مكتملة`
+                    : `${completedCount} of ${playlist.length} completed`}
                 </span>
               </div>
             </div>
@@ -424,15 +698,16 @@ export const StudentLessonView = () => {
             </div>
           </button>
 
-          {/* Tabs Navigation & Content */}
+          {/* 5 Workspace Tabs */}
           <div className="lv-tabs">
             <div className="lv-tabs__header" role="tablist">
-              {tabs.map(t => {
+              {tabs.map((t) => {
                 const Icon = t.icon;
                 const isActive = activeTab === t.id;
                 return (
                   <button
                     key={t.id}
+                    type="button"
                     role="tab"
                     aria-selected={isActive}
                     className={`lv-tabs__btn ${isActive ? 'active' : ''}`}
@@ -445,19 +720,32 @@ export const StudentLessonView = () => {
                   >
                     <Icon size={16} />
                     <span>{t.label}</span>
+                    {t.count > 0 && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: '800',
+                          padding: '1px 6px',
+                          borderRadius: '999px',
+                          backgroundColor: isActive
+                            ? 'rgba(255,255,255,0.22)'
+                            : 'var(--bg-subtle)',
+                          color: isActive ? 'inherit' : 'var(--text-muted)',
+                        }}
+                      >
+                        {t.count}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
 
-            {/* Inline Tabs Body */}
-            <div className="lv-tabs__body">
-              {renderTabContent(activeTab)}
-            </div>
+            <div className="lv-tabs__body">{renderTabContent(activeTab)}</div>
           </div>
         </main>
 
-        {/* RIGHT COLUMN: Course Playlist Sidebar */}
+        {/* RIGHT SIDEBAR */}
         <aside className="lv-sidebar">
           <LessonPlaylistSidebar
             courseInfo={courseInfo}
@@ -468,6 +756,7 @@ export const StudentLessonView = () => {
             isCompleted={isCompleted}
             progress={progress}
             currentTime={currentTime}
+            durationSec={lesson.durationSec}
             durationFmt={lesson.durationFmt}
             fmt={fmt}
             lessonChecklist={lessonChecklist}
@@ -482,22 +771,26 @@ export const StudentLessonView = () => {
       {/* MOBILE FLOATING PLAYLIST TRIGGER */}
       <div className="lv-mobile-bar mobile-only">
         <button
+          type="button"
           className="lv-mobile-bar__btn"
           onClick={() => setMobilePlaylistOpen(true)}
         >
           <BookOpen size={16} />
-          <span>{lang === 'ar' ? 'محتوى الدورة' : 'Course Content'}</span>
+          <span>{isAr ? 'محتوى الدورة' : 'Course Content'}</span>
           <span className="lv-mobile-bar__count">{courseCompletionPct}%</span>
         </button>
       </div>
 
-      {/* Modals: Confirmation, Celebration, Mobile Drawer */}
+      {/* Modals */}
       <LessonModals
         confirmDialog={confirmDialog}
         setConfirmDialog={setConfirmDialog}
         handleConfirmAction={handleConfirmAction}
         showCelebrationModal={showCelebrationModal}
         setShowCelebrationModal={setShowCelebrationModal}
+        lastEarnedXp={lastEarnedXp}
+        nextLesson={nextLesson}
+        onGoToNextLesson={switchLesson}
         courseInfo={courseInfo}
         mobilePlaylistOpen={mobilePlaylistOpen}
         setMobilePlaylistOpen={setMobilePlaylistOpen}
@@ -516,15 +809,15 @@ export const StudentLessonView = () => {
               type="button"
               className="lv-mobile-subpage__back-btn"
               onClick={() => setMobileSubpage(null)}
-              title={lang === 'ar' ? 'العودة للحصة' : 'Back to Lesson'}
+              title={isAr ? 'العودة للحصة' : 'Back to Lesson'}
             >
               {isRtl ? <ArrowRight size={17} /> : <ArrowLeft size={17} />}
-              <span>{lang === 'ar' ? 'العودة للحصة' : 'Back to Lesson'}</span>
+              <span>{isAr ? 'العودة للحصة' : 'Back to Lesson'}</span>
             </button>
 
             <div className="lv-mobile-subpage__title">
               {(() => {
-                const currentT = tabs.find(t => t.id === mobileSubpage);
+                const currentT = tabs.find((t) => t.id === mobileSubpage);
                 if (!currentT) return null;
                 const TabIcon = currentT.icon;
                 return (
@@ -540,14 +833,15 @@ export const StudentLessonView = () => {
               type="button"
               className="lv-mobile-subpage__close-btn"
               onClick={() => setMobileSubpage(null)}
-              title={lang === 'ar' ? 'إغلاق' : 'Close'}
+              title={isAr ? 'إغلاق' : 'Close'}
+              aria-label={isAr ? 'إغلاق' : 'Close'}
             >
               <X size={18} />
             </button>
           </div>
 
           <div className="lv-mobile-subpage__pills">
-            {tabs.map(t => {
+            {tabs.map((t) => {
               const Icon = t.icon;
               const isActive = mobileSubpage === t.id;
               return (
@@ -567,9 +861,7 @@ export const StudentLessonView = () => {
             })}
           </div>
 
-          <div className="lv-mobile-subpage__body">
-            {renderTabContent(mobileSubpage)}
-          </div>
+          <div className="lv-mobile-subpage__body">{renderTabContent(mobileSubpage)}</div>
         </div>
       )}
     </div>

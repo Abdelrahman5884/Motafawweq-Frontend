@@ -1,195 +1,200 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import confetti from 'canvas-confetti';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
-import { COURSES_CATALOG, MINISTRY_CURRICULUM } from '../../data/studentData';
 import {
   Search,
   CheckCircle2,
   X,
+  Layers,
+  AlertCircle,
+  RefreshCw,
+  ArrowUpDown,
+  Users,
+  Sparkles,
+  Landmark,
   GraduationCap,
-  Users
 } from 'lucide-react';
 import { SPage } from '../../components/student/ui';
 import {
   MinistryCurriculumCard,
   TeacherCourseCard,
-  CurriculumDetailModal
+  CurriculumDetailModal,
+  CourseEnrollModal,
+  useStudentCourses,
 } from '../../features/student/courses';
 
 export const StudentCoursesView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
+  const isAr = lang === 'ar';
 
-  // Category Tab: 'ministry' (مقررات وزارة التربية والتعليم) | 'teachers' (حصص وكورسات المعلمين)
-  const [activeCategory, setActiveCategory] = useState('ministry');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCurriculumModal, setSelectedCurriculumModal] = useState(null);
+  const [selectedCurriculumCode, setSelectedCurriculumCode] = useState('');
 
-  const categoryLabels = {
-    ministry: { ar: 'مقررات الوزارة المطورة', en: 'Ministry Curriculum' },
-    teachers: { ar: 'كورسات وحصص المعلمين', en: 'Teacher Courses' }
-  };
+  const {
+    coursesCatalog,
+    filteredCourses,
+    loadingCourses,
+    coursesError,
+    ministryCurricula,
+    filteredMinistryCurricula,
+    loadingMinistry,
+    ministryError,
+    selectedMinistryGrade,
+    setSelectedMinistryGrade,
+    resolvedMinistryGrade,
+    availableMinistryGrades,
+    toggleMinistryUnit,
+    togglingUnitKey,
+    refreshCourses,
+    stats,
+    subjectOptions,
+    activeTab,
+    setActiveTab,
+    selectedSubject,
+    setSelectedSubject,
+    sortBy,
+    setSortBy,
+    searchQuery,
+    setSearchQuery,
+    hasActiveFilters,
+    resetFilters,
+    enrollTargetCourse,
+    setEnrollTargetCourse,
+    submitEnrollment,
+    toast,
+  } = useStudentCourses(lang);
 
-  useSetBreadcrumbs(
-    categoryLabels[activeCategory]
-      ? [
-          {
-            labelAr: categoryLabels[activeCategory].ar,
-            labelEn: categoryLabels[activeCategory].en,
-            onClick: () => setActiveCategory('ministry')
-          }
-        ]
-      : []
+  const selectedCurriculumModal = useMemo(
+    () => ministryCurricula.find((item) => item.code === selectedCurriculumCode) || null,
+    [ministryCurricula, selectedCurriculumCode]
   );
 
-  // Local state for enrolled courses
-  const [enrolledCourses, setEnrolledCourses] = useState(() => {
-    const initial = {};
-    COURSES_CATALOG.forEach(c => {
-      if (c.isEnrolled) initial[c.id] = true;
-    });
-    return initial;
-  });
+  const breadcrumbs = useMemo(
+    () => [
+      {
+        labelAr: 'المقررات الدراسية',
+        labelEn: 'Courses & Curriculum',
+      },
+    ],
+    []
+  );
+  useSetBreadcrumbs(breadcrumbs);
 
-  const [enrollToast, setEnrollToast] = useState(null);
+  const handleOpenCourse = useCallback(
+    (course) => {
+      if (course.nextLessonId) {
+        navigate(
+          `/student/lesson?id=${encodeURIComponent(course.nextLessonId)}&courseId=${encodeURIComponent(course.id)}`
+        );
+      } else {
+        navigate(`/student/lesson?courseId=${encodeURIComponent(course.id)}`);
+      }
+    },
+    [navigate]
+  );
 
-  const handleEnroll = (course) => {
-    setEnrolledCourses(prev => ({ ...prev, [course.id]: true }));
-    try {
-      confetti({
-        particleCount: 70,
-        spread: 60,
-        origin: { y: 0.65 }
-      });
-    } catch (e) {
-      // ignore
-    }
+  const handleTakeMinistryExam = useCallback(
+    (item) => {
+      if (item?.examCode) {
+        navigate(`/student/exam?source=ministry&examCode=${encodeURIComponent(item.examCode)}`);
+      } else {
+        navigate('/student/exam?source=ministry');
+      }
+    },
+    [navigate]
+  );
 
-    setEnrollToast(course.titleAr);
-    setTimeout(() => {
-      setEnrollToast(null);
-    }, 4000);
-  };
+  const tabs = useMemo(
+    () => [
+      { id: 'all', ar: 'الكل', en: 'All', count: stats.totalCount },
+      { id: 'ministry', ar: 'مقررات وزارة التربية والتعليم', en: 'Ministry Curricula', count: stats.ministryCount, highlight: true },
+      { id: 'enrolled', ar: 'مقرراتي المسجّلة', en: 'My Enrolled', count: stats.enrolledCount },
+      { id: 'pending', ar: 'قيد المراجعة', en: 'Pending', count: stats.pendingCount },
+      { id: 'discover', ar: 'استكشاف الكورسات', en: 'Discover', count: stats.discoverCount },
+    ],
+    [stats.totalCount, stats.ministryCount, stats.enrolledCount, stats.pendingCount, stats.discoverCount]
+  );
 
-  // Filter Ministry curriculum
-  const filteredMinistry = MINISTRY_CURRICULUM.filter(item => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      item.titleAr.toLowerCase().includes(q) ||
-      item.subjectAr.toLowerCase().includes(q) ||
-      item.gradeAr.toLowerCase().includes(q)
-    );
-  });
-
-  // Filter Teacher courses
-  const filteredTeacherCourses = COURSES_CATALOG.filter(course => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      course.titleAr.toLowerCase().includes(q) ||
-      course.subjectAr.toLowerCase().includes(q) ||
-      course.teacher.nameAr.toLowerCase().includes(q)
-    );
-  });
+  const showMinistrySection = activeTab === 'all' || activeTab === 'ministry';
+  const showTeacherSection = activeTab !== 'ministry';
+  const combinedError = coursesError || ministryError;
+  const isInitialLoading = (showTeacherSection && loadingCourses) || (activeTab === 'ministry' && loadingMinistry);
 
   return (
-    <SPage maxWidth={1120}>
-      <style>{`
-        @keyframes tabFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes modalFadeIn {
-          from { opacity: 0; transform: scale(0.96) translateY(8px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .clean-course-card {
-          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-        }
-        .clean-course-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
-          border-color: var(--border-medium);
-        }
-        .clean-btn {
-          transition: all 0.15s ease;
-        }
-        .clean-btn:hover {
-          opacity: 0.92;
-          transform: translateY(-1px);
-        }
-        .clean-btn:active {
-          transform: translateY(0);
-        }
-      `}</style>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'var(--font-arabic, sans-serif)' }}>
-        {/* Toast Notification */}
-        {enrollToast && (
-          <div style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: 'var(--success)',
-            color: '#FFFFFF',
-            padding: '12px 22px',
-            borderRadius: '12px',
-            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.35)',
-            zIndex: 99999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            fontSize: '13.5px',
-            fontWeight: '700',
-            animation: 'modalFadeIn 0.2s ease'
-          }}>
-            <CheckCircle2 size={18} />
-            <span>تم التسجيل بنجاح في: {enrollToast}</span>
+    <SPage maxWidth={1180}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '22px',
+          fontFamily: 'var(--font-arabic, sans-serif)',
+          minWidth: 0,
+        }}
+      >
+        {/* Toast Feedback Banner */}
+        {toast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              maxWidth: 'min(92vw, 500px)',
+              backgroundColor: toast.type === 'warning' ? '#B45309' : '#059669',
+              color: '#FFFFFF',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              boxShadow: '0 12px 32px rgba(4, 25, 53, 0.3)',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '13px',
+              fontWeight: '700',
+              lineHeight: 1.5,
+              overflowWrap: 'anywhere',
+            }}
+          >
+            <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+            <span>{toast.message}</span>
           </div>
         )}
 
-        {/* Clean Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          paddingBottom: '20px',
-          borderBottom: '1px solid var(--border-subtle)'
-        }}>
+        {/* Header + Search */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+            paddingBottom: '18px',
+            borderBottom: '1px solid var(--border-subtle)',
+          }}
+        >
           <div>
-            <h1 style={{
-              fontSize: '24px',
-              fontWeight: '800',
-              color: 'var(--text-primary)',
-              margin: '0 0 6px 0',
-              letterSpacing: '-0.01em'
-            }}>
-              {lang === 'ar' ? 'المقررات الدراسية' : 'Curriculum & Courses'}
+            <h1
+              style={{
+                fontSize: '24px',
+                fontWeight: '900',
+                color: 'var(--text-primary)',
+                margin: '0 0 6px 0',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {isAr ? 'المقررات الدراسية والكورسات' : 'Courses & Ministry Curricula'}
             </h1>
-            <p style={{
-              fontSize: '13.5px',
-              color: 'var(--text-secondary)',
-              margin: 0,
-              lineHeight: 1.5
-            }}>
-              {lang === 'ar'
-                ? 'مناهج وزارة التربية والتعليم الرسمية، وباقات وحصص كبار معلمي الجمهورية'
-                : 'Official Ministry of Education curriculum and top registered teacher courses'}
+            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+              {isAr
+                ? 'تابع مقررات وزارة التربية والتعليم المعتمدة وكورسات معلميك المسجّلة في مكان واحد'
+                : 'Follow official Ministry of Education curricula alongside your enrolled teacher courses'}
             </p>
           </div>
 
-          {/* Quick Search */}
-          <div style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: '320px'
-          }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '330px' }}>
             <Search
               size={16}
               style={{
@@ -197,32 +202,36 @@ export const StudentCoursesView = () => {
                 top: '50%',
                 transform: 'translateY(-50%)',
                 insetInlineStart: '12px',
-                color: 'var(--text-muted)'
+                color: 'var(--text-muted)',
               }}
             />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={lang === 'ar' ? 'بحث في المقرارات أو المعلمين...' : 'Search curriculum or teacher...'}
+              placeholder={
+                isAr ? 'بحث في مقررات الوزارة أو الكورسات أو المعلمين...' : 'Search Ministry curricula, courses, teachers...'
+              }
               style={{
                 width: '100%',
-                height: '40px',
-                paddingInlineStart: '36px',
-                paddingInlineEnd: searchQuery ? '32px' : '12px',
-                borderRadius: '10px',
+                height: '42px',
+                paddingInlineStart: '38px',
+                paddingInlineEnd: searchQuery ? '34px' : '12px',
+                borderRadius: '11px',
                 border: '1px solid var(--border-subtle)',
                 backgroundColor: 'var(--bg-surface-elevated)',
                 color: 'var(--text-primary)',
                 fontSize: '13px',
-                fontFamily: 'var(--font-arabic)',
+                fontFamily: 'inherit',
                 outline: 'none',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
               }}
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery('')}
+                aria-label={isAr ? 'مسح البحث' : 'Clear search'}
                 style={{
                   position: 'absolute',
                   top: '50%',
@@ -232,139 +241,540 @@ export const StudentCoursesView = () => {
                   border: 'none',
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  padding: 0
+                  padding: 0,
+                  display: 'inline-flex',
                 }}
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             )}
           </div>
         </div>
 
-        {/* Calm Category Segment Switcher */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          backgroundColor: 'var(--bg-subtle)',
-          padding: '4px',
-          borderRadius: '14px',
-          width: 'fit-content',
-          border: '1px solid var(--border-subtle)'
-        }}>
-          <button
-            onClick={() => setActiveCategory('ministry')}
+        {/* Error Alert with Retry */}
+        {combinedError && (
+          <div
+            role="alert"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '9px 20px',
-              borderRadius: '10px',
-              border: 'none',
-              backgroundColor: activeCategory === 'ministry' ? 'var(--bg-surface-elevated)' : 'transparent',
-              color: activeCategory === 'ministry' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontWeight: activeCategory === 'ministry' ? '800' : '600',
-              fontSize: '13.5px',
-              cursor: 'pointer',
-              boxShadow: activeCategory === 'ministry' ? 'var(--shadow-xs)' : 'none',
-              transition: 'all 0.15s ease'
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '12px 16px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(220, 38, 38, 0.08)',
+              border: '1px solid rgba(220, 38, 38, 0.3)',
+              color: '#DC2626',
             }}
           >
-            <GraduationCap size={16} color={activeCategory === 'ministry' ? 'var(--primary)' : 'var(--text-muted)'} />
-            <span>{lang === 'ar' ? 'مقررات وزارة التربية والتعليم' : 'Ministry Curriculum'}</span>
-            <span style={{
-              fontSize: '11px',
-              padding: '1px 6px',
-              borderRadius: '6px',
-              backgroundColor: activeCategory === 'ministry' ? 'var(--primary-surface)' : 'var(--bg-hover)',
-              color: activeCategory === 'ministry' ? 'var(--primary)' : 'var(--text-muted)'
-            }}>
-              {MINISTRY_CURRICULUM.length}
-            </span>
-          </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertCircle size={18} />
+              <span style={{ fontSize: '13px', fontWeight: '700' }}>{combinedError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={refreshCourses}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(220, 38, 38, 0.35)',
+                backgroundColor: 'var(--bg-surface)',
+                color: '#DC2626',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              <RefreshCw size={13} />
+              <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+            </button>
+          </div>
+        )}
 
-          <button
-            onClick={() => setActiveCategory('teachers')}
+        {/* Filter Tabs + Sort Dropdown */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div
+            role="tablist"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '9px 20px',
-              borderRadius: '10px',
-              border: 'none',
-              backgroundColor: activeCategory === 'teachers' ? 'var(--bg-surface-elevated)' : 'transparent',
-              color: activeCategory === 'teachers' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontWeight: activeCategory === 'teachers' ? '800' : '600',
-              fontSize: '13.5px',
-              cursor: 'pointer',
-              boxShadow: activeCategory === 'teachers' ? 'var(--shadow-xs)' : 'none',
-              transition: 'all 0.15s ease'
+              flexWrap: 'wrap',
+              gap: '4px',
+              backgroundColor: 'var(--bg-subtle)',
+              padding: '4px',
+              borderRadius: '14px',
+              border: '1px solid var(--border-subtle)',
             }}
           >
-            <Users size={16} color={activeCategory === 'teachers' ? 'var(--primary)' : 'var(--text-muted)'} />
-            <span>{lang === 'ar' ? 'حصص وكورسات المعلمين' : 'Teacher Courses'}</span>
-            <span style={{
-              fontSize: '11px',
-              padding: '1px 6px',
-              borderRadius: '6px',
-              backgroundColor: activeCategory === 'teachers' ? 'var(--primary-surface)' : 'var(--bg-hover)',
-              color: activeCategory === 'teachers' ? 'var(--primary)' : 'var(--text-muted)'
-            }}>
-              {COURSES_CATALOG.length}
-            </span>
-          </button>
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setSelectedSubject('all');
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    backgroundColor: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
+                    color: isActive
+                      ? tab.highlight
+                        ? '#059669'
+                        : 'var(--text-primary)'
+                      : 'var(--text-secondary)',
+                    fontWeight: isActive ? '800' : '600',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: isActive ? 'var(--shadow-xs)' : 'none',
+                  }}
+                >
+                  {tab.highlight && <Landmark size={14} />}
+                  <span>{isAr ? tab.ar : tab.en}</span>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      padding: '1px 7px',
+                      borderRadius: '999px',
+                      backgroundColor: isActive
+                        ? tab.highlight
+                          ? 'rgba(5, 150, 105, 0.14)'
+                          : 'var(--primary-surface)'
+                        : 'var(--bg-hover)',
+                      color: isActive
+                        ? tab.highlight
+                          ? '#059669'
+                          : 'var(--primary)'
+                        : 'var(--text-muted)',
+                    }}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sort Selector */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <ArrowUpDown size={14} color="var(--text-muted)" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              aria-label={isAr ? 'ترتيب المقررات' : 'Sort courses'}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                fontFamily: 'inherit',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="smart">{isAr ? 'الترتيب الافتراضي (مسجّلة أولاً)' : 'Recommended'}</option>
+              <option value="progress">{isAr ? 'الأعلى إنجازاً' : 'Highest Progress'}</option>
+              <option value="lessons">{isAr ? 'الأكثر حصصاً' : 'Most Lessons'}</option>
+              <option value="price_asc">{isAr ? 'الأقل سعراً' : 'Lowest Price'}</option>
+            </select>
+          </div>
         </div>
 
-        {/* SECTION 1: مقررات وزارة التربية والتعليم */}
-        {activeCategory === 'ministry' && (
-          <div style={{ animation: 'tabFadeIn 0.22s ease-out' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
-              gap: '20px'
-            }}>
-              {filteredMinistry.map((item) => (
-                <MinistryCurriculumCard
-                  key={item.id}
-                  item={item}
-                  lang={lang}
-                  onContinue={() => navigate('/student/lesson')}
-                  onOpenModal={(item) => setSelectedCurriculumModal(item)}
-                />
-              ))}
-            </div>
+        {/* Dynamic Subject Filter Chips */}
+        {subjectOptions.length > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: '800',
+                color: 'var(--text-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <Layers size={13} />
+              {isAr ? 'المادة:' : 'Subject:'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedSubject('all')}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '999px',
+                border: `1px solid ${selectedSubject === 'all' ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                backgroundColor: selectedSubject === 'all' ? 'var(--primary-surface)' : 'var(--bg-surface)',
+                color: selectedSubject === 'all' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              {isAr ? 'جميع المواد' : 'All Subjects'}
+            </button>
+            {subjectOptions.map((subj) => {
+              const active = selectedSubject === subj.ar;
+              return (
+                <button
+                  key={subj.ar}
+                  type="button"
+                  onClick={() => setSelectedSubject(subj.ar)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '999px',
+                    border: `1px solid ${active ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                    backgroundColor: active ? 'var(--primary-surface)' : 'var(--bg-surface)',
+                    color: active ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {isAr ? subj.ar : subj.en}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {/* SECTION 2: كورسات وحصص المعلمين */}
-        {activeCategory === 'teachers' && (
-          <div style={{ animation: 'tabFadeIn 0.22s ease-out' }}>
-            <div style={{
+        {/* Loading Skeleton */}
+        {isInitialLoading ? (
+          <div
+            style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
-              gap: '20px'
-            }}>
-              {filteredTeacherCourses.map((course) => (
-                <TeacherCourseCard
-                  key={course.id}
-                  course={course}
-                  isEnrolled={!!enrolledCourses[course.id]}
-                  lang={lang}
-                  onContinue={() => navigate('/student/lesson')}
-                  onEnroll={() => handleEnroll(course)}
-                />
-              ))}
-            </div>
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+              gap: '20px',
+            }}
+          >
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                style={{
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '20px',
+                  padding: '22px',
+                  minHeight: '260px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ height: '22px', width: '40%', borderRadius: '8px', backgroundColor: 'var(--bg-subtle)' }} />
+                <div style={{ height: '26px', width: '85%', borderRadius: '8px', backgroundColor: 'var(--bg-subtle)' }} />
+                <div style={{ height: '16px', width: '60%', borderRadius: '8px', backgroundColor: 'var(--bg-subtle)', opacity: 0.7 }} />
+                <div style={{ height: '42px', width: '100%', borderRadius: '12px', backgroundColor: 'var(--bg-subtle)', marginTop: 'auto' }} />
+              </div>
+            ))}
           </div>
+        ) : (
+          <>
+            {/* ══════ 1. Teacher Courses Section ══════ */}
+            {showTeacherSection && (
+              <section style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {activeTab === 'all' && filteredCourses.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <GraduationCap size={18} color="var(--primary)" />
+                      <h2 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                        {isAr ? 'كورسات وحصص المعلمين' : 'Teacher Courses'}
+                      </h2>
+                    </div>
+                  </div>
+                )}
+
+                {filteredCourses.length > 0 ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+                      gap: '20px',
+                    }}
+                  >
+                    {filteredCourses.map((course) => (
+                      <TeacherCourseCard
+                        key={course.id}
+                        course={course}
+                        isEnrolled={course.isEnrolled}
+                        isPending={course.isPending}
+                        lang={lang}
+                        onContinue={() => handleOpenCourse(course)}
+                        onEnroll={() => setEnrollTargetCourse(course)}
+                        onViewBilling={() => navigate('/student/billing')}
+                      />
+                    ))}
+                  </div>
+                ) : activeTab !== 'all' ? (
+                  <div
+                    style={{
+                      padding: '44px 24px',
+                      textAlign: 'center',
+                      borderRadius: '20px',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px dashed var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {coursesCatalog.length === 0 ? (
+                      <>
+                        <Users size={38} color="var(--primary)" style={{ marginBottom: '12px', opacity: 0.7 }} />
+                        <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                          {isAr ? 'لا توجد كورسات معلمين منشورة حالياً' : 'No Published Teacher Courses Yet'}
+                        </div>
+                        <div style={{ fontSize: '13.5px', marginBottom: '18px' }}>
+                          {isAr
+                            ? 'انضم إلى مجموعة دراسية بكود معلمك لتظهر مقرراته وحصصه مباشرة هنا.'
+                            : 'Join a study group with your teacher code to access courses here.'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/student/groups')}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '10px 20px',
+                            borderRadius: '12px',
+                            backgroundColor: 'var(--primary)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            fontSize: '13px',
+                            fontWeight: '800',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Sparkles size={15} />
+                          <span>{isAr ? 'الانضمام بكود المجموعة' : 'Join Group by Code'}</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Search size={34} color="var(--text-muted)" style={{ marginBottom: '10px' }} />
+                        <div style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                          {isAr ? 'لا توجد كورسات مطابقة للبحث أو الفلتر' : 'No Matching Courses Found'}
+                        </div>
+                        {hasActiveFilters && (
+                          <button
+                            type="button"
+                            onClick={resetFilters}
+                            style={{
+                              marginTop: '10px',
+                              padding: '8px 18px',
+                              borderRadius: '10px',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-subtle)',
+                              color: 'var(--primary)',
+                              fontSize: '12.5px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {isAr ? 'إعادة ضبط الفلاتر' : 'Reset Filters'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : null}
+              </section>
+            )}
+
+            {/* ══════ 2. Official Ministry of Education Curricula Section ══════ */}
+            {showMinistrySection && (
+              <section style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    paddingTop: activeTab === 'all' && filteredCourses.length > 0 ? '10px' : 0,
+                    borderTop: activeTab === 'all' && filteredCourses.length > 0 ? '1px solid var(--border-subtle)' : 'none',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <Landmark size={18} color="#059669" />
+                      <h2 style={{ margin: 0, fontSize: '17.5px', fontWeight: '900', color: 'var(--text-primary)' }}>
+                        {isAr ? 'مقررات وزارة التربية والتعليم المعتمدة' : 'Ministry of Education Official Curricula'}
+                      </h2>
+                      {resolvedMinistryGrade && resolvedMinistryGrade !== 'all' && (
+                        <span
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: '800',
+                            padding: '3px 10px',
+                            borderRadius: '999px',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            color: '#059669',
+                          }}
+                        >
+                          {resolvedMinistryGrade}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                      {isAr
+                        ? 'تصفّح وحدات المنهج الرسمي، سجّل تقدمك في كل وحدة، وحل نماذج اختبارات الوزارة الاسترشادية.'
+                        : 'Track your progress across official units, access MOE textbooks, and practice with guided Ministry exams.'}
+                    </p>
+                  </div>
+
+                  {/* Grade Selector for Ministry Curricula */}
+                  {availableMinistryGrades.length > 0 && (
+                    <select
+                      value={selectedMinistryGrade || resolvedMinistryGrade}
+                      onChange={(e) => {
+                        setSelectedMinistryGrade(e.target.value);
+                        setSelectedSubject('all');
+                      }}
+                      aria-label={isAr ? 'اختيار الصف الدراسي لمقررات الوزارة' : 'Select grade for Ministry curricula'}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-subtle)',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        color: 'var(--text-primary)',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <option value="all">{isAr ? 'جميع الصفوف الدراسية' : 'All Grades'}</option>
+                      {availableMinistryGrades.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {loadingMinistry ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+                      gap: '20px',
+                    }}
+                  >
+                    {[1, 2, 3].map((n) => (
+                      <div
+                        key={n}
+                        style={{
+                          backgroundColor: 'var(--bg-surface-elevated)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '20px',
+                          padding: '22px',
+                          minHeight: '240px',
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : filteredMinistryCurricula.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '40px 24px',
+                      textAlign: 'center',
+                      borderRadius: '20px',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px dashed var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <Search size={32} color="var(--text-muted)" style={{ marginBottom: '10px' }} />
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                      {isAr ? 'لا توجد مقررات وزارية مطابقة للبحث' : 'No Matching Ministry Curricula'}
+                    </div>
+                    {hasActiveFilters && (
+                      <button
+                        type="button"
+                        onClick={resetFilters}
+                        style={{
+                          marginTop: '8px',
+                          padding: '8px 18px',
+                          borderRadius: '10px',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-subtle)',
+                          color: 'var(--primary)',
+                          fontSize: '12.5px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isAr ? 'إعادة ضبط الفلاتر' : 'Reset Filters'}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+                      gap: '20px',
+                    }}
+                  >
+                    {filteredMinistryCurricula.map((item) => (
+                      <MinistryCurriculumCard
+                        key={item.code}
+                        item={item}
+                        lang={lang}
+                        onOpenModal={(curr) => setSelectedCurriculumCode(curr.code)}
+                        onTakeMinistryExam={handleTakeMinistryExam}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </>
         )}
 
-        {/* Clean Modal: Ministry Textbook & Topics */}
-        {selectedCurriculumModal && (
-          <CurriculumDetailModal
-            item={selectedCurriculumModal}
-            isRtl={isRtl}
-            onClose={() => setSelectedCurriculumModal(null)}
-            onStartLesson={() => navigate('/student/lesson')}
+        {/* Official Ministry Curriculum Units & Textbook Modal */}
+        <CurriculumDetailModal
+          item={selectedCurriculumModal}
+          lang={lang}
+          isRtl={isRtl}
+          onClose={() => setSelectedCurriculumCode('')}
+          onToggleUnit={toggleMinistryUnit}
+          togglingUnitKey={togglingUnitKey}
+          onTakeMinistryExam={handleTakeMinistryExam}
+        />
+
+        {/* Enrollment & Coupon Checkout Modal */}
+        {enrollTargetCourse && (
+          <CourseEnrollModal
+            course={enrollTargetCourse}
+            lang={lang}
+            onClose={() => setEnrollTargetCourse(null)}
+            onSubmitEnrollment={submitEnrollment}
           />
         )}
       </div>

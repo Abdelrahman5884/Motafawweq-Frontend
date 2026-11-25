@@ -1,64 +1,67 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
+import '../../features/student/exam/exam.css';
 import {
   ExamCatalog,
   ExamSession,
   ExamResults,
-  useExam
+  useExam,
 } from '../../features/student/exam';
 
 export const ExamTakingView = () => {
   const { lang, isRtl } = useLanguage();
   const exam = useExam(lang);
 
-  return (
-    <div style={{
-      maxWidth: '1060px',
-      margin: '0 auto',
-      padding: '28px 20px 80px',
-      fontFamily: 'var(--font-arabic, sans-serif)'
-    }}>
-      <style>{`
-        @keyframes softPulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(0.85); }
-        }
-        @keyframes modalFadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.96) translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-        .clean-exam-card {
-          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-        }
-        .clean-exam-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
-          border-color: var(--border-medium);
-        }
-        .clean-btn {
-          transition: all 0.15s ease;
-        }
-        .clean-btn:hover {
-          opacity: 0.92;
-          transform: translateY(-1px);
-        }
-        .clean-btn:active {
-          transform: translateY(0);
-        }
-      `}</style>
+  const breadcrumbs = useMemo(
+    () => [
+      {
+        labelAr: 'الامتحانات والاختبارات',
+        labelEn: 'Exams & Assessments',
+      },
+    ],
+    []
+  );
+  useSetBreadcrumbs(breadcrumbs);
 
-      {/* VIEW 1: CLEAN & CALM EXAM CATALOG */}
+  return (
+    <div
+      style={{
+        maxWidth: '1080px',
+        margin: '0 auto',
+        padding: '28px 20px 80px',
+        fontFamily: 'var(--font-arabic, sans-serif)',
+      }}
+    >
+      {/* VIEW 1: EXAM CATALOG */}
       {exam.examState === 'catalog' && (
         <ExamCatalog
+          examsList={exam.examsList}
+          filteredExams={exam.filteredExams}
+          loadingExams={exam.loadingExams}
+          examsError={exam.examsError}
+          actionError={exam.actionError}
+          onClearActionError={() => exam.setActionError(null)}
+          onRetry={exam.refreshExams}
+          sourceFilter={exam.sourceFilter}
+          setSourceFilter={exam.setSourceFilter}
+          sourceCounts={exam.sourceCounts}
+          selectedMinistryGrade={exam.selectedMinistryGrade}
+          setSelectedMinistryGrade={exam.setSelectedMinistryGrade}
+          resolvedMinistryGrade={exam.resolvedMinistryGrade}
+          availableMinistryGrades={exam.availableMinistryGrades}
+          tabCounts={exam.tabCounts}
+          statusFilter={exam.statusFilter}
+          setStatusFilter={exam.setStatusFilter}
+          searchQuery={exam.searchQuery}
+          setSearchQuery={exam.setSearchQuery}
           handleRequestStartExam={exam.handleRequestStartExam}
+          handleRetakeMinistryExam={exam.handleRetakeMinistryExam}
           pendingExam={exam.pendingExam}
           setPendingExam={exam.setPendingExam}
+          pendingRetake={exam.pendingRetake}
+          isStartingExam={exam.isStartingExam}
+          loadingResultId={exam.loadingResultId}
           handleConfirmStart={exam.handleConfirmStart}
           lang={lang}
         />
@@ -76,34 +79,28 @@ export const ExamTakingView = () => {
           currentIdx={exam.currentIdx}
           setCurrentIdx={exam.setCurrentIdx}
           selectedAnswers={exam.selectedAnswers}
+          answeredCount={exam.answeredCount}
+          flaggedCount={exam.flaggedCount}
           currentQ={exam.currentQ}
-          handleSelectOption={exam.handleSelectOption}
+          handleSelectAnswer={exam.handleSelectAnswer}
+          tabSwitchesCount={exam.tabSwitchesCount}
+          actionError={exam.actionError}
+          onClearActionError={() => exam.setActionError(null)}
           setShowReviewConfirm={exam.setShowReviewConfirm}
           showReviewConfirm={exam.showReviewConfirm}
+          isSubmittingExam={exam.isSubmittingExam}
           handleSubmitExam={exam.handleSubmitExam}
           lang={lang}
           isRtl={isRtl}
         />
       )}
 
-      {/* VIEW 3: RESULTS */}
+      {/* VIEW 3: RESULTS & REVIEW */}
       {exam.examState === 'results' && (
         <ExamResults
           activeExam={exam.activeExam}
-          isPerfectScore={exam.isPerfectScore}
-          examSource={exam.examSource}
-          scorePercent={exam.scorePercent}
-          correctCount={exam.correctCount}
-          questions={exam.questions}
-          handleRetakeExam={exam.handleRetakeExam}
-          setExamState={exam.setExamState}
-          totalEarnedPoints={exam.totalEarnedPoints}
-          basePoints={exam.basePoints}
-          perfectBonusPoints={exam.perfectBonusPoints}
-          streakBonusPoints={exam.streakBonusPoints}
-          studentTotalScore={exam.studentTotalScore}
-          gapToLead={exam.gapToLead}
-          selectedAnswers={exam.selectedAnswers}
+          serverResult={exam.serverResult}
+          onBackToCatalog={exam.handleBackToCatalog}
           lang={lang}
         />
       )}

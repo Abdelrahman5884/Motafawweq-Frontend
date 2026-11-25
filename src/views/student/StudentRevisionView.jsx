@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { MISTAKE_BANK } from '../../data/studentData';
-import { MOCK_LESSON } from '../../data/mockData';
+import { studentApi } from '../../services/studentApi';
 import confetti from 'canvas-confetti';
 import {
   MistakeBankList,
@@ -15,19 +14,50 @@ export const StudentRevisionView = () => {
   const navigate = useNavigate();
   const { lang, isRtl } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState('mistakes'); // 'mistakes' | 'bookmarked-lessons' | 'pre-exam'
-  const [mistakes, setMistakes] = useState(MISTAKE_BANK);
+  const [activeTab, setActiveTab] = useState('mistakes');
+  const [mistakes, setMistakes] = useState([]);
+  const [bookmarkedLesson, setBookmarkedLesson] = useState(null);
   const [activeMistakeModal, setActiveMistakeModal] = useState(null);
   const [selectedRetryOption, setSelectedRetryOption] = useState(null);
   const [retryResult, setRetryResult] = useState(null);
+  const [checklist, setChecklist] = useState([]);
 
-  // Pre-exam checklist state (US-74)
-  const [checklist, setChecklist] = useState([
-    { id: 'chk-1', textAr: 'مراجعة معادلة انشطار الماء ودور إنزيمات التفاعلات الضوئية', done: true },
-    { id: 'chk-2', textAr: 'فهم قانون بلاكمان للعوامل المحددة ورسم المنحنيات البيانية', done: false },
-    { id: 'chk-3', textAr: 'حل 15 سؤالاً من بنك الأخطاء والأسئلة الوزارية السابقة', done: false },
-    { id: 'chk-4', textAr: 'سماع ملخص كورنيل الصوتي المركز (8 دقائق)', done: true }
-  ]);
+  useEffect(() => {
+    let mounted = true;
+    studentApi.dashboard.revision()
+      .then((res) => {
+        if (!mounted) return;
+        const data = res?.data || {};
+        const rawMistakes = Array.isArray(data.mistakeBank) ? data.mistakeBank : [];
+        setMistakes(rawMistakes.map((m) => ({
+          id: m.id,
+          subjectAr: m.examTitleAr || 'امتحان',
+          topicAr: m.examTitleAr || '',
+          examSourceAr: m.examTitleAr || '',
+          questionAr: m.questionAr,
+          options: m.optionsAr || [],
+          wrongSelectedIdx: m.selectedIndex,
+          correctIndex: m.correctIndex,
+          explanationAr: m.explanationAr || '',
+          solvedCorrectlyNow: false
+        })));
+        const bms = Array.isArray(data.bookmarkedLessons) ? data.bookmarkedLessons : [];
+        if (bms.length > 0) {
+          setBookmarkedLesson({
+            id: bms[0].lessonId,
+            titleAr: bms[0].lessonTitleAr,
+            subjectAr: bms[0].courseTitleAr
+          });
+        }
+        if (Array.isArray(data.preExamChecklist)) {
+          setChecklist(data.preExamChecklist);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const toggleChecklistItem = (id) => {
     setChecklist(prev => prev.map(item => item.id === id ? { ...item, done: !item.done } : item));
@@ -40,21 +70,23 @@ export const StudentRevisionView = () => {
   };
 
   const handleResolveMistake = () => {
-    if (selectedRetryOption === null) return;
+    if (selectedRetryOption === null || !activeMistakeModal) return;
 
-    // Simulate correct resolution
-    setRetryResult('correct');
-    try {
-      confetti({
-        particleCount: 90,
-        spread: 60,
-        origin: { y: 0.6 }
-      });
-    } catch (e) {
-      // ignore
+    const isRight = Number(selectedRetryOption) === Number(activeMistakeModal.correctIndex);
+    setRetryResult(isRight ? 'correct' : 'wrong');
+
+    if (isRight) {
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {
+        // ignore
+      }
+      setMistakes(prev => prev.map(item => item.id === activeMistakeModal.id ? { ...item, solvedCorrectlyNow: true } : item));
     }
-
-    setMistakes(prev => prev.map(item => item.id === activeMistakeModal.id ? { ...item, solvedCorrectlyNow: true } : item));
   };
 
   const unsolvedMistakesCount = mistakes.filter(m => !m.solvedCorrectlyNow).length;
@@ -123,7 +155,7 @@ export const StudentRevisionView = () => {
       {/* TAB 2: BOOKMARKED LESSONS */}
       {activeTab === 'bookmarked-lessons' && (
         <BookmarkedLessonsTab
-          lesson={MOCK_LESSON}
+          lesson={bookmarkedLesson}
           lang={lang}
           onOpenLesson={() => navigate('/student/lesson')}
         />

@@ -1,0 +1,543 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   Center Settings & Operations Management — Modern UI Layer
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.cs-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  font-family: var(--font-arabic, 'Cairo', system-ui, sans-serif);
+  color: var(--text-primary);
+}
+
+/* ── 1. Header Banner ──────────────────────────────────────────────────────── */
+.cs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+  background-color: var(--bg-surface);
+  padding: 20px 24px;
+  border-radius: var(--radius-xl, 24px);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+.cs-header-start {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cs-header-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background-color: rgba(21, 136, 199, 0.1);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cs-header-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.cs-header-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
+.cs-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background-color: var(--primary-light, rgba(21, 136, 199, 0.1));
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── 2. Navigation Tabs Bar ────────────────────────────────────────────────── */
+.cs-tabs-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 6px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg, 16px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  box-shadow: var(--shadow-xs);
+}
+
+.cs-tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.cs-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius-md, 12px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.cs-tab-btn:hover {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+}
+
+.cs-tab-btn.active {
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(21, 136, 199, 0.28);
+}
+
+/* ── 3. Cards & Sections ───────────────────────────────────────────────────── */
+.cs-card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-xl, 20px);
+  border: 1px solid var(--border-subtle);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+}
+
+.cs-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cs-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cs-card-title svg {
+  color: var(--primary);
+}
+
+.cs-card-subtitle {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+}
+
+/* ── 4. Forms & Inputs ─────────────────────────────────────────────────────── */
+.cs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cs-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.cs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cs-field.span-all {
+  grid-column: 1 / -1;
+}
+
+.cs-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cs-input,
+.cs-select,
+.cs-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  transition: all 0.18s ease;
+}
+
+.cs-input:focus,
+.cs-select:focus,
+.cs-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: var(--bg-surface);
+  box-shadow: 0 0 0 3px rgba(21, 136, 199, 0.15);
+}
+
+.cs-textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+/* ── 5. Payment Methods Checklist ──────────────────────────────────────────── */
+.cs-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.cs-payment-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-app);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.cs-payment-chip:hover {
+  background-color: var(--bg-surface);
+  border-color: var(--primary);
+}
+
+.cs-payment-chip.checked {
+  background-color: rgba(21, 136, 199, 0.08);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.cs-payment-chip input {
+  accent-color: var(--primary);
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+}
+
+/* ── 6. Checkbox Row ───────────────────────────────────────────────────────── */
+.cs-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 12px);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.cs-checkbox-row input {
+  accent-color: var(--primary);
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* ── 7. Buttons ────────────────────────────────────────────────────────────── */
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.cs-btn:hover:not(:disabled) {
+  background-color: var(--bg-app);
+  border-color: var(--border-medium);
+}
+
+.cs-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cs-btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(21, 136, 199, 0.22);
+}
+
+.cs-btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover, #0e6fa4);
+  border-color: var(--primary-hover, #0e6fa4);
+  color: #ffffff;
+}
+
+.cs-btn-danger {
+  color: var(--color-danger, #dc2626);
+  background-color: rgba(220, 38, 38, 0.06);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.cs-btn-danger:hover:not(:disabled) {
+  background-color: rgba(220, 38, 38, 0.12);
+}
+
+.cs-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 8. Notice Alerts ──────────────────────────────────────────────────────── */
+.cs-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md, 12px);
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 14px;
+}
+
+.cs-alert-success {
+  background-color: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  color: var(--success);
+}
+
+.cs-alert-danger {
+  background-color: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  color: var(--color-danger, #dc2626);
+}
+
+.cs-alert-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #b45309;
+}
+
+/* ── 9. Filter Pills ───────────────────────────────────────────────────────── */
+.cs-pills-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.cs-pill {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cs-pill:hover {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+}
+
+.cs-pill.active {
+  background-color: var(--primary-light, rgba(21, 136, 199, 0.12));
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ── 10. Table Wrap ────────────────────────────────────────────────────────── */
+.cs-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 12px);
+}
+
+.cs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.cs-table th {
+  padding: 10px 14px;
+  background-color: var(--bg-app);
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-align: start;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cs-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.cs-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── 11. KPI Visual Cards ──────────────────────────────────────────────────── */
+.cs-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.cs-kpi-card {
+  padding: 16px 18px;
+  border-radius: var(--radius-lg, 16px);
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cs-kpi-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.cs-kpi-val-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cs-kpi-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.cs-kpi-target {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.cs-progress-bar {
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--border-subtle);
+  overflow: hidden;
+}
+
+.cs-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background-color: var(--primary);
+  transition: width 0.4s ease;
+}
+
+/* ── 12. Empty State ───────────────────────────────────────────────────────── */
+.cs-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-lg, 16px);
+  background-color: var(--bg-app);
+}
+
+/* ── 13. Modal ─────────────────────────────────────────────────────────────── */
+.cs-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(6, 37, 78, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+}
+
+.cs-modal-box {
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl, 20px);
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .cs-container {
+    padding: 16px 12px 60px;
+  }
+
+  .cs-card {
+    padding: 16px;
+  }
+
+  .cs-header {
+    padding: 16px;
+  }
+}

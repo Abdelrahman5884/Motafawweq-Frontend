@@ -229,38 +229,44 @@ export const ROUTE_HIERARCHY = {
     role: 'center'
   },
   '/center/groups': {
-    titleAr: 'المجموعات والصفوف الدراسية والباركود',
-    titleEn: 'Cohorts & Barcode Attendance',
+    titleAr: 'المجموعات',
+    titleEn: 'Cohorts',
     parent: '/center/dashboard',
     role: 'center'
   },
   '/center/halls': {
-    titleAr: 'القاعات وجداول التشغيل',
+    titleAr: 'القاعات والجدول',
     titleEn: 'Halls & Schedule',
     parent: '/center/dashboard',
     role: 'center'
   },
   '/center/attendance': {
-    titleAr: 'الباركود وحضور الطلاب',
-    titleEn: 'QR Attendance',
+    titleAr: 'الحضور والباركود',
+    titleEn: 'Attendance',
     parent: '/center/dashboard',
     role: 'center'
   },
   '/center/financials': {
-    titleAr: 'المالية ومستحقات المدرسين',
-    titleEn: 'Financials & Settlements',
+    titleAr: 'المالية',
+    titleEn: 'Financials',
     parent: '/center/dashboard',
     role: 'center'
   },
   '/center/operations': {
-    titleAr: 'الفروع والعمليات والـ CRM',
-    titleEn: 'Branches & Operations',
+    titleAr: 'الفروع والمعلمون',
+    titleEn: 'Branches & Faculty',
+    parent: '/center/dashboard',
+    role: 'center'
+  },
+  '/center/billing': {
+    titleAr: 'الباقات والاشتراك',
+    titleEn: 'Plans & Billing',
     parent: '/center/dashboard',
     role: 'center'
   },
   '/center/settings': {
-    titleAr: 'إعدادات المنظومة والمهام',
-    titleEn: 'Settings & Cloud Backup',
+    titleAr: 'الإعدادات',
+    titleEn: 'Settings',
     parent: '/center/dashboard',
     role: 'center'
   },

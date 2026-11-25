@@ -1,194 +1,686 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import confetti from 'canvas-confetti';
-import { MOCK_LESSON } from '../../../data/mockData';
-import { UPCOMING_EXAMS, LEAGUE_LEADERBOARD, AI_LECTURE_QUESTIONS_BANK, STUDENT_PROFILE } from '../../../data/studentData';
+import { studentApi } from '../../../services/studentApi';
+import { useAuth } from '../../../context/AuthContext';
 
-export const useExam = (lang) => {
-  const [examState, setExamState] = useState('catalog');
-  const [examSource, setExamSource] = useState('teacher');
-  const [activeExam, setActiveExam] = useState(UPCOMING_EXAMS[0]);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+export function formatExamTimer(totalSecs) {
+  const safe = Math.max(0, Math.floor(Number(totalSecs) || 0));
+  const hrs = Math.floor(safe / 3600);
+  const mins = Math.floor((safe % 3600) / 60);
+  const secs = safe % 60;
+  if (hrs > 0) {
+    return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+export function isQuestionAnswered(question, answerValue) {
+  if (!question || answerValue === undefined || answerValue === null) return false;
+  if (question.type === 'essay') {
+    return String(answerValue).trim().length > 0;
+  }
+  return true;
+}
+
+function getExamDisplayStatus(e) {
+  const subStatus = e.submissionStatus || 'not_started';
+  if (subStatus === 'graded') return 'graded';
+  if (subStatus === 'submitted') return 'submitted';
+  if (subStatus === 'in_progress') {
+    return e.status === 'active' ? 'in_progress' : 'closed';
+  }
+  if (e.status !== 'active') return 'closed';
+  if (e.isUpcoming) return 'upcoming';
+  return 'ready';
+}
+
+export const useExam = (lang = 'ar') => {
+  const isAr = lang === 'ar';
+  const { currentUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const userScope = currentUser?.id ? String(currentUser.id) : 'guest';
+
+  const deepLinkHandledRef = useRef('');
+  const startingRef = useRef(false);
+  const loadingResultRef = useRef(false);
+  const submittingRef = useRef(false);
+  const searchParamsRef = useRef(searchParams);
+  const expiresAtMsRef = useRef(0);
+  const answersRef = useRef({});
+  const questionsRef = useRef([]);
+  const activeExamRef = useRef(null);
+  const tabSwitchesRef = useRef(0);
+
+  const [teacherExams, setTeacherExams] = useState([]);
+  const [ministryExams, setMinistryExams] = useState([]);
+  const [selectedMinistryGrade, setSelectedMinistryGrade] = useState('');
+  const [resolvedMinistryGrade, setResolvedMinistryGrade] = useState('');
+  const [availableMinistryGrades, setAvailableMinistryGrades] = useState([]);
+
+  const [loadingExams, setLoadingExams] = useState(true);
+  const [examsError, setExamsError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+
+  const [examState, setExamState] = useState('catalog'); // 'catalog' | 'taking' | 'results'
+  const [activeExam, setActiveExam] = useState(null);
   const [pendingExam, setPendingExam] = useState(null);
+  const [pendingRetake, setPendingRetake] = useState(false);
+  const [isStartingExam, setIsStartingExam] = useState(false);
+  const [isSubmittingExam, setIsSubmittingExam] = useState(false);
+  const [loadingResultId, setLoadingResultId] = useState('');
 
-  const questions = examSource === 'ai' 
-    ? AI_LECTURE_QUESTIONS_BANK 
-    : (MOCK_LESSON.quizzes || []);
+  // Catalog filter & search state
+  const [sourceFilter, setSourceFilter] = useState(() => {
+    const raw = searchParams.get('source');
+    return raw === 'ministry' || raw === 'teachers' ? raw : 'all';
+  });
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'ready' | 'in_progress' | 'completed' | 'closed'
+  const [searchQuery, setSearchQuery] = useState('');
 
+  // Active exam session state
+  const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [flaggedQuestions, setFlaggedQuestions] = useState({});
-  const [timeLeft, setTimeLeft] = useState(activeExam.durationMinutes * 60);
-  const [attemptsUsed, setAttemptsUsed] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [showReviewConfirm, setShowReviewConfirm] = useState(false);
+  const [tabSwitchesCount, setTabSwitchesCount] = useState(0);
 
-  // Countdown timer in 'taking' state
+  // Server result state
+  const [serverResult, setServerResult] = useState(null);
+
   useEffect(() => {
-    let timer;
-    if (examState === 'taking' && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            handleAutoSubmit();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [examState, timeLeft]);
+    answersRef.current = selectedAnswers;
+  }, [selectedAnswers]);
 
-  const formatTime = (secs) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+  useEffect(() => {
+    questionsRef.current = questions;
+  }, [questions]);
 
-  const handleRequestStartExam = (exam) => {
-    if (exam.status === 'upcoming') return;
-    if (attemptsUsed >= exam.attemptsAllowed) {
-      alert(lang === 'ar' ? 'عفواً، لقد استنفدت عدد المحاولات المسموح بها لهذا الامتحان.' : 'No attempts remaining.');
-      return;
-    }
-    setPendingExam(exam);
-  };
+  useEffect(() => {
+    activeExamRef.current = activeExam;
+  }, [activeExam]);
 
-  const handleConfirmStart = () => {
-    if (!pendingExam) return;
-    const examToStart = pendingExam;
-    setPendingExam(null);
-    handleStartExam(examToStart);
-  };
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
 
-  const handleStartExam = (exam) => {
-    setExamSource('teacher');
-    setActiveExam(exam);
-    setTimeLeft(exam.durationMinutes * 60);
-    setSelectedAnswers({});
-    setFlaggedQuestions({});
-    setCurrentIdx(0);
-    setExamState('taking');
-  };
+  useEffect(() => {
+    tabSwitchesRef.current = tabSwitchesCount;
+  }, [tabSwitchesCount]);
 
-  const handleStartAIQuiz = () => {
-    setIsGeneratingAI(true);
-    setTimeout(() => {
-      setIsGeneratingAI(false);
-      setExamSource('ai');
-      setActiveExam({
-        id: 'exam-ai-lecture',
-        titleAr: 'كويز الذكاء الاصطناعي — تفريغ محاضرة الأحياء وكالفن',
-        subjectAr: 'الأحياء',
-        durationMinutes: 10,
-        questionsCount: AI_LECTURE_QUESTIONS_BANK.length,
-        attemptsAllowed: 99,
-        status: 'ready',
-        typeAr: 'توليد بالذكاء الاصطناعي',
-        difficultyAr: 'مستويات تفكير عليا'
-      });
-      setTimeLeft(10 * 60);
-      setSelectedAnswers({});
-      setFlaggedQuestions({});
-      setCurrentIdx(0);
-      setExamState('taking');
-    }, 800);
-  };
+  const draftStorageKey = useCallback(
+    (examId) => (examId ? `mtfq_exam_draft_${userScope}_${examId}` : ''),
+    [userScope]
+  );
 
-  const handleSelectOption = (optIdx) => {
-    if (examState !== 'taking') return;
-    setSelectedAnswers(prev => ({ ...prev, [currentIdx]: optIdx }));
-  };
-
-  const handleToggleFlag = () => {
-    setFlaggedQuestions(prev => ({
-      ...prev,
-      [currentIdx]: !prev[currentIdx]
-    }));
-  };
-
-  const handleAutoSubmit = () => {
-    setExamState('results');
-    setAttemptsUsed(prev => prev + 1);
-  };
-
-  const handleSubmitExam = () => {
-    setShowReviewConfirm(false);
-    setExamState('results');
-    setAttemptsUsed(prev => prev + 1);
+  // Persist draft answers & flags during active exam so accidental refresh preserves progress
+  useEffect(() => {
+    if (examState !== 'taking' || !activeExam?.id) return;
     try {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    } catch (e) {}
+      localStorage.setItem(
+        draftStorageKey(activeExam.id),
+        JSON.stringify({ answers: selectedAnswers, flags: flaggedQuestions })
+      );
+    } catch {
+      // ignore storage errors
+    }
+  }, [examState, activeExam?.id, selectedAnswers, flaggedQuestions, draftStorageKey]);
+
+  const mapExams = useCallback(
+    (raw, { isMinistry = false } = {}) =>
+      raw.map((e) => {
+        const displayStatus = getExamDisplayStatus(e);
+        const ministryFlag = Boolean(isMinistry || e.isMinistry);
+        return {
+          id: e.id || e.uuid || e.code,
+          code: e.code || e.id || e.uuid,
+          isMinistry: ministryFlag,
+          sourceAr: e.sourceAr || (ministryFlag ? 'وزارة التربية والتعليم والتعليم الفني' : ''),
+          sourceEn: e.sourceEn || (ministryFlag ? 'Egyptian Ministry of Education' : ''),
+          gradeAr: e.gradeAr || '',
+          curriculumCode: e.curriculumCode || null,
+          titleAr: e.titleAr || '',
+          titleEn: e.titleEn || e.titleAr || '',
+          subjectAr: e.subjectAr || e.courseTitleAr || (isAr ? 'امتحان مقرر' : 'Course Exam'),
+          subjectEn: e.subjectEn || e.subjectAr || e.courseTitleAr || 'Exam',
+          teacherNameAr: e.teacherName || '',
+          durationMinutes: Math.max(1, Number(e.durationMinutes || 30)),
+          questionsCount: Number(e.questionsCount || 0),
+          maxScore: Number(e.fullMark || 50),
+          passScore: Number(e.passScore || 25),
+          attemptsAllowed: ministryFlag ? null : 1,
+          attemptsCount: Number(e.attemptsCount || 0),
+          bestPercentage: e.bestPercentage ?? null,
+          canRetake: Boolean(e.canRetake || ministryFlag),
+          rawStatus: e.status,
+          status: displayStatus, // 'ready' | 'in_progress' | 'submitted' | 'graded' | 'upcoming' | 'closed'
+          submissionStatus: e.submissionStatus || 'not_started',
+          showResults: e.showResults !== false,
+          isBubbleSheet: Boolean(e.isBubbleSheet),
+          remainingSeconds: e.remainingSeconds,
+          score: e.score,
+          percentage: e.percentage,
+          isPassed: e.isPassed,
+          isFullMark: e.isFullMark,
+          date: e.dueDate || '',
+          startsAt: e.startsAt || null,
+          submittedAt: e.submittedAt || null,
+        };
+      }),
+    [isAr]
+  );
+
+  const loadExams = useCallback(
+    async (gradeOverride = selectedMinistryGrade) => {
+      setLoadingExams(true);
+      setExamsError(null);
+      try {
+        const [teacherRes, ministryRes] = await Promise.allSettled([
+          studentApi.exams.list(),
+          studentApi.ministry.listExams(gradeOverride),
+        ]);
+
+        const mappedTeacher =
+          teacherRes.status === 'fulfilled' && Array.isArray(teacherRes.value?.data)
+            ? mapExams(teacherRes.value.data, { isMinistry: false })
+            : [];
+
+        const ministryPayload =
+          ministryRes.status === 'fulfilled' ? ministryRes.value?.data || {} : {};
+        const mappedMinistry = Array.isArray(ministryPayload.items)
+          ? mapExams(ministryPayload.items, { isMinistry: true })
+          : [];
+
+        setTeacherExams(mappedTeacher);
+        setMinistryExams(mappedMinistry);
+
+        if (ministryPayload.selectedGradeAr || ministryPayload.studentGradeAr) {
+          setResolvedMinistryGrade(ministryPayload.selectedGradeAr || ministryPayload.studentGradeAr);
+        }
+        if (Array.isArray(ministryPayload.availableGrades) && ministryPayload.availableGrades.length > 0) {
+          setAvailableMinistryGrades(ministryPayload.availableGrades);
+        }
+
+        if (teacherRes.status === 'rejected' && ministryRes.status === 'rejected') {
+          setExamsError(
+            teacherRes.reason?.message ||
+              ministryRes.reason?.message ||
+              (isAr ? 'تعذر تحميل قائمة الامتحانات.' : 'Failed to load exams.')
+          );
+        }
+
+        return [...mappedTeacher, ...mappedMinistry];
+      } finally {
+        setLoadingExams(false);
+      }
+    },
+    [isAr, mapExams, selectedMinistryGrade]
+  );
+
+  // Open an existing submitted/graded exam result from backend
+  const handleViewResult = useCallback(
+    async (exam) => {
+      if (!exam?.id || loadingResultRef.current) return;
+      loadingResultRef.current = true;
+      setLoadingResultId(exam.id);
+      setActionError(null);
+      try {
+        const res = exam.isMinistry
+          ? await studentApi.ministry.getExamResult(exam.code || exam.id)
+          : await studentApi.exams.getResult(exam.id);
+        setActiveExam(exam);
+        setServerResult(res?.data || null);
+        setExamState('results');
+      } catch (err) {
+        setActionError(
+          err?.message ||
+            (isAr ? 'تعذر تحميل نتيجة الامتحان.' : 'Unable to load exam result.')
+        );
+      } finally {
+        loadingResultRef.current = false;
+        setLoadingResultId('');
+      }
+    },
+    [isAr]
+  );
+
+  // Start or resume an active exam attempt (teacher OR official Ministry guided exam)
+  const handleStartExam = useCallback(
+    async (exam, { retake = false } = {}) => {
+      if (!exam?.id || startingRef.current) return;
+      startingRef.current = true;
+      setIsStartingExam(true);
+      setActionError(null);
+      try {
+        const res = exam.isMinistry
+          ? await studentApi.ministry.startExam(exam.code || exam.id, { retake })
+          : await studentApi.exams.start(exam.id);
+        const data = res?.data || {};
+        const qs = (data.questions || []).map((q, i) => ({
+          id: q.id || q.uuid,
+          uuid: q.uuid || q.id,
+          questionNumber: Number(q.questionNumber || i + 1),
+          type: q.type || 'mcq',
+          points: Number(q.points || 1),
+          difficulty: q.difficulty || 'medium',
+          questionAr: q.questionAr || '',
+          questionEn: q.questionEn || q.questionAr || '',
+          optionsAr: Array.isArray(q.optionsAr) ? q.optionsAr : [],
+        }));
+
+        // Clear stale draft when explicitly retaking a Ministry exam
+        if (retake) {
+          try {
+            localStorage.removeItem(draftStorageKey(exam.id));
+          } catch {
+            // ignore
+          }
+        }
+
+        // Restore saved draft answers if resuming the same exam attempt
+        let restoredAnswers = {};
+        let restoredFlags = {};
+        if (!retake) {
+          try {
+            const rawDraft = localStorage.getItem(draftStorageKey(exam.id));
+            if (rawDraft) {
+              const parsed = JSON.parse(rawDraft);
+              if (parsed?.answers && typeof parsed.answers === 'object') {
+                restoredAnswers = parsed.answers;
+              }
+              if (parsed?.flags && typeof parsed.flags === 'object') {
+                restoredFlags = parsed.flags;
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        const remaining =
+          data.remainingSeconds !== undefined && data.remainingSeconds !== null
+            ? Math.max(0, Number(data.remainingSeconds))
+            : exam.durationMinutes * 60;
+
+        const expiresMs = data.expiresAt
+          ? Date.parse(data.expiresAt)
+          : Date.now() + remaining * 1000;
+
+        expiresAtMsRef.current = Number.isFinite(expiresMs)
+          ? expiresMs
+          : Date.now() + remaining * 1000;
+
+        const enrichedExam = {
+          ...exam,
+          showResults: data.showResults !== undefined ? Boolean(data.showResults) : exam.showResults,
+          fullMark: Number(data.fullMark || exam.maxScore || 50),
+          passScore: Number(data.passScore || exam.passScore || 25),
+        };
+
+        setPendingExam(null);
+        setPendingRetake(false);
+        setActiveExam(enrichedExam);
+        setQuestions(qs);
+        setSelectedAnswers(restoredAnswers);
+        setFlaggedQuestions(restoredFlags);
+        setTabSwitchesCount(0);
+        setServerResult(null);
+        setCurrentIdx(0);
+        setTimeLeft(remaining);
+        setExamState('taking');
+      } catch (err) {
+        const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+        setActionError(
+          firstErr ||
+            err?.message ||
+            (isAr ? 'تعذر بدء الامتحان.' : 'Unable to start exam.')
+        );
+        await loadExams();
+      } finally {
+        startingRef.current = false;
+        setIsStartingExam(false);
+      }
+    },
+    [draftStorageKey, isAr, loadExams]
+  );
+
+  // Initial fetch + grade filter refetch + deep-link (?id=... / ?examId=... / ?examCode=... / ?source=ministry)
+  useEffect(() => {
+    let mounted = true;
+    const init = async () => {
+      const combined = await loadExams(selectedMinistryGrade);
+      if (!mounted) return;
+
+      const params = searchParamsRef.current;
+      const sourceParam = params.get('source');
+      if (sourceParam === 'ministry' || sourceParam === 'teachers') {
+        setSourceFilter(sourceParam);
+      }
+
+      const deepLinkId = params.get('examCode') || params.get('id') || params.get('examId') || '';
+      if (deepLinkId && deepLinkHandledRef.current !== deepLinkId) {
+        deepLinkHandledRef.current = deepLinkId;
+        const target = combined.find((ex) => ex.id === deepLinkId || ex.code === deepLinkId);
+        if (target) {
+          if (target.isMinistry) {
+            setSourceFilter('ministry');
+          }
+          if (target.status === 'ready') {
+            setPendingRetake(false);
+            setPendingExam(target);
+          } else if (target.status === 'in_progress') {
+            handleStartExam(target);
+          } else if (target.status === 'graded' || target.status === 'submitted') {
+            handleViewResult(target);
+          }
+        }
+        const next = new URLSearchParams(params);
+        next.delete('id');
+        next.delete('examId');
+        next.delete('examCode');
+        setSearchParams(next, { replace: true });
+      }
+    };
+
+    init();
+    return () => {
+      mounted = false;
+    };
+  }, [selectedMinistryGrade, loadExams, handleStartExam, handleViewResult, setSearchParams]);
+
+  // Anti-cheat tab switch telemetry + accidental close warning during active exam
+  useEffect(() => {
+    if (examState !== 'taking') return undefined;
+    const onVisChange = () => {
+      if (document.hidden) {
+        setTabSwitchesCount((prev) => prev + 1);
+      }
+    };
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    document.addEventListener('visibilitychange', onVisChange);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisChange);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [examState]);
+
+  // Submit answers cleanly (supports Teacher & Official Ministry exams)
+  const handleSubmitExam = useCallback(
+    async (isAutoSubmit = false) => {
+      const currentExam = activeExamRef.current;
+      if (!currentExam?.id || submittingRef.current) return;
+
+      submittingRef.current = true;
+      setIsSubmittingExam(true);
+      setShowReviewConfirm(false);
+      setActionError(null);
+
+      try {
+        const qs = questionsRef.current;
+        const ansMap = answersRef.current;
+
+        const answersPayload = qs.map((q) => {
+          const val = ansMap[q.id];
+          if (q.type === 'true_false') {
+            return {
+              questionUuid: q.uuid || q.id,
+              selectedBool: typeof val === 'boolean' ? val : null,
+            };
+          }
+          if (q.type === 'essay') {
+            return {
+              questionUuid: q.uuid || q.id,
+              essayAnswerText: typeof val === 'string' && val.trim() ? val.trim() : null,
+            };
+          }
+          return {
+            questionUuid: q.uuid || q.id,
+            selectedIndex: val !== undefined && val !== null ? Number(val) : null,
+          };
+        });
+
+        const submissionPayload = {
+          tabSwitchesCount: tabSwitchesRef.current,
+          answers: answersPayload,
+        };
+
+        const res = currentExam.isMinistry
+          ? await studentApi.ministry.submitExam(currentExam.code || currentExam.id, submissionPayload)
+          : await studentApi.exams.submit(currentExam.id, submissionPayload);
+
+        try {
+          localStorage.removeItem(draftStorageKey(currentExam.id));
+        } catch {
+          // ignore
+        }
+
+        const resultData = res?.data || null;
+        setServerResult(resultData);
+        setExamState('results');
+        await loadExams();
+
+        if (!isAutoSubmit && resultData?.showResults !== false && !resultData?.isPendingManualGrading && resultData?.isPassed) {
+          try {
+            confetti({ particleCount: 95, spread: 70, origin: { y: 0.6 } });
+          } catch {
+            // ignore
+          }
+        }
+      } catch (err) {
+        const firstErr = err?.errors ? Object.values(err.errors)[0]?.[0] : null;
+        setActionError(
+          firstErr ||
+            err?.message ||
+            (isAr
+              ? 'تعذر تسليم الامتحان، يرجى المحاولة مرة أخرى فوراً.'
+              : 'Failed to submit exam. Please retry.')
+        );
+      } finally {
+        submittingRef.current = false;
+        setIsSubmittingExam(false);
+      }
+    },
+    [draftStorageKey, loadExams, isAr]
+  );
+
+  // Wall-clock accurate countdown interval
+  useEffect(() => {
+    if (examState !== 'taking') return undefined;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((expiresAtMsRef.current - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0 && !submittingRef.current) {
+        handleSubmitExam(true);
+      }
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [examState, handleSubmitExam]);
+
+  const handleRequestStartExam = useCallback(
+    (exam) => {
+      setActionError(null);
+      if (exam.status === 'ready') {
+        setPendingRetake(false);
+        setPendingExam(exam);
+      } else if (exam.status === 'in_progress') {
+        handleStartExam(exam);
+      } else if (exam.status === 'graded' || exam.status === 'submitted') {
+        handleViewResult(exam);
+      }
+    },
+    [handleStartExam, handleViewResult]
+  );
+
+  const handleRetakeMinistryExam = useCallback((exam) => {
+    if (!exam?.isMinistry) return;
+    setActionError(null);
+    setPendingRetake(true);
+    setPendingExam(exam);
+  }, []);
+
+  const handleConfirmStart = useCallback(() => {
+    if (!pendingExam) return;
+    handleStartExam(pendingExam, { retake: pendingRetake });
+  }, [pendingExam, pendingRetake, handleStartExam]);
+
+  const currentQ = questions[currentIdx] || questions[0] || {
+    id: '',
+    type: 'mcq',
+    points: 1,
+    questionAr: '',
+    optionsAr: [],
   };
+  const currentQId = currentQ.id || '';
 
-  const handleRetakeExam = () => {
-    if (examSource === 'ai') {
-      handleStartAIQuiz();
-      return;
-    }
-    if (attemptsUsed >= activeExam.attemptsAllowed) {
-      alert(lang === 'ar' ? 'عفواً، لقد استنفدت عدد المحاولات المسموح بها لهذا الامتحان.' : 'No attempts remaining.');
-      return;
-    }
-    handleStartExam(activeExam);
-  };
+  const handleSelectAnswer = useCallback(
+    (value) => {
+      if (examState !== 'taking' || !currentQId) return;
+      setSelectedAnswers((prev) => ({ ...prev, [currentQId]: value }));
+    },
+    [examState, currentQId]
+  );
 
-  // Calculate score & League points
-  let correctCount = 0;
-  questions.forEach((q, idx) => {
-    if (selectedAnswers[idx] === q.correctIndex) {
-      correctCount++;
-    }
-  });
-  const scorePercent = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
-  const isPerfectScore = scorePercent === 100;
+  const handleToggleFlag = useCallback(() => {
+    if (!currentQId) return;
+    setFlaggedQuestions((prev) => ({
+      ...prev,
+      [currentQId]: !prev[currentQId],
+    }));
+  }, [currentQId]);
 
-  const basePoints = correctCount * 1;
-  const perfectBonusPoints = isPerfectScore ? 3 : 0;
-  const streakBonusPoints = 1;
-  const totalEarnedPoints = basePoints + perfectBonusPoints + streakBonusPoints;
-  const studentTotalScore = (STUDENT_PROFILE.xp || 3450) + totalEarnedPoints;
-  const top1Score = LEAGUE_LEADERBOARD[0]?.score || 3920;
-  const gapToLead = Math.max(0, top1Score - studentTotalScore);
-  const currentQ = questions[currentIdx] || questions[0];
+  const handleBackToCatalog = useCallback(() => {
+    setActionError(null);
+    setExamState('catalog');
+  }, []);
+
+  // Combined exams list scoped by sourceFilter
+  const examsList = useMemo(
+    () => [...teacherExams, ...ministryExams],
+    [teacherExams, ministryExams]
+  );
+
+  const sourceScopedExams = useMemo(() => {
+    if (sourceFilter === 'ministry') return ministryExams;
+    if (sourceFilter === 'teachers') return teacherExams;
+    return examsList;
+  }, [sourceFilter, teacherExams, ministryExams, examsList]);
+
+  const sourceCounts = useMemo(
+    () => ({
+      all: examsList.length,
+      ministry: ministryExams.length,
+      teachers: teacherExams.length,
+    }),
+    [examsList.length, ministryExams.length, teacherExams.length]
+  );
+
+  // Status tab counts (within current source scope)
+  const tabCounts = useMemo(() => {
+    let readyCount = 0;
+    let inProgressCount = 0;
+    let completedCount = 0;
+    let closedCount = 0;
+
+    sourceScopedExams.forEach((e) => {
+      if (e.status === 'ready') readyCount += 1;
+      else if (e.status === 'in_progress') inProgressCount += 1;
+      else if (e.status === 'graded' || e.status === 'submitted') completedCount += 1;
+      else closedCount += 1;
+    });
+
+    return {
+      totalCount: sourceScopedExams.length,
+      readyCount,
+      inProgressCount,
+      completedCount,
+      closedCount,
+    };
+  }, [sourceScopedExams]);
+
+  const filteredExams = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return sourceScopedExams.filter((e) => {
+      if (statusFilter === 'ready' && e.status !== 'ready') return false;
+      if (statusFilter === 'in_progress' && e.status !== 'in_progress') return false;
+      if (statusFilter === 'completed' && e.status !== 'graded' && e.status !== 'submitted') return false;
+      if (statusFilter === 'closed' && e.status !== 'closed' && e.status !== 'upcoming') return false;
+      if (!q) return true;
+      const hay = `${e.titleAr} ${e.titleEn} ${e.subjectAr} ${e.teacherNameAr} ${e.gradeAr} ${e.sourceAr}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [sourceScopedExams, statusFilter, searchQuery]);
+
+  const answeredCount = useMemo(
+    () => questions.filter((q) => isQuestionAnswered(q, selectedAnswers[q.id])).length,
+    [questions, selectedAnswers]
+  );
+
+  const flaggedCount = useMemo(
+    () => questions.filter((q) => Boolean(flaggedQuestions[q.id])).length,
+    [questions, flaggedQuestions]
+  );
 
   return {
+    examsList,
+    filteredExams,
+    loadingExams,
+    examsError,
+    actionError,
+    setActionError,
+    refreshExams: () => loadExams(selectedMinistryGrade),
+    sourceFilter,
+    setSourceFilter,
+    sourceCounts,
+    selectedMinistryGrade,
+    setSelectedMinistryGrade,
+    resolvedMinistryGrade,
+    availableMinistryGrades,
+    tabCounts,
+    statusFilter,
+    setStatusFilter,
+    searchQuery,
+    setSearchQuery,
     examState,
     setExamState,
-    examSource,
     activeExam,
-    isGeneratingAI,
     pendingExam,
     setPendingExam,
+    pendingRetake,
+    isStartingExam,
+    isSubmittingExam,
+    loadingResultId,
     questions,
     currentIdx,
     setCurrentIdx,
+    currentQ,
     selectedAnswers,
     flaggedQuestions,
+    answeredCount,
+    flaggedCount,
     timeLeft,
-    attemptsUsed,
+    tabSwitchesCount,
     showReviewConfirm,
     setShowReviewConfirm,
-    formatTime,
+    formatTime: formatExamTimer,
     handleRequestStartExam,
+    handleRetakeMinistryExam,
     handleConfirmStart,
     handleStartExam,
-    handleStartAIQuiz,
-    handleSelectOption,
+    handleViewResult,
+    handleSelectAnswer,
     handleToggleFlag,
     handleSubmitExam,
-    handleRetakeExam,
-    scorePercent,
-    correctCount,
-    basePoints,
-    perfectBonusPoints,
-    streakBonusPoints,
-    totalEarnedPoints,
-    studentTotalScore,
-    gapToLead,
-    currentQ
+    handleBackToCatalog,
+    serverResult,
   };
 };
