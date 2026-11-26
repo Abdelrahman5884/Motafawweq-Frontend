@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   CheckCircle2,
   Clock,
@@ -18,6 +18,7 @@ import {
   FileText,
   CreditCard,
   MessageSquare,
+  ShieldAlert,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
@@ -26,7 +27,7 @@ import { InfoTooltip } from '../../components/common/InfoTooltip';
 import { ParentAvatar } from '../../features/parent/ParentAvatar';
 import { ChildSwitcher } from '../../features/parent/ChildSwitcher';
 import { ChildSummaryCard } from '../../features/parent/ChildSummaryCard';
-import { ChildSessionAndFeedback } from '../../features/parent/ChildSessionAndFeedback';
+import { ParentOverviewTab } from '../../features/parent/ParentOverviewTab';
 import { LinkChildModal, ContactCenterModal } from '../../features/parent/ParentModals';
 
 const VALID_TABS = ['overview', 'courses', 'attendance', 'exams', 'homework', 'financials', 'settings'];
@@ -34,11 +35,39 @@ const VALID_TABS = ['overview', 'courses', 'attendance', 'exams', 'homework', 'f
 const EMPTY_CHILD_DASHBOARD = {
   summary: null,
   courses: { summary: { totalCourses: 0, avgProgress: 0 }, items: [] },
-  attendance: { summary: { rate: 0, presentCount: 0, lateCount: 0, absentCount: 0, excusedCount: 0, totalCount: 0 }, items: [] },
-  exams: { summary: { avgPercent: 0, totalGraded: 0, passedCount: 0, fullMarkCount: 0 }, items: [] },
+  attendance: {
+    summary: { rate: 0, presentCount: 0, lateCount: 0, absentCount: 0, excusedCount: 0, totalCount: 0 },
+    items: [],
+    pagination: { currentPage: 1, lastPage: 1, perPage: 30, total: 0 },
+  },
+  exams: {
+    summary: { avgPercent: 0, totalGraded: 0, passedCount: 0, fullMarkCount: 0 },
+    items: [],
+    pagination: { currentPage: 1, lastPage: 1, perPage: 30, total: 0 },
+  },
   homework: { summary: { total: 0, graded: 0, submitted: 0, pending: 0, rejected: 0, overdue: 0 }, items: [] },
-  financials: { summary: { totalPaidEgp: 0, pendingAmountEgp: 0, dueAmountEgp: 0, activePlanTier: 'free', activePlanAr: 'الباقة المجانية', activePlanEn: 'Free Plan', renewsAt: null }, invoices: [] },
+  financials: {
+    summary: {
+      totalPaidEgp: 0,
+      pendingAmountEgp: 0,
+      dueAmountEgp: 0,
+      activePlanTier: 'free',
+      activePlanAr: 'الباقة المجانية',
+      activePlanEn: 'Free Plan',
+      renewsAt: null,
+    },
+    invoices: [],
+  },
 };
+
+const normalizeDashboard = (data) => ({
+  summary: data?.summary || null,
+  courses: data?.courses || EMPTY_CHILD_DASHBOARD.courses,
+  attendance: data?.attendance || EMPTY_CHILD_DASHBOARD.attendance,
+  exams: data?.exams || EMPTY_CHILD_DASHBOARD.exams,
+  homework: data?.homework || EMPTY_CHILD_DASHBOARD.homework,
+  financials: data?.financials || EMPTY_CHILD_DASHBOARD.financials,
+});
 
 const extractErrorMessage = (err, fallbackAr, fallbackEn, lang) => {
   if (err?.errors) {
@@ -86,30 +115,45 @@ const EmptyBox = ({ icon: Icon, title, subtitle, action }) => (
 
 export const ParentDashboard = () => {
   const { lang, isRtl } = useLanguage();
-  const { currentUser, syncUserProfile } = useAuth();
+  const {
+    isAuthenticated,
+    authLoading,
+    currentRole,
+    currentUser,
+    syncUserProfile,
+  } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabParam = searchParams.get('tab');
   const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'overview';
 
-  const handleTabChange = (nextTab) => {
-    setSearchParams(nextTab === 'overview' ? {} : { tab: nextTab });
-  };
+  const handleTabChange = useCallback((nextTab) => {
+    setSearchParams({ tab: VALID_TABS.includes(nextTab) ? nextTab : 'overview' });
+  }, [setSearchParams]);
 
-  // Core state
+  const isParentSession = Boolean(isAuthenticated && currentRole === 'parent');
+
+  // Core overview state
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewError, setOverviewError] = useState('');
   const [childrenList, setChildrenList] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
 
-  // Selected child full dashboard state
+  // Per-child cache + monotonic sequence ref (eliminates race conditions & stale-child flashes)
+  const childCacheRef = useRef(new Map());
+  const childReqSeqRef = useRef(0);
+  const selectedChildIdRef = useRef(null);
+
+  // Active child full dashboard state
   const [childLoading, setChildLoading] = useState(false);
   const [childError, setChildError] = useState('');
   const [childDashboard, setChildDashboard] = useState(EMPTY_CHILD_DASHBOARD);
 
-  // Filters
+  // Filters & Load-More pagination states
   const [attendanceFilter, setAttendanceFilter] = useState('all');
   const [homeworkFilter, setHomeworkFilter] = useState('all');
+  const [loadingMoreAttendance, setLoadingMoreAttendance] = useState(false);
+  const [loadingMoreExams, setLoadingMoreExams] = useState(false);
 
   // Inquiries state
   const [inquiries, setInquiries] = useState([]);
@@ -127,6 +171,7 @@ export const ParentDashboard = () => {
   const [exportingCsv, setExportingCsv] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState(null);
   const [confirmUnlinkId, setConfirmUnlinkId] = useState(null);
+  const [savingToggleField, setSavingToggleField] = useState(null);
 
   // Toast banner
   const [toast, setToast] = useState({ type: 'success', text: '' });
@@ -160,24 +205,96 @@ export const ParentDashboard = () => {
     setNotifyAchievementsCertificates(Boolean(parentData.notifyAchievementsCertificates));
   }, []);
 
-  const loadOverview = useCallback(async (preferredChildId = null) => {
+  const loadChildDashboard = useCallback(async (studentId, { force = false } = {}) => {
+    if (!studentId) {
+      setChildDashboard(EMPTY_CHILD_DASHBOARD);
+      setChildLoading(false);
+      setChildError('');
+      return;
+    }
+
+    const numericId = Number(studentId);
+    if (!force && childCacheRef.current.has(numericId)) {
+      setChildDashboard(childCacheRef.current.get(numericId));
+      setChildError('');
+      setChildLoading(false);
+      return;
+    }
+
+    const reqSeq = ++childReqSeqRef.current;
+    setChildLoading(true);
+    setChildError('');
+    setChildDashboard(EMPTY_CHILD_DASHBOARD);
+
+    try {
+      const res = await parentApi.getChildDashboard(numericId);
+      if (reqSeq !== childReqSeqRef.current) return;
+      const normalized = normalizeDashboard(res?.data);
+      childCacheRef.current.set(numericId, normalized);
+      setChildDashboard(normalized);
+    } catch (err) {
+      if (reqSeq !== childReqSeqRef.current) return;
+      setChildError(
+        extractErrorMessage(
+          err,
+          'تعذر تحميل بيانات الطالب المحدد.',
+          'Failed to load selected student dashboard.',
+          lang
+        )
+      );
+    } finally {
+      if (reqSeq === childReqSeqRef.current) {
+        setChildLoading(false);
+      }
+    }
+  }, [lang]);
+
+  // Single-roundtrip initial load (overview + active child dashboard + inquiries in 1 HTTP call!)
+  const loadOverview = useCallback(async (preferredChildId = null, { clearCache = false } = {}) => {
+    if (!isParentSession) return;
+    if (clearCache) {
+      childCacheRef.current.clear();
+    }
+
     setOverviewLoading(true);
     setOverviewError('');
+
+    const targetChildId = preferredChildId ?? selectedChildIdRef.current;
+
     try {
-      const res = await parentApi.getOverview();
+      const res = await parentApi.getOverview({
+        include_child: 1,
+        ...(targetChildId ? { child_id: targetChildId } : {}),
+      });
       const data = res?.data || {};
       hydrateParentSettings(data.parent);
+
       const list = Array.isArray(data.children) ? data.children : [];
       setChildrenList(list);
-      setSelectedChildId((prev) => {
-        if (preferredChildId && list.some((c) => Number(c.id) === Number(preferredChildId))) {
-          return Number(preferredChildId);
-        }
-        if (prev && list.some((c) => Number(c.id) === Number(prev))) {
-          return Number(prev);
-        }
-        return list.length > 0 ? Number(list[0].id) : null;
-      });
+
+      if (Array.isArray(data.inquiries)) {
+        setInquiries(data.inquiries);
+      }
+
+      const resolvedActiveId = data.activeChildId
+        ? Number(data.activeChildId)
+        : list.length > 0
+        ? Number(list[0].id)
+        : null;
+
+      selectedChildIdRef.current = resolvedActiveId;
+      setSelectedChildId(resolvedActiveId);
+
+      if (resolvedActiveId && data.activeChildDashboard) {
+        const normalized = normalizeDashboard(data.activeChildDashboard);
+        childCacheRef.current.set(resolvedActiveId, normalized);
+        childReqSeqRef.current += 1;
+        setChildDashboard(normalized);
+        setChildLoading(false);
+        setChildError('');
+      } else {
+        setChildDashboard(EMPTY_CHILD_DASHBOARD);
+      }
     } catch (err) {
       setOverviewError(
         extractErrorMessage(
@@ -190,65 +307,37 @@ export const ParentDashboard = () => {
     } finally {
       setOverviewLoading(false);
     }
-  }, [hydrateParentSettings, lang]);
-
-  const loadChildDashboard = useCallback(async (studentId) => {
-    if (!studentId) {
-      setChildDashboard(EMPTY_CHILD_DASHBOARD);
-      return;
-    }
-    setChildLoading(true);
-    setChildError('');
-    try {
-      const res = await parentApi.getChildDashboard(studentId);
-      const data = res?.data || {};
-      setChildDashboard({
-        summary: data.summary || null,
-        courses: data.courses || EMPTY_CHILD_DASHBOARD.courses,
-        attendance: data.attendance || EMPTY_CHILD_DASHBOARD.attendance,
-        exams: data.exams || EMPTY_CHILD_DASHBOARD.exams,
-        homework: data.homework || EMPTY_CHILD_DASHBOARD.homework,
-        financials: data.financials || EMPTY_CHILD_DASHBOARD.financials,
-      });
-    } catch (err) {
-      setChildError(
-        extractErrorMessage(
-          err,
-          'تعذر تحميل بيانات الطالب المحدد.',
-          'Failed to load selected student dashboard.',
-          lang
-        )
-      );
-    } finally {
-      setChildLoading(false);
-    }
-  }, [lang]);
+  }, [hydrateParentSettings, isParentSession, lang]);
 
   const loadInquiries = useCallback(async () => {
+    if (!isParentSession) return;
     setInquiriesLoading(true);
     try {
       const res = await parentApi.listInquiries({ per_page: 10 });
       setInquiries(Array.isArray(res?.data?.items) ? res.data.items : []);
     } catch {
-      // Non-blocking secondary feed
+      // Non-blocking refresh
     } finally {
       setInquiriesLoading(false);
     }
-  }, []);
+  }, [isParentSession]);
 
   useEffect(() => {
+    if (authLoading || !isParentSession) return;
     Promise.resolve().then(() => {
       loadOverview();
-      loadInquiries();
     });
-  }, [loadOverview, loadInquiries]);
+  }, [authLoading, isParentSession, loadOverview]);
 
-  useEffect(() => {
-    if (!selectedChildId) return;
-    Promise.resolve().then(() => {
-      loadChildDashboard(selectedChildId);
-    });
-  }, [selectedChildId, loadChildDashboard]);
+  const handleSelectChild = useCallback((nextId) => {
+    const numericId = Number(nextId);
+    if (numericId === Number(selectedChildIdRef.current)) return;
+    selectedChildIdRef.current = numericId;
+    setSelectedChildId(numericId);
+    setAttendanceFilter('all');
+    setHomeworkFilter('all');
+    loadChildDashboard(numericId);
+  }, [loadChildDashboard]);
 
   const activeChildSummary = useMemo(() => {
     if (childDashboard.summary && Number(childDashboard.summary.id) === Number(selectedChildId)) {
@@ -256,6 +345,10 @@ export const ParentDashboard = () => {
     }
     return childrenList.find((c) => Number(c.id) === Number(selectedChildId)) || null;
   }, [childDashboard.summary, childrenList, selectedChildId]);
+
+  const hasCurrentChildData = Boolean(
+    childDashboard.summary && Number(childDashboard.summary.id) === Number(selectedChildId)
+  );
 
   const filteredAttendanceLogs = useMemo(() => {
     const logs = childDashboard.attendance?.items || [];
@@ -269,6 +362,81 @@ export const ParentDashboard = () => {
     return items.filter((item) => item.status === homeworkFilter);
   }, [childDashboard.homework, homeworkFilter]);
 
+  // Pagination: Load more attendance / exams from server
+  const handleLoadMoreAttendance = async () => {
+    const pag = childDashboard.attendance?.pagination;
+    if (!selectedChildId || !pag || pag.currentPage >= pag.lastPage || loadingMoreAttendance) return;
+    setLoadingMoreAttendance(true);
+    try {
+      const res = await parentApi.getChildAttendance(selectedChildId, {
+        page: pag.currentPage + 1,
+        per_page: pag.perPage || 30,
+      });
+      const nextData = res?.data;
+      if (nextData) {
+        setChildDashboard((prev) => {
+          const existingIds = new Set((prev.attendance?.items || []).map((i) => i.id));
+          const merged = [
+            ...(prev.attendance?.items || []),
+            ...(nextData.items || []).filter((i) => !existingIds.has(i.id)),
+          ];
+          const updated = {
+            ...prev,
+            attendance: {
+              ...prev.attendance,
+              summary: nextData.summary || prev.attendance.summary,
+              items: merged,
+              pagination: nextData.pagination || prev.attendance.pagination,
+            },
+          };
+          childCacheRef.current.set(Number(selectedChildId), updated);
+          return updated;
+        });
+      }
+    } catch (err) {
+      pushToast(extractErrorMessage(err, 'تعذر تحميل المزيد من سجلات الحضور.', 'Failed to load more logs.', lang), 'error');
+    } finally {
+      setLoadingMoreAttendance(false);
+    }
+  };
+
+  const handleLoadMoreExams = async () => {
+    const pag = childDashboard.exams?.pagination;
+    if (!selectedChildId || !pag || pag.currentPage >= pag.lastPage || loadingMoreExams) return;
+    setLoadingMoreExams(true);
+    try {
+      const res = await parentApi.getChildExams(selectedChildId, {
+        page: pag.currentPage + 1,
+        per_page: pag.perPage || 30,
+      });
+      const nextData = res?.data;
+      if (nextData) {
+        setChildDashboard((prev) => {
+          const existingIds = new Set((prev.exams?.items || []).map((i) => i.id));
+          const merged = [
+            ...(prev.exams?.items || []),
+            ...(nextData.items || []).filter((i) => !existingIds.has(i.id)),
+          ];
+          const updated = {
+            ...prev,
+            exams: {
+              ...prev.exams,
+              summary: nextData.summary || prev.exams.summary,
+              items: merged,
+              pagination: nextData.pagination || prev.exams.pagination,
+            },
+          };
+          childCacheRef.current.set(Number(selectedChildId), updated);
+          return updated;
+        });
+      }
+    } catch (err) {
+      pushToast(extractErrorMessage(err, 'تعذر تحميل المزيد من نتائج الاختبارات.', 'Failed to load more exams.', lang), 'error');
+    } finally {
+      setLoadingMoreExams(false);
+    }
+  };
+
   // Actions
   const handleLinkSubmit = async (code) => {
     setLinkSubmitting(true);
@@ -280,7 +448,7 @@ export const ParentDashboard = () => {
       pushToast(
         res?.message || (lang === 'ar' ? 'تم ربط حساب الطالب بنجاح!' : 'Student linked successfully!')
       );
-      await loadOverview(linked?.id || null);
+      await loadOverview(linked?.id || null, { clearCache: true });
       return true;
     } catch (err) {
       setLinkError(
@@ -305,7 +473,7 @@ export const ParentDashboard = () => {
       pushToast(
         res?.message || (lang === 'ar' ? 'تم فك ارتباط الطالب بنجاح.' : 'Student unlinked successfully.')
       );
-      await loadOverview();
+      await loadOverview(null, { clearCache: true });
     } catch (err) {
       pushToast(
         extractErrorMessage(err, 'تعذر فك ارتباط الطالب.', 'Failed to unlink student.', lang),
@@ -391,6 +559,8 @@ export const ParentDashboard = () => {
   };
 
   const handleToggleNotification = async (field, nextVal) => {
+    if (savingToggleField === field) return;
+    setSavingToggleField(field);
     if (field === 'notify_tuition_renewal') setNotifyTuitionRenewal(nextVal);
     if (field === 'notify_achievements_certificates') setNotifyAchievementsCertificates(nextVal);
     try {
@@ -403,11 +573,85 @@ export const ParentDashboard = () => {
         extractErrorMessage(err, 'تعذر تحديث الإشعارات.', 'Failed to update preference.', lang),
         'error'
       );
+    } finally {
+      setSavingToggleField(null);
     }
   };
 
-  const latestAttendance = activeChildSummary?.latestAttendance || childDashboard.attendance?.items?.[0] || null;
-  const recentAlerts = activeChildSummary?.recentAlerts || [];
+  // Auth / Role Guard UI (prevents spurious 401/403 API calls for guests or non-parent roles)
+  if (authLoading) {
+    return (
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '64px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <Loader2 size={28} color="var(--primary)" className="spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ maxWidth: '520px', margin: '64px auto', padding: '0 20px' }}>
+        <EmptyBox
+          icon={ShieldAlert}
+          title={lang === 'ar' ? 'يرجى تسجيل الدخول للوصول لبوابة ولي الأمر' : 'Sign in to access the Parent Portal'}
+          subtitle={lang === 'ar'
+            ? 'سجّل الدخول بحساب ولي الأمر لمتابعة حضور ودرجات وواجبات أبنائك.'
+            : 'Log in with your parent account to monitor your children’s progress.'}
+          action={
+            <Link
+              to="/login"
+              style={{
+                marginTop: '6px',
+                padding: '10px 22px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                textDecoration: 'none',
+                fontSize: '13px',
+                fontWeight: '700',
+              }}
+            >
+              {lang === 'ar' ? 'تسجيل الدخول' : 'Log In'}
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (currentRole !== 'parent') {
+    const fallbackRoute = currentUser?.defaultRoute || `/${currentRole}/dashboard`;
+    return (
+      <div style={{ maxWidth: '520px', margin: '64px auto', padding: '0 20px' }}>
+        <EmptyBox
+          icon={ShieldAlert}
+          title={lang === 'ar' ? 'هذه الصفحة مخصصة لحسابات أولياء الأمور فقط' : 'Parent accounts only'}
+          subtitle={lang === 'ar'
+            ? 'أنت مسجل الدخول حالياً بدور آخر. يمكنك العودة إلى لوحة التحكم الخاصة بك.'
+            : 'You are currently signed in with a different role.'}
+          action={
+            <Link
+              to={fallbackRoute}
+              style={{
+                marginTop: '6px',
+                padding: '10px 22px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                textDecoration: 'none',
+                fontSize: '13px',
+                fontWeight: '700',
+              }}
+            >
+              {lang === 'ar' ? 'العودة للوحة التحكم' : 'Back to Dashboard'}
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  const attendancePagination = childDashboard.attendance?.pagination;
+  const examsPagination = childDashboard.exams?.pagination;
 
   return (
     <div style={{
@@ -460,7 +704,7 @@ export const ParentDashboard = () => {
           <ChildSwitcher
             students={childrenList}
             selectedChild={selectedChildId}
-            onSelectChild={setSelectedChildId}
+            onSelectChild={handleSelectChild}
             lang={lang}
             onLinkNewChild={() => {
               setLinkError('');
@@ -494,10 +738,8 @@ export const ParentDashboard = () => {
 
           <button
             type="button"
-            onClick={() => {
-              loadOverview(selectedChildId);
-              if (selectedChildId) loadChildDashboard(selectedChildId);
-            }}
+            disabled={overviewLoading || childLoading}
+            onClick={() => loadOverview(selectedChildId, { clearCache: true })}
             title={lang === 'ar' ? 'تحديث البيانات' : 'Refresh'}
             style={{
               display: 'flex',
@@ -509,10 +751,10 @@ export const ParentDashboard = () => {
               backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-secondary)',
               border: '1px solid var(--border-subtle)',
-              cursor: 'pointer',
+              cursor: overviewLoading || childLoading ? 'not-allowed' : 'pointer',
             }}
           >
-            <RefreshCw size={15} />
+            <RefreshCw size={15} className={overviewLoading || childLoading ? 'spin' : ''} />
           </button>
         </div>
       </div>
@@ -558,7 +800,7 @@ export const ParentDashboard = () => {
         </div>
       ) : overviewError ? (
         <div style={{
-          padding: '28px 22px',
+          padding: '24px 22px',
           backgroundColor: 'rgba(239, 68, 68, 0.08)',
           border: '1px solid rgba(239, 68, 68, 0.25)',
           borderRadius: 'var(--radius-xl)',
@@ -574,7 +816,7 @@ export const ParentDashboard = () => {
           </div>
           <button
             type="button"
-            onClick={() => loadOverview()}
+            onClick={() => loadOverview(selectedChildId, { clearCache: true })}
             style={{
               padding: '8px 16px',
               borderRadius: 'var(--radius-md)',
@@ -648,7 +890,7 @@ export const ParentDashboard = () => {
               <span>{childError}</span>
               <button
                 type="button"
-                onClick={() => loadChildDashboard(selectedChildId)}
+                onClick={() => loadChildDashboard(selectedChildId, { force: true })}
                 style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer' }}
               >
                 {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
@@ -656,7 +898,7 @@ export const ParentDashboard = () => {
             </div>
           )}
 
-          {childLoading && activeTab !== 'settings' && !childDashboard.summary ? (
+          {activeTab !== 'settings' && (childLoading || !hasCurrentChildData) ? (
             <div style={{
               padding: '48px 20px',
               textAlign: 'center',
@@ -678,185 +920,13 @@ export const ParentDashboard = () => {
             <>
               {/* ══════════════════ TAB 1: OVERVIEW ══════════════════ */}
               {activeTab === 'overview' && activeChildSummary && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-                  <ChildSessionAndFeedback activeChild={activeChildSummary} lang={lang} />
-
-                  {/* Latest Gate Check-in Notification */}
-                  <div style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-xl)',
-                    padding: '22px',
-                    boxShadow: 'var(--shadow-sm)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Bell size={18} color="var(--primary)" />
-                        <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                          {lang === 'ar' ? 'آخر تسجيل حضور بالسنتر' : 'Latest Gate Check-in'}
-                        </h3>
-                      </div>
-                      {latestAttendance && (
-                        <span style={{
-                          fontSize: '11px',
-                          padding: '2px 8px',
-                          borderRadius: '99px',
-                          backgroundColor: latestAttendance.status === 'present'
-                            ? 'rgba(22, 163, 74, 0.12)'
-                            : latestAttendance.status === 'absent'
-                            ? 'rgba(239, 68, 68, 0.12)'
-                            : 'rgba(245, 158, 11, 0.12)',
-                          color: latestAttendance.status === 'present'
-                            ? 'var(--color-success, #16A34A)'
-                            : latestAttendance.status === 'absent'
-                            ? '#DC2626'
-                            : '#D97706',
-                          fontWeight: '700',
-                        }}>
-                          {lang === 'ar' ? latestAttendance.statusAr : latestAttendance.statusEn}
-                        </span>
-                      )}
-                    </div>
-
-                    {latestAttendance ? (
-                      <div style={{
-                        padding: '15px',
-                        borderRadius: 'var(--radius-lg)',
-                        backgroundColor: 'var(--bg-app)',
-                        border: '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '14px',
-                      }}>
-                        <div>
-                          <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                            {lang === 'ar' ? latestAttendance.subjectAr : latestAttendance.subjectEn}
-                          </div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                            {latestAttendance.roomAr} • {latestAttendance.dateAr}
-                          </div>
-                        </div>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          backgroundColor: 'var(--bg-surface)',
-                          padding: '6px 12px',
-                          borderRadius: 'var(--radius-md)',
-                          border: '1px solid var(--border-subtle)',
-                        }}>
-                          <Clock size={14} color="var(--primary)" />
-                          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                            {lang === 'ar' ? latestAttendance.scanTime : latestAttendance.scanTimeEn}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0' }}>
-                        {lang === 'ar' ? 'لا توجد سجلات حضور مسجلة لهذا الطالب حتى الآن.' : 'No attendance records logged yet.'}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Recent Center Absence Alerts (if any) */}
-                  {recentAlerts.length > 0 && (
-                    <div style={{
-                      backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                      border: '1px solid rgba(245, 158, 11, 0.25)',
-                      borderRadius: 'var(--radius-xl)',
-                      padding: '18px 20px',
-                    }}>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#B45309', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <AlertCircle size={16} />
-                        <span>{lang === 'ar' ? 'تنبيهات السنتر الأخيرة' : 'Recent Center Alerts'}</span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {recentAlerts.map((alertItem) => (
-                          <div key={alertItem.id} style={{ fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
-                            <strong>{alertItem.date || ''}</strong> {alertItem.groupNameAr ? `(${alertItem.groupNameAr}) — ` : ''}
-                            {alertItem.messageAr}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Quick Enrolled Courses Row */}
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                      <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                        {lang === 'ar' ? 'المقررات والمجموعات الحالية' : 'Current Courses & Groups'}
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange('courses')}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--primary)',
-                          fontSize: '12.5px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {lang === 'ar' ? 'عرض الكل ←' : 'View all →'}
-                      </button>
-                    </div>
-
-                    {childDashboard.courses.items.length === 0 ? (
-                      <EmptyBox
-                        icon={BookOpen}
-                        title={lang === 'ar' ? 'لا توجد مقررات أو مجموعات مسجل بها الطالب بعد' : 'No enrolled courses yet'}
-                      />
-                    ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-                        {childDashboard.courses.items.slice(0, 4).map((course) => (
-                          <div
-                            key={course.id}
-                            style={{
-                              backgroundColor: 'var(--bg-surface)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: 'var(--radius-lg)',
-                              padding: '18px',
-                              boxShadow: 'var(--shadow-sm)',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                              <ParentAvatar src={course.teacherAvatar} name={course.teacherNameAr} size={40} />
-                              <div>
-                                <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                                  {lang === 'ar' ? course.nameAr : course.name}
-                                </h4>
-                                <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700', marginTop: '2px' }}>
-                                  {lang === 'ar' ? course.teacherNameAr : course.teacherName}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div style={{ marginBottom: '10px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                                <span>{lang === 'ar' ? 'الإنجاز:' : 'Progress:'}</span>
-                                <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{course.progress}%</span>
-                              </div>
-                              <div style={{ height: '6px', borderRadius: '99px', backgroundColor: 'var(--bg-subtle)', overflow: 'hidden' }}>
-                                <div style={{ width: `${course.progress}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '99px' }} />
-                              </div>
-                            </div>
-
-                            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                              {lang === 'ar' ? 'آخر تحديث:' : 'Latest:'}{' '}
-                              <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
-                                {lang === 'ar' ? course.lastLessonAr : course.lastLesson}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ParentOverviewTab
+                  activeChild={activeChildSummary}
+                  childDashboard={childDashboard}
+                  lang={lang}
+                  isRtl={isRtl}
+                  onNavigateTab={handleTabChange}
+                />
               )}
 
               {/* ══════════════════ TAB 2: COURSES & SYLLABUS ══════════════════ */}
@@ -1050,60 +1120,88 @@ export const ParentDashboard = () => {
                       title={lang === 'ar' ? 'لا توجد سجلات حضور مطابقة' : 'No matching attendance logs'}
                     />
                   ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
-                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'المادة والمعلم' : 'Subject & Teacher'}</th>
-                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'القاعة' : 'Hall'}</th>
-                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'وقت المسح' : 'Scan Time'}</th>
-                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredAttendanceLogs.map((log) => (
-                            <tr key={log.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                              <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                                {lang === 'ar' ? log.dateAr : log.date}
-                              </td>
-                              <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
-                                {lang === 'ar' ? log.subjectAr : log.subjectEn}
-                              </td>
-                              <td style={{ padding: '13px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                                {log.roomAr}
-                              </td>
-                              <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                  <Clock size={13} color="var(--primary)" />
-                                  {lang === 'ar' ? log.scanTime : log.scanTimeEn}
-                                </span>
-                              </td>
-                              <td style={{ padding: '13px 12px' }}>
-                                <span style={{
-                                  fontSize: '11.5px',
-                                  fontWeight: '700',
-                                  padding: '3px 10px',
-                                  borderRadius: 'var(--radius-full)',
-                                  backgroundColor: log.status === 'present'
-                                    ? 'rgba(22, 163, 74, 0.12)'
-                                    : log.status === 'absent'
-                                    ? 'rgba(239, 68, 68, 0.12)'
-                                    : 'rgba(245, 158, 11, 0.12)',
-                                  color: log.status === 'present'
-                                    ? 'var(--color-success, #16A34A)'
-                                    : log.status === 'absent'
-                                    ? '#DC2626'
-                                    : '#D97706',
-                                }}>
-                                  {lang === 'ar' ? log.statusAr : log.statusEn}
-                                </span>
-                              </td>
+                    <>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+                              <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'المادة والمعلم' : 'Subject & Teacher'}</th>
+                              <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'القاعة' : 'Hall'}</th>
+                              <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'وقت المسح' : 'Scan Time'}</th>
+                              <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {filteredAttendanceLogs.map((log) => (
+                              <tr key={log.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                                  {lang === 'ar' ? log.dateAr : log.date}
+                                </td>
+                                <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                                  {lang === 'ar' ? log.subjectAr : log.subjectEn}
+                                </td>
+                                <td style={{ padding: '13px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                                  {log.roomAr}
+                                </td>
+                                <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <Clock size={13} color="var(--primary)" />
+                                    {lang === 'ar' ? log.scanTime : log.scanTimeEn}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '13px 12px' }}>
+                                  <span style={{
+                                    fontSize: '11.5px',
+                                    fontWeight: '700',
+                                    padding: '3px 10px',
+                                    borderRadius: 'var(--radius-full)',
+                                    backgroundColor: log.status === 'present'
+                                      ? 'rgba(22, 163, 74, 0.12)'
+                                      : log.status === 'absent'
+                                      ? 'rgba(239, 68, 68, 0.12)'
+                                      : 'rgba(245, 158, 11, 0.12)',
+                                    color: log.status === 'present'
+                                      ? 'var(--color-success, #16A34A)'
+                                      : log.status === 'absent'
+                                      ? '#DC2626'
+                                      : '#D97706',
+                                  }}>
+                                    {lang === 'ar' ? log.statusAr : log.statusEn}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {attendancePagination && attendancePagination.currentPage < attendancePagination.lastPage && (
+                        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                          <button
+                            type="button"
+                            disabled={loadingMoreAttendance}
+                            onClick={handleLoadMoreAttendance}
+                            style={{
+                              padding: '8px 18px',
+                              borderRadius: 'var(--radius-md)',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-app)',
+                              color: 'var(--primary)',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              cursor: loadingMoreAttendance ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {loadingMoreAttendance && <Loader2 size={13} className="spin" />}
+                            <span>{lang === 'ar' ? 'عرض المزيد من السجلات' : 'Load More Records'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1159,72 +1257,100 @@ export const ParentDashboard = () => {
                       title={lang === 'ar' ? 'لا توجد اختبارات مسجلة للطالب بعد' : 'No exam attempts recorded yet'}
                     />
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      {childDashboard.exams.items.map((ex) => (
-                        <div
-                          key={ex.id}
-                          style={{
-                            padding: '18px 20px',
-                            borderRadius: 'var(--radius-lg)',
-                            backgroundColor: 'var(--bg-app)',
-                            border: '1px solid var(--border-subtle)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexWrap: 'wrap',
-                            gap: '16px',
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: '250px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                              <span style={{
-                                fontSize: '11px',
-                                padding: '2px 8px',
-                                borderRadius: 'var(--radius-sm)',
-                                backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                                color: 'var(--primary)',
-                                fontWeight: '800',
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        {childDashboard.exams.items.map((ex) => (
+                          <div
+                            key={ex.id}
+                            style={{
+                              padding: '18px 20px',
+                              borderRadius: 'var(--radius-lg)',
+                              backgroundColor: 'var(--bg-app)',
+                              border: '1px solid var(--border-subtle)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: '16px',
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: '250px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                                <span style={{
+                                  fontSize: '11px',
+                                  padding: '2px 8px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                                  color: 'var(--primary)',
+                                  fontWeight: '800',
+                                }}>
+                                  {lang === 'ar' ? ex.subjectAr : ex.subjectEn}
+                                </span>
+                                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                  {ex.teacherAr}{ex.date ? ` • ${ex.date}` : ''}
+                                </span>
+                              </div>
+
+                              <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                                {lang === 'ar' ? ex.titleAr : ex.titleEn}
+                              </h4>
+
+                              <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                {lang === 'ar' ? 'التقييم:' : 'Note:'} <span style={{ color: 'var(--text-primary)' }}>&ldquo;{ex.notesAr}&rdquo;</span>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                              <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                  {lang === 'ar' ? ex.rankAr : ex.rankEn}
+                                </div>
+                                <div style={{ fontSize: '19px', fontWeight: '900', color: 'var(--primary)' }}>
+                                  {ex.score !== null ? `${ex.score} / ${ex.maxScore}` : '—'}
+                                </div>
+                              </div>
+
+                              <div style={{
+                                padding: '8px 14px',
+                                borderRadius: 'var(--radius-md)',
+                                backgroundColor: ex.isPassed === false ? 'rgba(239, 68, 68, 0.12)' : 'rgba(22, 163, 74, 0.12)',
+                                color: ex.isPassed === false ? '#DC2626' : 'var(--color-success, #16A34A)',
+                                fontSize: '15px',
+                                fontWeight: '900',
                               }}>
-                                {lang === 'ar' ? ex.subjectAr : ex.subjectEn}
-                              </span>
-                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                {ex.teacherAr}{ex.date ? ` • ${ex.date}` : ''}
-                              </span>
-                            </div>
-
-                            <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                              {lang === 'ar' ? ex.titleAr : ex.titleEn}
-                            </h4>
-
-                            <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                              {lang === 'ar' ? 'التقييم:' : 'Note:'} <span style={{ color: 'var(--text-primary)' }}>&ldquo;{ex.notesAr}&rdquo;</span>
+                                {ex.percent}
+                              </div>
                             </div>
                           </div>
+                        ))}
+                      </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                            <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                {lang === 'ar' ? ex.rankAr : ex.rankEn}
-                              </div>
-                              <div style={{ fontSize: '19px', fontWeight: '900', color: 'var(--primary)' }}>
-                                {ex.score !== null ? `${ex.score} / ${ex.maxScore}` : '—'}
-                              </div>
-                            </div>
-
-                            <div style={{
-                              padding: '8px 14px',
+                      {examsPagination && examsPagination.currentPage < examsPagination.lastPage && (
+                        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                          <button
+                            type="button"
+                            disabled={loadingMoreExams}
+                            onClick={handleLoadMoreExams}
+                            style={{
+                              padding: '8px 18px',
                               borderRadius: 'var(--radius-md)',
-                              backgroundColor: ex.isPassed === false ? 'rgba(239, 68, 68, 0.12)' : 'rgba(22, 163, 74, 0.12)',
-                              color: ex.isPassed === false ? '#DC2626' : 'var(--color-success, #16A34A)',
-                              fontSize: '15px',
-                              fontWeight: '900',
-                            }}>
-                              {ex.percent}
-                            </div>
-                          </div>
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-app)',
+                              color: 'var(--primary)',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              cursor: loadingMoreExams ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {loadingMoreExams && <Loader2 size={13} className="spin" />}
+                            <span>{lang === 'ar' ? 'عرض المزيد من الاختبارات' : 'Load More Exams'}</span>
+                          </button>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1689,7 +1815,8 @@ export const ParentDashboard = () => {
                         borderRadius: 'var(--radius-lg)',
                         backgroundColor: 'var(--bg-app)',
                         border: '1px solid var(--border-subtle)',
-                        cursor: 'pointer',
+                        cursor: savingToggleField === item.field ? 'wait' : 'pointer',
+                        opacity: savingToggleField === item.field ? 0.7 : 1,
                       }}
                     >
                       <span style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
@@ -1697,6 +1824,7 @@ export const ParentDashboard = () => {
                       </span>
                       <input
                         type="checkbox"
+                        disabled={savingToggleField === item.field}
                         checked={item.value}
                         onChange={(e) => handleToggleNotification(item.field, e.target.checked)}
                         style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
@@ -1953,6 +2081,7 @@ export const ParentDashboard = () => {
       />
 
       <ContactCenterModal
+        key={selectedChildId || 'no-child'}
         open={showContactModal}
         lang={lang}
         activeChild={activeChildSummary}

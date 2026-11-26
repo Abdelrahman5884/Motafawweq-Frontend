@@ -59,7 +59,7 @@ export async function downloadParentScorecardCsv(studentId, filename = 'student-
 }
 
 export const parentApi = {
-  getOverview: () => apiGet('/parent/overview'),
+  getOverview: (params = {}) => apiGet(`/parent/overview${buildQuery(params)}`),
 
   getChildDashboard: (studentId) => apiGet(`/parent/children/${studentId}/dashboard`),
   getChildCourses: (studentId) => apiGet(`/parent/children/${studentId}/courses`),

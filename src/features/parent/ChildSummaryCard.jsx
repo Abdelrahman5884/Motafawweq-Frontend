@@ -19,6 +19,18 @@ export const ChildSummaryCard = ({ activeChild, lang, isRtl }) => {
     ? (activeChild.gradeStandingAr || 'لا توجد اختبارات بعد')
     : (activeChild.gradeStandingEn || 'No exams yet');
 
+  const avgScore = Number(activeChild.avgQuizScore ?? 0);
+  const hasExams = Number(activeChild.gradedExamsCount ?? 0) > 0 || avgScore > 0;
+  const standingColor = !hasExams
+    ? 'var(--text-secondary)'
+    : avgScore >= 80
+    ? 'var(--success, #16A34A)'
+    : avgScore >= 65
+    ? 'var(--primary)'
+    : avgScore >= 50
+    ? '#D97706'
+    : '#DC2626';
+
   return (
     <div style={{
       backgroundColor: 'var(--bg-surface-elevated)',
@@ -137,7 +149,7 @@ export const ChildSummaryCard = ({ activeChild, lang, isRtl }) => {
           <div style={{ fontSize: '22px', fontWeight: '900', color: 'var(--primary)', fontFamily: 'var(--font-heading)' }}>
             {activeChild.avgQuizScore ?? 0}%
           </div>
-          <div style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: '700' }}>
+          <div style={{ fontSize: '10.5px', color: standingColor, fontWeight: '700' }}>
             {standingLabel}
           </div>
         </div>
