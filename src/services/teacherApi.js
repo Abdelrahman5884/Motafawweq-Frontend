@@ -172,6 +172,13 @@ export const teacherApi = {
       apiPut(`/teacher/workspace/lessons/${uuid}/transcript`, { transcript }),
     saveConceptGraph: (uuid, treeData) =>
       apiPut(`/teacher/workspace/lessons/${uuid}/concept-graph`, { tree_data: treeData }),
+    getAiStatus: (uuid) =>
+      apiGet(`/teacher/workspace/lessons/${uuid}/ai/status`),
+    startTranscription: (uuid, { language = 'auto', force = false } = {}) =>
+      apiPost(`/teacher/workspace/lessons/${uuid}/ai/transcribe`, {
+        language,
+        force: Boolean(force),
+      }),
   },
 
   // ─── Stage 7: Study Groups ───────────────────────────────────────────────────

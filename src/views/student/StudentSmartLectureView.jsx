@@ -107,13 +107,10 @@ export const StudentSmartLectureView = () => {
     };
   }, []);
 
-  // Sequential AI stages + real backend save
+  // Sequential AI stages + real Whisper large-v3 Speech-to-Text polling
   const runAiStages = async (targetOutputs) => {
     const totalStages = 1 + targetOutputs.length;
-    for (let s = 0; s < totalStages; s++) {
-      setCurrentStageIndex(s);
-      await new Promise((r) => setTimeout(r, 250));
-    }
+    setCurrentStageIndex(0);
 
     try {
       let body;
@@ -132,14 +129,44 @@ export const StudentSmartLectureView = () => {
       }
 
       const res = await studentApi.convertedLectures.create(body);
-      if (res?.data) {
-        setGeneratedLecture(res.data);
+      let lectureData = res?.data || null;
+      if (lectureData) {
+        setGeneratedLecture(lectureData);
       }
+
+      // Poll real backend STT status until Whisper finishes transcribing
+      const lectureId = lectureData?.id;
+      let sttStatus = lectureData?.sttJob?.status;
+
+      if (lectureId && (sttStatus === 'queued' || sttStatus === 'processing')) {
+        setCurrentStageIndex(1);
+        for (let attempt = 0; attempt < 180; attempt += 1) {
+          await new Promise((r) => {
+            stageTimeoutRef.current = setTimeout(r, 2000);
+          });
+          const statusRes = await studentApi.convertedLectures.status(lectureId);
+          if (statusRes?.data) {
+            lectureData = statusRes.data;
+            setGeneratedLecture(lectureData);
+            sttStatus = lectureData?.sttJob?.status;
+            const pct = Number(lectureData?.sttJob?.progress || 0);
+            if (pct >= 50) {
+              setCurrentStageIndex(Math.min(totalStages - 1, 2));
+            }
+          }
+          if (sttStatus !== 'queued' && sttStatus !== 'processing') {
+            break;
+          }
+        }
+      }
+
       setCurrentStageIndex(totalStages);
       setUploadStatus('done');
       setHasGenerated(true);
 
-      if (!targetOutputs.includes('graph') && activeTab === 'map') {
+      if (targetOutputs.includes('transcript') && Array.isArray(lectureData?.transcript) && lectureData.transcript.length > 0) {
+        setActiveTab('transcript');
+      } else if (!targetOutputs.includes('graph') && activeTab === 'map') {
         setActiveTab(targetOutputs.includes('transcript') ? 'transcript' : 'topics');
       }
     } catch (err) {
@@ -211,10 +238,13 @@ export const StudentSmartLectureView = () => {
     return `${m}:${sec}`;
   };
 
-  // Filter transcript
-  const filteredTranscript = lesson.transcript.filter(t => {
-    if (!searchTranscript.trim()) return true;
-    return t.textAr.includes(searchTranscript.trim()) || t.text.toLowerCase().includes(searchTranscript.toLowerCase());
+  // Filter transcript (multilingual safe)
+  const filteredTranscript = lesson.transcript.filter((t) => {
+    const q = searchTranscript.trim().toLowerCase();
+    if (!q) return true;
+    const textAr = String(t.textAr || '').toLowerCase();
+    const textEn = String(t.text || '').toLowerCase();
+    return textAr.includes(q) || textEn.includes(q);
   });
 
   // Calculate available tabs based on selected/generated outputs

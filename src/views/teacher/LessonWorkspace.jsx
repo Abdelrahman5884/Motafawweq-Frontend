@@ -39,6 +39,7 @@ export const LessonWorkspace = () => {
   const [searchParams] = useSearchParams();
   const requestedLessonId = searchParams.get('lesson') || '';
   const requestedCourseId = searchParams.get('courseId') || '';
+  const requestedTab = searchParams.get('tab') || '';
   const { navigate, teacherPlanTier } = useAuth();
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
@@ -57,7 +58,11 @@ export const LessonWorkspace = () => {
   const [mediaFilter, setMediaFilter] = useState('all');
 
   // Active inner section: 'media' | 'transcript' | 'graph'
-  const [activeSection, setActiveSection] = useState('media');
+  const [activeSection, setActiveSection] = useState(() =>
+    ['media', 'transcript', 'graph'].includes(requestedTab) ? requestedTab : 'media'
+  );
+  const [startingSttLessonId, setStartingSttLessonId] = useState('');
+  const sttPollTimerRef = useRef(null);
 
   // Modals: Lightbox, PDF Preview, Edit, Delete
   const [lightboxImage, setLightboxImage] = useState(null);
@@ -285,6 +290,117 @@ export const LessonWorkspace = () => {
     );
     showToast(isAr ? 'تم حفظ التفريغ النصي بنجاح.' : 'Transcript saved.');
   };
+
+  const handleStartAiTranscription = async (lessonId, { language = 'auto', force = true } = {}) => {
+    setStartingSttLessonId(lessonId);
+    try {
+      const res = await teacherApi.workspace.startTranscription(lessonId, { language, force });
+      const job = res?.data?.job || null;
+      if (job) {
+        setLessonsList((prev) =>
+          prev.map((l) => (l.id === lessonId ? { ...l, aiSttJob: job } : l))
+        );
+      }
+      if (job?.status === 'completed') {
+        await refreshSingleLesson(lessonId);
+        showToast(isAr ? 'اكتمل التفريغ النصي الذكي بنجاح!' : 'AI transcript generated successfully!');
+      } else {
+        showToast(
+          isAr
+            ? 'بدأ التفريغ النصي الذكي بواسطة Whisper large-v3...'
+            : 'Whisper large-v3 AI transcription started...'
+        );
+      }
+    } catch (err) {
+      showToast(
+        err?.message ||
+          (isAr ? 'تعذر بدء التفريغ النصي الذكي.' : 'Failed to start AI transcription.'),
+        'error'
+      );
+      throw err;
+    } finally {
+      setStartingSttLessonId('');
+    }
+  };
+
+  // Poll live AI STT job while current lesson has an active queued/processing transcription
+  const activeSttStatus = currentLesson?.aiSttJob?.status;
+  const activeSttLessonId = currentLesson?.id;
+
+  useEffect(() => {
+    if (sttPollTimerRef.current) {
+      window.clearTimeout(sttPollTimerRef.current);
+      sttPollTimerRef.current = null;
+    }
+
+    if (
+      !activeSttLessonId ||
+      !canUseLessonAi ||
+      (activeSttStatus !== 'queued' && activeSttStatus !== 'processing')
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await teacherApi.workspace.getAiStatus(activeSttLessonId);
+        if (cancelled) return;
+        const data = res?.data;
+        if (!data) return;
+
+        setLessonsList((prev) =>
+          prev.map((l) =>
+            l.id === activeSttLessonId
+              ? {
+                  ...l,
+                  aiSttJob: data.job || l.aiSttJob,
+                  transcript: Array.isArray(data.transcript) ? data.transcript : l.transcript,
+                  durationSeconds: data.durationSeconds || l.durationSeconds,
+                  durationFormatted: data.durationFormatted || l.durationFormatted,
+                }
+              : l
+          )
+        );
+
+        const nextStatus = data.job?.status;
+        if (nextStatus === 'completed') {
+          showToast(
+            isAr
+              ? `اكتمل التفريغ النصي بنجاح (${data.transcriptCount || 0} فقرة)!`
+              : `AI transcript ready (${data.transcriptCount || 0} segments)!`
+          );
+          return;
+        }
+        if (nextStatus === 'failed') {
+          showToast(
+            data.job?.error ||
+              (isAr ? 'تعذر إتمام التفريغ النصي.' : 'AI transcription failed.'),
+            'error'
+          );
+          return;
+        }
+
+        if (nextStatus === 'queued' || nextStatus === 'processing') {
+          sttPollTimerRef.current = window.setTimeout(poll, 2000);
+        }
+      } catch {
+        if (!cancelled) {
+          sttPollTimerRef.current = window.setTimeout(poll, 3500);
+        }
+      }
+    };
+
+    sttPollTimerRef.current = window.setTimeout(poll, 1800);
+
+    return () => {
+      cancelled = true;
+      if (sttPollTimerRef.current) {
+        window.clearTimeout(sttPollTimerRef.current);
+        sttPollTimerRef.current = null;
+      }
+    };
+  }, [activeSttLessonId, activeSttStatus, canUseLessonAi, isAr, showToast]);
 
   const handleSaveConceptGraph = async (lessonId, treeData) => {
     const res = await teacherApi.workspace.saveConceptGraph(lessonId, treeData);
@@ -886,6 +1002,8 @@ export const LessonWorkspace = () => {
                     onJumpToTimestamp={handleJumpToTimestamp}
                     onGetCurrentTime={getCurrentPlayerTime}
                     onSyncTranscript={handleSyncTranscript}
+                    onStartAiTranscription={handleStartAiTranscription}
+                    isStartingAi={startingSttLessonId === currentLesson.id}
                   />
                 </TeacherSubscriptionGate>
               )}

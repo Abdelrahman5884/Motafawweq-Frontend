@@ -114,6 +114,7 @@ export const LessonTranscriptTab = ({
                     <div className="lv-transcript__speaker">{seg.speaker}</div>
                   )}
                   <p
+                    dir="auto"
                     className="lv-transcript__p"
                     style={{
                       overflowWrap: 'anywhere',

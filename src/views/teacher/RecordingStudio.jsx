@@ -452,7 +452,8 @@ export const RecordingStudio = () => {
       setUploadProgress(0);
 
       if (finalLessonUuid) {
-        const target = isProAiActive
+        const hasAudioOrVideo = Boolean(mediaFile || embedUrl);
+        const target = isProAiActive && hasAudioOrVideo
           ? `/teacher/processing?lesson=${encodeURIComponent(finalLessonUuid)}`
           : `/teacher/workspace?lesson=${encodeURIComponent(finalLessonUuid)}`;
         navigate(target);
@@ -826,8 +827,8 @@ export const RecordingStudio = () => {
                   bg: 'var(--primary-surface)',
                   titleAr: 'التفريغ النصي (Speech-to-Text)',
                   titleEn: 'Speech-to-Text Transcript',
-                  descAr: 'تحويل صوت الشرح إلى نص مقروء باللهجة المصرية.',
-                  descEn: 'Egyptian dialect ASR transcription.',
+                  descAr: 'تحويل صوت الشرح إلى نص مقروء بدقة عالية بأي لغة (العربية، اللهجة المصرية، الإنجليزية وغيرها).',
+                  descEn: 'High-accuracy multilingual ASR (Arabic, Egyptian dialect, English, French & 99+ languages).',
                 },
                 {
                   key: 'conceptGraph',

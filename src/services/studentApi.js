@@ -210,6 +210,7 @@ export const studentApi = {
   convertedLectures: {
     list: () => apiGet('/student/converted-lectures'),
     get: (uuid) => apiGet(`/student/converted-lectures/${uuid}`),
+    status: (uuid) => apiGet(`/student/converted-lectures/${uuid}/status`),
     create: (formDataOrPayload) =>
       apiRequest('/student/converted-lectures', {
         method: 'POST',

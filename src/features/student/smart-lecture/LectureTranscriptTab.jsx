@@ -99,13 +99,17 @@ export const LectureTranscriptTab = ({
                 }}>
                   {t.speaker}
                 </div>
-                <div style={{
-                  fontSize: '13.5px',
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.55,
-                  fontFamily: 'var(--font-arabic)'
-                }}>
-                  {t.textAr}
+                <div
+                  dir="auto"
+                  style={{
+                    fontSize: '13.5px',
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.65,
+                    fontFamily: 'var(--font-arabic)',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {t.textAr || t.text}
                 </div>
               </div>
             </div>

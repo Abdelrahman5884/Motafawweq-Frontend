@@ -26,6 +26,7 @@ export function mapLesson(l) {
     aiFeatures: l.aiFeatures || { speechToText: false, conceptGraph: false, chapterIndexing: false },
     chapters: Array.isArray(l.chapters) ? l.chapters : [],
     transcript: Array.isArray(l.transcript) ? l.transcript : [],
+    aiSttJob: l.aiSttJob || null,
     notebookMindMap: l.notebookMindMap || null,
     lessonPdfs: Array.isArray(l.lessonPdfs) ? l.lessonPdfs : [],
     lessonImages: Array.isArray(l.lessonImages) ? l.lessonImages : [],
