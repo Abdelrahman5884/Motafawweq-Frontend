@@ -410,7 +410,13 @@ export const Navbar = ({ mobileSidebarOpen, setMobileSidebarOpen, isFullPage, ha
           {isAuthenticated ? (
             <div className="desktop-only" style={{ alignItems: 'center', gap: '8px' }}>
               <button 
-                onClick={() => navigate(currentRole === 'student' ? '/student/settings' : getDashboardPath())}
+                onClick={() => navigate(
+                  currentRole === 'student'
+                    ? '/student/settings'
+                    : currentRole === 'parent'
+                    ? '/parent/dashboard?tab=settings'
+                    : getDashboardPath()
+                )}
                 title={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
                 aria-label={lang === 'ar' ? 'الملف الشخصي والإعدادات' : 'Profile & Settings'}
                 style={{

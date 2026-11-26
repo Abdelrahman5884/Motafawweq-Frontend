@@ -1,3 +1,13 @@
+export { ParentAvatar } from './ParentAvatar';
+export { ParentEmptyState } from './ParentEmptyState';
 export { ChildSwitcher } from './ChildSwitcher';
 export { ChildSummaryCard } from './ChildSummaryCard';
 export { ChildSessionAndFeedback } from './ChildSessionAndFeedback';
+export { ParentOverviewTab } from './ParentOverviewTab';
+export { ParentCoursesTab } from './ParentCoursesTab';
+export { ParentAttendanceTab } from './ParentAttendanceTab';
+export { ParentExamsTab } from './ParentExamsTab';
+export { ParentHomeworkTab } from './ParentHomeworkTab';
+export { ParentFinancialsTab } from './ParentFinancialsTab';
+export { ParentSettingsTab } from './ParentSettingsTab';
+export { LinkChildModal, ContactCenterModal } from './ParentModals';
