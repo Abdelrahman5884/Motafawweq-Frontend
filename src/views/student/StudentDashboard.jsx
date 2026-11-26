@@ -70,6 +70,7 @@ export const StudentDashboard = () => {
     streakDays: liveStreakDays,
     longestStreakDays: liveLongestStreakDays,
     streakWasReset: liveStreakWasReset,
+    previousStreakDays: livePreviousStreakDays,
     todayDate: liveTodayDate,
     isTracking,
     hydrated: activityHydrated,
@@ -90,6 +91,7 @@ export const StudentDashboard = () => {
     streakDays: 0,
     longestStreakDays: 0,
     streakWasReset: false,
+    previousStreakDays: 0,
     studyMinutesToday: 0,
     studySecondsToday: 0,
     dailyGoalMinutes: 120,
@@ -156,6 +158,7 @@ export const StudentDashboard = () => {
       streakDays: Number(kpis.streakDays || 0),
       longestStreakDays: Number(kpis.longestStreakDays || kpis.streakDays || 0),
       streakWasReset: Boolean(kpis.streakWasReset),
+      previousStreakDays: Number(kpis.previousStreakDays || 0),
       studyMinutesToday: Number(kpis.studyMinutesToday ?? Math.floor(studySec / 60)),
       studySecondsToday: studySec,
       dailyGoalMinutes: Number(prof.dailyStudyGoalMinutes || 120),
@@ -356,6 +359,9 @@ export const StudentDashboard = () => {
       streakDays: mergedStreak,
       longestStreakDays: mergedLongest,
       streakWasReset: activityHydrated ? (liveStreakWasReset || student.streakWasReset) : student.streakWasReset,
+      previousStreakDays: activityHydrated
+        ? Number(livePreviousStreakDays || student.previousStreakDays || 0)
+        : Number(student.previousStreakDays || 0),
     };
   }, [
     student,
@@ -363,7 +369,8 @@ export const StudentDashboard = () => {
     activeSecondsToday,
     liveStreakDays,
     liveLongestStreakDays,
-    liveStreakWasReset
+    liveStreakWasReset,
+    livePreviousStreakDays
   ]);
 
   // Keep Today's point in the 7-day chart live-updated as active minutes increment

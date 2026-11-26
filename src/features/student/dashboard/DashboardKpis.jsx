@@ -28,6 +28,7 @@ export const DashboardKpis = ({
   const streakDays = Number(student.streakDays || 0);
   const longestStreak = Math.max(streakDays, Number(student.longestStreakDays || 0));
   const streakWasReset = Boolean(student.streakWasReset);
+  const previousStreakDays = Number(student.previousStreakDays || 0);
   const batchRank = student.batchRank ? `#${student.batchRank}` : '--';
 
   const studySecondsToday = Math.max(0, Number(student.studySecondsToday ?? (Number(student.studyMinutesToday || 0) * 60)));
@@ -121,12 +122,18 @@ export const DashboardKpis = ({
           <div className="executive-kpi-sub" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
             <span>
               {streakWasReset
-                ? (lang === 'ar' ? 'بدأت سلسلة جديدة اليوم' : 'New streak started today')
+                ? (previousStreakDays > 0
+                    ? (lang === 'ar'
+                        ? `انتهت سلسلتك السابقة (${previousStreakDays} ${formatArabicDaysUnit(previousStreakDays)}) — بدأت من الأول اليوم`
+                        : `Previous ${previousStreakDays}d streak ended — restarted at Day 1`)
+                    : (lang === 'ar' ? 'بدأت سلسلة جديدة من الأول اليوم' : 'New streak started from Day 1'))
                 : (lang === 'ar' ? 'أيام الاستمرار والستريك' : 'Consecutive Study Days')}
             </span>
             {streakDays > 0 && (
-              <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#10B981' }}>
-                {lang === 'ar' ? 'نشط اليوم' : 'Active today'}
+              <span style={{ fontSize: '10.5px', fontWeight: '700', color: streakWasReset ? '#F59E0B' : '#10B981' }}>
+                {streakWasReset
+                  ? (lang === 'ar' ? 'بداية جديدة' : 'Fresh start')
+                  : (lang === 'ar' ? 'نشط اليوم' : 'Active today')}
               </span>
             )}
           </div>

@@ -55,10 +55,12 @@ export const Sidebar = ({ mobileSidebarOpen, onClose, isCollapsed, onToggleColla
   const location = useLocation();
   const { currentRole, currentUser, studentPlanTier, teacherPlanTier, centerPlanTier } = useAuth();
   const activeCenterPlan = CENTER_PLANS[normalizeCenterPlanTier(centerPlanTier)] || CENTER_PLANS.free;
-  const { streakDays: liveStreakDays } = useStudentActivity();
+  const { streakDays: liveStreakDays, hydrated: activityHydrated } = useStudentActivity();
   const { lang, isRtl } = useLanguage();
   const { isDark } = useTheme();
-  const sidebarStreakDays = Number(liveStreakDays || currentUser?.streakDays || 0);
+  const sidebarStreakDays = activityHydrated
+    ? Math.max(0, Number(liveStreakDays ?? 0))
+    : Math.max(0, Number(currentUser?.streakDays || 0));
 
   // Effective role derived from path or current user role
   const effectiveRole = location.pathname.startsWith('/center')
