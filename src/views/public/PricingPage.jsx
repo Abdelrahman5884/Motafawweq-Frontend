@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { 
-  Check, 
-  Sparkles, 
-  Zap, 
-  Shield, 
-  ArrowRight, 
+import {
+  Check,
+  Sparkles,
+  ArrowRight,
   ArrowLeft,
-  Building2, 
-  GraduationCap, 
-  Users, 
-  CheckCircle2, 
-  Award,
+  Building2,
+  GraduationCap,
+  Users,
   Crown,
-  HelpCircle,
-  Clock
+  Clock,
+  Gift,
+  Percent,
 } from 'lucide-react';
 import { CENTER_SUBSCRIPTION_PLANS } from '../../data/centerData';
 import { TEACHER_SUBSCRIPTION_PLANS } from '../../data/teacherData';
@@ -202,29 +199,76 @@ export const PricingPage = () => {
     return matching.map((p, idx) => {
       const tier = p.tierKey || (Number(p.priceEgp) === 0 ? 'free' : (p.isPopular ? 'pro' : 'plus'));
       const matchedFallback = fallbackCards.find(f => f.tier === tier) || fallbackCards[idx] || {};
+      const isFreePromoActive = Boolean(p.isFreePromoActive);
       const monthlyPrice = Math.round(Number(p.priceEgp || 0));
       const annualPrice = Math.round(Number(p.annualPriceEgp || 0));
-      const displayPrice =
+      const rawOriginalMonthly =
+        p.originalPriceEgp !== null && p.originalPriceEgp !== undefined ? Math.round(Number(p.originalPriceEgp)) : null;
+      const rawOriginalAnnual =
+        p.originalAnnualPriceEgp !== null && p.originalAnnualPriceEgp !== undefined
+          ? Math.round(Number(p.originalAnnualPriceEgp))
+          : null;
+
+      const regularDisplayPrice =
         monthlyPrice === 0
           ? 0
           : billingCycle === 'yearly'
             ? (annualPrice > 0 ? Math.round(annualPrice / 10) : Math.round(monthlyPrice * 0.8))
             : monthlyPrice;
 
-      const color =
-        matchedFallback.color ||
-        (tier === 'pro' ? '#1588C7' : tier === 'plus' ? '#0284C7' : 'var(--text-secondary)');
+      const displayPrice = isFreePromoActive ? 0 : regularDisplayPrice;
+      const compareAtPrice = isFreePromoActive
+        ? (rawOriginalMonthly && rawOriginalMonthly > 0
+            ? rawOriginalMonthly
+            : regularDisplayPrice > 0
+              ? regularDisplayPrice
+              : null)
+        : billingCycle === 'yearly'
+          ? (rawOriginalAnnual && Math.round(rawOriginalAnnual / 10) > displayPrice
+              ? Math.round(rawOriginalAnnual / 10)
+              : null)
+          : (rawOriginalMonthly && rawOriginalMonthly > displayPrice ? rawOriginalMonthly : null);
+
+      const discountPct =
+        isFreePromoActive && compareAtPrice
+          ? 100
+          : compareAtPrice && compareAtPrice > displayPrice
+            ? Math.round(((compareAtPrice - displayPrice) / compareAtPrice) * 100)
+            : null;
+
+      const color = isFreePromoActive
+        ? '#059669'
+        : matchedFallback.color ||
+          (tier === 'pro' ? '#1588C7' : tier === 'plus' ? '#0284C7' : 'var(--text-secondary)');
 
       return {
         id: p.id,
         nameAr: p.nameAr || matchedFallback.nameAr,
         nameEn: p.nameEn || p.nameAr || matchedFallback.nameEn,
         tier,
-        taglineAr: p.badgeAr || matchedFallback.taglineAr || (monthlyPrice === 0 ? 'ابدأ مجاناً على منصة متفوق' : 'باقة رسمية معتمدة على منصة متفوق'),
-        taglineEn: p.badgeEn || matchedFallback.taglineEn || (monthlyPrice === 0 ? 'Start free on Motafawweq' : 'Official verified Motafawweq plan'),
+        taglineAr: isFreePromoActive
+          ? (p.freePromoLabelAr || 'مجانية لفترة محدودة')
+          : (p.badgeAr || matchedFallback.taglineAr || (monthlyPrice === 0 ? 'ابدأ مجاناً على منصة متفوق' : 'باقة رسمية معتمدة على منصة متفوق')),
+        taglineEn: isFreePromoActive
+          ? (p.freePromoLabelEn || 'Free for a Limited Time')
+          : (p.badgeEn || matchedFallback.taglineEn || (monthlyPrice === 0 ? 'Start free on Motafawweq' : 'Official verified Motafawweq plan')),
         price: displayPrice,
-        periodAr: displayPrice === 0 ? 'دائماً مجاناً' : (billingCycle === 'yearly' ? 'ج.م / شهرياً (تدفع سنوياً)' : 'جنيه مصري / شهرياً'),
-        periodEn: displayPrice === 0 ? 'Forever Free' : (billingCycle === 'yearly' ? 'EGP / mo (billed yearly)' : 'EGP / month'),
+        originalPrice: compareAtPrice,
+        discountPercent: discountPct,
+        isFreePromoActive,
+        freePromoUntil: p.freePromoUntil ? String(p.freePromoUntil).slice(0, 10) : null,
+        freePromoLabelAr: p.freePromoLabelAr || 'مجانية لفترة محدودة',
+        freePromoLabelEn: p.freePromoLabelEn || 'Free for a Limited Time',
+        periodAr: isFreePromoActive
+          ? 'مجاناً لفترة محدودة'
+          : displayPrice === 0
+            ? 'دائماً مجاناً'
+            : (billingCycle === 'yearly' ? 'ج.م / شهرياً (تدفع سنوياً)' : 'جنيه مصري / شهرياً'),
+        periodEn: isFreePromoActive
+          ? 'Free for a limited time'
+          : displayPrice === 0
+            ? 'Forever Free'
+            : (billingCycle === 'yearly' ? 'EGP / mo (billed yearly)' : 'EGP / month'),
         usersLimitAr: matchedFallback.usersLimitAr || (p.commissionPercent !== null && p.commissionPercent !== undefined ? `عمولة المنصة: ${p.commissionPercent}%` : 'وصول كامل لمزايا الباقة'),
         usersLimitEn: matchedFallback.usersLimitEn || (p.commissionPercent !== null && p.commissionPercent !== undefined ? `Platform commission: ${p.commissionPercent}%` : 'Full tier entitlements'),
         color,
@@ -232,8 +276,16 @@ export const PricingPage = () => {
         featuresAr: Array.isArray(p.featuresAr) && p.featuresAr.length > 0 ? p.featuresAr : (matchedFallback.featuresAr || []),
         featuresEn: Array.isArray(p.featuresEn) && p.featuresEn.length > 0 ? p.featuresEn : (matchedFallback.featuresEn || p.featuresAr || []),
         role,
-        ctaAr: displayPrice === 0 ? (matchedFallback.ctaAr || 'ابدأ مجاناً') : `اشترك الآن (${displayPrice} ج.م)`,
-        ctaEn: displayPrice === 0 ? (matchedFallback.ctaEn || 'Start Free') : `Subscribe Now (${displayPrice} EGP)`,
+        ctaAr: isFreePromoActive
+          ? 'فعّل مجاناً الآن — عرض مؤقت'
+          : displayPrice === 0
+            ? (matchedFallback.ctaAr || 'ابدأ مجاناً')
+            : `اشترك الآن (${displayPrice} ج.م)`,
+        ctaEn: isFreePromoActive
+          ? 'Activate Free Now — Limited Offer'
+          : displayPrice === 0
+            ? (matchedFallback.ctaEn || 'Start Free')
+            : `Subscribe Now (${displayPrice} EGP)`,
       };
     });
   };
@@ -485,12 +537,12 @@ export const PricingPage = () => {
                 transition: 'transform 0.2s ease, box-shadow 0.2s ease'
               }}
             >
-              {isPop && (
+              {(isPop || plan.isFreePromoActive) && (
                 <div style={{
                   position: 'absolute',
                   top: '-13px',
                   [isRtl ? 'right' : 'left']: '28px',
-                  backgroundColor: plan.color,
+                  backgroundColor: plan.isFreePromoActive ? '#059669' : plan.color,
                   color: '#FFFFFF',
                   padding: '4px 14px',
                   borderRadius: '9999px',
@@ -500,10 +552,14 @@ export const PricingPage = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  boxShadow: `0 4px 12px ${plan.color}40`
+                  boxShadow: `0 4px 12px ${plan.isFreePromoActive ? 'rgba(5,150,105,0.4)' : `${plan.color}40`}`
                 }}>
-                  <Crown size={13} />
-                  <span>{lang === 'ar' ? 'الباقة الأكثر طلباً' : 'MOST POPULAR'}</span>
+                  {plan.isFreePromoActive ? <Gift size={13} /> : <Crown size={13} />}
+                  <span>
+                    {plan.isFreePromoActive
+                      ? (lang === 'ar' ? plan.freePromoLabelAr : plan.freePromoLabelEn)
+                      : (lang === 'ar' ? 'الباقة الأكثر طلباً' : 'MOST POPULAR')}
+                  </span>
                 </div>
               )}
 
@@ -555,19 +611,81 @@ export const PricingPage = () => {
                   paddingBottom: '20px',
                   borderBottom: '1px solid var(--border-medium)'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{
                       fontSize: '44px',
                       fontWeight: '900',
-                      color: 'var(--text-primary)',
+                      color: plan.isFreePromoActive ? '#059669' : 'var(--text-primary)',
                       fontFamily: 'var(--font-heading, inherit)'
                     }}>
-                      {plan.price}
+                      {plan.isFreePromoActive || plan.price === 0 ? (lang === 'ar' ? 'مجاناً' : 'Free') : plan.price}
                     </span>
                     <span style={{ fontSize: '13.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
                       {lang === 'ar' ? plan.periodAr : plan.periodEn}
                     </span>
+                    {plan.originalPrice > plan.price && (
+                      <span style={{
+                        fontSize: '15px',
+                        color: 'var(--text-muted)',
+                        textDecoration: 'line-through',
+                        fontWeight: '700'
+                      }}>
+                        {plan.originalPrice} {lang === 'ar' ? 'ج.م' : 'EGP'}
+                      </span>
+                    )}
                   </div>
+
+                  {(plan.discountPercent > 0 || plan.isFreePromoActive) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {plan.isFreePromoActive ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '11.5px',
+                          fontWeight: '800',
+                          padding: '3px 9px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                          color: '#059669',
+                          border: '1px solid rgba(16, 185, 129, 0.35)'
+                        }}>
+                          <Gift size={12} />
+                          <span>{lang === 'ar' ? 'خصم 100% — تفعيل فوري' : '100% OFF — Instant'}</span>
+                        </span>
+                      ) : (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '11.5px',
+                          fontWeight: '800',
+                          padding: '3px 9px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          color: '#DC2626',
+                          border: '1px solid rgba(239, 68, 68, 0.28)'
+                        }}>
+                          <Percent size={11} />
+                          <span>{lang === 'ar' ? `خصم ${plan.discountPercent}%` : `${plan.discountPercent}% OFF`}</span>
+                        </span>
+                      )}
+
+                      {plan.isFreePromoActive && plan.freePromoUntil && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '11px',
+                          color: 'var(--text-secondary)',
+                          fontWeight: '700'
+                        }}>
+                          <Clock size={11} />
+                          <span>{lang === 'ar' ? `حتى ${plan.freePromoUntil}` : `Until ${plan.freePromoUntil}`}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Feature List */}

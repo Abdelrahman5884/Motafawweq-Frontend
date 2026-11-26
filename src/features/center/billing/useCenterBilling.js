@@ -7,6 +7,7 @@ import {
   CENTER_SUBSCRIPTION_CATALOG,
   getCenterPlanQuotas,
 } from '../../../constants/centerPlanFeatures';
+import { buildSubscriptionPayload } from '../../student/billing/billingPayload';
 
 const EMPTY_USAGE = {
   branchesCount: 0,
@@ -39,6 +40,7 @@ export const useCenterBilling = (lang = 'ar') => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('instapay');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentResult, setPaymentResult] = useState(null);
   const [checkoutError, setCheckoutError] = useState('');
 
   // Cancel-before-switch modal state
@@ -122,6 +124,9 @@ export const useCenterBilling = (lang = 'ar') => {
   }, [fetchSummary]);
 
   const activeSub = useMemo(() => summary?.activeSub || null, [summary]);
+  const pendingRequest = useMemo(() => summary?.pendingRequest || null, [summary]);
+  const latestRejectedRequest = useMemo(() => summary?.latestRejectedRequest || null, [summary]);
+  const hasPendingRequest = Boolean(pendingRequest);
   const usage = useMemo(() => ({ ...EMPTY_USAGE, ...(summary?.usage || {}) }), [summary]);
 
   const plans = useMemo(
@@ -162,6 +167,7 @@ export const useCenterBilling = (lang = 'ar') => {
     setCouponError('');
     setCheckoutError('');
     setPaymentSuccess(false);
+    setPaymentResult(null);
     setSelectedPaymentMethod('instapay');
   }, []);
 
@@ -202,8 +208,8 @@ export const useCenterBilling = (lang = 'ar') => {
     (planWithPricing) => {
       const tier = planWithPricing?.tier || 'plus';
 
-      if (mustCancelToSwitch) {
-        // Strict cancel-before-switch UX
+      if (hasPendingRequest || mustCancelToSwitch) {
+        // Strict cancel-before-switch UX (covers both pending approval requests and active paid plans)
         openCancelModal(tier === 'free' ? null : planWithPricing);
         return;
       }
@@ -220,11 +226,11 @@ export const useCenterBilling = (lang = 'ar') => {
 
       openCheckoutForPlan(planWithPricing, selectedPeriod);
     },
-    [isAr, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, selectedPeriod]
+    [hasPendingRequest, isAr, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, selectedPeriod]
   );
 
   const handleUpgradeFromBanner = useCallback(() => {
-    if (mustCancelToSwitch) {
+    if (hasPendingRequest || mustCancelToSwitch) {
       openCancelModal(null);
       return;
     }
@@ -232,7 +238,7 @@ export const useCenterBilling = (lang = 'ar') => {
     if (!targetPlan) return;
     const pricing = targetPlan.pricing?.[selectedPeriod] || targetPlan.pricing?.monthly || {};
     openCheckoutForPlan({ ...targetPlan, ...pricing }, selectedPeriod);
-  }, [mustCancelToSwitch, openCancelModal, openCheckoutForPlan, plans, selectedPeriod]);
+  }, [hasPendingRequest, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, plans, selectedPeriod]);
 
   const handleConfirmCancel = useCallback(async () => {
     if (isCancelling) return;
@@ -244,7 +250,7 @@ export const useCenterBilling = (lang = 'ar') => {
       const res = await centerApi.billing.cancel();
       const targetAfterCancel = pendingSwitchTarget;
 
-      await Promise.all([
+      const [refreshed] = await Promise.all([
         fetchSummary({ silent: true }),
         loadCoreCenterData?.().catch(() => {}),
       ]);
@@ -252,22 +258,27 @@ export const useCenterBilling = (lang = 'ar') => {
       setCancelModalOpen(false);
       setPendingSwitchTarget(null);
 
-      if (targetAfterCancel && targetAfterCancel.tier && targetAfterCancel.tier !== 'free') {
+      const stillBlocked =
+        Boolean(refreshed?.pendingRequest) ||
+        Boolean(refreshed?.activeSub && !refreshed.activeSub.isFree && refreshed.activeSub.planTier !== 'free');
+
+      if (!stillBlocked && targetAfterCancel && targetAfterCancel.tier && targetAfterCancel.tier !== 'free') {
         setNotice({
           type: 'success',
           text: isAr
-            ? `تم إلغاء اشتراكك السابق بنجاح. يمكنك الآن إتمام الاشتراك في «${targetAfterCancel.nameAr}».`
-            : `Previous subscription cancelled. Complete checkout for "${targetAfterCancel.nameEn || targetAfterCancel.nameAr}".`,
+            ? `تم الإلغاء بنجاح. يمكنك الآن إتمام الاشتراك في «${targetAfterCancel.nameAr}».`
+            : `Cancelled successfully. Complete checkout for "${targetAfterCancel.nameEn || targetAfterCancel.nameAr}".`,
         });
         openCheckoutForPlan(targetAfterCancel, selectedPeriod);
       } else {
         setNotice({
           type: 'success',
           text:
+            res?.data?.messageAr ||
             res?.message ||
             (isAr
-              ? 'تم إلغاء الاشتراك المدفوع والعودة للباقة المجانية بنجاح. يمكنك الآن الاشتراك في أي باقة أخرى.'
-              : 'Your active subscription has been cancelled and reverted to Free. You can now switch to any other plan.'),
+              ? 'تم الإلغاء بنجاح. يمكنك الآن الاشتراك في أي باقة أخرى.'
+              : 'Cancelled successfully. You can now switch to any other plan.'),
         });
       }
     } catch (err) {
@@ -345,46 +356,59 @@ export const useCenterBilling = (lang = 'ar') => {
       setCheckoutError('');
 
       try {
-        const res = await centerApi.billing.subscribe({
-          plan_tier: selectedPlanForCheckout.tier || 'plus',
-          billing_period: selectedPlanForCheckout.billingPeriod || selectedPeriod,
-          payment_method: paymentDetails.method || selectedPaymentMethod,
-          coupon_code: couponApplied ? couponCode.trim() : null,
-          sender_phone: paymentDetails.senderPhone || null,
-          sender_ipa: paymentDetails.senderIpa || null,
-          transaction_ref: paymentDetails.transactionId || paymentDetails.instaRefNum || null,
+        const payload = buildSubscriptionPayload({
+          planTier: selectedPlanForCheckout.tier || 'plus',
+          billingPeriod: selectedPlanForCheckout.billingPeriod || selectedPeriod,
+          paymentMethod: paymentDetails.method || selectedPaymentMethod,
+          couponCode: couponApplied ? couponCode.trim() : null,
+          senderPhone: paymentDetails.senderPhone || null,
+          senderIpa: paymentDetails.senderIpa || null,
+          transactionRef:
+            paymentDetails.transactionRef || paymentDetails.transactionId || paymentDetails.instaRefNum || null,
+          receiptFile: paymentDetails.receiptFile || null,
         });
+
+        const res = await centerApi.billing.subscribe(payload);
+        const resultData = res?.data || {};
 
         await Promise.all([
           fetchSummary({ silent: true }),
           loadCoreCenterData?.().catch(() => {}),
         ]);
 
+        setPaymentResult(resultData);
         setPaymentSuccess(true);
 
-        try {
-          confetti({
-            particleCount: 110,
-            spread: 75,
-            origin: { y: 0.6 },
-          });
-        } catch {
-          // ignore confetti errors in non-visual contexts
+        if (!resultData.requiresApproval) {
+          try {
+            confetti({
+              particleCount: 110,
+              spread: 75,
+              origin: { y: 0.6 },
+            });
+          } catch {
+            // ignore confetti errors in non-visual contexts
+          }
         }
 
         setNotice({
-          type: 'success',
+          type: resultData.requiresApproval ? 'info' : 'success',
           text:
+            resultData.messageAr ||
             res?.message ||
-            (isAr
-              ? 'تم تفعيل الباقة وإصدار الفاتورة الرسمية للسنتر بنجاح!'
-              : 'Center subscription activated and official invoice issued.'),
+            (resultData.requiresApproval
+              ? isAr
+                ? 'تم إرسال طلب اشتراك السنتر ووصل الدفع للمراجعة — سيتم تفعيل الباقة فور اعتماد السوبر أدمن.'
+                : 'Center subscription request and receipt submitted for Super Admin review.'
+              : isAr
+                ? 'تم تفعيل الباقة مجاناً للسنتر بنجاح فوراً!'
+                : 'Center subscription activated immediately!'),
         });
 
         closeTimerRef.current = setTimeout(() => {
           setSelectedPlanForCheckout(null);
           resetCheckoutState();
-        }, 1800);
+        }, 2200);
       } catch (err) {
         setCheckoutError(
           err?.message ||
@@ -416,6 +440,9 @@ export const useCenterBilling = (lang = 'ar') => {
 
   return {
     activeSub,
+    pendingRequest,
+    latestRejectedRequest,
+    hasPendingRequest,
     usage,
     plans,
     invoices,
@@ -434,6 +461,7 @@ export const useCenterBilling = (lang = 'ar') => {
     setSelectedPaymentMethod,
     isProcessingPayment,
     paymentSuccess,
+    paymentResult,
     checkoutError,
     cancelModalOpen,
     pendingSwitchTarget,

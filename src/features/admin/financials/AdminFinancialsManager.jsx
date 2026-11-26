@@ -10,10 +10,12 @@ import {
   RefreshCw,
   CheckCircle,
   AlertCircle,
+  FileCheck2,
 } from 'lucide-react';
 import { FinancialOverviewSection } from './FinancialOverviewSection';
 import { ManualExpensesSection, ManualExpenseModal } from './ManualExpensesSection';
 import { SubscriptionPlansSection } from './SubscriptionPlansSection';
+import { SubscriptionRequestsSection } from './SubscriptionRequestsSection';
 import { PayoutsSection, CouponsSection } from './PayoutsAndCouponsSection';
 
 export const AdminFinancialsManager = () => {
@@ -281,8 +283,17 @@ export const AdminFinancialsManager = () => {
     }
   };
 
+  const pendingSubRequests = Number(overview?.pendingSubscriptionRequestsCount || 0);
+
   const tabs = [
     { id: 'overview', labelAr: 'الأرباح', labelEn: 'Profit', icon: TrendingUp },
+    {
+      id: 'approvals',
+      labelAr: `طلبات الاشتراك`,
+      labelEn: 'Approvals',
+      icon: FileCheck2,
+      badge: pendingSubRequests,
+    },
     { id: 'expenses', labelAr: `التكاليف (${expenses.length})`, labelEn: `Costs (${expenses.length})`, icon: Receipt },
     { id: 'plans', labelAr: `الباقات (${plans.length})`, labelEn: `Plans (${plans.length})`, icon: Layers },
     { id: 'payouts', labelAr: `التسويات (${payouts.length})`, labelEn: `Payouts (${payouts.length})`, icon: ArrowUpRight },
@@ -387,6 +398,25 @@ export const AdminFinancialsManager = () => {
               >
                 <TabIcon size={15} />
                 <span>{isAr ? tab.labelAr : tab.labelEn}</span>
+                {tab.badge > 0 && (
+                  <span
+                    style={{
+                      minWidth: '20px',
+                      height: '20px',
+                      padding: '0 6px',
+                      borderRadius: '999px',
+                      backgroundColor: selected ? '#F59E0B' : '#DC2626',
+                      color: '#FFFFFF',
+                      fontSize: '11px',
+                      fontWeight: '900',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -428,6 +458,15 @@ export const AdminFinancialsManager = () => {
           refreshTick={refreshTick}
           onOpenAddExpense={() => setExpenseModal({ open: true, expense: null })}
           onSwitchTab={setActiveTab}
+        />
+      )}
+
+      {activeTab === 'approvals' && (
+        <SubscriptionRequestsSection
+          lang={lang}
+          refreshTick={refreshTick}
+          onStatusChanged={loadAllFinancials}
+          showToast={showToast}
         />
       )}
 

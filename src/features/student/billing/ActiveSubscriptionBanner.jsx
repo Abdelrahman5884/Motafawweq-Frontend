@@ -40,7 +40,8 @@ export const ActiveSubscriptionBanner = ({
   }
 
   const tier = activeSub.planTier || 'free';
-  const isFree = Boolean(activeSub.isFree || tier === 'free' || Number(activeSub.amountEgp || 0) === 0);
+  const isFree = Boolean(activeSub.isFree || tier === 'free');
+  const isFreePromo = Boolean(!isFree && activeSub.isFreePromo);
   const isMaxPlan = tier === 'pro' && activeSub.billingPeriod === 'annual';
 
   const highlights = isAr
@@ -132,6 +133,26 @@ export const ActiveSubscriptionBanner = ({
             <ShieldCheck size={14} color="var(--primary)" />
             <span>{isAr ? 'باقتك النشطة حالياً' : 'Active Plan'}</span>
           </div>
+
+          {isFreePromo && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                borderRadius: '99px',
+                backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                color: '#059669',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                fontSize: '11px',
+                fontWeight: '900',
+              }}
+            >
+              <Sparkles size={12} color="#059669" />
+              <span>{isAr ? 'مفعّلة بعرض مجاني مؤقت' : 'Temporary Free Promo'}</span>
+            </div>
+          )}
 
           <div
             style={{
@@ -232,12 +253,16 @@ export const ActiveSubscriptionBanner = ({
           <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '2px' }}>
             {isAr ? 'قيمة باقتك الحالية' : 'Current Plan Value'}
           </div>
-          <div style={{ fontSize: '24px', fontWeight: '900', color: 'var(--primary)', letterSpacing: '-0.5px' }}>
+          <div style={{ fontSize: '24px', fontWeight: '900', color: isFreePromo ? '#059669' : 'var(--primary)', letterSpacing: '-0.5px' }}>
             {isFree
               ? isAr
                 ? 'مجاناً'
                 : 'Free'
-              : `${Number(activeSub.amountEgp || 0).toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`}
+              : Number(activeSub.amountEgp || 0) === 0
+                ? isAr
+                  ? 'مجاناً (عرض)'
+                  : 'Free (Promo)'
+                : `${Number(activeSub.amountEgp || 0).toLocaleString()} ${isAr ? 'ج.م' : 'EGP'}`}
           </div>
         </div>
 

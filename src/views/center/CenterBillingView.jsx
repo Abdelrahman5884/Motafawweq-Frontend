@@ -3,20 +3,17 @@ import { InfoTooltip } from '../../components/common/InfoTooltip';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
-  AlertTriangle,
   Building2,
   CheckCircle2,
   Crown,
   DoorOpen,
   GraduationCap,
   Layers,
-  Loader2,
   Lock,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Users,
-  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -25,6 +22,8 @@ import { SButton, SPage, SPageHeader, SSkeleton } from '../../components/student
 import { CENTER_PLANS, CENTER_PLAN_QUOTAS } from '../../constants/centerPlanFeatures';
 import {
   ActiveSubscriptionBanner,
+  SubscriptionRequestStatusBanner,
+  CancelSubscriptionModal,
   BillingInvoicesList,
   CheckoutModal,
   SubscriptionPlanCard,
@@ -360,14 +359,24 @@ export const CenterBillingView = () => {
               lang={lang}
               isRtl={isRtl}
               subtitleOverride={centerBannerSubtitle}
-              hideUpgrade={vm.mustCancelToSwitch}
+              hideUpgrade={vm.mustCancelToSwitch || vm.hasPendingRequest}
               upgradeLabelOverride={
-                isAr ? 'الترقية إلى باقة بلس (200 ج.م)' : 'Upgrade to Center Plus (200 EGP)'
+                isAr ? 'الترقية إلى باقة بلس' : 'Upgrade to Center Plus'
               }
-              onUpgrade={vm.mustCancelToSwitch ? undefined : vm.handleUpgradeFromBanner}
+              onUpgrade={vm.mustCancelToSwitch || vm.hasPendingRequest ? undefined : vm.handleUpgradeFromBanner}
               onCancel={vm.mustCancelToSwitch ? () => vm.openCancelModal(null) : null}
               isCancelling={vm.isCancelling}
               cancelLabel={isAr ? 'إلغاء الاشتراك الحالي' : 'Cancel Subscription'}
+            />
+
+            {/* ── 2.5 Pending Super Admin Review / Rejection Banner ── */}
+            <SubscriptionRequestStatusBanner
+              pendingRequest={vm.pendingRequest}
+              latestRejectedRequest={vm.latestRejectedRequest}
+              lang={lang}
+              isRtl={isRtl}
+              onCancelPending={() => vm.openCancelModal(null)}
+              isCancelling={vm.isCancelling}
             />
 
             {/* ── 3. Live Quota Consumption Strip (Zero Static Numbers) ── */}
@@ -595,7 +604,7 @@ export const CenterBillingView = () => {
                   const isCurrent =
                     activeTier === plan.tier &&
                     (plan.tier === 'free' || vm.activeSub?.billingPeriod === vm.selectedPeriod);
-                  const isSwitchBlocked = vm.mustCancelToSwitch && !isCurrent;
+                  const isSwitchBlocked = (vm.mustCancelToSwitch || vm.hasPendingRequest) && !isCurrent;
 
                   return (
                     <SubscriptionPlanCard
@@ -610,13 +619,17 @@ export const CenterBillingView = () => {
                       )}
                       switchBlocked={isSwitchBlocked}
                       switchBlockedLabel={
-                        plan.tier === 'free'
+                        vm.hasPendingRequest
                           ? isAr
-                            ? 'ألغِ اشتراكك للعودة للمجاني'
-                            : 'Cancel plan to return to Free'
-                          : isAr
-                            ? 'ألغِ اشتراكك الحالي أولاً للتبديل'
-                            : 'Cancel active plan first to switch'
+                            ? 'ألغِ الطلب المعلّق أولاً للتبديل'
+                            : 'Cancel pending request first'
+                          : plan.tier === 'free'
+                            ? isAr
+                              ? 'ألغِ اشتراكك للعودة للمجاني'
+                              : 'Cancel plan to return to Free'
+                            : isAr
+                              ? 'ألغِ اشتراكك الحالي أولاً للتبديل'
+                              : 'Cancel active plan first to switch'
                       }
                       freeActionLabel={
                         isAr ? 'باقتك المجانية الافتراضية' : 'Default Free Tier'
@@ -633,146 +646,20 @@ export const CenterBillingView = () => {
           </>
         )}
 
-        {/* ── 7. Cancel Subscription Confirmation Modal ── */}
-        {vm.cancelModalOpen && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            onClick={vm.closeCancelModal}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(6, 37, 78, 0.78)',
-              backdropFilter: 'blur(6px)',
-              zIndex: 10000,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '16px',
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '22px',
-                maxWidth: '470px',
-                width: '100%',
-                padding: '26px',
-                boxShadow: '0 24px 60px rgba(6, 37, 78, 0.35)',
-                direction: isRtl ? 'rtl' : 'ltr',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '12px',
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      color: '#DC2626',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <AlertTriangle size={20} />
-                  </div>
-                  <h3 style={{ fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)', margin: 0 }}>
-                    {vm.pendingSwitchTarget
-                      ? isAr
-                        ? 'إلغاء الاشتراك الحالي قبل التبديل'
-                        : 'Cancel Active Plan Before Switching'
-                      : isAr
-                        ? 'تأكيد إلغاء الاشتراك الحالي'
-                        : 'Confirm Subscription Cancellation'}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  disabled={vm.isCancelling}
-                  onClick={vm.closeCancelModal}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.7, margin: '0 0 14px 0' }}>
-                {vm.pendingSwitchTarget
-                  ? isAr
-                    ? `للانتقال إلى «${vm.pendingSwitchTarget.nameAr}»، يجب إلغاء اشتراكك النشط في «${vm.activeSub?.planNameAr || ''}» أولاً. بمجرد الإلغاء ستُفتح لك نافذة الاشتراك في الباقة الجديدة فوراً.`
-                    : `To switch to "${vm.pendingSwitchTarget.nameEn || vm.pendingSwitchTarget.nameAr}", cancel your active subscription first. Checkout for the new plan opens immediately after cancellation.`
-                  : isAr
-                    ? `هل أنت متأكد من إلغاء اشتراكك النشط في «${vm.activeSub?.planNameAr || ''}»؟ سيعود السنتر فوراً إلى الباقة المجانية (20 مستخدم نشط) وستُقفل المميزات المدفوعة حتى تشترك مجدداً، مع الاحتفاظ بجميع بياناتك دون حذف.`
-                    : `Are you sure you want to cancel "${vm.activeSub?.planNameEn || vm.activeSub?.planNameAr || ''}"? Your center will revert to the Free plan (20 active users) and paid features will lock until you subscribe again. All existing data stays safe.`}
-              </p>
-
-              {vm.cancelError && (
-                <div
-                  role="alert"
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: '#DC2626',
-                    fontSize: '12.5px',
-                    fontWeight: '700',
-                    marginBottom: '14px',
-                  }}
-                >
-                  {vm.cancelError}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
-                <SButton
-                  variant="ghost"
-                  size="md"
-                  disabled={vm.isCancelling}
-                  onClick={vm.closeCancelModal}
-                >
-                  {isAr ? 'تراجع' : 'Keep Plan'}
-                </SButton>
-
-                <button
-                  type="button"
-                  disabled={vm.isCancelling}
-                  onClick={vm.handleConfirmCancel}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '7px',
-                    padding: '10px 18px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    backgroundColor: '#DC2626',
-                    color: '#FFFFFF',
-                    fontSize: '13px',
-                    fontWeight: '800',
-                    fontFamily: 'inherit',
-                    cursor: vm.isCancelling ? 'wait' : 'pointer',
-                    opacity: vm.isCancelling ? 0.75 : 1,
-                  }}
-                >
-                  {vm.isCancelling && <Loader2 size={14} className="animate-spin" />}
-                  <span>
-                    {vm.pendingSwitchTarget
-                      ? isAr
-                        ? 'إلغاء الحالي والانتقال للباقة الجديدة'
-                        : 'Cancel & Switch Plan'
-                      : isAr
-                        ? 'نعم، إلغاء الاشتراك الحالي'
-                        : 'Yes, Cancel Subscription'}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* ── 7. Cancel Subscription / Pending Request Confirmation Modal ── */}
+        <CancelSubscriptionModal
+          open={vm.cancelModalOpen}
+          isRtl={isRtl}
+          lang={lang}
+          role="center"
+          activeSub={vm.activeSub}
+          pendingRequest={vm.pendingRequest}
+          pendingSwitchTarget={vm.pendingSwitchTarget}
+          isCancelling={vm.isCancelling}
+          cancelError={vm.cancelError}
+          onClose={vm.closeCancelModal}
+          onConfirm={vm.handleConfirmCancel}
+        />
 
         {/* ── 8. Electronic Checkout Modal ── */}
         <CheckoutModal
@@ -791,6 +678,7 @@ export const CenterBillingView = () => {
           setSelectedPaymentMethod={vm.setSelectedPaymentMethod}
           isProcessingPayment={vm.isProcessingPayment}
           paymentSuccess={vm.paymentSuccess}
+          paymentResult={vm.paymentResult}
           checkoutError={vm.checkoutError}
           onApplyCoupon={vm.handleApplyCoupon}
           onCompletePayment={vm.handleCompletePayment}

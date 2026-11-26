@@ -228,6 +228,7 @@ export const studentApi = {
         headers: { 'Idempotency-Key': makeIdempotencyKey('std-sub') },
         body: data,
       }),
+    cancel: () => apiPost('/student/billing/cancel', {}),
     validateCoupon: (code, amountEgp = 0) =>
       apiPost('/student/billing/coupons/validate', { code, amount_egp: amountEgp }),
     createPayment: (data) =>

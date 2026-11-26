@@ -229,6 +229,20 @@ export const adminApi = {
         }),
     },
 
+    subscriptionRequests: {
+      list: (params = {}) => apiGet(`/admin/financials/subscription-requests${buildQuery(params)}`),
+      approve: (role, uuid) =>
+        apiPost(`/admin/financials/subscription-requests/${role}/${uuid}/approve`, {}, {
+          headers: makeIdempotencyHeader(`sub-approve-${uuid}`),
+        }),
+      reject: (role, uuid, reason) =>
+        apiPost(
+          `/admin/financials/subscription-requests/${role}/${uuid}/reject`,
+          { reason, rejection_reason: reason },
+          { headers: makeIdempotencyHeader(`sub-reject-${uuid}`) }
+        ),
+    },
+
     payouts: {
       list: (params = {}) => apiGet(`/admin/financials/payouts${buildQuery(params)}`),
       create: (data) =>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { studentApi } from '../../../services/studentApi';
 import { useAuth } from '../../../context/AuthContext';
+import { buildSubscriptionPayload } from './billingPayload';
 
 export const useStudentBilling = (lang = 'ar') => {
   const isAr = lang === 'ar';
@@ -23,11 +24,17 @@ export const useStudentBilling = (lang = 'ar') => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('vodafone');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentResult, setPaymentResult] = useState(null);
   const [checkoutError, setCheckoutError] = useState('');
+
+  // Cancel-before-switch & pending-request cancellation modal state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [pendingSwitchTarget, setPendingSwitchTarget] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [switchingFree, setSwitchingFree] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
 
@@ -119,6 +126,9 @@ export const useStudentBilling = (lang = 'ar') => {
   }, [isAr, syncUserProfile]);
 
   const activeSub = useMemo(() => overview?.activeSub || null, [overview]);
+  const pendingRequest = useMemo(() => overview?.pendingRequest || null, [overview]);
+  const latestRejectedRequest = useMemo(() => overview?.latestRejectedRequest || null, [overview]);
+  const hasPendingRequest = Boolean(pendingRequest);
   const plans = useMemo(() => (Array.isArray(overview?.plans) ? overview.plans : []), [overview]);
   const invoices = useMemo(() => {
     const raw = Array.isArray(overview?.invoices) ? overview.invoices : [];
@@ -129,6 +139,11 @@ export const useStudentBilling = (lang = 'ar') => {
     }));
   }, [overview]);
 
+  const mustCancelToSwitch = useMemo(() => {
+    if (!activeSub) return false;
+    return Boolean(activeSub.mustCancelToSwitch ?? (!activeSub.isFree && activeSub.planTier !== 'free'));
+  }, [activeSub]);
+
   const resetCheckoutState = useCallback(() => {
     setCouponCode('');
     setCouponApplied(false);
@@ -137,6 +152,7 @@ export const useStudentBilling = (lang = 'ar') => {
     setCouponError('');
     setCheckoutError('');
     setPaymentSuccess(false);
+    setPaymentResult(null);
     setSelectedPaymentMethod('vodafone');
   }, []);
 
@@ -160,54 +176,100 @@ export const useStudentBilling = (lang = 'ar') => {
     resetCheckoutState();
   }, [resetCheckoutState]);
 
+  const openCancelModal = useCallback((targetPlan = null) => {
+    setCancelError('');
+    setPendingSwitchTarget(targetPlan);
+    setCancelModalOpen(true);
+  }, []);
+
+  const closeCancelModal = useCallback(() => {
+    if (isCancelling) return;
+    setCancelModalOpen(false);
+    setPendingSwitchTarget(null);
+    setCancelError('');
+  }, [isCancelling]);
+
   const handleSelectPlan = useCallback(
-    async (planWithPricing) => {
+    (planWithPricing) => {
       const tier = planWithPricing?.tier || (planWithPricing?.id === 'plan-free' ? 'free' : 'plus');
+
+      if (hasPendingRequest || mustCancelToSwitch) {
+        openCancelModal(tier === 'free' ? null : planWithPricing);
+        return;
+      }
+
       if (tier === 'free') {
-        if (activeSub?.planTier === 'free') {
-          setNotice({
-            type: 'info',
-            text: isAr
-              ? 'أنت بالفعل على باقة الطالب المجانية، ويمكنك الترقية لباقة بلس أو برو في أي وقت.'
-              : 'You are already on the Student Free plan. You can upgrade anytime.',
-          });
-          return;
-        }
-        setSwitchingFree(true);
-        setError(null);
-        try {
-          const res = await studentApi.billing.subscribe({
-            plan_tier: 'free',
-            billing_period: 'monthly',
-          });
-          await fetchOverview({ silent: true });
-          setNotice({
-            type: 'success',
-            text:
-              res?.message ||
-              (isAr ? 'تم التبديل إلى باقة الطالب المجانية بنجاح.' : 'Switched to Student Free plan.'),
-          });
-        } catch (err) {
-          setError(err?.message || (isAr ? 'تعذر تغيير الباقة.' : 'Failed to switch plan.'));
-        } finally {
-          setSwitchingFree(false);
-        }
+        setNotice({
+          type: 'info',
+          text: isAr
+            ? 'أنت بالفعل على باقة الطالب المجانية، ويمكنك الترقية لباقة بلس أو برو في أي وقت.'
+            : 'You are already on the Student Free plan. You can upgrade anytime.',
+        });
         return;
       }
 
       openCheckoutForPlan(planWithPricing, selectedPeriod);
     },
-    [activeSub?.planTier, fetchOverview, isAr, openCheckoutForPlan, selectedPeriod]
+    [hasPendingRequest, isAr, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, selectedPeriod]
   );
 
   const handleUpgradeFromBanner = useCallback(() => {
+    if (hasPendingRequest || mustCancelToSwitch) {
+      openCancelModal(null);
+      return;
+    }
     const proPlan = plans.find((p) => p.tier === 'pro');
     if (!proPlan) return;
-    const targetPeriod = activeSub?.planTier === 'pro' ? 'annual' : selectedPeriod;
-    const pricing = proPlan.pricing?.[targetPeriod] || proPlan.pricing?.monthly || {};
-    setSelectedPeriod(targetPeriod);
-    openCheckoutForPlan({ ...proPlan, ...pricing }, targetPeriod);
-  }, [activeSub?.planTier, openCheckoutForPlan, plans, selectedPeriod]);
+    const pricing = proPlan.pricing?.[selectedPeriod] || proPlan.pricing?.monthly || {};
+    openCheckoutForPlan({ ...proPlan, ...pricing }, selectedPeriod);
+  }, [hasPendingRequest, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, plans, selectedPeriod]);
+
+  const handleConfirmCancel = useCallback(async () => {
+    if (isCancelling) return;
+    setIsCancelling(true);
+    setCancelError('');
+    setError(null);
+
+    try {
+      const res = await studentApi.billing.cancel();
+      const targetAfterCancel = pendingSwitchTarget;
+
+      const refreshed = await fetchOverview({ silent: true });
+      setCancelModalOpen(false);
+      setPendingSwitchTarget(null);
+
+      const stillBlocked =
+        Boolean(refreshed?.pendingRequest) ||
+        Boolean(refreshed?.activeSub && !refreshed.activeSub.isFree && refreshed.activeSub.planTier !== 'free');
+
+      if (!stillBlocked && targetAfterCancel && targetAfterCancel.tier && targetAfterCancel.tier !== 'free') {
+        setNotice({
+          type: 'success',
+          text: isAr
+            ? `تم الإلغاء بنجاح. يمكنك الآن إتمام الاشتراك في «${targetAfterCancel.nameAr}».`
+            : `Cancelled successfully. You can now subscribe to "${targetAfterCancel.nameEn || targetAfterCancel.nameAr}".`,
+        });
+        openCheckoutForPlan(targetAfterCancel, selectedPeriod);
+      } else {
+        setNotice({
+          type: 'success',
+          text:
+            res?.data?.messageAr ||
+            res?.message ||
+            (isAr
+              ? 'تم إلغاء الاشتراك بنجاح والعودة إلى الباقة المجانية. يمكنك الآن اختيار أي باقة أخرى.'
+              : 'Subscription cancelled successfully. You can now subscribe to another plan.'),
+        });
+      }
+    } catch (err) {
+      setCancelError(
+        err?.message ||
+          (isAr ? 'تعذر إلغاء الاشتراك حالياً. يرجى المحاولة مرة أخرى.' : 'Failed to cancel subscription. Please try again.')
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  }, [fetchOverview, isAr, isCancelling, openCheckoutForPlan, pendingSwitchTarget, selectedPeriod]);
 
   const handleApplyCoupon = useCallback(
     async (e) => {
@@ -254,41 +316,55 @@ export const useStudentBilling = (lang = 'ar') => {
       setCheckoutError('');
 
       try {
-        const res = await studentApi.billing.subscribe({
-          plan_tier: selectedPlanForCheckout.tier || 'plus',
-          billing_period: selectedPlanForCheckout.billingPeriod || selectedPeriod,
-          payment_method: paymentDetails.method || selectedPaymentMethod,
-          coupon_code: couponApplied ? couponCode.trim() : null,
-          sender_phone: paymentDetails.senderPhone || null,
-          sender_ipa: paymentDetails.senderIpa || null,
-          transaction_ref: paymentDetails.transactionId || paymentDetails.instaRefNum || null,
+        const payload = buildSubscriptionPayload({
+          planTier: selectedPlanForCheckout.tier || 'plus',
+          billingPeriod: selectedPlanForCheckout.billingPeriod || selectedPeriod,
+          paymentMethod: paymentDetails.method || selectedPaymentMethod,
+          couponCode: couponApplied ? couponCode.trim() : null,
+          senderPhone: paymentDetails.senderPhone || null,
+          senderIpa: paymentDetails.senderIpa || null,
+          transactionRef:
+            paymentDetails.transactionRef || paymentDetails.transactionId || paymentDetails.instaRefNum || null,
+          receiptFile: paymentDetails.receiptFile || null,
         });
 
+        const res = await studentApi.billing.subscribe(payload);
+        const resultData = res?.data || {};
+
         await fetchOverview({ silent: true });
+        setPaymentResult(resultData);
         setPaymentSuccess(true);
 
-        try {
-          confetti({
-            particleCount: 110,
-            spread: 75,
-            origin: { y: 0.6 },
-          });
-        } catch {
-          // ignore confetti errors in headless browsers
+        if (!resultData.requiresApproval) {
+          try {
+            confetti({
+              particleCount: 110,
+              spread: 75,
+              origin: { y: 0.6 },
+            });
+          } catch {
+            // ignore confetti errors in headless browsers
+          }
         }
 
         setNotice({
-          type: 'success',
+          type: resultData.requiresApproval ? 'info' : 'success',
           text:
-            res?.data?.messageAr ||
+            resultData.messageAr ||
             res?.message ||
-            (isAr ? 'تم تفعيل الباقة وإصدار الفاتورة الرسمية بنجاح.' : 'Subscription activated and invoice issued.'),
+            (resultData.requiresApproval
+              ? isAr
+                ? 'تم إرسال طلب الاشتراك ووصل الدفع للمراجعة — سيتم تفعيل الباقة فور اعتماد السوبر أدمن.'
+                : 'Subscription request and receipt submitted for Super Admin review.'
+              : isAr
+                ? 'تم تفعيل الباقة مجاناً بنجاح فوراً!'
+                : 'Subscription activated immediately!'),
         });
 
         closeTimerRef.current = setTimeout(() => {
           setSelectedPlanForCheckout(null);
           resetCheckoutState();
-        }, 2200);
+        }, 2300);
       } catch (err) {
         setCheckoutError(
           err?.message ||
@@ -319,6 +395,10 @@ export const useStudentBilling = (lang = 'ar') => {
 
   return {
     activeSub,
+    pendingRequest,
+    latestRejectedRequest,
+    hasPendingRequest,
+    mustCancelToSwitch,
     plans,
     invoices,
     selectedPeriod,
@@ -335,16 +415,23 @@ export const useStudentBilling = (lang = 'ar') => {
     setSelectedPaymentMethod,
     isProcessingPayment,
     paymentSuccess,
+    paymentResult,
     checkoutError,
+    cancelModalOpen,
+    pendingSwitchTarget,
+    isCancelling,
+    cancelError,
     loading,
     refreshing,
-    switchingFree,
     error,
     notice,
     setNotice,
     handleRefresh,
     handleSelectPlan,
     handleUpgradeFromBanner,
+    openCancelModal,
+    closeCancelModal,
+    handleConfirmCancel,
     handleApplyCoupon,
     handleClearCoupon,
     handleCompletePayment,

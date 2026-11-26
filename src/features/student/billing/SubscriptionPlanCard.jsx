@@ -1,5 +1,28 @@
 import React from 'react';
-import { CheckCircle2, XCircle, Sparkles, ArrowRight, ArrowLeft, ShieldCheck, Zap, Lock } from 'lucide-react';
+import {
+  CheckCircle2,
+  XCircle,
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+  Zap,
+  Lock,
+  Gift,
+  Percent,
+  Clock,
+} from 'lucide-react';
+
+function formatShortDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10);
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return String(iso).slice(0, 10);
+  }
+}
 
 export const SubscriptionPlanCard = ({
   plan,
@@ -15,48 +38,80 @@ export const SubscriptionPlanCard = ({
 }) => {
   const isAr = lang === 'ar';
 
-  // Dynamic pricing based on selected period (monthly, term, annual)
   const currentPricing = plan.pricing?.[period] || {
     priceEgp: plan.priceEgp,
     originalPriceEgp: plan.originalPriceEgp,
+    discountPercent: plan.discountPercent,
+    isFreePromo: plan.isFreePromo,
+    freePromoUntil: plan.freePromoUntil,
+    freePromoLabelAr: plan.freePromoLabelAr,
+    freePromoLabelEn: plan.freePromoLabelEn,
     periodAr: plan.periodAr,
     periodEn: plan.periodEn,
     badgeAr: plan.badgeAr,
-    badgeEn: plan.badgeEn
+    badgeEn: plan.badgeEn,
   };
 
-  const name = isAr ? plan.nameAr : (plan.nameEn || plan.nameAr);
-  const periodLabel = isAr ? currentPricing.periodAr : (currentPricing.periodEn || currentPricing.periodAr);
-  const badge = isAr ? currentPricing.badgeAr : (currentPricing.badgeEn || currentPricing.badgeAr);
-  const features = isAr ? plan.featuresAr : (plan.featuresEn || plan.featuresAr);
-  const limitations = isAr ? (plan.limitationsAr || []) : (plan.limitationsEn || plan.limitationsAr || []);
+  const name = isAr ? plan.nameAr : plan.nameEn || plan.nameAr;
+  const periodLabel = isAr ? currentPricing.periodAr : currentPricing.periodEn || currentPricing.periodAr;
+  const features = isAr ? plan.featuresAr : plan.featuresEn || plan.featuresAr;
+  const limitations = isAr ? plan.limitationsAr || [] : plan.limitationsEn || plan.limitationsAr || [];
 
-  const isFree = plan.tier === 'free' || plan.id === 'plan-free';
+  const isFreeTier = plan.tier === 'free' || plan.id === 'plan-free';
   const isPlus = plan.tier === 'plus' || plan.id === 'plan-plus';
   const isPro = plan.tier === 'pro' || plan.id === 'plan-pro' || plan.popular;
 
-  // Unified Motafawweq Platform Brand Palette (ZERO green)
-  const cardBorderColor = isCurrentPlan || isHighlighted
-    ? 'var(--primary)'
-    : isPro
-    ? 'var(--primary)'
-    : isPlus
-    ? 'rgba(2, 132, 199, 0.35)'
-    : 'var(--border-subtle)';
+  const isFreePromo = Boolean(!isFreeTier && (currentPricing.isFreePromo || plan.isFreePromo));
+  const effectivePrice = isFreePromo ? 0 : Number(currentPricing.priceEgp ?? 0);
+  const originalPrice =
+    currentPricing.originalPriceEgp !== null && currentPricing.originalPriceEgp !== undefined
+      ? Number(currentPricing.originalPriceEgp)
+      : null;
+  const hasCompareAt = originalPrice !== null && originalPrice > effectivePrice;
+  const discountPct = hasCompareAt
+    ? currentPricing.discountPercent !== null && currentPricing.discountPercent !== undefined
+      ? Math.round(Number(currentPricing.discountPercent) * 10) / 10
+      : Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
+    : null;
+  const savingsEgp = hasCompareAt ? Math.round((originalPrice - effectivePrice) * 100) / 100 : 0;
+  const freePromoUntilDate = formatShortDate(currentPricing.freePromoUntil || plan.freePromoUntil);
+
+  const badge = isFreePromo
+    ? isAr
+      ? currentPricing.freePromoLabelAr || plan.freePromoLabelAr || 'مجانية لفترة محدودة'
+      : currentPricing.freePromoLabelEn || plan.freePromoLabelEn || 'Free for a Limited Time'
+    : isAr
+      ? currentPricing.badgeAr
+      : currentPricing.badgeEn || currentPricing.badgeAr;
+
+  const cardBorderColor =
+    isCurrentPlan || isHighlighted
+      ? 'var(--primary)'
+      : isFreePromo
+        ? '#10B981'
+        : isPro
+          ? 'var(--primary)'
+          : isPlus
+            ? 'rgba(2, 132, 199, 0.35)'
+            : 'var(--border-subtle)';
 
   const cardShadow = isHighlighted
     ? '0 0 0 4px rgba(21, 136, 199, 0.18), 0 18px 46px rgba(21, 136, 199, 0.22)'
-    : isPro
-    ? '0 16px 44px rgba(21, 136, 199, 0.18)'
-    : isPlus
-    ? '0 10px 28px rgba(6, 37, 78, 0.08)'
-    : 'var(--shadow-sm)';
+    : isFreePromo
+      ? '0 16px 40px rgba(16, 185, 129, 0.18)'
+      : isPro
+        ? '0 16px 44px rgba(21, 136, 199, 0.18)'
+        : isPlus
+          ? '0 10px 28px rgba(6, 37, 78, 0.08)'
+          : 'var(--shadow-sm)';
 
-  const accentColor = isPro
-    ? '#1588C7'
-    : isPlus
-    ? '#0284C7'
-    : 'var(--text-secondary)';
+  const accentColor = isFreePromo
+    ? '#059669'
+    : isPro
+      ? '#1588C7'
+      : isPlus
+        ? '#0284C7'
+        : 'var(--text-secondary)';
 
   return (
     <div
@@ -71,22 +126,27 @@ export const SubscriptionPlanCard = ({
         justifyContent: 'space-between',
         position: 'relative',
         boxShadow: cardShadow,
-        transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition:
+          'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         direction: isRtl ? 'rtl' : 'ltr',
-        fontFamily: isRtl ? 'var(--font-arabic), "Cairo", system-ui, sans-serif' : 'var(--font-heading), "Outfit", sans-serif'
+        fontFamily: isRtl
+          ? 'var(--font-arabic), "Cairo", system-ui, sans-serif'
+          : 'var(--font-heading), "Outfit", sans-serif',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-4px)';
-        e.currentTarget.style.boxShadow = isPro
-          ? '0 22px 52px rgba(21, 136, 199, 0.25)'
-          : '0 14px 32px rgba(6, 37, 78, 0.12)';
+        e.currentTarget.style.boxShadow = isFreePromo
+          ? '0 22px 48px rgba(16, 185, 129, 0.24)'
+          : isPro
+            ? '0 22px 52px rgba(21, 136, 199, 0.25)'
+            : '0 14px 32px rgba(6, 37, 78, 0.12)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'none';
         e.currentTarget.style.boxShadow = cardShadow;
       }}
     >
-      {/* ── Top Badge Chip (Embedded, sleek pill) ── */}
+      {/* Top Badge Chip */}
       {(badge || isCurrentPlan) && (
         <div
           style={{
@@ -95,11 +155,13 @@ export const SubscriptionPlanCard = ({
             insetInlineStart: '24px',
             backgroundColor: isCurrentPlan
               ? 'var(--primary)'
-              : isPro
-              ? 'var(--primary)'
-              : isPlus
-              ? '#0284C7'
-              : '#06254E',
+              : isFreePromo
+                ? '#059669'
+                : isPro
+                  ? 'var(--primary)'
+                  : isPlus
+                    ? '#0284C7'
+                    : '#06254E',
             color: '#FFFFFF',
             fontSize: '11.5px',
             fontWeight: '900',
@@ -110,13 +172,18 @@ export const SubscriptionPlanCard = ({
             alignItems: 'center',
             gap: '6px',
             letterSpacing: isAr ? '0' : '0.3px',
-            border: '1.5px solid rgba(255, 255, 255, 0.2)'
+            border: '1.5px solid rgba(255, 255, 255, 0.2)',
           }}
         >
           {isCurrentPlan ? (
             <>
               <ShieldCheck size={13} color="#FFFFFF" />
               <span>{isAr ? 'باقتك الحالية' : 'Current Plan'}</span>
+            </>
+          ) : isFreePromo ? (
+            <>
+              <Gift size={13} color="#FFFFFF" />
+              <span>{badge}</span>
             </>
           ) : isPro ? (
             <>
@@ -136,7 +203,7 @@ export const SubscriptionPlanCard = ({
 
       <div>
         {/* Plan Title & Subheading */}
-        <div style={{ marginBottom: '14px', marginTop: (badge || isCurrentPlan) ? '4px' : '0' }}>
+        <div style={{ marginBottom: '14px', marginTop: badge || isCurrentPlan ? '4px' : '0' }}>
           <h4
             style={{
               fontSize: '21px',
@@ -144,7 +211,7 @@ export const SubscriptionPlanCard = ({
               color: 'var(--text-primary)',
               margin: '0 0 6px 0',
               lineHeight: 1.3,
-              letterSpacing: '-0.3px'
+              letterSpacing: '-0.3px',
             }}
           >
             {name}
@@ -161,55 +228,117 @@ export const SubscriptionPlanCard = ({
               style={{
                 fontSize: '38px',
                 fontWeight: '900',
-                color: isFree ? 'var(--text-primary)' : accentColor,
+                color: isFreeTier ? 'var(--text-primary)' : accentColor,
                 lineHeight: 1,
-                letterSpacing: '-1px'
+                letterSpacing: '-1px',
               }}
             >
-              {isFree ? (isAr ? 'مجاناً' : 'Free') : currentPricing.priceEgp?.toLocaleString()}
+              {isFreeTier || isFreePromo || effectivePrice === 0
+                ? isAr
+                  ? 'مجاناً'
+                  : 'Free'
+                : effectivePrice.toLocaleString()}
             </span>
 
-            {!isFree && (
+            {!isFreeTier && !isFreePromo && effectivePrice > 0 && (
               <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-secondary)' }}>
                 {isAr ? 'ج.م' : 'EGP'}
               </span>
             )}
 
-            {currentPricing.originalPriceEgp && (
+            {hasCompareAt && (
               <span
                 style={{
-                  fontSize: '14px',
+                  fontSize: '15px',
                   color: 'var(--text-muted)',
                   textDecoration: 'line-through',
                   fontWeight: '700',
-                  marginInlineStart: '4px'
+                  marginInlineStart: '4px',
                 }}
               >
-                {currentPricing.originalPriceEgp?.toLocaleString()} {isAr ? 'ج.م' : 'EGP'}
+                {originalPrice.toLocaleString()} {isAr ? 'ج.م' : 'EGP'}
               </span>
             )}
           </div>
 
-          {/* Discount Pill if available */}
-          {currentPricing.originalPriceEgp && (
-            <div style={{ marginTop: '8px' }}>
+          {/* Temporary Free Promo Banner or Discount % Pill */}
+          {isFreePromo ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
               <span
                 style={{
-                  display: 'inline-block',
-                  fontSize: '11px',
-                  fontWeight: '800',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                  color: 'var(--primary)',
-                  border: '1px solid rgba(21, 136, 199, 0.2)'
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '11.5px',
+                  fontWeight: '900',
+                  padding: '3px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                  color: '#059669',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
                 }}
               >
-                {isAr
-                  ? `وفر ${(currentPricing.originalPriceEgp - currentPricing.priceEgp).toLocaleString()} ج.م عند الاشتراك`
-                  : `Save ${(currentPricing.originalPriceEgp - currentPricing.priceEgp).toLocaleString()} EGP`}
+                <Gift size={12} />
+                <span>{isAr ? 'تفعيل فوري مجاناً — خصم 100%' : 'Instant Free Access — 100% Off'}</span>
               </span>
+              {freePromoUntilDate && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <Clock size={11} />
+                  <span>{isAr ? `متاح حتى ${freePromoUntilDate}` : `Until ${freePromoUntilDate}`}</span>
+                </span>
+              )}
             </div>
+          ) : (
+            hasCompareAt && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '9px' }}>
+                {discountPct > 0 && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontSize: '11.5px',
+                      fontWeight: '900',
+                      padding: '3px 9px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      color: '#DC2626',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                    }}
+                  >
+                    <Percent size={11} />
+                    <span>{isAr ? `خصم ${discountPct}%` : `${discountPct}% OFF`}</span>
+                  </span>
+                )}
+                {savingsEgp > 0 && (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      padding: '3px 9px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                      color: 'var(--primary)',
+                      border: '1px solid rgba(21, 136, 199, 0.2)',
+                    }}
+                  >
+                    {isAr
+                      ? `وفر ${savingsEgp.toLocaleString()} ج.م`
+                      : `Save ${savingsEgp.toLocaleString()} EGP`}
+                  </span>
+                )}
+              </div>
+            )
           )}
         </div>
 
@@ -217,13 +346,21 @@ export const SubscriptionPlanCard = ({
         <div
           style={{
             height: '1px',
-            background: 'linear-gradient(90deg, transparent 0%, var(--border-subtle) 20%, var(--border-subtle) 80%, transparent 100%)',
-            marginBottom: '22px'
+            background:
+              'linear-gradient(90deg, transparent 0%, var(--border-subtle) 20%, var(--border-subtle) 80%, transparent 100%)',
+            marginBottom: '22px',
           }}
         />
 
         {/* Included Features List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: limitations.length ? '18px' : '32px' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            marginBottom: limitations.length ? '18px' : '32px',
+          }}
+        >
           {features.map((f, idx) => (
             <div
               key={`feat-${idx}`}
@@ -233,7 +370,7 @@ export const SubscriptionPlanCard = ({
                 gap: '10px',
                 fontSize: '13.5px',
                 color: 'var(--text-primary)',
-                lineHeight: 1.55
+                lineHeight: 1.55,
               }}
             >
               <div
@@ -241,17 +378,19 @@ export const SubscriptionPlanCard = ({
                   width: '20px',
                   height: '20px',
                   borderRadius: '50%',
-                  backgroundColor: isPro
-                    ? 'rgba(21, 136, 199, 0.14)'
-                    : isPlus
-                    ? 'rgba(2, 132, 199, 0.12)'
-                    : 'rgba(6, 37, 78, 0.08)',
-                  color: isPro ? 'var(--primary)' : isPlus ? '#0284C7' : '#06254E',
+                  backgroundColor: isFreePromo
+                    ? 'rgba(16, 185, 129, 0.14)'
+                    : isPro
+                      ? 'rgba(21, 136, 199, 0.14)'
+                      : isPlus
+                        ? 'rgba(2, 132, 199, 0.12)'
+                        : 'rgba(6, 37, 78, 0.08)',
+                  color: isFreePromo ? '#059669' : isPro ? 'var(--primary)' : isPlus ? '#0284C7' : '#06254E',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                  marginTop: '1.5px'
+                  marginTop: '1.5px',
                 }}
               >
                 <CheckCircle2 size={13} strokeWidth={2.6} />
@@ -261,9 +400,18 @@ export const SubscriptionPlanCard = ({
           ))}
         </div>
 
-        {/* Excluded Limitations (Clear & Transparent as user requested!) */}
+        {/* Excluded Limitations */}
         {limitations.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '30px', paddingTop: '10px', borderTop: '1px dashed var(--border-subtle)' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              marginBottom: '30px',
+              paddingTop: '10px',
+              borderTop: '1px dashed var(--border-subtle)',
+            }}
+          >
             {limitations.map((lim, idx) => (
               <div
                 key={`lim-${idx}`}
@@ -273,7 +421,7 @@ export const SubscriptionPlanCard = ({
                   gap: '10px',
                   fontSize: '12.5px',
                   color: 'var(--text-muted)',
-                  lineHeight: 1.5
+                  lineHeight: 1.5,
                 }}
               >
                 <div
@@ -287,7 +435,7 @@ export const SubscriptionPlanCard = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    marginTop: '2px'
+                    marginTop: '2px',
                   }}
                 >
                   <XCircle size={12} strokeWidth={2} />
@@ -299,7 +447,7 @@ export const SubscriptionPlanCard = ({
         )}
       </div>
 
-      {/* Subscribe CTA Button (Platform Palette) */}
+      {/* Subscribe CTA Button */}
       <button
         type="button"
         disabled={isCurrentPlan}
@@ -311,53 +459,67 @@ export const SubscriptionPlanCard = ({
           backgroundColor: isCurrentPlan
             ? 'var(--bg-subtle)'
             : switchBlocked
-            ? 'rgba(245, 158, 11, 0.1)'
-            : isPro
-            ? 'var(--primary)'
-            : isPlus
-            ? '#0284C7'
-            : 'var(--bg-subtle)',
+              ? 'rgba(245, 158, 11, 0.1)'
+              : isFreePromo
+                ? '#059669'
+                : isPro
+                  ? 'var(--primary)'
+                  : isPlus
+                    ? '#0284C7'
+                    : 'var(--bg-subtle)',
           color: isCurrentPlan
             ? 'var(--text-primary)'
             : switchBlocked
-            ? '#B45309'
-            : (isPro || isPlus)
-            ? '#FFFFFF'
-            : 'var(--text-primary)',
-          border: isCurrentPlan || isFree
-            ? '1.5px solid var(--border-medium)'
-            : switchBlocked
-            ? '1.5px solid rgba(245, 158, 11, 0.4)'
-            : 'none',
+              ? '#B45309'
+              : isFreePromo || isPro || isPlus
+                ? '#FFFFFF'
+                : 'var(--text-primary)',
+          border:
+            isCurrentPlan || (isFreeTier && !isFreePromo)
+              ? '1.5px solid var(--border-medium)'
+              : switchBlocked
+                ? '1.5px solid rgba(245, 158, 11, 0.4)'
+                : 'none',
           fontSize: '13.5px',
           fontWeight: '900',
           cursor: isCurrentPlan ? 'default' : 'pointer',
           opacity: isCurrentPlan ? 0.85 : 1,
-          boxShadow: isCurrentPlan || isFree || switchBlocked
-            ? 'none'
-            : isPro
-            ? '0 8px 22px rgba(21, 136, 199, 0.35)'
-            : '0 8px 22px rgba(2, 132, 199, 0.25)',
+          boxShadow:
+            isCurrentPlan || (isFreeTier && !isFreePromo) || switchBlocked
+              ? 'none'
+              : isFreePromo
+                ? '0 8px 22px rgba(5, 150, 105, 0.32)'
+                : isPro
+                  ? '0 8px 22px rgba(21, 136, 199, 0.35)'
+                  : '0 8px 22px rgba(2, 132, 199, 0.25)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '8px',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         }}
       >
         {!isCurrentPlan && switchBlocked && <Lock size={15} />}
+        {!isCurrentPlan && !switchBlocked && isFreePromo && <Gift size={15} />}
         <span>
           {isCurrentPlan
-            ? (isAr ? 'باقتك الحالية المفعّلة' : 'Current Active Plan')
+            ? isAr
+              ? 'باقتك الحالية المفعّلة'
+              : 'Current Active Plan'
             : switchBlocked
-            ? (switchBlockedLabel || (isAr ? 'ألغِ اشتراكك الحالي أولاً للتبديل' : 'Cancel active plan first to switch'))
-            : isFree
-            ? (freeActionLabel || (isAr ? 'التبديل للباقة المجانية' : 'Switch to Free'))
-            : (isAr ? `الاشتراك في ${name}` : `Select ${name}`)}
+              ? switchBlockedLabel || (isAr ? 'ألغِ اشتراكك الحالي أولاً للتبديل' : 'Cancel active plan first to switch')
+              : isFreeTier
+                ? freeActionLabel || (isAr ? 'التبديل للباقة المجانية' : 'Switch to Free')
+                : isFreePromo
+                  ? isAr
+                    ? 'تفعيل مجاناً الآن — بدون انتظار'
+                    : 'Activate Free Now — Instant'
+                  : isAr
+                    ? `الاشتراك في ${name}`
+                    : `Select ${name}`}
         </span>
         {!isCurrentPlan && !switchBlocked && (isRtl ? <ArrowLeft size={16} /> : <ArrowRight size={16} />)}
       </button>
     </div>
   );
 };
-

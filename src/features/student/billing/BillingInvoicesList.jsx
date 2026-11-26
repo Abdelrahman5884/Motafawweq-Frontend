@@ -25,9 +25,9 @@ function resolveStatusMeta(rawStatus, isAr) {
       Icon: Clock,
     };
   }
-  if (s === 'rejected' || s.includes('مرفوض')) {
+  if (s === 'rejected' || s === 'failed' || s.includes('مرفوض') || s.includes('ملغ')) {
     return {
-      label: isAr ? 'مرفوض' : 'Rejected',
+      label: isAr ? 'مرفوض / ملغي' : 'Rejected / Cancelled',
       color: '#DC2626',
       bg: 'rgba(239, 68, 68, 0.1)',
       border: 'rgba(239, 68, 68, 0.3)',
@@ -95,6 +95,7 @@ function printInvoiceReceipt(inv, isAr) {
     <div class="row"><span class="label">${isAr ? 'الخدمة / الباقة' : 'Item'}</span><span class="val">${escapeHtml(desc)}</span></div>
     <div class="row"><span class="label">${isAr ? 'وسيلة الدفع' : 'Payment Method'}</span><span class="val">${escapeHtml(method)}</span></div>
     <div class="row"><span class="label">${isAr ? 'الحالة' : 'Status'}</span><span class="val">${escapeHtml(statusMeta.label)}</span></div>
+    ${inv.transactionReference ? `<div class="row"><span class="label">${isAr ? 'كود العملية' : 'Transaction Ref'}</span><span class="val">${escapeHtml(inv.transactionReference)}</span></div>` : ''}
     ${inv.couponCode ? `<div class="row"><span class="label">${isAr ? 'كود الخصم' : 'Coupon'}</span><span class="val">${escapeHtml(inv.couponCode)}</span></div>` : ''}
     <div class="row"><span class="label">${isAr ? 'الإجمالي المدفوع' : 'Total Paid'}</span><span class="val">${escapeHtml(amount)}</span></div>
   </div>
@@ -260,6 +261,14 @@ export const BillingInvoicesList = ({ invoices = [], lang = 'ar', isRtl = true }
                     )}
                     <span>•</span>
                     <span>{isAr ? inv.methodAr || inv.method : inv.methodEn || inv.method}</span>
+                    {inv.transactionReference && (
+                      <>
+                        <span>•</span>
+                        <span style={{ fontFamily: 'var(--font-mono), monospace', fontWeight: '700', color: 'var(--text-primary)' }}>
+                          {isAr ? `كود: ${inv.transactionReference}` : `Ref: ${inv.transactionReference}`}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -419,6 +428,14 @@ export const BillingInvoicesList = ({ invoices = [], lang = 'ar', isRtl = true }
                   <span style={{ color: 'var(--text-secondary)' }}>{isAr ? 'الحالة:' : 'Status:'}</span>
                   <span style={{ fontWeight: '800', color: statusMeta.color }}>{statusMeta.label}</span>
                 </div>
+                {selectedInvoice.transactionReference && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{isAr ? 'كود العملية:' : 'Transaction Ref:'}</span>
+                    <span style={{ fontWeight: '800', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                      {selectedInvoice.transactionReference}
+                    </span>
+                  </div>
+                )}
                 {selectedInvoice.couponCode && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>{isAr ? 'كود الخصم:' : 'Coupon:'}</span>

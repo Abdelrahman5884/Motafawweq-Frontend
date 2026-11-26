@@ -1,12 +1,14 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { RefreshCw, AlertCircle, CheckCircle2, Sparkles, Crown } from 'lucide-react';
+import { RefreshCw, AlertCircle, CheckCircle2, Sparkles, Crown, Lock } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
 import { SPage } from '../../components/student/ui';
 import { STUDENT_PLANS } from '../../constants/studentPlanFeatures';
 import {
   ActiveSubscriptionBanner,
+  SubscriptionRequestStatusBanner,
+  CancelSubscriptionModal,
   SubscriptionPlanCard,
   BillingInvoicesList,
   CheckoutModal,
@@ -45,6 +47,9 @@ export const StudentBillingView = () => {
   );
   useSetBreadcrumbs(breadcrumbs);
 
+  const activeTier = vm.activeSub?.planTier || 'free';
+  const isSwitchLocked = vm.mustCancelToSwitch || vm.hasPendingRequest;
+
   return (
     <SPage maxWidth={1160}>
       <div
@@ -77,8 +82,8 @@ export const StudentBillingView = () => {
             </h1>
             <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
               {isAr
-                ? 'إدارة باقتك الحالية (الطالب المجاني، بلس، برو)، الترقية في أي لحظة، ومتابعة سجل الفواتير الرسمية'
-                : 'Manage your active plan (Free, Plus, Pro), upgrade anytime, and review verified payment invoices'}
+                ? 'إدارة باقتك الحالية (الطالب المجاني، بلس، برو)، الترقية أو الإلغاء في أي لحظة، ومتابعة سجل الفواتير الرسمية'
+                : 'Manage your active plan (Free, Plus, Pro), upgrade or cancel anytime, and review verified payment invoices'}
             </p>
           </div>
 
@@ -101,13 +106,13 @@ export const StudentBillingView = () => {
               opacity: vm.loading || vm.refreshing ? 0.7 : 1,
             }}
           >
-            <RefreshCw size={14} color="var(--primary)" />
+            <RefreshCw size={14} color="var(--primary)" className={vm.refreshing ? 'animate-spin' : ''} />
             <span>{isAr ? 'تحديث' : 'Refresh'}</span>
           </button>
         </div>
 
         {/* Highlight Banner when redirected from a locked feature */}
-        {requestedPlanInfo && vm.activeSub?.planTier !== requestedPlanInfo.tier && (
+        {requestedPlanInfo && activeTier !== requestedPlanInfo.tier && !(requestedPlanInfo.tier === 'plus' && activeTier === 'pro') && (
           <div
             role="status"
             style={{
@@ -128,11 +133,33 @@ export const StudentBillingView = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Crown size={18} />
               <span>
-                {isAr
-                  ? `لفتح الميزة التي حاولت الوصول إليها، يرجى الاشتراك في ${requestedPlanInfo.nameAr}.`
-                  : `To unlock the feature you requested, please subscribe to ${requestedPlanInfo.nameEn}.`}
+                {vm.mustCancelToSwitch
+                  ? isAr
+                    ? `لفتح هذه الميزة، يرجى إلغاء اشتراكك الحالي أولاً ثم الاشتراك في ${requestedPlanInfo.nameAr}.`
+                    : `To unlock this feature, cancel your active plan first and then subscribe to ${requestedPlanInfo.nameEn}.`
+                  : isAr
+                    ? `لفتح الميزة التي حاولت الوصول إليها، يرجى الاشتراك في ${requestedPlanInfo.nameAr}.`
+                    : `To unlock the feature you requested, please subscribe to ${requestedPlanInfo.nameEn}.`}
               </span>
             </div>
+            {vm.mustCancelToSwitch && (
+              <button
+                type="button"
+                onClick={() => vm.openCancelModal(vm.plans.find((p) => p.tier === requestedPlanInfo.tier) || null)}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: '10px',
+                  backgroundColor: '#DC2626',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                }}
+              >
+                {isAr ? 'إلغاء الاشتراك الحالي للتبديل' : 'Cancel Active Plan to Switch'}
+              </button>
+            )}
           </div>
         )}
 
@@ -224,13 +251,71 @@ export const StudentBillingView = () => {
           </div>
         ) : (
           <>
-            {/* 1. Active Subscription Banner */}
+            {/* 1. Active Subscription Banner with Cancel Subscription Button */}
             <ActiveSubscriptionBanner
               activeSub={vm.activeSub}
               lang={lang}
               isRtl={isRtl}
-              onUpgrade={vm.handleUpgradeFromBanner}
+              hideUpgrade={isSwitchLocked}
+              onUpgrade={isSwitchLocked ? undefined : vm.handleUpgradeFromBanner}
+              onCancel={vm.mustCancelToSwitch ? () => vm.openCancelModal(null) : null}
+              isCancelling={vm.isCancelling}
+              cancelLabel={isAr ? 'إلغاء الاشتراك الحالي' : 'Cancel Subscription'}
             />
+
+            {/* 1.5 Pending Super Admin Review / Rejection Status Banner */}
+            <SubscriptionRequestStatusBanner
+              pendingRequest={vm.pendingRequest}
+              latestRejectedRequest={vm.latestRejectedRequest}
+              lang={lang}
+              isRtl={isRtl}
+              onCancelPending={() => vm.openCancelModal(null)}
+              isCancelling={vm.isCancelling}
+            />
+
+            {/* 1.75 Cancel-Before-Switch Policy Banner */}
+            {vm.mustCancelToSwitch && (
+              <div
+                style={{
+                  backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  borderRadius: '16px',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  fontSize: '13px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-primary)', fontWeight: '700' }}>
+                  <Lock size={17} color="#D97706" style={{ flexShrink: 0 }} />
+                  <span>
+                    {isAr
+                      ? 'للانتقال من باقتك الحالية إلى باقة أخرى (أو تغيير مدة الفوترة)، يجب إلغاء اشتراكك الحالي أولاً ثم الاشتراك في الباقة الجديدة.'
+                      : 'To switch from your active plan to another plan (or change billing period), you must cancel your current subscription first.'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => vm.openCancelModal(null)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#DC2626',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isAr ? 'إلغاء الاشتراك الحالي' : 'Cancel Current Plan'}
+                </button>
+              </div>
+            )}
 
             {/* 2. Three Official Student Tiers (Free, Plus, Pro) */}
             <div>
@@ -351,17 +436,33 @@ export const StudentBillingView = () => {
               >
                 {vm.plans.map((plan) => {
                   const isCurrent =
-                    vm.activeSub?.planTier === plan.tier &&
+                    activeTier === plan.tier &&
                     (plan.tier === 'free' || vm.activeSub?.billingPeriod === vm.selectedPeriod);
+                  const switchBlocked = isSwitchLocked && !isCurrent;
+                  const switchBlockedLabel = vm.hasPendingRequest
+                    ? isAr
+                      ? 'ألغِ الطلب المعلّق أولاً للتبديل'
+                      : 'Cancel pending request first'
+                    : plan.tier === 'free'
+                      ? isAr
+                        ? 'ألغِ اشتراكك للعودة للمجاني'
+                        : 'Cancel plan to return to Free'
+                      : isAr
+                        ? 'ألغِ اشتراكك الحالي أولاً للتبديل'
+                        : 'Cancel active plan first to switch';
 
                   return (
                     <SubscriptionPlanCard
-                      key={plan.id}
+                      key={plan.id || plan.tier}
                       plan={plan}
                       period={vm.selectedPeriod}
                       lang={lang}
                       isRtl={isRtl}
                       isCurrentPlan={isCurrent}
+                      isHighlighted={Boolean(requestedPlanInfo && requestedPlanInfo.tier === plan.tier && !isCurrent)}
+                      switchBlocked={switchBlocked}
+                      switchBlockedLabel={switchBlockedLabel}
+                      freeActionLabel={isAr ? 'باقتك المجانية الافتراضية' : 'Default Free Tier'}
                       onSelectPlan={vm.handleSelectPlan}
                     />
                   );
@@ -374,7 +475,22 @@ export const StudentBillingView = () => {
           </>
         )}
 
-        {/* 4. Checkout Modal */}
+        {/* 4. Cancel Subscription / Pending Request Confirmation Modal */}
+        <CancelSubscriptionModal
+          open={vm.cancelModalOpen}
+          isRtl={isRtl}
+          lang={lang}
+          role="student"
+          activeSub={vm.activeSub}
+          pendingRequest={vm.pendingRequest}
+          pendingSwitchTarget={vm.pendingSwitchTarget}
+          isCancelling={vm.isCancelling}
+          cancelError={vm.cancelError}
+          onClose={vm.closeCancelModal}
+          onConfirm={vm.handleConfirmCancel}
+        />
+
+        {/* 5. Checkout Modal */}
         <CheckoutModal
           selectedPlan={vm.selectedPlanForCheckout}
           isRtl={isRtl}
@@ -391,6 +507,7 @@ export const StudentBillingView = () => {
           setSelectedPaymentMethod={vm.setSelectedPaymentMethod}
           isProcessingPayment={vm.isProcessingPayment}
           paymentSuccess={vm.paymentSuccess}
+          paymentResult={vm.paymentResult}
           checkoutError={vm.checkoutError}
           onApplyCoupon={vm.handleApplyCoupon}
           onCompletePayment={vm.handleCompletePayment}

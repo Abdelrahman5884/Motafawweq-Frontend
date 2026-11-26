@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { teacherApi } from '../../../services/teacherApi';
 import { useAuth } from '../../../context/AuthContext';
 import { TEACHER_SUBSCRIPTION_CATALOG, getTeacherPlanQuotas } from '../../../constants/teacherPlanFeatures';
+import { buildSubscriptionPayload } from '../../student/billing/billingPayload';
 
 export const useTeacherBilling = (lang = 'ar') => {
   const isAr = lang === 'ar';
@@ -24,6 +25,7 @@ export const useTeacherBilling = (lang = 'ar') => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('vodafone');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentResult, setPaymentResult] = useState(null);
   const [checkoutError, setCheckoutError] = useState('');
 
   // Cancel-before-switch modal state
@@ -131,6 +133,9 @@ export const useTeacherBilling = (lang = 'ar') => {
   }, [isAr, syncAuthTierFromActiveSub]);
 
   const activeSub = useMemo(() => summary?.activeSub || null, [summary]);
+  const pendingRequest = useMemo(() => summary?.pendingRequest || null, [summary]);
+  const latestRejectedRequest = useMemo(() => summary?.latestRejectedRequest || null, [summary]);
+  const hasPendingRequest = Boolean(pendingRequest);
   const usage = useMemo(
     () =>
       summary?.usage || {
@@ -177,6 +182,7 @@ export const useTeacherBilling = (lang = 'ar') => {
     setCouponError('');
     setCheckoutError('');
     setPaymentSuccess(false);
+    setPaymentResult(null);
     setSelectedPaymentMethod('vodafone');
   }, []);
 
@@ -217,8 +223,8 @@ export const useTeacherBilling = (lang = 'ar') => {
     (planWithPricing) => {
       const tier = planWithPricing?.tier || 'plus';
 
-      if (mustCancelToSwitch) {
-        // Strict cancel-before-switch UX
+      if (hasPendingRequest || mustCancelToSwitch) {
+        // Strict cancel-before-switch UX (covers both pending approval requests and active paid plans)
         openCancelModal(tier === 'free' ? null : planWithPricing);
         return;
       }
@@ -235,11 +241,11 @@ export const useTeacherBilling = (lang = 'ar') => {
 
       openCheckoutForPlan(planWithPricing, selectedPeriod);
     },
-    [isAr, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, selectedPeriod]
+    [hasPendingRequest, isAr, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, selectedPeriod]
   );
 
   const handleUpgradeFromBanner = useCallback(() => {
-    if (mustCancelToSwitch) {
+    if (hasPendingRequest || mustCancelToSwitch) {
       openCancelModal(null);
       return;
     }
@@ -248,7 +254,7 @@ export const useTeacherBilling = (lang = 'ar') => {
     if (!targetPlan) return;
     const pricing = targetPlan.pricing?.[selectedPeriod] || targetPlan.pricing?.monthly || {};
     openCheckoutForPlan({ ...targetPlan, ...pricing }, selectedPeriod);
-  }, [mustCancelToSwitch, openCancelModal, openCheckoutForPlan, plans, selectedPeriod]);
+  }, [hasPendingRequest, mustCancelToSwitch, openCancelModal, openCheckoutForPlan, plans, selectedPeriod]);
 
   const handleConfirmCancel = useCallback(async () => {
     if (isCancelling) return;
@@ -260,26 +266,31 @@ export const useTeacherBilling = (lang = 'ar') => {
       const res = await teacherApi.billing.cancel();
       const targetAfterCancel = pendingSwitchTarget;
 
-      await fetchSummary({ silent: true });
+      const refreshed = await fetchSummary({ silent: true });
       setCancelModalOpen(false);
       setPendingSwitchTarget(null);
 
-      if (targetAfterCancel && targetAfterCancel.tier && targetAfterCancel.tier !== 'free') {
+      const stillBlocked =
+        Boolean(refreshed?.pendingRequest) ||
+        Boolean(refreshed?.activeSub && !refreshed.activeSub.isFree && refreshed.activeSub.planTier !== 'free');
+
+      if (!stillBlocked && targetAfterCancel && targetAfterCancel.tier && targetAfterCancel.tier !== 'free') {
         setNotice({
           type: 'success',
           text: isAr
-            ? `تم إلغاء اشتراكك السابق بنجاح. يمكنك الآن إتمام الاشتراك في ${targetAfterCancel.nameAr}.`
-            : `Previous subscription cancelled. You can now subscribe to ${targetAfterCancel.nameEn || targetAfterCancel.nameAr}.`,
+            ? `تم الإلغاء بنجاح. يمكنك الآن إتمام الاشتراك في ${targetAfterCancel.nameAr}.`
+            : `Cancelled successfully. You can now subscribe to ${targetAfterCancel.nameEn || targetAfterCancel.nameAr}.`,
         });
         openCheckoutForPlan(targetAfterCancel, selectedPeriod);
       } else {
         setNotice({
           type: 'success',
           text:
+            res?.data?.messageAr ||
             res?.message ||
             (isAr
-              ? 'تم إلغاء اشتراكك الحالي والعودة إلى الباقة المجانية بنجاح. يمكنك الآن الاشتراك في أي باقة أخرى.'
-              : 'Your active subscription has been cancelled and reverted to Free. You can now subscribe to another plan.'),
+              ? 'تم الإلغاء بنجاح. يمكنك الآن الاشتراك في أي باقة أخرى.'
+              : 'Cancelled successfully. You can now subscribe to another plan.'),
         });
       }
     } catch (err) {
@@ -344,40 +355,55 @@ export const useTeacherBilling = (lang = 'ar') => {
       setCheckoutError('');
 
       try {
-        const res = await teacherApi.billing.subscribe({
-          plan_tier: selectedPlanForCheckout.tier || 'plus',
-          billing_period: selectedPlanForCheckout.billingPeriod || selectedPeriod,
-          payment_method: paymentDetails.method || selectedPaymentMethod,
-          coupon_code: couponApplied ? couponCode.trim() : null,
-          sender_phone: paymentDetails.senderPhone || null,
-          sender_ipa: paymentDetails.senderIpa || null,
-          transaction_ref: paymentDetails.transactionId || paymentDetails.instaRefNum || null,
+        const payload = buildSubscriptionPayload({
+          planTier: selectedPlanForCheckout.tier || 'plus',
+          billingPeriod: selectedPlanForCheckout.billingPeriod || selectedPeriod,
+          paymentMethod: paymentDetails.method || selectedPaymentMethod,
+          couponCode: couponApplied ? couponCode.trim() : null,
+          senderPhone: paymentDetails.senderPhone || null,
+          senderIpa: paymentDetails.senderIpa || null,
+          transactionRef:
+            paymentDetails.transactionRef || paymentDetails.transactionId || paymentDetails.instaRefNum || null,
+          receiptFile: paymentDetails.receiptFile || null,
         });
 
+        const res = await teacherApi.billing.subscribe(payload);
+        const resultData = res?.data || {};
+
         await fetchSummary({ silent: true });
+        setPaymentResult(resultData);
         setPaymentSuccess(true);
 
-        try {
-          confetti({
-            particleCount: 110,
-            spread: 75,
-            origin: { y: 0.6 },
-          });
-        } catch {
-          // ignore confetti errors in headless browsers
+        if (!resultData.requiresApproval) {
+          try {
+            confetti({
+              particleCount: 110,
+              spread: 75,
+              origin: { y: 0.6 },
+            });
+          } catch {
+            // ignore confetti errors in headless browsers
+          }
         }
 
         setNotice({
-          type: 'success',
+          type: resultData.requiresApproval ? 'info' : 'success',
           text:
+            resultData.messageAr ||
             res?.message ||
-            (isAr ? 'تم تفعيل الباقة وإصدار الفاتورة الرسمية بنجاح.' : 'Subscription activated and invoice issued.'),
+            (resultData.requiresApproval
+              ? isAr
+                ? 'تم إرسال طلب الاشتراك ووصل الدفع للمراجعة — سيتم تفعيل الباقة فور اعتماد السوبر أدمن.'
+                : 'Subscription request and receipt submitted for Super Admin review.'
+              : isAr
+                ? 'تم تفعيل الباقة مجاناً بنجاح فوراً!'
+                : 'Subscription activated immediately.'),
         });
 
         closeTimerRef.current = setTimeout(() => {
           setSelectedPlanForCheckout(null);
           resetCheckoutState();
-        }, 2000);
+        }, 2200);
       } catch (err) {
         setCheckoutError(
           err?.message ||
@@ -408,6 +434,9 @@ export const useTeacherBilling = (lang = 'ar') => {
 
   return {
     activeSub,
+    pendingRequest,
+    latestRejectedRequest,
+    hasPendingRequest,
     usage,
     plans,
     invoices,
@@ -426,6 +455,7 @@ export const useTeacherBilling = (lang = 'ar') => {
     setSelectedPaymentMethod,
     isProcessingPayment,
     paymentSuccess,
+    paymentResult,
     checkoutError,
     cancelModalOpen,
     pendingSwitchTarget,

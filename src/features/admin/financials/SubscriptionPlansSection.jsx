@@ -11,9 +11,11 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  X,
+  Gift,
+  Percent,
 } from 'lucide-react';
 import { InfoTooltip } from '../../../components/common/InfoTooltip';
+import { PlanEditorModal } from './PlanEditorModal';
 
 export const SubscriptionPlansSection = ({
   plans = [],
@@ -34,28 +36,10 @@ export const SubscriptionPlansSection = ({
   const [editingPlan, setEditingPlan] = useState(null);
   const [planToDelete, setPlanToDelete] = useState(null);
 
-  const [planForm, setPlanForm] = useState({
-    nameAr: '',
-    nameEn: '',
-    targetRole: 'center',
-    tierKey: 'custom',
-    billingCycle: 'monthly',
-    priceEgp: 200,
-    termPriceEgp: 800,
-    annualPriceEgp: 1500,
-    commissionPercent: 10,
-    badgeAr: '',
-    badgeEn: '',
-    isPopular: false,
-    isActive: true,
-    featuresArText: '',
-    featuresEnText: '',
-  });
-
   const getRoleLabel = (role) => {
     if (role === 'center') return isAr ? 'سنتر تعليمي' : 'Center';
     if (role === 'teacher') return isAr ? 'معلم / محاضر' : 'Teacher';
-    if (role === 'student') return isAr ? 'طالب / ولي أمر' : 'Student';
+    if (role === 'student') return isAr ? 'طالب' : 'Student';
     return role;
   };
 
@@ -73,79 +57,12 @@ export const SubscriptionPlansSection = ({
 
   const openAddModal = () => {
     setEditingPlan(null);
-    setPlanForm({
-      nameAr: '',
-      nameEn: '',
-      targetRole: roleFilter === 'all' ? 'center' : roleFilter,
-      tierKey: 'custom',
-      billingCycle: 'monthly',
-      priceEgp: 200,
-      termPriceEgp: 800,
-      annualPriceEgp: 1500,
-      commissionPercent: 10,
-      badgeAr: 'باقة مميزة',
-      badgeEn: 'Featured Tier',
-      isPopular: false,
-      isActive: true,
-      featuresArText: 'ميزة أساسية أولى في الباقة\nميزة ثانية متكاملة مع المنصة\nدعم فني ومتابعة مستمرة',
-      featuresEnText: 'First core tier benefit\nSecond integrated capability\nOngoing priority support',
-    });
     setIsPlanModalOpen(true);
   };
 
   const openEditModal = (plan) => {
     setEditingPlan(plan);
-    const monthly = Number(plan.priceEgp ?? 0);
-    setPlanForm({
-      nameAr: plan.nameAr || '',
-      nameEn: plan.nameEn || '',
-      targetRole: plan.targetRole || 'center',
-      tierKey: plan.tierKey || 'custom',
-      billingCycle: plan.billingCycle || 'monthly',
-      priceEgp: monthly,
-      termPriceEgp: plan.termPriceEgp !== null && plan.termPriceEgp !== undefined ? plan.termPriceEgp : monthly * 4,
-      annualPriceEgp: plan.annualPriceEgp ?? 0,
-      commissionPercent: plan.commissionPercent !== null && plan.commissionPercent !== undefined ? plan.commissionPercent : 10,
-      badgeAr: plan.badgeAr || '',
-      badgeEn: plan.badgeEn || '',
-      isPopular: Boolean(plan.isPopular),
-      isActive: plan.isActive !== false,
-      featuresArText: (plan.featuresAr || []).join('\n'),
-      featuresEnText: (plan.featuresEn || []).join('\n'),
-    });
     setIsPlanModalOpen(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!planForm.nameAr.trim()) return;
-
-    const featuresAr = planForm.featuresArText.split('\n').map((s) => s.trim()).filter(Boolean);
-    const featuresEn = planForm.featuresEnText.split('\n').map((s) => s.trim()).filter(Boolean);
-
-    const payload = {
-      nameAr: planForm.nameAr.trim(),
-      nameEn: planForm.nameEn.trim() || planForm.nameAr.trim(),
-      targetRole: planForm.targetRole,
-      tierKey: planForm.tierKey || 'custom',
-      billingCycle: planForm.billingCycle,
-      priceEgp: Number(planForm.priceEgp) || 0,
-      termPriceEgp: Number(planForm.termPriceEgp) || 0,
-      annualPriceEgp: Number(planForm.annualPriceEgp) || 0,
-      commissionPercent: planForm.targetRole === 'teacher' ? Number(planForm.commissionPercent) : null,
-      badgeAr: planForm.badgeAr.trim() || null,
-      badgeEn: planForm.badgeEn.trim() || planForm.badgeAr.trim() || null,
-      isPopular: planForm.isPopular,
-      isActive: planForm.isActive,
-      featuresAr: featuresAr.length > 0 ? featuresAr : ['اشتراك معتمد في منصة متفوق'],
-      featuresEn: featuresEn.length > 0 ? featuresEn : ['Full verified Motafawweq tier access'],
-    };
-
-    const ok = await onSavePlan?.(editingPlan?.id || null, payload);
-    if (ok !== false) {
-      setIsPlanModalOpen(false);
-      setEditingPlan(null);
-    }
   };
 
   return (
@@ -182,14 +99,14 @@ export const SubscriptionPlansSection = ({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '900', color: 'var(--text-primary)' }}>
-              {isAr ? 'الباقات والأسعار' : 'Plans & Pricing'}
+              {isAr ? 'الباقات والأسعار والعروض' : 'Plans, Pricing & Promotions'}
             </h3>
             <InfoTooltip
               size={14}
               text={
                 isAr
-                  ? 'الأسعار الفعلية (شهري • ترم 5 شهور • سنوي) وجميع المزايا المخزنة في قاعدة البيانات وتنعكس فوراً في بوابات الطلاب والمعلمين والسناتر.'
-                  : 'Live Monthly, Semester (5-Mo), and Annual prices & features synced directly with all portals.'
+                  ? 'عدّل الأسعار، فعّل عروض الخصم بالسعر المشطوب ونسبة الخصم، أو اجعل أي باقة مجانية لفترة محدودة — وتنعكس فوراً في بوابات الطلاب والمعلمين والسناتر.'
+                  : 'Manage live prices, strikethrough discount offers, and temporary free promotions synced across all portals.'
               }
             />
           </div>
@@ -259,9 +176,9 @@ export const SubscriptionPlansSection = ({
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'all', labelAr: `جميع الباقات (${plans.length})`, labelEn: `All (${plans.length})` },
-            { id: 'center', labelAr: `باقات السناتر (${plans.filter((p) => p.targetRole === 'center').length})`, labelEn: `Centers` },
-            { id: 'teacher', labelAr: `باقات المعلمين (${plans.filter((p) => p.targetRole === 'teacher').length})`, labelEn: `Teachers` },
-            { id: 'student', labelAr: `باقات الطلاب (${plans.filter((p) => p.targetRole === 'student').length})`, labelEn: `Students` },
+            { id: 'student', labelAr: `باقات الطلاب (${plans.filter((p) => p.targetRole === 'student').length})`, labelEn: 'Students' },
+            { id: 'teacher', labelAr: `باقات المعلمين (${plans.filter((p) => p.targetRole === 'teacher').length})`, labelEn: 'Teachers' },
+            { id: 'center', labelAr: `باقات السناتر (${plans.filter((p) => p.targetRole === 'center').length})`, labelEn: 'Centers' },
           ].map((rf) => {
             const active = roleFilter === rf.id && selectedPlanId === 'all';
             return (
@@ -312,11 +229,11 @@ export const SubscriptionPlansSection = ({
           }}
         >
           <option value="all">{isAr ? 'اختر باقة محددة أو اعرض الكل' : 'Show All Plans'}</option>
-          {['center', 'teacher', 'student'].map((r) => (
+          {['student', 'teacher', 'center'].map((r) => (
             <optgroup key={r} label={getRoleLabel(r)}>
               {plans.filter((p) => p.targetRole === r).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.nameAr} ({Number(p.priceEgp) > 0 ? `${p.priceEgp} ${cur}` : isAr ? 'مجانية' : 'Free'})
+                  {p.nameAr} ({p.isFreePromoActive ? (isAr ? 'مجانية مؤقتاً' : 'Free Promo') : Number(p.priceEgp) > 0 ? `${p.priceEgp} ${cur}` : isAr ? 'مجانية' : 'Free'})
                 </option>
               ))}
             </optgroup>
@@ -325,10 +242,12 @@ export const SubscriptionPlansSection = ({
       </div>
 
       {/* Plans Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))', gap: '18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '18px' }}>
         {filteredPlans.map((plan) => {
           const RoleIcon = getRoleIcon(plan.targetRole);
-          const isFree = Number(plan.priceEgp || 0) === 0;
+          const isFreePromo = Boolean(plan.isFreePromoActive);
+          const isFree = isFreePromo || Number(plan.priceEgp || 0) === 0;
+          const hasDiscount = !isFreePromo && plan.originalPriceEgp !== null && Number(plan.originalPriceEgp) > Number(plan.priceEgp);
           const activeSubs = Number(plan.activeSubscribersCount ?? 0);
           const features = isAr ? plan.featuresAr || [] : plan.featuresEn || plan.featuresAr || [];
 
@@ -337,20 +256,28 @@ export const SubscriptionPlansSection = ({
               key={plan.id}
               style={{
                 backgroundColor: 'var(--bg-surface)',
-                border: plan.isPopular ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+                border: isFreePromo
+                  ? '2px solid #059669'
+                  : plan.isPopular
+                    ? '2px solid var(--primary)'
+                    : '1px solid var(--border-subtle)',
                 borderRadius: '22px',
                 padding: '22px',
-                boxShadow: plan.isPopular ? '0 10px 26px rgba(21, 136, 199, 0.14)' : 'var(--shadow-sm)',
+                boxShadow: isFreePromo
+                  ? '0 10px 26px rgba(5, 150, 105, 0.14)'
+                  : plan.isPopular
+                    ? '0 10px 26px rgba(21, 136, 199, 0.14)'
+                    : 'var(--shadow-sm)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 gap: '16px',
-                opacity: busyId === plan.id ? 0.55 : plan.isActive ? 1 : 0.65,
+                opacity: busyId === plan.id ? 0.55 : plan.isActive ? 1 : 0.62,
               }}
             >
               <div>
-                {/* Top Role + Badge + Active Toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '12px' }}>
+                {/* Top Role + Badges + Active Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
                   <span
                     style={{
                       display: 'inline-flex',
@@ -369,25 +296,46 @@ export const SubscriptionPlansSection = ({
                   </span>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {plan.badgeAr && (
+                    {isFreePromo && (
                       <span
                         style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                           padding: '3px 9px',
                           borderRadius: '999px',
-                          backgroundColor: plan.isPopular ? '#06254E' : 'var(--bg-subtle)',
-                          color: plan.isPopular ? '#FFFFFF' : 'var(--text-secondary)',
+                          backgroundColor: 'rgba(5, 150, 105, 0.14)',
+                          color: '#059669',
                           fontSize: '11px',
-                          fontWeight: '800',
+                          fontWeight: '900',
                         }}
                       >
-                        {isAr ? plan.badgeAr : plan.badgeEn || plan.badgeAr}
+                        <Gift size={11} />
+                        <span>{isAr ? 'مجانية مؤقتاً' : 'Free Promo'}</span>
                       </span>
                     )}
-
+                    {!isFreePromo && hasDiscount && plan.discountPercent && (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                          color: '#DC2626',
+                          fontSize: '11px',
+                          fontWeight: '900',
+                        }}
+                      >
+                        <Percent size={10} />
+                        <span>{isAr ? `خصم ${plan.discountPercent}%` : `${plan.discountPercent}% OFF`}</span>
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => onTogglePlan?.(plan.id, plan.nameAr)}
-                      title={plan.isActive ? (isAr ? 'تعطيل الباقة' : 'Disable') : (isAr ? 'تفعيل الباقة' : 'Activate')}
+                      title={plan.isActive ? (isAr ? 'إخفاء الباقة' : 'Disable') : (isAr ? 'تفعيل الباقة' : 'Activate')}
                       style={{ background: 'none', border: 'none', color: plan.isActive ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex' }}
                     >
                       {plan.isActive ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -415,18 +363,18 @@ export const SubscriptionPlansSection = ({
                   </span>
                 </div>
 
-                {/* All 3 DB Prices Box: Monthly • Term (5 Mo) • Annual */}
+                {/* Prices Box */}
                 <div
                   style={{
                     padding: '14px',
                     borderRadius: '14px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: isFreePromo ? 'rgba(5, 150, 105, 0.06)' : 'var(--bg-subtle)',
+                    border: isFreePromo ? '1px solid rgba(5, 150, 105, 0.28)' : '1px solid var(--border-subtle)',
                     marginBottom: '14px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '27px', fontWeight: '900', color: 'var(--primary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '27px', fontWeight: '900', color: isFreePromo ? '#059669' : 'var(--primary)' }}>
                       {isFree ? (isAr ? 'مجاناً' : 'Free') : Number(plan.priceEgp).toLocaleString()}
                     </span>
                     {!isFree && (
@@ -434,7 +382,20 @@ export const SubscriptionPlansSection = ({
                         {isAr ? `${cur} / شهرياً` : `${cur} / month`}
                       </span>
                     )}
+                    {(hasDiscount || (isFreePromo && Number(plan.priceEgp) > 0)) && (
+                      <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                        {Number(hasDiscount ? plan.originalPriceEgp : plan.priceEgp).toLocaleString()} {cur}
+                      </span>
+                    )}
                   </div>
+
+                  {isFreePromo && plan.freePromoUntil && (
+                    <div style={{ fontSize: '11.5px', fontWeight: '800', color: '#047857', marginBottom: '8px' }}>
+                      {isAr
+                        ? `مجانية حتى: ${new Date(plan.freePromoUntil).toLocaleDateString('ar-EG', { dateStyle: 'medium' })}`
+                        : `Free until: ${new Date(plan.freePromoUntil).toLocaleDateString()}`}
+                    </div>
+                  )}
 
                   <div
                     style={{
@@ -448,28 +409,32 @@ export const SubscriptionPlansSection = ({
                     }}
                   >
                     <div>
-                      <span>{isAr ? 'الترم (5 شهور): ' : 'Term (5 Mo): '}</span>
+                      <span>{isAr ? 'الترم (5 شهور): ' : 'Term: '}</span>
                       <strong style={{ color: 'var(--text-primary)' }}>
-                        {Number(plan.termPriceEgp || 0) > 0
-                          ? `${Number(plan.termPriceEgp).toLocaleString()} ${cur}`
-                          : isAr ? 'مجاني' : 'Free'}
+                        {isFreePromo
+                          ? isAr ? 'مجاناً' : 'Free'
+                          : Number(plan.termPriceEgp || 0) > 0
+                            ? `${Number(plan.termPriceEgp).toLocaleString()} ${cur}`
+                            : isAr ? 'مجاني' : 'Free'}
                       </strong>
                     </div>
                     <div>
                       <span>{isAr ? 'السنوي: ' : 'Annual: '}</span>
                       <strong style={{ color: 'var(--text-primary)' }}>
-                        {Number(plan.annualPriceEgp || 0) > 0
-                          ? `${Number(plan.annualPriceEgp).toLocaleString()} ${cur}`
-                          : isAr ? 'مجاني' : 'Free'}
+                        {isFreePromo
+                          ? isAr ? 'مجاناً' : 'Free'
+                          : Number(plan.annualPriceEgp || 0) > 0
+                            ? `${Number(plan.annualPriceEgp).toLocaleString()} ${cur}`
+                            : isAr ? 'مجاني' : 'Free'}
                       </strong>
                     </div>
                   </div>
                 </div>
 
-                {/* Full DB Features List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {features.map((feat, fi) => (
-                    <div key={fi} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                {/* Features Preview */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                  {features.slice(0, 5).map((feat, fi) => (
+                    <div key={fi} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.45 }}>
                       <span
                         style={{
                           width: '18px',
@@ -481,7 +446,7 @@ export const SubscriptionPlansSection = ({
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0,
-                          marginTop: '2px',
+                          marginTop: '1px',
                         }}
                       >
                         <Check size={11} strokeWidth={3} />
@@ -489,6 +454,11 @@ export const SubscriptionPlansSection = ({
                       <span>{feat}</span>
                     </div>
                   ))}
+                  {features.length > 5 && (
+                    <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)', paddingInlineStart: '26px' }}>
+                      {isAr ? `+ ${features.length - 5} مزايا إضافية` : `+ ${features.length - 5} more features`}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -506,15 +476,15 @@ export const SubscriptionPlansSection = ({
                     backgroundColor: 'var(--primary)',
                     color: '#FFFFFF',
                     border: 'none',
-                    padding: '9px 14px',
-                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    borderRadius: '11px',
                     fontSize: '12.5px',
                     fontWeight: '800',
                     cursor: 'pointer',
                   }}
                 >
                   <Edit3 size={14} />
-                  <span>{isAr ? 'تعديل الأسعار والمزايا' : 'Edit Prices & Features'}</span>
+                  <span>{isAr ? 'تعديل الأسعار والعروض' : 'Edit Prices & Offers'}</span>
                 </button>
 
                 <button
@@ -525,8 +495,8 @@ export const SubscriptionPlansSection = ({
                     backgroundColor: 'rgba(220, 38, 38, 0.06)',
                     border: '1px solid rgba(220, 38, 38, 0.2)',
                     color: '#DC2626',
-                    padding: '9px 11px',
-                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '11px',
                     cursor: 'pointer',
                   }}
                 >
@@ -538,217 +508,20 @@ export const SubscriptionPlansSection = ({
         })}
       </div>
 
-      {/* Add / Edit Plan Modal */}
+      {/* Redesigned Sleek Plan Editor Studio Modal */}
       {isPlanModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => !submitting && setIsPlanModalOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(6, 37, 78, 0.62)',
-            backdropFilter: 'blur(5px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            padding: '16px',
+        <PlanEditorModal
+          key={editingPlan?.id || 'create-plan'}
+          plan={editingPlan}
+          defaultRole={roleFilter === 'all' ? 'student' : roleFilter}
+          lang={lang}
+          submitting={submitting}
+          onClose={() => {
+            setIsPlanModalOpen(false);
+            setEditingPlan(null);
           }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '22px',
-              width: '100%',
-              maxWidth: '600px',
-              maxHeight: '92vh',
-              overflowY: 'auto',
-              padding: '24px',
-              boxShadow: 'var(--shadow-lg)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)' }}>
-                {editingPlan
-                  ? isAr ? `تعديل باقة: ${editingPlan.nameAr}` : `Edit Plan: ${editingPlan.nameEn}`
-                  : isAr ? 'إضافة باقة اشتراك جديدة' : 'Add Subscription Plan'}
-              </h3>
-              <button type="button" onClick={() => setIsPlanModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                {[
-                  { id: 'center', labelAr: 'سنتر تعليمي', labelEn: 'Center', icon: Building2 },
-                  { id: 'teacher', labelAr: 'معلم / محاضر', labelEn: 'Teacher', icon: GraduationCap },
-                  { id: 'student', labelAr: 'طالب / ولي أمر', labelEn: 'Student', icon: Users },
-                ].map((r) => {
-                  const selected = planForm.targetRole === r.id;
-                  const RIcon = r.icon;
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setPlanForm((prev) => ({ ...prev, targetRole: r.id }))}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        padding: '10px 8px',
-                        borderRadius: '10px',
-                        border: selected ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
-                        backgroundColor: selected ? 'var(--primary-surface)' : 'var(--bg-subtle)',
-                        color: selected ? 'var(--primary)' : 'var(--text-secondary)',
-                        fontSize: '12px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <RIcon size={15} />
-                      <span>{isAr ? r.labelAr : r.labelEn}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                    {isAr ? 'اسم الباقة (عربي) *' : 'Name (Arabic) *'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={planForm.nameAr}
-                    onChange={(e) => setPlanForm({ ...planForm, nameAr: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '13px', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                    {isAr ? 'اسم الباقة (إنجليزي)' : 'Name (English)'}
-                  </label>
-                  <input
-                    type="text"
-                    value={planForm.nameEn}
-                    onChange={(e) => setPlanForm({ ...planForm, nameEn: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '13px', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              {/* 3 Billing Prices: Monthly • Term (5 Mo) • Annual */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                    {isAr ? 'شهري (ج.م)' : 'Monthly (EGP)'}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={planForm.priceEgp}
-                    onChange={(e) => setPlanForm({ ...planForm, priceEgp: e.target.value })}
-                    style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                    {isAr ? 'ترم 5 شهور (ج.م)' : 'Term 5-Mo (EGP)'}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={planForm.termPriceEgp}
-                    onChange={(e) => setPlanForm({ ...planForm, termPriceEgp: e.target.value })}
-                    style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                    {isAr ? 'سنوي (ج.م)' : 'Annual (EGP)'}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={planForm.annualPriceEgp}
-                    onChange={(e) => setPlanForm({ ...planForm, annualPriceEgp: e.target.value })}
-                    style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '14px', fontWeight: '800', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                    {isAr ? 'شارة تمييز الباقة' : 'Badge Label'}
-                  </label>
-                  <input
-                    type="text"
-                    value={planForm.badgeAr}
-                    onChange={(e) => setPlanForm({ ...planForm, badgeAr: e.target.value })}
-                    placeholder={isAr ? 'مثال: الأكثر طلباً' : 'Most Popular'}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '13px', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                    {isAr ? 'كود الفئة (ربط البوابات)' : 'Tier Key'}
-                  </label>
-                  <select
-                    value={planForm.tierKey}
-                    onChange={(e) => setPlanForm({ ...planForm, tierKey: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: '700', boxSizing: 'border-box' }}
-                  >
-                    <option value="free">Free (مجانية)</option>
-                    <option value="plus">Plus (بلس)</option>
-                    <option value="pro">Pro (برو)</option>
-                    <option value="custom">Custom (إضافية)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', marginBottom: '4px' }}>
-                  {isAr ? 'مزايا الباقة باللغة العربية (ميزة في كل سطر)' : 'Arabic Features (1 per line)'}
-                </label>
-                <textarea
-                  rows={5}
-                  value={planForm.featuresArText}
-                  onChange={(e) => setPlanForm({ ...planForm, featuresArText: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-subtle)', color: 'var(--text-primary)', fontSize: '13px', lineHeight: 1.6, fontFamily: 'inherit', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}>
-                  <input type="checkbox" checked={planForm.isPopular} onChange={(e) => setPlanForm({ ...planForm, isPopular: e.target.checked })} />
-                  <span>{isAr ? 'إبراز كباقة مفضلة (Popular)' : 'Mark as Popular'}</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}>
-                  <input type="checkbox" checked={planForm.isActive} onChange={(e) => setPlanForm({ ...planForm, isActive: e.target.checked })} />
-                  <span>{isAr ? 'الباقة مفعّلة' : 'Active'}</span>
-                </label>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
-                <button type="button" onClick={() => setIsPlanModalOpen(false)} style={{ backgroundColor: 'transparent', border: '1px solid var(--border-subtle)', padding: '9px 18px', borderRadius: '10px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
-                  {isAr ? 'إلغاء' : 'Cancel'}
-                </button>
-                <button type="submit" disabled={submitting} style={{ backgroundColor: 'var(--primary)', color: '#FFFFFF', border: 'none', padding: '10px 22px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', cursor: submitting ? 'wait' : 'pointer' }}>
-                  {submitting ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ وتحديث في قاعدة البيانات' : 'Save Plan')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+          onSave={onSavePlan}
+        />
       )}
 
       {/* Delete Plan Confirmation */}
