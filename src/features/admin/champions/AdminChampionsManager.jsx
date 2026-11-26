@@ -1417,111 +1417,77 @@ export const AdminChampionsManager = () => {
         </div>
       )}
 
-      {/* ─── 2. 6-Grade Filter Strip (1st Prep → 3rd Secondary) ─── */}
+      {/* ─── 2. Compact Grade Filter Dropdown ─── */}
       <div
         style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
-          borderRadius: '18px',
-          padding: '14px 18px',
+          borderRadius: '16px',
+          padding: '12px 16px',
           display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
           boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-            <GraduationCap size={17} color="var(--primary)" />
-            <span>{lang === 'ar' ? 'الصفوف الدراسية في دوري الجمهورية (أولى إعدادي ← ثالثة ثانوي)' : 'Republic League Grade Filter (1st Prep – 3rd Sec)'}</span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+          <GraduationCap size={17} color="var(--primary)" />
+          <span>{lang === 'ar' ? 'الصف الدراسي' : 'Grade Level'}</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: '1 1 240px', justifyContent: 'flex-end' }}>
+          <select
+            aria-label={lang === 'ar' ? 'اختيار الصف الدراسي' : 'Select Grade Level'}
+            value={selectedGrade}
+            onChange={(e) => handleSelectGrade(e.target.value)}
+            style={{
+              minWidth: '240px',
+              maxWidth: '340px',
+              width: '100%',
+              padding: '9px 14px',
+              borderRadius: '11px',
+              border: '1.5px solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-subtle)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value="all">
+              {lang === 'ar'
+                ? `جميع الصفوف (${summary.totalStudentsAllGrades ?? 0})`
+                : `All Grades (${summary.totalStudentsAllGrades ?? 0})`}
+            </option>
+            {gradeCatalog.map((g) => (
+              <option key={g.value} value={g.value}>
+                {`${getShortGradeLabel(g.value)} (${g.studentsCount ?? 0})${g.hasDedicatedRound ? (lang === 'ar' ? ' • دوري نشط' : ' • Active') : ''}`}
+              </option>
+            ))}
+          </select>
+
           {selectedGrade !== 'all' && (
             <button
               type="button"
               onClick={() => handleSelectGrade('all')}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
-            >
-              {lang === 'ar' ? 'عرض جميع الصفوف' : 'Show All Grades'}
-            </button>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => handleSelectGrade('all')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
-              padding: '8px 14px',
-              borderRadius: '11px',
-              border: selectedGrade === 'all' ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
-              backgroundColor: selectedGrade === 'all' ? 'var(--primary)' : 'var(--bg-subtle)',
-              color: selectedGrade === 'all' ? '#FFFFFF' : 'var(--text-primary)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span>{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</span>
-            <span
               style={{
-                padding: '1px 7px',
-                borderRadius: '999px',
-                fontSize: '11px',
-                backgroundColor: selectedGrade === 'all' ? 'rgba(255,255,255,0.22)' : 'var(--bg-surface)',
-                color: selectedGrade === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
+                padding: '8px 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--primary)',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
               }}
             >
-              {summary.totalStudentsAllGrades ?? 0}
-            </span>
-          </button>
-
-          {gradeCatalog.map((g) => {
-            const isSelected = selectedGrade === g.value;
-            return (
-              <button
-                key={g.value}
-                type="button"
-                onClick={() => handleSelectGrade(g.value)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  padding: '8px 13px',
-                  borderRadius: '11px',
-                  border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)',
-                  backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-subtle)',
-                  color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {g.hasDedicatedRound && (
-                  <span
-                    title={lang === 'ar' ? 'دوري خاص نشط لهذا الصف' : 'Dedicated active round'}
-                    style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: isSelected ? '#A7F3D0' : '#10B981' }}
-                  />
-                )}
-                <span>{getShortGradeLabel(g.value)}</span>
-                <span
-                  style={{
-                    padding: '1px 7px',
-                    borderRadius: '999px',
-                    fontSize: '11px',
-                    backgroundColor: isSelected ? 'rgba(255,255,255,0.22)' : 'var(--bg-surface)',
-                    color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
-                  }}
-                >
-                  {g.studentsCount ?? 0}
-                </span>
-              </button>
-            );
-          })}
+              {lang === 'ar' ? 'عرض الكل' : 'Show All'}
+            </button>
+          )}
         </div>
       </div>
 

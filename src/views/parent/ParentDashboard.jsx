@@ -1,594 +1,429 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useLanguage } from '../../context/LanguageContext';
-import { useTheme } from '../../context/ThemeContext';
 import {
-  ChildSwitcher,
-  ChildSummaryCard,
-  ChildSessionAndFeedback
-} from '../../features/parent';
-import {
-  Users,
-  Calendar,
-  Clock,
   CheckCircle2,
+  Clock,
+  Phone,
+  Bell,
+  Download,
+  User as UserIcon,
+  Save,
+  Users,
+  UserPlus,
+  Trash2,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
   BookOpen,
   FileText,
-  Award,
   CreditCard,
-  Phone,
-  ShieldCheck,
-  X,
-  Send,
-  Bell,
-  Building2,
   MessageSquare,
-  QrCode,
-  Download,
-  Settings,
-  User,
-  Save,
-  Lock
 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
+import { parentApi } from '../../services/parentApi';
+import { InfoTooltip } from '../../components/common/InfoTooltip';
+import { ParentAvatar } from '../../features/parent/ParentAvatar';
+import { ChildSwitcher } from '../../features/parent/ChildSwitcher';
+import { ChildSummaryCard } from '../../features/parent/ChildSummaryCard';
+import { ChildSessionAndFeedback } from '../../features/parent/ChildSessionAndFeedback';
+import { LinkChildModal, ContactCenterModal } from '../../features/parent/ParentModals';
+
+const VALID_TABS = ['overview', 'courses', 'attendance', 'exams', 'homework', 'financials', 'settings'];
+
+const EMPTY_CHILD_DASHBOARD = {
+  summary: null,
+  courses: { summary: { totalCourses: 0, avgProgress: 0 }, items: [] },
+  attendance: { summary: { rate: 0, presentCount: 0, lateCount: 0, absentCount: 0, excusedCount: 0, totalCount: 0 }, items: [] },
+  exams: { summary: { avgPercent: 0, totalGraded: 0, passedCount: 0, fullMarkCount: 0 }, items: [] },
+  homework: { summary: { total: 0, graded: 0, submitted: 0, pending: 0, rejected: 0, overdue: 0 }, items: [] },
+  financials: { summary: { totalPaidEgp: 0, pendingAmountEgp: 0, dueAmountEgp: 0, activePlanTier: 'free', activePlanAr: 'الباقة المجانية', activePlanEn: 'Free Plan', renewsAt: null }, invoices: [] },
+};
+
+const extractErrorMessage = (err, fallbackAr, fallbackEn, lang) => {
+  if (err?.errors) {
+    const firstKey = Object.keys(err.errors)[0];
+    const firstMsg = Array.isArray(err.errors[firstKey]) ? err.errors[firstKey][0] : err.errors[firstKey];
+    if (firstMsg) return String(firstMsg);
+  }
+  if (err?.message) return String(err.message);
+  return lang === 'ar' ? fallbackAr : fallbackEn;
+};
+
+const EmptyBox = ({ icon: Icon, title, subtitle, action }) => (
+  <div style={{
+    padding: '38px 20px',
+    textAlign: 'center',
+    borderRadius: 'var(--radius-lg)',
+    backgroundColor: 'var(--bg-app)',
+    border: '1px dashed var(--border-medium)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '10px',
+  }}>
+    <div style={{
+      width: '44px',
+      height: '44px',
+      borderRadius: '50%',
+      backgroundColor: 'rgba(21, 136, 199, 0.1)',
+      color: 'var(--primary)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <Icon size={20} />
+    </div>
+    <div style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)' }}>{title}</div>
+    {subtitle && (
+      <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', maxWidth: '420px', lineHeight: 1.5 }}>
+        {subtitle}
+      </div>
+    )}
+    {action}
+  </div>
+);
 
 export const ParentDashboard = () => {
   const { lang, isRtl } = useLanguage();
-  const { isDark } = useTheme();
+  const { currentUser, syncUserProfile } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Tab State synced with URL query (?tab=...)
-  const tabFromUrl = searchParams.get('tab') || 'overview';
-  const [activeTab, setActiveTab] = useState(tabFromUrl);
+  const tabParam = searchParams.get('tab');
+  const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'overview';
 
-  useEffect(() => {
-    if (searchParams.get('tab')) {
-      setActiveTab(searchParams.get('tab'));
-    }
-  }, [searchParams]);
-
-  const handleTabChange = (newTab) => {
-    setActiveTab(newTab);
-    setSearchParams({ tab: newTab });
+  const handleTabChange = (nextTab) => {
+    setSearchParams(nextTab === 'overview' ? {} : { tab: nextTab });
   };
 
-  const [selectedChild, setSelectedChild] = useState('child-omar');
+  // Core state
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState('');
+  const [childrenList, setChildrenList] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(null);
+
+  // Selected child full dashboard state
+  const [childLoading, setChildLoading] = useState(false);
+  const [childError, setChildError] = useState('');
+  const [childDashboard, setChildDashboard] = useState(EMPTY_CHILD_DASHBOARD);
+
+  // Filters
+  const [attendanceFilter, setAttendanceFilter] = useState('all');
+  const [homeworkFilter, setHomeworkFilter] = useState('all');
+
+  // Inquiries state
+  const [inquiries, setInquiries] = useState([]);
+  const [inquiriesLoading, setInquiriesLoading] = useState(false);
+
+  // Modals & Action states
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [linkStudentCode, setLinkStudentCode] = useState('');
-  const [linkSuccessToast, setLinkSuccessToast] = useState('');
+  const [linkSubmitting, setLinkSubmitting] = useState(false);
+  const [linkError, setLinkError] = useState('');
 
   const [showContactModal, setShowContactModal] = useState(false);
-  const [contactSubject, setContactSubject] = useState('');
-  const [contactMessage, setContactMessage] = useState('');
-  const [contactSuccessToast, setContactSuccessToast] = useState('');
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactError, setContactError] = useState('');
 
-  // ══════════════════ PARENT SETTINGS STATE ══════════════════
-  const [parentName, setParentName] = useState('طارق عبد الرحمن القاضي');
-  const [parentPhone, setParentPhone] = useState('01001234567');
-  const [parentEmergencyPhone, setParentEmergencyPhone] = useState('01122334455');
-  const [parentEmail, setParentEmail] = useState('tarek.elkady@motafawweq.me');
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [unlinkingId, setUnlinkingId] = useState(null);
+  const [confirmUnlinkId, setConfirmUnlinkId] = useState(null);
 
+  // Toast banner
+  const [toast, setToast] = useState({ type: 'success', text: '' });
+  const pushToast = useCallback((text, type = 'success') => {
+    setToast({ type, text });
+  }, []);
+
+  useEffect(() => {
+    if (!toast.text) return undefined;
+    const timer = setTimeout(() => setToast({ type: 'success', text: '' }), 4500);
+    return () => clearTimeout(timer);
+  }, [toast.text]);
+
+  // Settings form state
+  const [parentName, setParentName] = useState(currentUser?.name || '');
+  const [parentPhone, setParentPhone] = useState(currentUser?.phone || '');
+  const [parentEmergencyPhone, setParentEmergencyPhone] = useState('');
+  const [parentEmail, setParentEmail] = useState(currentUser?.email || '');
   const [notifyTuitionRenewal, setNotifyTuitionRenewal] = useState(true);
   const [notifyAchievementsCertificates, setNotifyAchievementsCertificates] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
 
-  const [settingsSavedToast, setSettingsSavedToast] = useState('');
+  const hydrateParentSettings = useCallback((parentData) => {
+    if (!parentData) return;
+    setParentName(parentData.name ?? '');
+    setParentPhone(parentData.phone ?? '');
+    setParentEmergencyPhone(parentData.emergencyPhone ?? '');
+    setParentEmail(parentData.email ?? '');
+    setNotifyTuitionRenewal(Boolean(parentData.notifyTuitionRenewal));
+    setNotifyAchievementsCertificates(Boolean(parentData.notifyAchievementsCertificates));
+  }, []);
 
-  const handleSaveSettings = (e) => {
-    e.preventDefault();
-    setSettingsSavedToast(lang === 'ar' ? 'تم حفظ وتحديث إعدادات ولي الأمر بنجاح.' : 'Settings saved successfully.');
-    setTimeout(() => setSettingsSavedToast(''), 4000);
-  };
-
-  // ══════════════════ STUDENTS DATA (LINKED DIRECTLY TO PLATFORM DATA) ══════════════════
-  const childrenData = {
-    'child-omar': {
-      id: 'child-omar',
-      studentCode: 'STD-2026-OMAR',
-      name: 'Omar Tarek El-Kady',
-      nameAr: 'عمر طارق القاضي',
-      grade: '3rd Secondary (Thanawya Amma)',
-      gradeAr: 'الصف الثالث الثانوي (شعبة علمي علوم)',
-      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-      school: 'El-Saidia Secondary Military School, Giza',
-      schoolAr: 'مدرسة السعيدية الثانوية العسكرية، الجيزة',
-      center: 'Dokki Elite Center & Online Platform',
-      centerAr: 'سنتر الدقي النخبة والمنصة الإلكترونية',
-      phone: '01024589912',
-      parentPhone: '01001234567',
-      attendanceRate: 96.5,
-      avgQuizScore: 94.6,
-      streakDays: 16,
-      completedLessons: 42,
-      totalLessons: 68,
-      centerWalletEgp: 150,
-      nextSession: 'Sunday 4:00 PM - Biology (Dr. Salma El-Sayed) - Room 1',
-      nextSessionAr: 'الأحد 4:00 عصراً - أحياء (د. سلمى السيد) - قاعة 1 بسنتر الدقي',
-      teacherNotes: 'Omar shows exceptional grasp in Cell Biology. Needs slight revision on Calvin Cycle energy calculations before the mid-term exam.',
-      teacherNotesAr: 'عمر ممتاز جداً ومنضبط بالقاعة. نوصي بمراجعة بسيطة لحسابات الطاقة في دورة كالفن قبل امتحان نصف الفصل القادم.',
-
-      // Enrolled Courses
-      courses: [
-        {
-          id: 'course-bio-301',
-          name: 'Biology',
-          nameAr: 'الأحياء',
-          teacherName: 'Dr. Salma El-Sayed',
-          teacherNameAr: 'د. سلمى السيد',
-          teacherTitleAr: 'كبير معلمي الأحياء ومؤلفة سلسلة المتفوق',
-          teacherAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80',
-          progress: 78,
-          completedLessons: 14,
-          totalLessons: 18,
-          lastLesson: 'Photosynthesis and Energy Dynamics in Plants',
-          lastLessonAr: 'البناء الضوئي وحركية الطاقة في الخلايا النباتية',
-          avgScore: '95%',
-          attendance: '100%',
-          room: 'قاعة 1'
-        },
-        {
-          id: 'course-phy-302',
-          name: 'Physics',
-          nameAr: 'الفيزياء',
-          teacherName: 'Dr. Hany El-Shennawy',
-          teacherNameAr: 'د. هاني الشناوي',
-          teacherTitleAr: 'خبير تدريس الفيزياء والمسابقات الأولمبية',
-          teacherAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-          progress: 62,
-          completedLessons: 13,
-          totalLessons: 22,
-          lastLesson: 'Kirchhoff Laws & Complex Closed Circuits',
-          lastLessonAr: 'قوانين كيرشوف وتطبيقات الدوائر الكهربية المعقدة',
-          avgScore: '90%',
-          attendance: '95%',
-          room: 'قاعة 3'
-        },
-        {
-          id: 'course-chem-303',
-          name: 'Chemistry',
-          nameAr: 'الكيمياء',
-          teacherName: 'Mr. Mahmoud Rady',
-          teacherNameAr: 'أ. محمود راضي',
-          teacherTitleAr: 'خبير الكيمياء للثانوية العامة',
-          teacherAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-          progress: 50,
-          completedLessons: 8,
-          totalLessons: 16,
-          lastLesson: 'Chemical Equilibrium & Le Chatelier Principle',
-          lastLessonAr: 'الاتزان الكيميائي والعوامل المؤثرة وقاعدة لوشاتيليه',
-          avgScore: '92%',
-          attendance: '100%',
-          room: 'قاعة 2'
-        },
-        {
-          id: 'course-ar-304',
-          name: 'Arabic Language',
-          nameAr: 'اللغة العربية والبلاغة',
-          teacherName: 'Dr. Walid Mohsen',
-          teacherNameAr: 'د. وليد محسن',
-          teacherTitleAr: 'خبير اللغة العربية والنحو للثانوية العامة',
-          teacherAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80',
-          progress: 82,
-          completedLessons: 18,
-          totalLessons: 22,
-          lastLesson: 'Arabic Grammar: Derivatives and Semantic Sources',
-          lastLessonAr: 'إعمال المشتقات العاملة وصيغ المبالغة والمصادر',
-          avgScore: '96.7%',
-          attendance: '96%',
-          room: 'قاعة 1'
+  const loadOverview = useCallback(async (preferredChildId = null) => {
+    setOverviewLoading(true);
+    setOverviewError('');
+    try {
+      const res = await parentApi.getOverview();
+      const data = res?.data || {};
+      hydrateParentSettings(data.parent);
+      const list = Array.isArray(data.children) ? data.children : [];
+      setChildrenList(list);
+      setSelectedChildId((prev) => {
+        if (preferredChildId && list.some((c) => Number(c.id) === Number(preferredChildId))) {
+          return Number(preferredChildId);
         }
-      ],
-
-      // Gate Attendance Log
-      attendanceLogs: [
-        {
-          id: 'att-1',
-          date: '2026-11-05',
-          dateAr: 'الخميس 5 نوفمبر 2026',
-          subjectAr: 'الأحياء (د. سلمى السيد)',
-          subjectEn: 'Biology (Dr. Salma)',
-          roomAr: 'قاعة 1 - الدور الأرضي',
-          scanTime: '03:52 م',
-          status: 'present',
-          statusAr: 'حاضر في الموعد',
-          statusEn: 'Present on time'
-        },
-        {
-          id: 'att-2',
-          date: '2026-11-03',
-          dateAr: 'الثلاثاء 3 نوفمبر 2026',
-          subjectAr: 'الفيزياء (د. هاني الشناوي)',
-          subjectEn: 'Physics (Dr. Hany)',
-          roomAr: 'قاعة 3 - الدور الثاني',
-          scanTime: '05:25 م',
-          status: 'present',
-          statusAr: 'حاضر في الموعد',
-          statusEn: 'Present on time'
-        },
-        {
-          id: 'att-3',
-          date: '2026-11-01',
-          dateAr: 'الأحد 1 نوفمبر 2026',
-          subjectAr: 'الكيمياء (أ. محمود راضي)',
-          subjectEn: 'Chemistry (Mr. Mahmoud)',
-          roomAr: 'قاعة 2 - الدور الأول',
-          scanTime: '03:58 م',
-          status: 'present',
-          statusAr: 'حاضر في الموعد',
-          statusEn: 'Present on time'
-        },
-        {
-          id: 'att-4',
-          date: '2026-10-29',
-          dateAr: 'الخميس 29 أكتوبر 2026',
-          subjectAr: 'الأحياء (د. سلمى السيد)',
-          subjectEn: 'Biology (Dr. Salma)',
-          roomAr: 'قاعة 1 - الدور الأرضي',
-          scanTime: '04:11 م',
-          status: 'late',
-          statusAr: 'تأخر 11 دقيقة بعذر مسجل',
-          statusEn: 'Late with excuse'
-        },
-        {
-          id: 'att-5',
-          date: '2026-10-27',
-          dateAr: 'الثلاثاء 27 أكتوبر 2026',
-          subjectAr: 'الفيزياء (د. هاني الشناوي)',
-          subjectEn: 'Physics (Dr. Hany)',
-          roomAr: 'قاعة 3 - الدور الثاني',
-          scanTime: '05:20 م',
-          status: 'present',
-          statusAr: 'حاضر في الموعد',
-          statusEn: 'Present on time'
+        if (prev && list.some((c) => Number(c.id) === Number(prev))) {
+          return Number(prev);
         }
-      ],
+        return list.length > 0 ? Number(list[0].id) : null;
+      });
+    } catch (err) {
+      setOverviewError(
+        extractErrorMessage(
+          err,
+          'تعذر تحميل بيانات بوابة ولي الأمر. يرجى المحاولة مرة أخرى.',
+          'Could not load Parent Portal data. Please try again.',
+          lang
+        )
+      );
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [hydrateParentSettings, lang]);
 
-      // Exam & Quiz Scorecards
-      examReports: [
-        {
-          id: 'ex-1',
-          titleAr: 'كويز تفاعلات البناء الضوئي وانشطار الماء',
-          titleEn: 'Photosynthesis & Water Splitting Quiz',
-          subjectAr: 'الأحياء',
-          teacherAr: 'د. سلمى السيد',
-          date: '2026-11-05',
-          score: 19,
-          maxScore: 20,
-          percent: '95%',
-          rankAr: 'المركز 2 على المجموعة',
-          notesAr: 'فهم دقيق وممتاز لمعادلة فان نيل ونواتج الفسفرة الضوئية.'
-        },
-        {
-          id: 'ex-2',
-          titleAr: 'اختبار كيرشوف والدوائر الكهربية المعقدة الأسبوعي',
-          titleEn: 'Kirchhoff Circuit Analysis Test',
-          subjectAr: 'الفيزياء',
-          teacherAr: 'د. هاني الشناوي',
-          date: '2026-11-03',
-          score: 27,
-          maxScore: 30,
-          percent: '90%',
-          rankAr: 'المركز 3 على المجموعة',
-          notesAr: 'تطبيق هندسي رائع لقانوني كيرشوف الأول والثاني في المسارات المغلقة.'
-        },
-        {
-          id: 'ex-3',
-          titleAr: 'اختبار الاتزان الكيميائي والعوامل المؤثرة',
-          titleEn: 'Chemical Equilibrium & Le Chatelier Test',
-          subjectAr: 'الكيمياء',
-          teacherAr: 'أ. محمود راضي',
-          date: '2026-11-01',
-          score: 23,
-          maxScore: 25,
-          percent: '92%',
-          rankAr: 'المركز 2 على المجموعة',
-          notesAr: 'حلول دقيقة لمسائل ثابت الاتزان وتأثير الضغط والحرارة.'
-        },
-        {
-          id: 'ex-4',
-          titleAr: 'امتحان النحو والبلاغة الشامل لشهر أكتوبر',
-          titleEn: 'Comprehensive Grammar & Rhetoric Exam',
-          subjectAr: 'اللغة العربية',
-          teacherAr: 'د. وليد محسن',
-          date: '2026-10-25',
-          score: 58,
-          maxScore: 60,
-          percent: '96.7%',
-          rankAr: 'الأول على المجموعة',
-          notesAr: 'إعراب نموذجي وبلاغة رفيعة مع درجات تفوق كاملة في القراءة المتحررة.'
-        }
-      ],
+  const loadChildDashboard = useCallback(async (studentId) => {
+    if (!studentId) {
+      setChildDashboard(EMPTY_CHILD_DASHBOARD);
+      return;
+    }
+    setChildLoading(true);
+    setChildError('');
+    try {
+      const res = await parentApi.getChildDashboard(studentId);
+      const data = res?.data || {};
+      setChildDashboard({
+        summary: data.summary || null,
+        courses: data.courses || EMPTY_CHILD_DASHBOARD.courses,
+        attendance: data.attendance || EMPTY_CHILD_DASHBOARD.attendance,
+        exams: data.exams || EMPTY_CHILD_DASHBOARD.exams,
+        homework: data.homework || EMPTY_CHILD_DASHBOARD.homework,
+        financials: data.financials || EMPTY_CHILD_DASHBOARD.financials,
+      });
+    } catch (err) {
+      setChildError(
+        extractErrorMessage(
+          err,
+          'تعذر تحميل بيانات الطالب المحدد.',
+          'Failed to load selected student dashboard.',
+          lang
+        )
+      );
+    } finally {
+      setChildLoading(false);
+    }
+  }, [lang]);
 
-      // Homework Tracker
-      homeworkItems: [
-        {
-          id: 'hw-1',
-          titleAr: 'واجب تطبيق انشطار الماء ومعادلة فان نيل بالأكسجين المشع',
-          subjectAr: 'الأحياء',
-          teacherAr: 'د. سلمى السيد',
-          deadlineAr: 'ينتهي الليلة قبل 11:59 مساءً',
-          status: 'pending',
-          statusAr: 'قيد التسليم',
-          statusEn: 'Pending',
-          maxScore: 20,
-          earnedScore: null,
-          notesAr: 'مطلوب إرفاق الخطوات الحسابية وتوضيح دور مستقبلات الهيدروجين.'
-        },
-        {
-          id: 'hw-2',
-          titleAr: 'مسائل قوانين كيرشوف المعقدة وحسابات الجهد بالمسارات المغلقة',
-          subjectAr: 'الفيزياء',
-          teacherAr: 'د. هاني الشناوي',
-          deadlineAr: 'باقي 3 أيام',
-          status: 'pending',
-          statusAr: 'قيد التسليم',
-          statusEn: 'Pending',
-          maxScore: 25,
-          earnedScore: null,
-          notesAr: 'يرجى مراجعة المسارات المغلقة وتحديد اتجاهات التيارات بدقة.'
-        },
-        {
-          id: 'hw-3',
-          titleAr: 'واجب مقارنة أقراص الثيلاكويد بالستروما ومسارات الطاقة',
-          subjectAr: 'الأحياء',
-          teacherAr: 'د. سلمى السيد',
-          deadlineAr: 'تم التسليم والتصحيح',
-          status: 'graded',
-          statusAr: 'تم التصحيح والتقييم',
-          statusEn: 'Graded',
-          maxScore: 20,
-          earnedScore: 19,
-          notesAr: 'إجابة نموذجية ومبهرة يا عمر! تحليلك لدور إنزيم روبيسكو دقيق جداً ويدل على فهم عميق.'
-        },
-        {
-          id: 'hw-4',
-          titleAr: 'تطبيقات قاعدة لوشاتيليه ومسائل ثابت الاتزان الكيميائي',
-          subjectAr: 'الكيمياء',
-          teacherAr: 'أ. محمود راضي',
-          deadlineAr: 'تم التسليم • بانتظار مراجعة المعلم',
-          status: 'submitted',
-          statusAr: 'تم التسليم وبانتظار التصحيح',
-          statusEn: 'Submitted',
-          maxScore: 20,
-          earnedScore: null,
-          notesAr: 'تم تسليم ورقة الحل كاملة وقيد المراجعة بواسطة أستاذ المادة.'
-        }
-      ],
+  const loadInquiries = useCallback(async () => {
+    setInquiriesLoading(true);
+    try {
+      const res = await parentApi.listInquiries({ per_page: 10 });
+      setInquiries(Array.isArray(res?.data?.items) ? res.data.items : []);
+    } catch {
+      // Non-blocking secondary feed
+    } finally {
+      setInquiriesLoading(false);
+    }
+  }, []);
 
-      // Financials & Invoices
-      invoices: [
-        {
-          id: 'INV-2026-901',
-          date: '2026-11-01',
-          descriptionAr: 'اشتراك شهر نوفمبر - مادة الأحياء (د. سلمى السيد)',
-          amount: '450 ج.م',
-          methodAr: 'دفع نقدي بالاستقبال',
-          statusAr: 'مسدد بالكامل',
-          receiptNo: '#REC-8921'
-        },
-        {
-          id: 'INV-2026-894',
-          date: '2026-11-01',
-          descriptionAr: 'اشتراك شهر نوفمبر - مادة الفيزياء (د. هاني الشناوي)',
-          amount: '500 ج.م',
-          methodAr: 'تحويل إلكتروني إنستاباي',
-          statusAr: 'مسدد بالكامل',
-          receiptNo: '#REC-8944'
-        },
-        {
-          id: 'INV-2026-870',
-          date: '2026-10-20',
-          descriptionAr: 'شراء مذكرة بنك الأسئلة والتدريبات الامتحانية في الكيمياء',
-          amount: '120 ج.م',
-          methodAr: 'خصم من محفظة السنتر',
-          statusAr: 'مسدد بالكامل',
-          receiptNo: '#REC-8703'
-        },
-        {
-          id: 'INV-2026-850',
-          date: '2026-10-01',
-          descriptionAr: 'اشتراك شهر أكتوبر - مادة الكيمياء (أ. محمود راضي)',
-          amount: '400 ج.م',
-          methodAr: 'فودافون كاش ومحافظ المحمول',
-          statusAr: 'مسدد بالكامل',
-          receiptNo: '#REC-8501'
-        }
-      ]
-    },
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      loadOverview();
+      loadInquiries();
+    });
+  }, [loadOverview, loadInquiries]);
 
-    // Sarah Tarek El-Kady (Child 2)
-    'child-sarah': {
-      id: 'child-sarah',
-      studentCode: 'STD-2026-SARAH',
-      name: 'Sarah Tarek El-Kady',
-      nameAr: 'سارة طارق القاضي',
-      grade: '1st Prep',
-      gradeAr: 'الصف الأول الإعدادي',
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-      school: 'Orman Prep School for Girls, Dokki',
-      schoolAr: 'مدرسة الأورمان الإعدادية بنات، الدقي',
-      center: 'Dokki Elite Center',
-      centerAr: 'سنتر الدقي النخبة',
-      phone: '01055566778',
-      parentPhone: '01001234567',
-      attendanceRate: 98.0,
-      avgQuizScore: 94.5,
-      streakDays: 19,
-      completedLessons: 36,
-      totalLessons: 44,
-      centerWalletEgp: 200,
-      nextSession: 'Monday 5:00 PM - Science (Mrs. Rania Kamel) - Room 4',
-      nextSessionAr: 'الإثنين 5:00 مساءً - علوم (أ. رانيا كامل) - قاعة 4 بسنتر الدقي',
-      teacherNotes: 'Sarah is top of her class this week in Matter & Atomic Structure quiz! Outstanding engagement and neat homework presentation.',
-      teacherNotesAr: 'سارة متفوقة جداً والأولى على مجموعتها هذا الأسبوع في كويز تركيب المادة والذرة! إجاباتها منظمة ومنضبطة بالقاعة.',
+  useEffect(() => {
+    if (!selectedChildId) return;
+    Promise.resolve().then(() => {
+      loadChildDashboard(selectedChildId);
+    });
+  }, [selectedChildId, loadChildDashboard]);
 
-      courses: [
-        {
-          id: 'course-sci-101',
-          name: 'Science',
-          nameAr: 'العلوم',
-          teacherName: 'Mrs. Rania Kamel',
-          teacherNameAr: 'أ. رانيا كامل',
-          teacherTitleAr: 'خبيرة تدريس العلوم للمرحلة الإعدادية',
-          teacherAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-          progress: 88,
-          completedLessons: 12,
-          totalLessons: 14,
-          lastLesson: 'Atomic Structure & Chemical Activity',
-          lastLessonAr: 'التركيب الذري للمادة والنشاط الكيميائي للعناصر',
-          avgScore: '98%',
-          attendance: '100%',
-          room: 'قاعة 4'
-        },
-        {
-          id: 'course-math-102',
-          name: 'Mathematics',
-          nameAr: 'الرياضيات',
-          teacherName: 'Mr. Ashraf Sobhy',
-          teacherNameAr: 'أ. أشرف صبحي',
-          teacherTitleAr: 'خبير الرياضيات للمرحلة الإعدادية',
-          teacherAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-          progress: 80,
-          completedLessons: 16,
-          totalLessons: 20,
-          lastLesson: 'Rational Numbers & Algebraic Operations',
-          lastLessonAr: 'مجموعة الأعداد النسبية والعمليات الجبرية',
-          avgScore: '93%',
-          attendance: '96%',
-          room: 'قاعة 2'
-        }
-      ],
+  const activeChildSummary = useMemo(() => {
+    if (childDashboard.summary && Number(childDashboard.summary.id) === Number(selectedChildId)) {
+      return childDashboard.summary;
+    }
+    return childrenList.find((c) => Number(c.id) === Number(selectedChildId)) || null;
+  }, [childDashboard.summary, childrenList, selectedChildId]);
 
-      attendanceLogs: [
-        {
-          id: 'att-s1',
-          date: '2026-11-04',
-          dateAr: 'الأربعاء 4 نوفمبر 2026',
-          subjectAr: 'العلوم (أ. رانيا كامل)',
-          subjectEn: 'Science (Mrs. Rania)',
-          roomAr: 'قاعة 4 - الدور الأول',
-          scanTime: '04:50 م',
-          status: 'present',
-          statusAr: 'حاضر في الموعد',
-          statusEn: 'Present on time'
-        },
-        {
-          id: 'att-s2',
-          date: '2026-11-02',
-          dateAr: 'الإثنين 2 نوفمبر 2026',
-          subjectAr: 'الرياضيات (أ. أشرف صبحي)',
-          subjectEn: 'Math (Mr. Ashraf)',
-          roomAr: 'قاعة 2 - الدور الأول',
-          scanTime: '03:55 م',
-          status: 'present',
-          statusAr: 'حاضر في الموعد',
-          statusEn: 'Present on time'
-        }
-      ],
+  const filteredAttendanceLogs = useMemo(() => {
+    const logs = childDashboard.attendance?.items || [];
+    if (attendanceFilter === 'all') return logs;
+    return logs.filter((log) => log.status === attendanceFilter);
+  }, [childDashboard.attendance, attendanceFilter]);
 
-      examReports: [
-        {
-          id: 'ex-s1',
-          titleAr: 'كويز تركيب المادة والجدول الذري الدوري',
-          titleEn: 'Matter & Atomic Structure Quiz',
-          subjectAr: 'العلوم',
-          teacherAr: 'أ. رانيا كامل',
-          date: '2026-11-04',
-          score: 20,
-          maxScore: 20,
-          percent: '100%',
-          rankAr: 'المركز 1 على المجموعة',
-          notesAr: 'درجة كاملة وإجابة نموذجية في توزيع الإلكترونات بمستويات الطاقة.'
-        }
-      ],
+  const filteredHomeworkItems = useMemo(() => {
+    const items = childDashboard.homework?.items || [];
+    if (homeworkFilter === 'all') return items;
+    return items.filter((item) => item.status === homeworkFilter);
+  }, [childDashboard.homework, homeworkFilter]);
 
-      homeworkItems: [
-        {
-          id: 'hw-s1',
-          titleAr: 'واجب رسم التوزيع الإلكتروني لأول 20 عنصراً',
-          subjectAr: 'العلوم',
-          teacherAr: 'أ. رانيا كامل',
-          deadlineAr: 'تم التسليم والتصحيح',
-          status: 'graded',
-          statusAr: 'تم التصحيح والتقييم',
-          statusEn: 'Graded',
-          maxScore: 20,
-          earnedScore: 20,
-          notesAr: 'ممتازة جداً يا سارة! رسمك لمستويات الطاقة والمدارات دقيق ومرتب للغاية.'
-        }
-      ],
-
-      invoices: [
-        {
-          id: 'INV-2026-S01',
-          date: '2026-11-01',
-          descriptionAr: 'اشتراك شهر نوفمبر - مادة العلوم (أ. رانيا كامل)',
-          amount: '300 ج.م',
-          methodAr: 'دفع نقدي بالاستقبال',
-          statusAr: 'مسدد بالكامل',
-          receiptNo: '#REC-7801'
-        }
-      ]
+  // Actions
+  const handleLinkSubmit = async (code) => {
+    setLinkSubmitting(true);
+    setLinkError('');
+    try {
+      const res = await parentApi.linkChild(code);
+      const linked = res?.data;
+      setShowLinkModal(false);
+      pushToast(
+        res?.message || (lang === 'ar' ? 'تم ربط حساب الطالب بنجاح!' : 'Student linked successfully!')
+      );
+      await loadOverview(linked?.id || null);
+      return true;
+    } catch (err) {
+      setLinkError(
+        extractErrorMessage(
+          err,
+          'تأكد من صحة كود الطالب أو رقم الباركود بالكارنيه.',
+          'Please verify the student code or barcode.',
+          lang
+        )
+      );
+      return false;
+    } finally {
+      setLinkSubmitting(false);
     }
   };
 
-  const childrenList = [
-    {
-      id: 'child-omar',
-      name: childrenData['child-omar'].name,
-      nameAr: childrenData['child-omar'].nameAr,
-      grade: childrenData['child-omar'].grade,
-      gradeAr: childrenData['child-omar'].gradeAr,
-      avatar: childrenData['child-omar'].avatar
-    },
-    {
-      id: 'child-sarah',
-      name: childrenData['child-sarah'].name,
-      nameAr: childrenData['child-sarah'].nameAr,
-      grade: childrenData['child-sarah'].grade,
-      gradeAr: childrenData['child-sarah'].gradeAr,
-      avatar: childrenData['child-sarah'].avatar
+  const handleUnlinkChild = async (studentId) => {
+    setUnlinkingId(studentId);
+    try {
+      const res = await parentApi.unlinkChild(studentId);
+      setConfirmUnlinkId(null);
+      pushToast(
+        res?.message || (lang === 'ar' ? 'تم فك ارتباط الطالب بنجاح.' : 'Student unlinked successfully.')
+      );
+      await loadOverview();
+    } catch (err) {
+      pushToast(
+        extractErrorMessage(err, 'تعذر فك ارتباط الطالب.', 'Failed to unlink student.', lang),
+        'error'
+      );
+    } finally {
+      setUnlinkingId(null);
     }
-  ];
-
-  const activeChild = childrenData[selectedChild] || childrenData['child-omar'];
-
-  const handleLinkSubmit = (e) => {
-    e.preventDefault();
-    if (!linkStudentCode.trim()) return;
-    setLinkSuccessToast(lang === 'ar'
-      ? `تم ربط حساب الطالب بنجاح بكود "${linkStudentCode.trim()}"!`
-      : `Student successfully linked with code "${linkStudentCode.trim()}"!`);
-    setShowLinkModal(false);
-    setLinkStudentCode('');
-    setTimeout(() => setLinkSuccessToast(''), 4500);
   };
 
-  const handleContactSubmit = (e) => {
-    e.preventDefault();
-    if (!contactMessage.trim()) return;
-    setContactSuccessToast(lang === 'ar'
-      ? 'تم إرسال استفسارك إلى إدارة السنتر والمعلم بنجاح وسيتواصلون معك هاتفياً.'
-      : 'Your inquiry was delivered to the center and teacher.');
-    setShowContactModal(false);
-    setContactSubject('');
-    setContactMessage('');
-    setTimeout(() => setContactSuccessToast(''), 5000);
+  const handleContactSubmit = async (payload) => {
+    setContactSubmitting(true);
+    setContactError('');
+    try {
+      const res = await parentApi.createInquiry(payload);
+      setShowContactModal(false);
+      pushToast(
+        res?.message || (lang === 'ar' ? 'تم إرسال استفسارك بنجاح.' : 'Inquiry sent successfully.')
+      );
+      await loadInquiries();
+      return true;
+    } catch (err) {
+      setContactError(
+        extractErrorMessage(err, 'تعذر إرسال الاستفسار.', 'Could not send inquiry.', lang)
+      );
+      return false;
+    } finally {
+      setContactSubmitting(false);
+    }
   };
+
+  const handleExportScorecard = async () => {
+    if (!selectedChildId || exportingCsv) return;
+    setExportingCsv(true);
+    try {
+      const code = activeChildSummary?.studentCode || `student-${selectedChildId}`;
+      await parentApi.exportChildExamsCsv(selectedChildId, `scorecard-${code}.csv`);
+      pushToast(lang === 'ar' ? 'تم تحميل كشف الدرجات بنجاح.' : 'Scorecard downloaded successfully.');
+    } catch (err) {
+      pushToast(
+        extractErrorMessage(err, 'تعذر تحميل كشف الدرجات.', 'Failed to download scorecard.', lang),
+        'error'
+      );
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsError('');
+    try {
+      const res = await parentApi.updateSettings({
+        name: parentName.trim(),
+        phone: parentPhone.trim(),
+        email: parentEmail.trim(),
+        emergency_phone: parentEmergencyPhone.trim() || null,
+        notify_tuition_renewal: notifyTuitionRenewal,
+        notify_achievements_certificates: notifyAchievementsCertificates,
+      });
+      if (res?.data) {
+        hydrateParentSettings(res.data);
+        if (typeof syncUserProfile === 'function') {
+          syncUserProfile({
+            name: res.data.name,
+            nameAr: res.data.name,
+            phone: res.data.phone,
+            email: res.data.email,
+          });
+        }
+      }
+      pushToast(
+        res?.message || (lang === 'ar' ? 'تم حفظ بيانات وإعدادات ولي الأمر بنجاح.' : 'Settings saved successfully.')
+      );
+    } catch (err) {
+      setSettingsError(
+        extractErrorMessage(err, 'تعذر حفظ التعديلات.', 'Could not save settings.', lang)
+      );
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleToggleNotification = async (field, nextVal) => {
+    if (field === 'notify_tuition_renewal') setNotifyTuitionRenewal(nextVal);
+    if (field === 'notify_achievements_certificates') setNotifyAchievementsCertificates(nextVal);
+    try {
+      await parentApi.updateSettings({ [field]: nextVal });
+      pushToast(lang === 'ar' ? 'تم تحديث تفضيل الإشعارات.' : 'Notification preference updated.');
+    } catch (err) {
+      if (field === 'notify_tuition_renewal') setNotifyTuitionRenewal(!nextVal);
+      if (field === 'notify_achievements_certificates') setNotifyAchievementsCertificates(!nextVal);
+      pushToast(
+        extractErrorMessage(err, 'تعذر تحديث الإشعارات.', 'Failed to update preference.', lang),
+        'error'
+      );
+    }
+  };
+
+  const latestAttendance = activeChildSummary?.latestAttendance || childDashboard.attendance?.items?.[0] || null;
+  const recentAlerts = activeChildSummary?.recentAlerts || [];
 
   return (
     <div style={{
       maxWidth: '1200px',
       margin: '0 auto',
-      padding: '28px 20px 80px',
-      fontFamily: isRtl ? 'var(--font-arabic, "Cairo", sans-serif)' : 'var(--font-sans, "Inter", sans-serif)'
+      padding: '26px 20px 80px',
+      fontFamily: isRtl ? 'var(--font-arabic, "Cairo", sans-serif)' : 'var(--font-sans, "Inter", sans-serif)',
     }}>
       {/* ══════════════════ HEADER ══════════════════ */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '24px',
+        marginBottom: '22px',
         flexWrap: 'wrap',
-        gap: '16px'
+        gap: '14px',
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -598,39 +433,47 @@ export const ParentDashboard = () => {
               borderRadius: '99px',
               backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
               color: 'var(--primary)',
-              fontWeight: '800'
+              fontWeight: '800',
             }}>
-              {lang === 'ar' ? 'بوابة أولياء الأمور الذكية' : 'Smart Parent Portal'}
+              {lang === 'ar' ? 'بوابة أولياء الأمور' : 'Parent Portal'}
             </span>
           </div>
-          <h1 style={{
-            fontSize: '24px',
-            fontWeight: '800',
-            color: 'var(--text-primary)',
-            margin: '0 0 4px 0',
-            fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)'
-          }}>
-            {lang === 'ar' ? 'متابعة مسار وتحصيل الأبناء' : 'Student Progress & Performance Hub'}
-          </h1>
-          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
-            {lang === 'ar'
-              ? 'متابعة لحظية لدخول قاعات السنتر، نتائج الامتحانات الأسبوعية، والواجبات والمصروفات أولاً بأول.'
-              : 'Real-time monitoring of center gate check-ins, weekly quiz scores, homework status, and tuition statements.'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 style={{
+              fontSize: '22px',
+              fontWeight: '800',
+              color: 'var(--text-primary)',
+              margin: 0,
+              fontFamily: isRtl ? 'var(--font-arabic)' : 'var(--font-heading)',
+            }}>
+              {lang === 'ar' ? 'متابعة الأبناء' : 'Student Monitoring'}
+            </h1>
+            <InfoTooltip
+              text={lang === 'ar'
+                ? 'متابعة لحظية لدخول قاعات السنتر، نتائج الامتحانات، الواجبات، والمصروفات للأبناء المربوطين بحسابك.'
+                : 'Real-time monitoring of gate check-ins, exams, homework, and tuition for your linked children.'}
+            />
+          </div>
         </div>
 
-        {/* Child Switcher Pills with Add Student Button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <ChildSwitcher
-            children={childrenList}
-            selectedChild={selectedChild}
-            onSelectChild={setSelectedChild}
+            students={childrenList}
+            selectedChild={selectedChildId}
+            onSelectChild={setSelectedChildId}
             lang={lang}
-            onLinkNewChild={() => setShowLinkModal(true)}
+            onLinkNewChild={() => {
+              setLinkError('');
+              setShowLinkModal(true);
+            }}
           />
 
           <button
-            onClick={() => setShowContactModal(true)}
+            type="button"
+            onClick={() => {
+              setContactError('');
+              setShowContactModal(true);
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -642,1293 +485,1482 @@ export const ParentDashboard = () => {
               border: '1px solid var(--border-subtle)',
               fontSize: '12.5px',
               fontWeight: '700',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             <Phone size={14} />
             <span>{lang === 'ar' ? 'تواصل مع السنتر' : 'Contact Center'}</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              loadOverview(selectedChildId);
+              if (selectedChildId) loadChildDashboard(selectedChildId);
+            }}
+            title={lang === 'ar' ? 'تحديث البيانات' : 'Refresh'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border-subtle)',
+              cursor: 'pointer',
+            }}
+          >
+            <RefreshCw size={15} />
+          </button>
         </div>
       </div>
 
-      {/* ══════════════════ SUCCESS TOASTS ══════════════════ */}
-      {linkSuccessToast && (
+      {/* ══════════════════ TOAST BANNER ══════════════════ */}
+      {toast.text && (
         <div style={{
           padding: '12px 18px',
           borderRadius: 'var(--radius-md)',
-          backgroundColor: 'rgba(22, 163, 74, 0.1)',
-          border: '1px solid rgba(22, 163, 74, 0.25)',
-          color: 'var(--success, #16A34A)',
-          fontSize: '13.5px',
+          backgroundColor: toast.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(22, 163, 74, 0.1)',
+          border: `1px solid ${toast.type === 'error' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(22, 163, 74, 0.25)'}`,
+          color: toast.type === 'error' ? '#DC2626' : 'var(--success, #16A34A)',
+          fontSize: '13px',
           fontWeight: '700',
-          marginBottom: '20px',
+          marginBottom: '18px',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px'
+          gap: '8px',
         }}>
-          <CheckCircle2 size={16} />
-          <span>{linkSuccessToast}</span>
+          {toast.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          <span>{toast.text}</span>
         </div>
       )}
 
-      {contactSuccessToast && (
+      {/* ══════════════════ OVERVIEW LOADING / ERROR ══════════════════ */}
+      {overviewLoading ? (
         <div style={{
-          padding: '12px 18px',
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: 'rgba(21, 136, 199, 0.1)',
-          border: '1px solid rgba(21, 136, 199, 0.25)',
-          color: 'var(--primary)',
-          fontSize: '13.5px',
-          fontWeight: '700',
-          marginBottom: '20px',
+          padding: '64px 20px',
+          textAlign: 'center',
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-xl)',
+          color: 'var(--text-secondary)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px',
+        }}>
+          <Loader2 size={28} color="var(--primary)" className="spin" />
+          <span style={{ fontSize: '14px', fontWeight: '700' }}>
+            {lang === 'ar' ? 'جاري تحميل بيانات الأبناء...' : 'Loading linked students...'}
+          </span>
+        </div>
+      ) : overviewError ? (
+        <div style={{
+          padding: '28px 22px',
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          border: '1px solid rgba(239, 68, 68, 0.25)',
+          borderRadius: 'var(--radius-xl)',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px'
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
         }}>
-          <CheckCircle2 size={16} />
-          <span>{contactSuccessToast}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#DC2626', fontWeight: '700', fontSize: '13.5px' }}>
+            <AlertCircle size={18} />
+            <span>{overviewError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => loadOverview()}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '12.5px',
+              fontWeight: '700',
+              cursor: 'pointer',
+            }}
+          >
+            {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+          </button>
         </div>
-      )}
+      ) : childrenList.length === 0 && activeTab !== 'settings' ? (
+        <EmptyBox
+          icon={UserPlus}
+          title={lang === 'ar' ? 'لا يوجد أبناء مربوطون بحسابك حالياً' : 'No linked students yet'}
+          subtitle={lang === 'ar'
+            ? 'أضف كود الطالب أو رقم الباركود الموجود على كارنيه السنتر لبدء متابعة الحضور والامتحانات والواجبات والمصروفات.'
+            : 'Enter your child’s student code or center barcode to track attendance, exams, homework, and fees.'}
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                setLinkError('');
+                setShowLinkModal(true);
+              }}
+              style={{
+                marginTop: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 20px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              <UserPlus size={15} />
+              <span>{lang === 'ar' ? 'ربط طالب بالكود' : 'Link Student by Code'}</span>
+            </button>
+          }
+        />
+      ) : (
+        <>
+          {/* ══════════════════ ACTIVE CHILD SUMMARY CARD ══════════════════ */}
+          {activeChildSummary && activeTab !== 'settings' && (
+            <ChildSummaryCard activeChild={activeChildSummary} lang={lang} isRtl={isRtl} />
+          )}
 
-      {/* ══════════════════ ACTIVE CHILD SUMMARY CARD ══════════════════ */}
-      <ChildSummaryCard
-        activeChild={activeChild}
-        lang={lang}
-        isRtl={isRtl}
-      />
-
-      {/* ══════════════════ TAB 1: OVERVIEW ══════════════════ */}
-      {activeTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Next Session & Teacher Notes */}
-          <ChildSessionAndFeedback
-            activeChild={activeChild}
-            lang={lang}
-          />
-
-          {/* Real-time Gate Arrival Alert & Center Check-in Status */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-xl)',
-            padding: '22px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Bell size={18} color="var(--primary)" />
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'آخر إشعار مسح باركود لبوابة السنتر' : 'Latest Gate Check-in Notification'}
-                </h3>
-              </div>
-              <span style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                borderRadius: '99px',
-                backgroundColor: 'rgba(22, 163, 74, 0.12)',
-                color: 'var(--color-success, #16A34A)',
-                fontWeight: '700'
-              }}>
-                {lang === 'ar' ? 'تم التحقق بنجاح' : 'Verified'}
-              </span>
-            </div>
-
+          {childError && activeTab !== 'settings' && (
             <div style={{
-              padding: '16px',
-              borderRadius: 'var(--radius-lg)',
-              backgroundColor: 'var(--bg-app)',
-              border: '1px solid var(--border-subtle)',
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              color: '#DC2626',
+              fontSize: '13px',
+              fontWeight: '700',
+              marginBottom: '18px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '14px'
+              gap: '10px',
             }}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {activeChild.attendanceLogs[0]?.subjectAr}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                  {activeChild.attendanceLogs[0]?.roomAr} • {activeChild.attendanceLogs[0]?.dateAr}
-                </div>
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: 'var(--bg-surface)',
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)'
-              }}>
-                <Clock size={14} color="var(--primary)" />
-                <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {activeChild.attendanceLogs[0]?.scanTime}
-                </span>
-                <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '700' }}>
-                  ({activeChild.attendanceLogs[0]?.statusAr})
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Enrolled Courses Row */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'المقررات التي يدرسها الطالب حالياً' : 'Current Enrolled Courses'}
-              </h3>
+              <span>{childError}</span>
               <button
-                onClick={() => handleTabChange('courses')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--primary)',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
+                type="button"
+                onClick={() => loadChildDashboard(selectedChildId)}
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer' }}
               >
-                {lang === 'ar' ? 'عرض كافة المقررات والدروس ←' : 'View all courses →'}
+                {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
               </button>
             </div>
+          )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-              {activeChild.courses.map(course => (
-                <div
-                  key={course.id}
-                  style={{
+          {childLoading && activeTab !== 'settings' && !childDashboard.summary ? (
+            <div style={{
+              padding: '48px 20px',
+              textAlign: 'center',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-xl)',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+              <Loader2 size={24} color="var(--primary)" className="spin" />
+              <span style={{ fontSize: '13px', fontWeight: '700' }}>
+                {lang === 'ar' ? 'جاري تحميل تفاصيل الطالب...' : 'Loading student details...'}
+              </span>
+            </div>
+          ) : (
+            <>
+              {/* ══════════════════ TAB 1: OVERVIEW ══════════════════ */}
+              {activeTab === 'overview' && activeChildSummary && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                  <ChildSessionAndFeedback activeChild={activeChildSummary} lang={lang} />
+
+                  {/* Latest Gate Check-in Notification */}
+                  <div style={{
                     backgroundColor: 'var(--bg-surface)',
                     border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '18px',
-                    boxShadow: 'var(--shadow-sm)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                    <img
-                      src={course.teacherAvatar}
-                      alt=""
-                      style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                    <div>
-                      <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                        {lang === 'ar' ? course.nameAr : course.name}
-                      </h4>
-                      <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700', marginTop: '2px' }}>
-                        {course.teacherNameAr}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                      <span>{lang === 'ar' ? 'إنجاز المنهج:' : 'Course progress:'}</span>
-                      <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{course.progress}%</span>
-                    </div>
-                    <div style={{ height: '6px', borderRadius: '99px', backgroundColor: 'var(--bg-subtle)', overflow: 'hidden' }}>
-                      <div style={{ width: `${course.progress}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '99px' }} />
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    {lang === 'ar' ? 'آخر درس تم دراسته:' : 'Last studied lesson:'} <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{course.lastLessonAr}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════ TAB 2: COURSES & SYLLABUS ══════════════════ */}
-      {activeTab === 'courses' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-                {lang === 'ar' ? 'المقررات الدراسية المعتمدة ومعدل التقدم' : 'Enrolled Courses & Curriculum Progress'}
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                {lang === 'ar'
-                  ? 'متابعة تفصيلية لسير الطالب في كل مادة دراسية ونسبة تغطية فصول المنهج طبقاً لنظام الثانوية العامة.'
-                  : 'Detailed tracking of syllabus coverage and active chapters across all enrolled subjects.'}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '18px' }}>
-            {activeChild.courses.map(c => (
-              <div
-                key={c.id}
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  borderRadius: 'var(--radius-xl)',
-                  border: '1px solid var(--border-subtle)',
-                  padding: '22px',
-                  boxShadow: 'var(--shadow-sm)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <img
-                        src={c.teacherAvatar}
-                        alt=""
-                        style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-light)' }}
-                      />
-                      <div>
-                        <h4 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                          {lang === 'ar' ? c.nameAr : c.name}
-                        </h4>
-                        <div style={{ fontSize: '12.5px', color: 'var(--primary)', fontWeight: '700', marginTop: '2px' }}>
-                          {c.teacherNameAr}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                          {c.teacherTitleAr}
-                        </div>
-                      </div>
-                    </div>
-
-                    <span style={{
-                      fontSize: '11px',
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                      color: 'var(--primary)',
-                      fontWeight: '800'
-                    }}>
-                      {c.room}
-                    </span>
-                  </div>
-
-                  <div style={{
-                    padding: '12px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-app)',
-                    border: '1px solid var(--border-subtle)',
-                    marginBottom: '16px'
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '22px',
+                    boxShadow: 'var(--shadow-sm)',
                   }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '3px' }}>
-                      {lang === 'ar' ? 'آخر درس استمع له الطالب في المنصة:' : 'Last completed lecture:'}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Bell size={18} color="var(--primary)" />
+                        <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                          {lang === 'ar' ? 'آخر تسجيل حضور بالسنتر' : 'Latest Gate Check-in'}
+                        </h3>
+                      </div>
+                      {latestAttendance && (
+                        <span style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '99px',
+                          backgroundColor: latestAttendance.status === 'present'
+                            ? 'rgba(22, 163, 74, 0.12)'
+                            : latestAttendance.status === 'absent'
+                            ? 'rgba(239, 68, 68, 0.12)'
+                            : 'rgba(245, 158, 11, 0.12)',
+                          color: latestAttendance.status === 'present'
+                            ? 'var(--color-success, #16A34A)'
+                            : latestAttendance.status === 'absent'
+                            ? '#DC2626'
+                            : '#D97706',
+                          fontWeight: '700',
+                        }}>
+                          {lang === 'ar' ? latestAttendance.statusAr : latestAttendance.statusEn}
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1.4 }}>
-                      {c.lastLessonAr}
-                    </div>
-                  </div>
 
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'تغطية المنهج الدراسي:' : 'Syllabus coverage:'}</span>
-                      <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{c.completedLessons} من {c.totalLessons} حصة ({c.progress}%)</span>
-                    </div>
-                    <div style={{ height: '7px', borderRadius: '99px', backgroundColor: 'var(--bg-subtle)', overflow: 'hidden' }}>
-                      <div style={{ width: `${c.progress}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '99px' }} />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingTop: '12px',
-                  borderTop: '1px solid var(--border-subtle)',
-                  fontSize: '12px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--success)' }}>
-                    <CheckCircle2 size={14} />
-                    <span>{lang === 'ar' ? `حضور السنتر: ${c.attendance}` : `Attendance: ${c.attendance}`}</span>
-                  </div>
-                  <div style={{ fontWeight: '800', color: 'var(--primary)' }}>
-                    {lang === 'ar' ? `متوسط الدرجات: ${c.avgScore}` : `Avg: ${c.avgScore}`}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════ TAB 3: GATE ATTENDANCE LOG ══════════════════ */}
-      {activeTab === 'attendance' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-                {lang === 'ar' ? 'سجل حضور وانضباط الطالب في السنتر' : 'Center Attendance & Gate Check-in Records'}
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                {lang === 'ar'
-                  ? 'رصد توقيت مسح باركود الطالب عند بوابة الدخول لكل حصة دراسية مع تحديد القاعة واليوم.'
-                  : 'Automated timestamped logs captured when student card barcode is scanned at the center gate.'}
-              </p>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(22, 163, 74, 0.1)',
-              color: 'var(--color-success, #16A34A)',
-              fontSize: '12.5px',
-              fontWeight: '700'
-            }}>
-              <CheckCircle2 size={15} />
-              <span>{lang === 'ar' ? 'نسبة الانضباط الإجمالية: 98%' : 'Overall Punctuality: 98%'}</span>
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'المادة والمعلم' : 'Subject & Teacher'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'القاعة' : 'Classroom'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'توقيت مسح الكود' : 'Gate Scan Time'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'حالة الحضور' : 'Status'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeChild.attendanceLogs.map(log => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '14px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      {log.dateAr}
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
-                      {log.subjectAr}
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      {log.roomAr}
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={13} color="var(--primary)" />
-                        {log.scanTime}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 12px' }}>
-                      <span style={{
-                        fontSize: '11.5px',
-                        fontWeight: '700',
-                        padding: '3px 10px',
-                        borderRadius: 'var(--radius-full)',
-                        backgroundColor: log.status === 'present' ? 'rgba(22, 163, 74, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                        color: log.status === 'present' ? 'var(--color-success, #16A34A)' : 'var(--color-warning, #F59E0B)'
+                    {latestAttendance ? (
+                      <div style={{
+                        padding: '15px',
+                        borderRadius: 'var(--radius-lg)',
+                        backgroundColor: 'var(--bg-app)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '14px',
                       }}>
-                        {log.statusAr}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            {lang === 'ar' ? latestAttendance.subjectAr : latestAttendance.subjectEn}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
+                            {latestAttendance.roomAr} • {latestAttendance.dateAr}
+                          </div>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          backgroundColor: 'var(--bg-surface)',
+                          padding: '6px 12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                        }}>
+                          <Clock size={14} color="var(--primary)" />
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            {lang === 'ar' ? latestAttendance.scanTime : latestAttendance.scanTimeEn}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '12px 0' }}>
+                        {lang === 'ar' ? 'لا توجد سجلات حضور مسجلة لهذا الطالب حتى الآن.' : 'No attendance records logged yet.'}
+                      </div>
+                    )}
+                  </div>
 
-      {/* ══════════════════ TAB 4: EXAM SCORECARDS ══════════════════ */}
-      {activeTab === 'exams' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-                {lang === 'ar' ? 'كشف درجات الاختبارات الدورية والكويزات' : 'Periodic Exam Scorecards & Quiz Reports'}
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                {lang === 'ar'
-                  ? 'نتائج امتحانات السنتر الأسبوعية والشهرية مع ملاحظات معلم المادة وترتيب الطالب.'
-                  : 'Official graded results with teacher assessment notes and cohort rankings.'}
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                alert(lang === 'ar' ? 'جاري تجهيز تقرير الدرجات الشامل للطباعة...' : 'Preparing full report for download...');
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-subtle)',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              <Download size={14} />
-              <span>{lang === 'ar' ? 'تحميل كشف الدرجات' : 'Download Scorecard'}</span>
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {activeChild.examReports.map(ex => (
-              <div
-                key={ex.id}
-                style={{
-                  padding: '18px 20px',
-                  borderRadius: 'var(--radius-lg)',
-                  backgroundColor: 'var(--bg-app)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '16px'
-                }}
-              >
-                <div style={{ flex: 1, minWidth: '260px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                    <span style={{
-                      fontSize: '11px',
-                      padding: '2px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                      color: 'var(--primary)',
-                      fontWeight: '800'
+                  {/* Recent Center Absence Alerts (if any) */}
+                  {recentAlerts.length > 0 && (
+                    <div style={{
+                      backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      borderRadius: 'var(--radius-xl)',
+                      padding: '18px 20px',
                     }}>
-                      {ex.subjectAr}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      المعلم: {ex.teacherAr} • {ex.date}
-                    </span>
-                  </div>
-
-                  <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                    {ex.titleAr}
-                  </h4>
-
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {lang === 'ar' ? 'تقييم المعلم:' : 'Teacher note:'} <span style={{ color: 'var(--text-primary)' }}>"{ex.notesAr}"</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{ex.rankAr}</div>
-                    <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--primary)' }}>
-                      {ex.score} / {ex.maxScore}
-                    </div>
-                  </div>
-
-                  <div style={{
-                    padding: '8px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'rgba(22, 163, 74, 0.12)',
-                    color: 'var(--color-success, #16A34A)',
-                    fontSize: '16px',
-                    fontWeight: '900'
-                  }}>
-                    {ex.percent}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════ TAB 5: HOMEWORK TRACKER ══════════════════ */}
-      {activeTab === 'homework' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-            {lang === 'ar' ? 'متابعة التزام الطالب بتسليم الواجبات والتكليفات' : 'Homework & Assignments Submission Tracker'}
-          </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
-            {lang === 'ar'
-              ? 'متابعة الواجبات المسندة للطالب أولاً بأول مع درجات التصحيح وملاحظات المعلم لكل تكليف.'
-              : 'Keep track of pending and graded homework submissions with feedback notes.'}
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {activeChild.homeworkItems.map(hw => (
-              <div
-                key={hw.id}
-                style={{
-                  padding: '18px 20px',
-                  borderRadius: 'var(--radius-lg)',
-                  backgroundColor: 'var(--bg-app)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '14px'
-                }}
-              >
-                <div style={{ flex: 1, minWidth: '260px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                    <span style={{
-                      fontSize: '11px',
-                      padding: '2px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'rgba(21, 136, 199, 0.1)',
-                      color: 'var(--primary)',
-                      fontWeight: '800'
-                    }}>
-                      {hw.subjectAr}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      المعلم: {hw.teacherAr} • الموعد: {hw.deadlineAr}
-                    </span>
-                  </div>
-
-                  <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                    {hw.titleAr}
-                  </h4>
-
-                  <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {hw.notesAr}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {hw.earnedScore !== null && (
-                    <div style={{ fontSize: '18px', fontWeight: '900', color: 'var(--color-success, #16A34A)' }}>
-                      {hw.earnedScore} / {hw.maxScore}
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#B45309', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <AlertCircle size={16} />
+                        <span>{lang === 'ar' ? 'تنبيهات السنتر الأخيرة' : 'Recent Center Alerts'}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {recentAlerts.map((alertItem) => (
+                          <div key={alertItem.id} style={{ fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+                            <strong>{alertItem.date || ''}</strong> {alertItem.groupNameAr ? `(${alertItem.groupNameAr}) — ` : ''}
+                            {alertItem.messageAr}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  <span style={{
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: hw.status === 'graded'
-                      ? 'rgba(22, 163, 74, 0.12)'
-                      : hw.status === 'submitted'
-                      ? 'rgba(21, 136, 199, 0.12)'
-                      : 'rgba(245, 158, 11, 0.12)',
-                    color: hw.status === 'graded'
-                      ? 'var(--color-success, #16A34A)'
-                      : hw.status === 'submitted'
-                      ? 'var(--primary)'
-                      : 'var(--color-warning, #F59E0B)'
-                  }}>
-                    {hw.statusAr}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                  {/* Quick Enrolled Courses Row */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                      <h3 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                        {lang === 'ar' ? 'المقررات والمجموعات الحالية' : 'Current Courses & Groups'}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('courses')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--primary)',
+                          fontSize: '12.5px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {lang === 'ar' ? 'عرض الكل ←' : 'View all →'}
+                      </button>
+                    </div>
 
-      {/* ══════════════════ TAB 6: FINANCIALS & INVOICES ══════════════════ */}
-      {activeTab === 'financials' && (
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          padding: '24px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '14px' }}>
-            <div>
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
-                {lang === 'ar' ? 'سجل المصروفات والاشتراكات وإيصالات الدفع' : 'Tuition Fees & Official Payment Receipts'}
-              </h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                {lang === 'ar'
-                  ? 'شفافية كاملة لجميع اشتراكات الحصص الشهرية والمذكرات المسددة بالسنتر أو إلكترونياً.'
-                  : 'Full transparency over all course subscription fees, book purchases, and payment receipts.'}
-              </p>
-            </div>
+                    {childDashboard.courses.items.length === 0 ? (
+                      <EmptyBox
+                        icon={BookOpen}
+                        title={lang === 'ar' ? 'لا توجد مقررات أو مجموعات مسجل بها الطالب بعد' : 'No enrolled courses yet'}
+                      />
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                        {childDashboard.courses.items.slice(0, 4).map((course) => (
+                          <div
+                            key={course.id}
+                            style={{
+                              backgroundColor: 'var(--bg-surface)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 'var(--radius-lg)',
+                              padding: '18px',
+                              boxShadow: 'var(--shadow-sm)',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                              <ParentAvatar src={course.teacherAvatar} name={course.teacherNameAr} size={40} />
+                              <div>
+                                <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                                  {lang === 'ar' ? course.nameAr : course.name}
+                                </h4>
+                                <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700', marginTop: '2px' }}>
+                                  {lang === 'ar' ? course.teacherNameAr : course.teacherName}
+                                </div>
+                              </div>
+                            </div>
 
-            <div style={{
-              padding: '10px 16px',
-              borderRadius: 'var(--radius-lg)',
-              backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.1))',
-              border: '1px solid var(--border-subtle)',
-              textAlign: isRtl ? 'left' : 'right'
-            }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                {lang === 'ar' ? 'رصيد محفظة السنتر المتاح للطالب' : 'Available Center Wallet'}
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: '900', color: 'var(--primary)' }}>
-                {activeChild.centerWalletEgp} ج.م
-              </div>
-            </div>
-          </div>
+                            <div style={{ marginBottom: '10px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                                <span>{lang === 'ar' ? 'الإنجاز:' : 'Progress:'}</span>
+                                <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{course.progress}%</span>
+                              </div>
+                              <div style={{ height: '6px', borderRadius: '99px', backgroundColor: 'var(--bg-subtle)', overflow: 'hidden' }}>
+                                <div style={{ width: `${course.progress}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '99px' }} />
+                              </div>
+                            </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'رقم الإيصال' : 'Receipt No.'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'البيان' : 'Description'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'طريقة السداد' : 'Payment Method'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'المبلغ' : 'Amount'}</th>
-                  <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeChild.invoices.map(inv => (
-                  <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '14px 12px', fontSize: '12.5px', fontWeight: '800', color: 'var(--primary)' }}>
-                      {inv.receiptNo}
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      {inv.date}
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      {inv.descriptionAr}
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      {inv.methodAr}
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      {inv.amount}
-                    </td>
-                    <td style={{ padding: '14px 12px' }}>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '3px 8px',
-                        borderRadius: 'var(--radius-full)',
-                        backgroundColor: 'rgba(22, 163, 74, 0.12)',
-                        color: 'var(--color-success, #16A34A)'
-                      }}>
-                        {inv.statusAr}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════ TAB 7: SETTINGS & PROFILE ══════════════════ */}
-      {activeTab === 'settings' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Section 1: Parent Profile & Contact Info */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-              <User size={18} color="var(--primary)" />
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'بيانات ولي الأمر والاتصال' : 'Parent Profile & Contact Information'}
-              </h3>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
-              {lang === 'ar'
-                ? 'تُستخدم هذه البيانات للتواصل المباشر مع إدارة السنتر والمعلمين وإرسال التقارير الشهرية.'
-                : 'Used by center administration and teachers to reach you and dispatch reports.'}
-            </p>
-
-            <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'اسم ولي الأمر بالكامل' : 'Full Name'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={parentName}
-                    onChange={(e) => setParentName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'رقم الهاتف الأساسي (تلقي الرسائل)' : 'Primary Mobile Number'}
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={parentPhone}
-                    onChange={(e) => setParentPhone(e.target.value)}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'رقم هاتف إضافي أو للطوارئ' : 'Secondary Emergency Number'}
-                  </label>
-                  <input
-                    type="tel"
-                    value={parentEmergencyPhone}
-                    onChange={(e) => setParentEmergencyPhone(e.target.value)}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', marginBottom: '6px' }}>
-                    {lang === 'ar' ? 'البريد الإلكتروني للتقارير' : 'Email for Reports'}
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={parentEmail}
-                    onChange={(e) => setParentEmail(e.target.value)}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '11px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-              </div>
-
-              {settingsSavedToast && (
-                <div style={{
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                  border: '1px solid rgba(22, 163, 74, 0.25)',
-                  color: 'var(--success, #16A34A)',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <CheckCircle2 size={16} />
-                  <span>{settingsSavedToast}</span>
+                            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                              {lang === 'ar' ? 'آخر تحديث:' : 'Latest:'}{' '}
+                              <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+                                {lang === 'ar' ? course.lastLessonAr : course.lastLesson}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <button
-                type="submit"
-                style={{
-                  alignSelf: 'flex-start',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '10px 22px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                <Save size={15} />
-                <span>{lang === 'ar' ? 'حفظ تعديلات الملف الشخصي' : 'Save Profile'}</span>
-              </button>
-            </form>
-          </div>
+              {/* ══════════════════ TAB 2: COURSES & SYLLABUS ══════════════════ */}
+              {activeTab === 'courses' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                      {lang === 'ar' ? 'المقررات ومعدل التقدم' : 'Enrolled Courses & Progress'}
+                    </h3>
+                    <InfoTooltip
+                      text={lang === 'ar'
+                        ? 'يعرض جميع المقررات والمجموعات النشطة المسجل بها الطالب ونسبة إتمام الحصص ومتوسط الدرجات.'
+                        : 'Shows all active courses and study groups with lesson completion and average quiz scores.'}
+                    />
+                  </div>
 
-          {/* Section 2: Notification & Alert Preferences */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-              <Bell size={18} color="var(--primary)" />
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'تخصيص الإشعارات والتنبيهات المباشرة' : 'Instant Alert & Notification Preferences'}
-              </h3>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
-              {lang === 'ar'
-                ? 'تحكم في نوعية الإشعارات والتنبيهات الفورية التي تصلك على هاتفك عند حركة الطالب.'
-                : 'Configure automated push and SMS alerts for gate entries, grades, and sessions.'}
-            </p>
+                  {childDashboard.courses.items.length === 0 ? (
+                    <EmptyBox
+                      icon={BookOpen}
+                      title={lang === 'ar' ? 'لم ينضم الطالب لأي مقرر أو مجموعة بعد' : 'No active courses or groups'}
+                    />
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '18px' }}>
+                      {childDashboard.courses.items.map((c) => (
+                        <div
+                          key={c.id}
+                          style={{
+                            backgroundColor: 'var(--bg-surface)',
+                            borderRadius: 'var(--radius-xl)',
+                            border: '1px solid var(--border-subtle)',
+                            padding: '22px',
+                            boxShadow: 'var(--shadow-sm)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', marginBottom: '14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <ParentAvatar
+                                  src={c.teacherAvatar}
+                                  name={c.teacherNameAr}
+                                  size={46}
+                                  border="2px solid var(--primary-light)"
+                                />
+                                <div>
+                                  <h4 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                                    {lang === 'ar' ? c.nameAr : c.name}
+                                  </h4>
+                                  <div style={{ fontSize: '12.5px', color: 'var(--primary)', fontWeight: '700', marginTop: '2px' }}>
+                                    {lang === 'ar' ? c.teacherNameAr : c.teacherName}
+                                  </div>
+                                  {c.teacherTitleAr && (
+                                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                      {c.teacherTitleAr}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {[
-                {
-                  key: 'tuition',
-                  titleAr: 'إشعارات تجديد الاشتراكات الشهرية وتأكيد سداد الإيصالات',
-                  titleEn: 'Monthly tuition renewal reminders and payment receipt confirmations',
-                  descAr: 'تذكير قبل بداية كل شهر جديد وتأكيد فوري بعد استلام الخزينة للاشتراك.',
-                  descEn: 'Monthly fee reminders and immediate digital receipt verification upon payment.',
-                  value: notifyTuitionRenewal,
-                  setter: setNotifyTuitionRenewal
-                },
-                {
-                  key: 'trophy',
-                  titleAr: 'إشعار فوري عند فوز الطالب بكأس المتفوق أو تحقيق إنجاز أو صدور شهادة',
-                  titleEn: 'Instant alert when student wins the trophy, hits an achievement, or earns a certificate',
-                  descAr: 'تنبيه احتفالي فوري لولي الأمر فور حصول الطالب على كأس المتفوق، تحقيق إنجاز جديد، أو صدور شهادة تقدير معتمدة.',
-                  descEn: 'Immediate celebratory notification when your student wins the Top Scholar cup, achieves a milestone, or earns an honors certificate.',
-                  value: notifyAchievementsCertificates,
-                  setter: setNotifyAchievementsCertificates
-                }
-              ].map(item => (
-                <label
-                  key={item.key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: '16px',
-                    padding: '14px 18px',
-                    borderRadius: 'var(--radius-lg)',
-                    backgroundColor: 'var(--bg-app)',
-                    border: '1px solid var(--border-subtle)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      {lang === 'ar' ? item.titleAr : item.titleEn}
+                              <span style={{
+                                fontSize: '11px',
+                                padding: '3px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                                color: 'var(--primary)',
+                                fontWeight: '800',
+                              }}>
+                                {c.room}
+                              </span>
+                            </div>
+
+                            <div style={{
+                              padding: '12px',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: 'var(--bg-app)',
+                              border: '1px solid var(--border-subtle)',
+                              marginBottom: '14px',
+                            }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '3px' }}>
+                                {lang === 'ar' ? 'آخر درس / جدول المجموعة:' : 'Latest lesson / schedule:'}
+                              </div>
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                                {lang === 'ar' ? c.lastLessonAr : c.lastLesson}
+                              </div>
+                            </div>
+
+                            <div style={{ marginBottom: '14px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'التقدم:' : 'Progress:'}</span>
+                                <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>
+                                  {c.completedLessons} / {c.totalLessons} ({c.progress}%)
+                                </span>
+                              </div>
+                              <div style={{ height: '7px', borderRadius: '99px', backgroundColor: 'var(--bg-subtle)', overflow: 'hidden' }}>
+                                <div style={{ width: `${c.progress}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '99px' }} />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingTop: '12px',
+                            borderTop: '1px solid var(--border-subtle)',
+                            fontSize: '12px',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--success, #16A34A)' }}>
+                              <CheckCircle2 size={14} />
+                              <span>{lang === 'ar' ? `الحضور: ${c.attendance}` : `Attendance: ${c.attendance}`}</span>
+                            </div>
+                            <div style={{ fontWeight: '800', color: 'var(--primary)' }}>
+                              {lang === 'ar' ? `المتوسط: ${c.avgScore}` : `Avg: ${c.avgScore}`}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px', lineHeight: 1.4 }}>
-                      {lang === 'ar' ? item.descAr : item.descEn}
+                  )}
+                </div>
+              )}
+
+              {/* ══════════════════ TAB 3: GATE ATTENDANCE LOG ══════════════════ */}
+              {activeTab === 'attendance' && (
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 'var(--radius-xl)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '24px',
+                  boxShadow: 'var(--shadow-sm)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                        {lang === 'ar' ? 'سجل الحضور بالسنتر' : 'Center Attendance Log'}
+                      </h3>
+                      <InfoTooltip
+                        text={lang === 'ar'
+                          ? 'رصد توقيت مسح باركود الطالب عند بوابة الدخول وحالة الحضور لكل حصة دراسية.'
+                          : 'Timestamped gate barcode scans and session attendance status.'}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <select
+                        value={attendanceFilter}
+                        onChange={(e) => setAttendanceFilter(e.target.value)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-primary)',
+                          fontSize: '12.5px',
+                          fontWeight: '700',
+                        }}
+                      >
+                        <option value="all">{lang === 'ar' ? 'كل الحالات' : 'All Statuses'}</option>
+                        <option value="present">{lang === 'ar' ? 'حاضر' : 'Present'}</option>
+                        <option value="late">{lang === 'ar' ? 'متأخر' : 'Late'}</option>
+                        <option value="absent">{lang === 'ar' ? 'غائب' : 'Absent'}</option>
+                        <option value="excused">{lang === 'ar' ? 'بعذر' : 'Excused'}</option>
+                      </select>
+
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                        color: 'var(--color-success, #16A34A)',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                      }}>
+                        <CheckCircle2 size={15} />
+                        <span>
+                          {lang === 'ar'
+                            ? `نسبة الانضباط: ${childDashboard.attendance.summary.rate}%`
+                            : `Punctuality: ${childDashboard.attendance.summary.rate}%`}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <input
-                    type="checkbox"
-                    checked={item.value}
-                    onChange={(e) => item.setter(e.target.checked)}
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      cursor: 'pointer',
-                      marginTop: '3px',
-                      accentColor: 'var(--primary)'
-                    }}
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
+                  {filteredAttendanceLogs.length === 0 ? (
+                    <EmptyBox
+                      icon={Clock}
+                      title={lang === 'ar' ? 'لا توجد سجلات حضور مطابقة' : 'No matching attendance logs'}
+                    />
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'المادة والمعلم' : 'Subject & Teacher'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'القاعة' : 'Hall'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'وقت المسح' : 'Scan Time'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredAttendanceLogs.map((log) => (
+                            <tr key={log.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                                {lang === 'ar' ? log.dateAr : log.date}
+                              </td>
+                              <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                                {lang === 'ar' ? log.subjectAr : log.subjectEn}
+                              </td>
+                              <td style={{ padding: '13px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                                {log.roomAr}
+                              </td>
+                              <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Clock size={13} color="var(--primary)" />
+                                  {lang === 'ar' ? log.scanTime : log.scanTimeEn}
+                                </span>
+                              </td>
+                              <td style={{ padding: '13px 12px' }}>
+                                <span style={{
+                                  fontSize: '11.5px',
+                                  fontWeight: '700',
+                                  padding: '3px 10px',
+                                  borderRadius: 'var(--radius-full)',
+                                  backgroundColor: log.status === 'present'
+                                    ? 'rgba(22, 163, 74, 0.12)'
+                                    : log.status === 'absent'
+                                    ? 'rgba(239, 68, 68, 0.12)'
+                                    : 'rgba(245, 158, 11, 0.12)',
+                                  color: log.status === 'present'
+                                    ? 'var(--color-success, #16A34A)'
+                                    : log.status === 'absent'
+                                    ? '#DC2626'
+                                    : '#D97706',
+                                }}>
+                                  {lang === 'ar' ? log.statusAr : log.statusEn}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
-          {/* Section 3: Linked Students Management */}
-          <div style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-xl)',
-            border: '1px solid var(--border-subtle)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Users size={18} color="var(--primary)" />
-                  <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                    {lang === 'ar' ? 'إدارة الأبناء المربوطين بالحساب' : 'Linked Student Profiles'}
+              {/* ══════════════════ TAB 4: EXAM SCORECARDS ══════════════════ */}
+              {activeTab === 'exams' && (
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 'var(--radius-xl)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '24px',
+                  boxShadow: 'var(--shadow-sm)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                        {lang === 'ar' ? 'كشف درجات الاختبارات' : 'Exam Scorecards'}
+                      </h3>
+                      <InfoTooltip
+                        text={lang === 'ar'
+                          ? 'نتائج اختبارات الطالب مع الترتيب على الدفعة وملاحظات المعلم وإمكانية التحميل بصيغة CSV.'
+                          : 'Graded exam results with cohort ranking, teacher remarks, and CSV download.'}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={exportingCsv || childDashboard.exams.items.length === 0}
+                      onClick={handleExportScorecard}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                        cursor: exportingCsv || childDashboard.exams.items.length === 0 ? 'not-allowed' : 'pointer',
+                        opacity: exportingCsv || childDashboard.exams.items.length === 0 ? 0.6 : 1,
+                      }}
+                    >
+                      {exportingCsv ? <Loader2 size={14} className="spin" /> : <Download size={14} />}
+                      <span>{lang === 'ar' ? 'تحميل كشف الدرجات (CSV)' : 'Download Scorecard (CSV)'}</span>
+                    </button>
+                  </div>
+
+                  {childDashboard.exams.items.length === 0 ? (
+                    <EmptyBox
+                      icon={FileText}
+                      title={lang === 'ar' ? 'لا توجد اختبارات مسجلة للطالب بعد' : 'No exam attempts recorded yet'}
+                    />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {childDashboard.exams.items.map((ex) => (
+                        <div
+                          key={ex.id}
+                          style={{
+                            padding: '18px 20px',
+                            borderRadius: 'var(--radius-lg)',
+                            backgroundColor: 'var(--bg-app)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '16px',
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: '250px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                              <span style={{
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                                color: 'var(--primary)',
+                                fontWeight: '800',
+                              }}>
+                                {lang === 'ar' ? ex.subjectAr : ex.subjectEn}
+                              </span>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                {ex.teacherAr}{ex.date ? ` • ${ex.date}` : ''}
+                              </span>
+                            </div>
+
+                            <h4 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                              {lang === 'ar' ? ex.titleAr : ex.titleEn}
+                            </h4>
+
+                            <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                              {lang === 'ar' ? 'التقييم:' : 'Note:'} <span style={{ color: 'var(--text-primary)' }}>&ldquo;{ex.notesAr}&rdquo;</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div style={{ textAlign: isRtl ? 'left' : 'right' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                {lang === 'ar' ? ex.rankAr : ex.rankEn}
+                              </div>
+                              <div style={{ fontSize: '19px', fontWeight: '900', color: 'var(--primary)' }}>
+                                {ex.score !== null ? `${ex.score} / ${ex.maxScore}` : '—'}
+                              </div>
+                            </div>
+
+                            <div style={{
+                              padding: '8px 14px',
+                              borderRadius: 'var(--radius-md)',
+                              backgroundColor: ex.isPassed === false ? 'rgba(239, 68, 68, 0.12)' : 'rgba(22, 163, 74, 0.12)',
+                              color: ex.isPassed === false ? '#DC2626' : 'var(--color-success, #16A34A)',
+                              fontSize: '15px',
+                              fontWeight: '900',
+                            }}>
+                              {ex.percent}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ══════════════════ TAB 5: HOMEWORK TRACKER ══════════════════ */}
+              {activeTab === 'homework' && (
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 'var(--radius-xl)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '24px',
+                  boxShadow: 'var(--shadow-sm)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                        {lang === 'ar' ? 'متابعة الواجبات' : 'Homework Tracker'}
+                      </h3>
+                      <InfoTooltip
+                        text={lang === 'ar'
+                          ? 'متابعة الواجبات المسندة للطالب وحالة التسليم والدرجات وملاحظات المعلم.'
+                          : 'Track assigned, submitted, and graded homework with teacher remarks.'}
+                      />
+                    </div>
+
+                    <select
+                      value={homeworkFilter}
+                      onChange={(e) => setHomeworkFilter(e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)',
+                        backgroundColor: 'var(--bg-app)',
+                        color: 'var(--text-primary)',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                      }}
+                    >
+                      <option value="all">{lang === 'ar' ? `الكل (${childDashboard.homework.summary.total})` : `All (${childDashboard.homework.summary.total})`}</option>
+                      <option value="pending">{lang === 'ar' ? `لم يُسلّم (${childDashboard.homework.summary.pending})` : `Pending (${childDashboard.homework.summary.pending})`}</option>
+                      <option value="submitted">{lang === 'ar' ? `بانتظار التصحيح (${childDashboard.homework.summary.submitted})` : `Submitted (${childDashboard.homework.summary.submitted})`}</option>
+                      <option value="graded">{lang === 'ar' ? `تم التصحيح (${childDashboard.homework.summary.graded})` : `Graded (${childDashboard.homework.summary.graded})`}</option>
+                      <option value="rejected">{lang === 'ar' ? `إعادة تسليم (${childDashboard.homework.summary.rejected})` : `Rejected (${childDashboard.homework.summary.rejected})`}</option>
+                    </select>
+                  </div>
+
+                  {filteredHomeworkItems.length === 0 ? (
+                    <EmptyBox
+                      icon={FileText}
+                      title={lang === 'ar' ? 'لا توجد واجبات مطابقة حالياً' : 'No homework assignments found'}
+                    />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {filteredHomeworkItems.map((hw) => (
+                        <div
+                          key={hw.id}
+                          style={{
+                            padding: '18px 20px',
+                            borderRadius: 'var(--radius-lg)',
+                            backgroundColor: 'var(--bg-app)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '14px',
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: '250px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                              <span style={{
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'rgba(21, 136, 199, 0.1)',
+                                color: 'var(--primary)',
+                                fontWeight: '800',
+                              }}>
+                                {hw.subjectAr}
+                              </span>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                {hw.teacherAr} • {hw.deadlineAr}
+                              </span>
+                            </div>
+
+                            <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                              {hw.titleAr}
+                            </h4>
+
+                            <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                              {hw.notesAr}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {hw.earnedScore !== null && (
+                              <div style={{ fontSize: '17px', fontWeight: '900', color: 'var(--color-success, #16A34A)' }}>
+                                {hw.earnedScore} / {hw.maxScore}
+                              </div>
+                            )}
+
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              padding: '4px 10px',
+                              borderRadius: 'var(--radius-full)',
+                              backgroundColor: hw.status === 'graded'
+                                ? 'rgba(22, 163, 74, 0.12)'
+                                : hw.status === 'submitted'
+                                ? 'rgba(21, 136, 199, 0.12)'
+                                : hw.status === 'rejected' || hw.isOverdue
+                                ? 'rgba(239, 68, 68, 0.12)'
+                                : 'rgba(245, 158, 11, 0.12)',
+                              color: hw.status === 'graded'
+                                ? 'var(--color-success, #16A34A)'
+                                : hw.status === 'submitted'
+                                ? 'var(--primary)'
+                                : hw.status === 'rejected' || hw.isOverdue
+                                ? '#DC2626'
+                                : '#D97706',
+                            }}>
+                              {lang === 'ar' ? hw.statusAr : hw.statusEn}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ══════════════════ TAB 6: FINANCIALS & INVOICES ══════════════════ */}
+              {activeTab === 'financials' && (
+                <div style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderRadius: 'var(--radius-xl)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '24px',
+                  boxShadow: 'var(--shadow-sm)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                        {lang === 'ar' ? 'المصروفات والإيصالات' : 'Tuition & Payment Receipts'}
+                      </h3>
+                      <InfoTooltip
+                        text={lang === 'ar'
+                          ? 'ملخص المدفوعات المسددة والمستحقات المفتوحة وباقة الطالب الحالية.'
+                          : 'Overview of confirmed tuition payments, pending dues, and active student plan.'}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <div style={{
+                        padding: '8px 14px',
+                        borderRadius: 'var(--radius-lg)',
+                        backgroundColor: 'rgba(22, 163, 74, 0.08)',
+                        border: '1px solid rgba(22, 163, 74, 0.2)',
+                      }}>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                          {lang === 'ar' ? 'إجمالي المسدد' : 'Total Paid'}
+                        </div>
+                        <div style={{ fontSize: '16px', fontWeight: '900', color: 'var(--success, #16A34A)' }}>
+                          {Number(childDashboard.financials.summary.totalPaidEgp || 0).toLocaleString()} {lang === 'ar' ? 'ج.م' : 'EGP'}
+                        </div>
+                      </div>
+
+                      {Number(childDashboard.financials.summary.dueAmountEgp || 0) > 0 && (
+                        <div style={{
+                          padding: '8px 14px',
+                          borderRadius: 'var(--radius-lg)',
+                          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                        }}>
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                            {lang === 'ar' ? 'مستحق السداد' : 'Outstanding Due'}
+                          </div>
+                          <div style={{ fontSize: '16px', fontWeight: '900', color: '#DC2626' }}>
+                            {Number(childDashboard.financials.summary.dueAmountEgp).toLocaleString()} {lang === 'ar' ? 'ج.م' : 'EGP'}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{
+                        padding: '8px 14px',
+                        borderRadius: 'var(--radius-lg)',
+                        backgroundColor: 'var(--primary-surface, rgba(21, 136, 199, 0.08))',
+                        border: '1px solid var(--border-subtle)',
+                      }}>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                          {lang === 'ar' ? 'باقة الطالب' : 'Student Plan'}
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--primary)' }}>
+                          {lang === 'ar'
+                            ? childDashboard.financials.summary.activePlanAr
+                            : childDashboard.financials.summary.activePlanEn}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {childDashboard.financials.invoices.length === 0 ? (
+                    <EmptyBox
+                      icon={CreditCard}
+                      title={lang === 'ar' ? 'لا توجد فواتير أو مدفوعات مسجلة حتى الآن' : 'No payment records yet'}
+                    />
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isRtl ? 'right' : 'left' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'رقم الإيصال' : 'Receipt'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'البيان' : 'Description'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'طريقة السداد' : 'Method'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'المبلغ' : 'Amount'}</th>
+                            <th style={{ padding: '12px', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {childDashboard.financials.invoices.map((inv) => (
+                            <tr key={inv.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td style={{ padding: '13px 12px', fontSize: '12.5px', fontWeight: '800', color: 'var(--primary)' }}>
+                                {inv.receiptNo}
+                              </td>
+                              <td style={{ padding: '13px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                                {inv.date || '—'}
+                              </td>
+                              <td style={{ padding: '13px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                                {lang === 'ar' ? inv.descriptionAr : inv.descriptionEn}
+                              </td>
+                              <td style={{ padding: '13px 12px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                                {lang === 'ar' ? inv.methodAr : inv.methodEn}
+                              </td>
+                              <td style={{ padding: '13px 12px', fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                                {inv.amountFormatted}
+                              </td>
+                              <td style={{ padding: '13px 12px' }}>
+                                <span style={{
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  padding: '3px 8px',
+                                  borderRadius: 'var(--radius-full)',
+                                  backgroundColor: inv.status === 'paid'
+                                    ? 'rgba(22, 163, 74, 0.12)'
+                                    : inv.status === 'overdue' || inv.status === 'rejected' || inv.status === 'failed'
+                                    ? 'rgba(239, 68, 68, 0.12)'
+                                    : 'rgba(245, 158, 11, 0.12)',
+                                  color: inv.status === 'paid'
+                                    ? 'var(--color-success, #16A34A)'
+                                    : inv.status === 'overdue' || inv.status === 'rejected' || inv.status === 'failed'
+                                    ? '#DC2626'
+                                    : '#D97706',
+                                }}>
+                                  {lang === 'ar' ? inv.statusAr : inv.statusEn}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ══════════════════ TAB 7: SETTINGS, LINKED CHILDREN & INQUIRIES ══════════════════ */}
+          {activeTab === 'settings' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+              {/* Parent Profile Form */}
+              <div style={{
+                backgroundColor: 'var(--bg-surface)',
+                borderRadius: 'var(--radius-xl)',
+                border: '1px solid var(--border-subtle)',
+                padding: '24px',
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <UserIcon size={18} color="var(--primary)" />
+                  <h3 style={{ fontSize: '16.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                    {lang === 'ar' ? 'بيانات ولي الأمر' : 'Parent Profile'}
+                  </h3>
+                  <InfoTooltip
+                    text={lang === 'ar'
+                      ? 'تُستخدم هذه البيانات للتواصل المباشر مع إدارة السنتر والمعلمين وإرسال التقارير.'
+                      : 'Used by centers and teachers to contact you and dispatch reports.'}
+                  />
+                </div>
+
+                {settingsError && (
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    color: '#DC2626',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    marginBottom: '14px',
+                  }}>
+                    {settingsError}
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                        {lang === 'ar' ? 'الاسم بالكامل' : 'Full Name'}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={parentName}
+                        onChange={(e) => setParentName(e.target.value)}
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                        {lang === 'ar' ? 'رقم الهاتف الأساسي' : 'Primary Phone'}
+                      </label>
+                      <input
+                        type="tel"
+                        dir="ltr"
+                        value={parentPhone}
+                        onChange={(e) => setParentPhone(e.target.value)}
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                        {lang === 'ar' ? 'هاتف الطوارئ (اختياري)' : 'Emergency Phone'}
+                      </label>
+                      <input
+                        type="tel"
+                        dir="ltr"
+                        value={parentEmergencyPhone}
+                        onChange={(e) => setParentEmergencyPhone(e.target.value)}
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
+                        {lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        dir="ltr"
+                        value={parentEmail}
+                        onChange={(e) => setParentEmail(e.target.value)}
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={settingsSaving}
+                    style={{
+                      alignSelf: 'flex-start',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '10px 22px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: settingsSaving ? 'not-allowed' : 'pointer',
+                      opacity: settingsSaving ? 0.7 : 1,
+                    }}
+                  >
+                    {settingsSaving ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
+                    <span>{lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes'}</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Notification Preferences */}
+              <div style={{
+                backgroundColor: 'var(--bg-surface)',
+                borderRadius: 'var(--radius-xl)',
+                border: '1px solid var(--border-subtle)',
+                padding: '24px',
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <Bell size={18} color="var(--primary)" />
+                  <h3 style={{ fontSize: '16.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                    {lang === 'ar' ? 'تفضيلات الإشعارات' : 'Notification Preferences'}
                   </h3>
                 </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                  {lang === 'ar'
-                    ? 'يمكنك إضافة أكثر من ابن لمتابعة مسارهم الدراسي من حساب موحد.'
-                    : 'Manage multiple children profiles from a single unified parent dashboard.'}
-                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {[
+                    {
+                      field: 'notify_tuition_renewal',
+                      titleAr: 'إشعارات تجديد الاشتراكات وسداد الإيصالات',
+                      titleEn: 'Tuition renewal and payment receipt alerts',
+                      value: notifyTuitionRenewal,
+                    },
+                    {
+                      field: 'notify_achievements_certificates',
+                      titleAr: 'إشعار فوري عند تحقيق إنجاز أو شهادة تقدير للطالب',
+                      titleEn: 'Instant alert on achievements, trophies, or certificates',
+                      value: notifyAchievementsCertificates,
+                    },
+                  ].map((item) => (
+                    <label
+                      key={item.field}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '14px',
+                        padding: '14px 16px',
+                        borderRadius: 'var(--radius-lg)',
+                        backgroundColor: 'var(--bg-app)',
+                        border: '1px solid var(--border-subtle)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                        {lang === 'ar' ? item.titleAr : item.titleEn}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={item.value}
+                        onChange={(e) => handleToggleNotification(item.field, e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowLinkModal(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                <span>{lang === 'ar' ? 'ربط طالب جديد +' : 'Link Student +'}</span>
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-              {childrenList.map(ch => (
-                <div
-                  key={ch.id}
-                  style={{
-                    padding: '16px',
-                    borderRadius: 'var(--radius-lg)',
-                    backgroundColor: 'var(--bg-app)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <img
-                      src={ch.avatar}
-                      alt=""
-                      style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                        {lang === 'ar' ? ch.nameAr : ch.name}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        {lang === 'ar' ? ch.gradeAr : ch.grade}
-                      </div>
-                    </div>
+              {/* Linked Students Management */}
+              <div style={{
+                backgroundColor: 'var(--bg-surface)',
+                borderRadius: 'var(--radius-xl)',
+                border: '1px solid var(--border-subtle)',
+                padding: '24px',
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={18} color="var(--primary)" />
+                    <h3 style={{ fontSize: '16.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                      {lang === 'ar' ? 'الأبناء المربوطون بالحساب' : 'Linked Students'}
+                    </h3>
                   </div>
 
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                    color: 'var(--color-success, #16A34A)'
-                  }}>
-                    {lang === 'ar' ? 'نشط ومربوط' : 'Linked'}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLinkError('');
+                      setShowLinkModal(true);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <UserPlus size={14} />
+                    <span>{lang === 'ar' ? 'ربط طالب جديد' : 'Link Student'}</span>
+                  </button>
                 </div>
-              ))}
+
+                {childrenList.length === 0 ? (
+                  <EmptyBox
+                    icon={Users}
+                    title={lang === 'ar' ? 'لم يتم ربط أي طالب بعد' : 'No linked students yet'}
+                  />
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                    {childrenList.map((ch) => (
+                      <div
+                        key={ch.id}
+                        style={{
+                          padding: '16px',
+                          borderRadius: 'var(--radius-lg)',
+                          backgroundColor: 'var(--bg-app)',
+                          border: '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <ParentAvatar src={ch.avatar} name={ch.nameAr || ch.name} size={42} />
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                              {lang === 'ar' ? ch.nameAr : ch.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              {lang === 'ar' ? ch.gradeAr : ch.grade} • {ch.studentCode}
+                            </div>
+                          </div>
+                        </div>
+
+                        {confirmUnlinkId === ch.id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              type="button"
+                              disabled={unlinkingId === ch.id}
+                              onClick={() => handleUnlinkChild(ch.id)}
+                              style={{
+                                padding: '5px 10px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: '#DC2626',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                fontSize: '11.5px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {lang === 'ar' ? 'تأكيد' : 'Confirm'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmUnlinkId(null)}
+                              style={{
+                                padding: '5px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'transparent',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid var(--border-subtle)',
+                                fontSize: '11.5px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            title={lang === 'ar' ? 'فك ارتباط الطالب' : 'Unlink student'}
+                            onClick={() => setConfirmUnlinkId(ch.id)}
+                            style={{
+                              padding: '6px 9px',
+                              borderRadius: 'var(--radius-sm)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                              color: '#DC2626',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                            }}
+                          >
+                            <Trash2 size={13} />
+                            <span>{lang === 'ar' ? 'فك الربط' : 'Unlink'}</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Sent Inquiries History */}
+              <div style={{
+                backgroundColor: 'var(--bg-surface)',
+                borderRadius: 'var(--radius-xl)',
+                border: '1px solid var(--border-subtle)',
+                padding: '24px',
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <MessageSquare size={18} color="var(--primary)" />
+                    <h3 style={{ fontSize: '16.5px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                      {lang === 'ar' ? 'سجل الاستفسارات المرسلة' : 'Sent Inquiries'}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContactError('');
+                      setShowContactModal(true);
+                    }}
+                    style={{
+                      padding: '7px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--primary)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {lang === 'ar' ? 'استفسار جديد +' : 'New Inquiry +'}
+                  </button>
+                </div>
+
+                {inquiriesLoading ? (
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+                  </div>
+                ) : inquiries.length === 0 ? (
+                  <EmptyBox
+                    icon={MessageSquare}
+                    title={lang === 'ar' ? 'لم ترسل أي استفسارات بعد' : 'No inquiries sent yet'}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {inquiries.map((inq) => (
+                      <div
+                        key={inq.id}
+                        style={{
+                          padding: '14px 16px',
+                          borderRadius: 'var(--radius-lg)',
+                          backgroundColor: 'var(--bg-app)',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                            {inq.subject}
+                          </span>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            padding: '2px 8px',
+                            borderRadius: '99px',
+                            backgroundColor: inq.status === 'replied' ? 'rgba(22, 163, 74, 0.12)' : 'rgba(21, 136, 199, 0.12)',
+                            color: inq.status === 'replied' ? 'var(--color-success, #16A34A)' : 'var(--primary)',
+                          }}>
+                            {inq.statusAr}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                          {inq.message}
+                        </div>
+                        {inq.replyText && (
+                          <div style={{
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'var(--bg-surface)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: '12px',
+                            color: 'var(--text-primary)',
+                          }}>
+                            <strong>{lang === 'ar' ? 'الرد:' : 'Reply:'}</strong> {inq.replyText}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
-      {/* ══════════════════ MODAL: LINK NEW STUDENT CODE ══════════════════ */}
-      {showLinkModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(3px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px'
-          }}
-          onClick={() => setShowLinkModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              padding: '28px',
-              maxWidth: '460px',
-              width: '100%',
-              boxShadow: 'var(--shadow-xl)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                {lang === 'ar' ? 'ربط ابن أو طالب جديد بحسابك' : 'Link Another Student Profile'}
-              </h3>
-              <button
-                onClick={() => setShowLinkModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+      {/* ══════════════════ MODALS ══════════════════ */}
+      <LinkChildModal
+        open={showLinkModal}
+        lang={lang}
+        onClose={() => setShowLinkModal(false)}
+        onSubmit={handleLinkSubmit}
+        submitting={linkSubmitting}
+        error={linkError}
+      />
 
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px 0' }}>
-              {lang === 'ar'
-                ? 'أدخل كود الطالب المسجل على كارنيه السنتر لربط حسابه ومتابعة حضوره وامتحاناته تلقائياً.'
-                : 'Enter the student enrollment code from the center ID card to monitor their progress.'}
-            </p>
-
-            <form onSubmit={handleLinkSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'كود الطالب بالسنتر' : 'Student Enrollment Code'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={lang === 'ar' ? 'مثال: كود الطالب أو رقم الكارنيه' : 'e.g. Student Code'}
-                  value={linkStudentCode}
-                  onChange={(e) => setLinkStudentCode(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '11px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1.5px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13.5px',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: '11px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {lang === 'ar' ? 'تأكيد الربط' : 'Confirm Link'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowLinkModal(false)}
-                  style={{
-                    padding: '11px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'transparent',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════ MODAL: CONTACT CENTER / TEACHER ══════════════════ */}
-      {showContactModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(3px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px'
-          }}
-          onClick={() => setShowContactModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-xl)',
-              border: '1px solid var(--border-subtle)',
-              padding: '28px',
-              maxWidth: '500px',
-              width: '100%',
-              boxShadow: 'var(--shadow-xl)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <MessageSquare size={18} color="var(--primary)" />
-                <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-                  {lang === 'ar' ? 'التواصل المباشر مع إدارة السنتر والمعلم' : 'Direct Communication with Center & Teachers'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowContactModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{
-              padding: '12px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--bg-app)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '12.5px',
-              color: 'var(--text-secondary)',
-              marginBottom: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <Phone size={15} color="var(--primary)" />
-              <span>{lang === 'ar' ? 'رقم الاستقبال المباشر بالسنتر: 01003344220' : 'Direct Center Reception: 01003344220'}</span>
-            </div>
-
-            <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'الموضوع أو الاستفسار' : 'Subject'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder={lang === 'ar' ? 'مثال: استفسار حول موعد حجز المراجعة النهائية' : 'e.g. Revision reservation inquiry'}
-                  value={contactSubject}
-                  onChange={(e) => setContactSubject(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1.5px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                  {lang === 'ar' ? 'نص الرسالة أو الملاحظة' : 'Message'}
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder={lang === 'ar' ? 'اكتب ملاحظتك أو استفسارك هنا وسيقوم المشرف بالتواصل معك فوراً...' : 'Write your inquiry here...'}
-                  value={contactMessage}
-                  onChange={(e) => setContactMessage(e.target.value)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1.5px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '13px',
-                    lineHeight: 1.5,
-                    outline: 'none',
-                    resize: 'vertical'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: '11px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--primary)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <Send size={14} />
-                  <span>{lang === 'ar' ? 'إرسال الاستفسار' : 'Send Message'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowContactModal(false)}
-                  style={{
-                    padding: '11px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'transparent',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {lang === 'ar' ? 'إلغاء' : 'Cancel'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ContactCenterModal
+        open={showContactModal}
+        lang={lang}
+        activeChild={activeChildSummary}
+        onClose={() => setShowContactModal(false)}
+        onSubmit={handleContactSubmit}
+        submitting={contactSubmitting}
+        error={contactError}
+      />
     </div>
   );
 };

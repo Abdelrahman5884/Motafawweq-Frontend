@@ -1,7 +1,8 @@
 import React from 'react';
 import { UserPlus } from 'lucide-react';
+import { ParentAvatar } from './ParentAvatar';
 
-export const ChildSwitcher = ({ children, selectedChild, onSelectChild, lang, onLinkNewChild }) => {
+export const ChildSwitcher = ({ students = [], selectedChild, onSelectChild, lang, onLinkNewChild }) => {
   return (
     <div style={{
       display: 'inline-flex',
@@ -11,44 +12,55 @@ export const ChildSwitcher = ({ children, selectedChild, onSelectChild, lang, on
       borderRadius: 'var(--radius-full)',
       border: '1px solid var(--border-subtle)',
       gap: '4px',
-      flexWrap: 'wrap'
+      flexWrap: 'wrap',
     }}>
-      {children.map(child => (
-        <button
-          key={child.id}
-          onClick={() => onSelectChild(child.id)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '7px 14px',
-            borderRadius: 'var(--radius-full)',
-            border: 'none',
-            backgroundColor: selectedChild === child.id ? 'var(--primary)' : 'transparent',
-            color: selectedChild === child.id ? '#FFFFFF' : 'var(--text-secondary)',
-            fontSize: '13px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <img src={child.avatar} alt="" style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }} />
-          <span>{lang === 'ar' ? child.nameAr.split(' ')[0] : child.name.split(' ')[0]}</span>
-          <span style={{
-            fontSize: '10px',
-            padding: '1px 6px',
-            borderRadius: '99px',
-            backgroundColor: selectedChild === child.id ? 'rgba(255, 255, 255, 0.22)' : 'var(--bg-app)',
-            color: selectedChild === child.id ? '#FFFFFF' : 'var(--text-secondary)',
-            fontWeight: '600'
-          }}>
-            {child.id === 'child-omar' ? (lang === 'ar' ? '3 ثانوي' : 'Grade 12') : (lang === 'ar' ? '1 إعدادي' : 'Grade 7')}
-          </span>
-        </button>
-      ))}
+      {students.map((child) => {
+        const isActive = Number(selectedChild) === Number(child.id);
+        const displayName = (lang === 'ar' ? (child.nameAr || child.name) : (child.name || child.nameAr)) || '';
+        const firstName = displayName.trim().split(/\s+/)[0] || displayName;
+        const gradeBadge = lang === 'ar'
+          ? (child.gradeShortAr || child.gradeAr || 'طالب')
+          : (child.gradeShortEn || child.grade || 'Student');
+
+        return (
+          <button
+            key={child.id}
+            type="button"
+            onClick={() => onSelectChild(child.id)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '7px 14px',
+              borderRadius: 'var(--radius-full)',
+              border: 'none',
+              backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+              color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <ParentAvatar src={child.avatar} name={displayName} size={22} inverted={isActive} />
+            <span>{firstName}</span>
+            <span style={{
+              fontSize: '10px',
+              padding: '1px 6px',
+              borderRadius: '99px',
+              backgroundColor: isActive ? 'rgba(255, 255, 255, 0.22)' : 'var(--bg-app)',
+              color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
+              fontWeight: '600',
+            }}>
+              {gradeBadge}
+            </span>
+          </button>
+        );
+      })}
 
       {onLinkNewChild && (
         <button
+          type="button"
           onClick={onLinkNewChild}
           title={lang === 'ar' ? 'ربط ابن أو طالب إضافي' : 'Link another student'}
           style={{
@@ -63,7 +75,7 @@ export const ChildSwitcher = ({ children, selectedChild, onSelectChild, lang, on
             fontSize: '12px',
             fontWeight: '700',
             cursor: 'pointer',
-            transition: 'all 0.15s ease'
+            transition: 'all 0.15s ease',
           }}
         >
           <UserPlus size={14} />
