@@ -8,6 +8,18 @@ import { apiGet, apiPost, apiPut, apiPatch, apiDelete, apiRequest } from './api'
 const makeIdempotencyKey = (prefix = 'std') =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+const buildQueryString = (params = {}) => {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    const trimmed = typeof value === 'string' ? value.trim() : '';
+    if (trimmed) {
+      qs.set(key, trimmed);
+    }
+  });
+  const encoded = qs.toString();
+  return encoded ? `?${encoded}` : '';
+};
+
 export const studentApi = {
   // Phase 2: Profile, Study Goals, Preferences & Privacy
   profile: {
@@ -64,7 +76,7 @@ export const studentApi = {
 
   // Phase 4: Courses, Lessons, Anti-Skip Progress Heartbeat, Bookmarks & Notes
   courses: {
-    list: () => apiGet('/student/courses'),
+    list: (search = '') => apiGet(`/student/courses${buildQueryString({ search })}`),
     get: (courseUuid) => apiGet(`/student/courses/${courseUuid}`),
   },
 
@@ -88,7 +100,7 @@ export const studentApi = {
 
   // Phase 5: Exams, Timed Attempts & Mistake Bank
   exams: {
-    list: () => apiGet('/student/exams'),
+    list: (search = '') => apiGet(`/student/exams${buildQueryString({ search })}`),
     getResult: (examUuid) => apiGet(`/student/exams/${examUuid}/result`),
     start: (examUuid) =>
       apiRequest(`/student/exams/${examUuid}/start`, {
@@ -106,20 +118,22 @@ export const studentApi = {
 
   // Official Egyptian Ministry of Education Curricula & Guided Practice Exams
   ministry: {
-    listCurricula: (grade = '') =>
-      apiGet(
-        grade
-          ? `/student/ministry/curricula?grade=${encodeURIComponent(grade)}`
-          : '/student/ministry/curricula'
-      ),
+    listCurricula: (gradeOrOpts = '') => {
+      const params =
+        typeof gradeOrOpts === 'string'
+          ? { grade: gradeOrOpts }
+          : { grade: gradeOrOpts?.grade || '', search: gradeOrOpts?.search || '' };
+      return apiGet(`/student/ministry/curricula${buildQueryString(params)}`);
+    },
     toggleUnit: (code, unitIndex) =>
       apiPost(`/student/ministry/curricula/${encodeURIComponent(code)}/units/${unitIndex}/toggle`, {}),
-    listExams: (grade = '') =>
-      apiGet(
-        grade
-          ? `/student/ministry/exams?grade=${encodeURIComponent(grade)}`
-          : '/student/ministry/exams'
-      ),
+    listExams: (gradeOrOpts = '') => {
+      const params =
+        typeof gradeOrOpts === 'string'
+          ? { grade: gradeOrOpts }
+          : { grade: gradeOrOpts?.grade || '', search: gradeOrOpts?.search || '' };
+      return apiGet(`/student/ministry/exams${buildQueryString(params)}`);
+    },
     startExam: (code, { retake = false } = {}) =>
       apiRequest(`/student/ministry/exams/${encodeURIComponent(code)}/start`, {
         method: 'POST',

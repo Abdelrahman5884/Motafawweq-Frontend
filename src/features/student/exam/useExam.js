@@ -46,6 +46,11 @@ export const useExam = (lang = 'ar') => {
   const loadingResultRef = useRef(false);
   const submittingRef = useRef(false);
   const searchParamsRef = useRef(searchParams);
+  const searchSeqRef = useRef(0);
+  const hasLoadedDefaultRef = useRef(false);
+  const defaultTeacherExamsRef = useRef([]);
+  const defaultMinistryExamsRef = useRef([]);
+  const searchQueryRef = useRef('');
   const expiresAtMsRef = useRef(0);
   const answersRef = useRef({});
   const questionsRef = useRef([]);
@@ -54,11 +59,10 @@ export const useExam = (lang = 'ar') => {
 
   const [teacherExams, setTeacherExams] = useState([]);
   const [ministryExams, setMinistryExams] = useState([]);
-  const [selectedMinistryGrade, setSelectedMinistryGrade] = useState('');
-  const [resolvedMinistryGrade, setResolvedMinistryGrade] = useState('');
-  const [availableMinistryGrades, setAvailableMinistryGrades] = useState([]);
+  const [studentGradeAr, setStudentGradeAr] = useState('');
 
   const [loadingExams, setLoadingExams] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [examsError, setExamsError] = useState(null);
   const [actionError, setActionError] = useState(null);
 
@@ -109,6 +113,10 @@ export const useExam = (lang = 'ar') => {
   useEffect(() => {
     tabSwitchesRef.current = tabSwitchesCount;
   }, [tabSwitchesCount]);
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
 
   const draftStorageKey = useCallback(
     (examId) => (examId ? `mtfq_exam_draft_${userScope}_${examId}` : ''),
@@ -173,14 +181,26 @@ export const useExam = (lang = 'ar') => {
   );
 
   const loadExams = useCallback(
-    async (gradeOverride = selectedMinistryGrade) => {
-      setLoadingExams(true);
+    async ({ search = '', silent = false } = {}) => {
+      const trimmedSearch = typeof search === 'string' ? search.trim() : '';
+      const seq = ++searchSeqRef.current;
+
+      if (!silent) {
+        setLoadingExams(true);
+      } else if (trimmedSearch) {
+        setSearching(true);
+      }
       setExamsError(null);
+
       try {
         const [teacherRes, ministryRes] = await Promise.allSettled([
-          studentApi.exams.list(),
-          studentApi.ministry.listExams(gradeOverride),
+          studentApi.exams.list(trimmedSearch),
+          studentApi.ministry.listExams(trimmedSearch ? { search: trimmedSearch } : {}),
         ]);
+
+        if (seq !== searchSeqRef.current) {
+          return [];
+        }
 
         const mappedTeacher =
           teacherRes.status === 'fulfilled' && Array.isArray(teacherRes.value?.data)
@@ -193,14 +213,17 @@ export const useExam = (lang = 'ar') => {
           ? mapExams(ministryPayload.items, { isMinistry: true })
           : [];
 
+        if (!trimmedSearch) {
+          defaultTeacherExamsRef.current = mappedTeacher;
+          defaultMinistryExamsRef.current = mappedMinistry;
+          hasLoadedDefaultRef.current = true;
+        }
+
         setTeacherExams(mappedTeacher);
         setMinistryExams(mappedMinistry);
 
-        if (ministryPayload.selectedGradeAr || ministryPayload.studentGradeAr) {
-          setResolvedMinistryGrade(ministryPayload.selectedGradeAr || ministryPayload.studentGradeAr);
-        }
-        if (Array.isArray(ministryPayload.availableGrades) && ministryPayload.availableGrades.length > 0) {
-          setAvailableMinistryGrades(ministryPayload.availableGrades);
+        if (ministryPayload.studentGradeAr) {
+          setStudentGradeAr(ministryPayload.studentGradeAr);
         }
 
         if (teacherRes.status === 'rejected' && ministryRes.status === 'rejected') {
@@ -213,10 +236,13 @@ export const useExam = (lang = 'ar') => {
 
         return [...mappedTeacher, ...mappedMinistry];
       } finally {
-        setLoadingExams(false);
+        if (seq === searchSeqRef.current) {
+          setLoadingExams(false);
+          setSearching(false);
+        }
       }
     },
-    [isAr, mapExams, selectedMinistryGrade]
+    [isAr, mapExams]
   );
 
   // Open an existing submitted/graded exam result from backend
@@ -346,11 +372,11 @@ export const useExam = (lang = 'ar') => {
     [draftStorageKey, isAr, loadExams]
   );
 
-  // Initial fetch + grade filter refetch + deep-link (?id=... / ?examId=... / ?examCode=... / ?source=ministry)
+  // Initial grade-scoped fetch + deep-link (?id=... / ?examId=... / ?examCode=... / ?source=ministry)
   useEffect(() => {
     let mounted = true;
     const init = async () => {
-      const combined = await loadExams(selectedMinistryGrade);
+      const combined = await loadExams();
       if (!mounted) return;
 
       const params = searchParamsRef.current;
@@ -362,7 +388,22 @@ export const useExam = (lang = 'ar') => {
       const deepLinkId = params.get('examCode') || params.get('id') || params.get('examId') || '';
       if (deepLinkId && deepLinkHandledRef.current !== deepLinkId) {
         deepLinkHandledRef.current = deepLinkId;
-        const target = combined.find((ex) => ex.id === deepLinkId || ex.code === deepLinkId);
+        let target = combined.find((ex) => ex.id === deepLinkId || ex.code === deepLinkId);
+
+        // Support deep-linking to a cross-grade Ministry exam (e.g. discovered via search on Courses page)
+        if (!target && deepLinkId.startsWith('moe-')) {
+          try {
+            const lookupRes = await studentApi.ministry.listExams({ search: deepLinkId });
+            if (!mounted) return;
+            const lookupItems = Array.isArray(lookupRes?.data?.items)
+              ? mapExams(lookupRes.data.items, { isMinistry: true })
+              : [];
+            target = lookupItems.find((ex) => ex.id === deepLinkId || ex.code === deepLinkId) || null;
+          } catch {
+            // ignore lookup error
+          }
+        }
+
         if (target) {
           if (target.isMinistry) {
             setSourceFilter('ministry');
@@ -388,7 +429,30 @@ export const useExam = (lang = 'ar') => {
     return () => {
       mounted = false;
     };
-  }, [selectedMinistryGrade, loadExams, handleStartExam, handleViewResult, setSearchParams]);
+  }, [loadExams, mapExams, handleStartExam, handleViewResult, setSearchParams]);
+
+  // Debounced cross-grade backend search (restores cached student-grade exams instantly when cleared)
+  useEffect(() => {
+    if (!hasLoadedDefaultRef.current) return undefined;
+
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      searchSeqRef.current += 1;
+      setTeacherExams(defaultTeacherExamsRef.current);
+      setMinistryExams(defaultMinistryExamsRef.current);
+      setSearching(false);
+      return undefined;
+    }
+
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      loadExams({ search: trimmed, silent: true });
+    }, 260);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery, loadExams]);
 
   // Anti-cheat tab switch telemetry + accidental close warning during active exam
   useEffect(() => {
@@ -463,7 +527,12 @@ export const useExam = (lang = 'ar') => {
         const resultData = res?.data || null;
         setServerResult(resultData);
         setExamState('results');
-        await loadExams();
+        // Refresh default grade-scoped cache and active search view if searching
+        const activeSearch = searchQueryRef.current.trim();
+        await loadExams({ search: '', silent: Boolean(activeSearch) });
+        if (activeSearch) {
+          await loadExams({ search: activeSearch, silent: true });
+        }
 
         if (!isAutoSubmit && resultData?.showResults !== false && !resultData?.isPendingManualGrading && resultData?.isPassed) {
           try {
@@ -608,17 +677,21 @@ export const useExam = (lang = 'ar') => {
   }, [sourceScopedExams]);
 
   const filteredExams = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
     return sourceScopedExams.filter((e) => {
       if (statusFilter === 'ready' && e.status !== 'ready') return false;
       if (statusFilter === 'in_progress' && e.status !== 'in_progress') return false;
       if (statusFilter === 'completed' && e.status !== 'graded' && e.status !== 'submitted') return false;
       if (statusFilter === 'closed' && e.status !== 'closed' && e.status !== 'upcoming') return false;
-      if (!q) return true;
-      const hay = `${e.titleAr} ${e.titleEn} ${e.subjectAr} ${e.teacherNameAr} ${e.gradeAr} ${e.sourceAr}`.toLowerCase();
-      return hay.includes(q);
+      return true;
     });
-  }, [sourceScopedExams, statusFilter, searchQuery]);
+  }, [sourceScopedExams, statusFilter]);
+
+  const isSearchingAllGrades = searchQuery.trim().length > 0;
+
+  const refreshExams = useCallback(() => {
+    const activeSearch = searchQueryRef.current.trim();
+    return loadExams({ search: activeSearch });
+  }, [loadExams]);
 
   const answeredCount = useMemo(
     () => questions.filter((q) => isQuestionAnswered(q, selectedAnswers[q.id])).length,
@@ -634,17 +707,16 @@ export const useExam = (lang = 'ar') => {
     examsList,
     filteredExams,
     loadingExams,
+    searching,
+    isSearchingAllGrades,
     examsError,
     actionError,
     setActionError,
-    refreshExams: () => loadExams(selectedMinistryGrade),
+    refreshExams,
     sourceFilter,
     setSourceFilter,
     sourceCounts,
-    selectedMinistryGrade,
-    setSelectedMinistryGrade,
-    resolvedMinistryGrade,
-    availableMinistryGrades,
+    studentGradeAr,
     tabCounts,
     statusFilter,
     setStatusFilter,

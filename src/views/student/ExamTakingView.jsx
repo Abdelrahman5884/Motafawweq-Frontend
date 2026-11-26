@@ -46,10 +46,9 @@ export const ExamTakingView = () => {
           sourceFilter={exam.sourceFilter}
           setSourceFilter={exam.setSourceFilter}
           sourceCounts={exam.sourceCounts}
-          selectedMinistryGrade={exam.selectedMinistryGrade}
-          setSelectedMinistryGrade={exam.setSelectedMinistryGrade}
-          resolvedMinistryGrade={exam.resolvedMinistryGrade}
-          availableMinistryGrades={exam.availableMinistryGrades}
+          studentGradeAr={exam.studentGradeAr}
+          searching={exam.searching}
+          isSearchingAllGrades={exam.isSearchingAllGrades}
           tabCounts={exam.tabCounts}
           statusFilter={exam.statusFilter}
           setStatusFilter={exam.setStatusFilter}

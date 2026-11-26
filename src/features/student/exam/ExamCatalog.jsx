@@ -29,10 +29,9 @@ export const ExamCatalog = ({
   sourceFilter = 'all',
   setSourceFilter,
   sourceCounts = { all: 0, ministry: 0, teachers: 0 },
-  selectedMinistryGrade = '',
-  setSelectedMinistryGrade,
-  resolvedMinistryGrade = '',
-  availableMinistryGrades = [],
+  studentGradeAr = '',
+  searching = false,
+  isSearchingAllGrades = false,
   tabCounts,
   statusFilter,
   setStatusFilter,
@@ -78,25 +77,42 @@ export const ExamCatalog = ({
           borderBottom: '1px solid var(--border-subtle)',
         }}
       >
-        <h1
-          style={{
-            fontSize: '24px',
-            fontWeight: '900',
-            color: 'var(--text-primary)',
-            margin: '0 0 6px 0',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          {isAr ? 'الامتحانات والاختبارات' : 'Exams & Assessments'}
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+          <h1
+            style={{
+              fontSize: '24px',
+              fontWeight: '900',
+              color: 'var(--text-primary)',
+              margin: 0,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {isAr ? 'الامتحانات والاختبارات' : 'Exams & Assessments'}
+          </h1>
+          {studentGradeAr && (
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: '800',
+                padding: '4px 11px',
+                borderRadius: '999px',
+                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                color: '#059669',
+                border: '1px solid rgba(5, 150, 105, 0.2)',
+              }}
+            >
+              {studentGradeAr}
+            </span>
+          )}
+        </div>
         <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
           {isAr
-            ? 'اختر امتحانات معلميك أو تدرّب على نماذج واختبارات وزارة التربية والتعليم الاسترشادية بالتصحيح الفوري'
-            : 'Take teacher exams or practice with official Egyptian Ministry of Education guided exams with instant grading'}
+            ? 'تظهر امتحانات معلميك واختبارات الوزارة الخاصة بصفّك الدراسي تلقائياً، ويمكنك البحث لاستكشاف اختبارات جميع الصفوف'
+            : 'Showing exams for your grade by default — use search to explore exams across all grades'}
         </p>
       </div>
 
-      {/* Source Switcher: All | Ministry of Education Guided Exams | Teacher Exams + Grade Filter */}
+      {/* Source Switcher: All | Ministry of Education Guided Exams | Teacher Exams */}
       <div
         style={{
           display: 'flex',
@@ -180,33 +196,39 @@ export const ExamCatalog = ({
           })}
         </div>
 
-        {(sourceFilter === 'all' || sourceFilter === 'ministry') && availableMinistryGrades.length > 0 && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <Landmark size={14} color="#059669" />
-            <select
-              value={selectedMinistryGrade || resolvedMinistryGrade}
-              onChange={(e) => setSelectedMinistryGrade?.(e.target.value)}
-              aria-label={isAr ? 'الصف الدراسي لاختبارات الوزارة' : 'Ministry exams grade'}
+        {isSearchingAllGrades && (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 12px',
+              borderRadius: '999px',
+              backgroundColor: 'var(--primary-surface)',
+              color: 'var(--primary)',
+              fontSize: '12px',
+              fontWeight: '800',
+            }}
+          >
+            <Search size={13} />
+            <span>{isAr ? 'البحث يشمل جميع الصفوف الدراسية' : 'Searching across all grades'}</span>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
               style={{
-                padding: '7px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                fontFamily: 'inherit',
-                outline: 'none',
+                border: 'none',
+                background: 'transparent',
+                color: 'inherit',
+                textDecoration: 'underline',
+                fontSize: '11.5px',
+                fontWeight: '800',
                 cursor: 'pointer',
+                padding: 0,
+                fontFamily: 'inherit',
               }}
             >
-              <option value="all">{isAr ? 'الوزارة: جميع الصفوف' : 'MOE: All Grades'}</option>
-              {availableMinistryGrades.map((g) => (
-                <option key={g} value={g}>
-                  {isAr ? `الوزارة: ${g}` : `MOE: ${g}`}
-                </option>
-              ))}
-            </select>
+              {isAr ? 'العودة لصفّي' : 'Back to my grade'}
+            </button>
           </div>
         )}
       </div>
@@ -342,22 +364,38 @@ export const ExamCatalog = ({
           })}
         </div>
 
-        <div style={{ position: 'relative', width: '100%', maxWidth: '280px' }}>
-          <Search
-            size={15}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              insetInlineStart: '11px',
-              color: 'var(--text-muted)',
-            }}
-          />
+        <div style={{ position: 'relative', width: '100%', maxWidth: '310px' }}>
+          {searching ? (
+            <RefreshCw
+              size={15}
+              className="spin"
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                insetInlineStart: '11px',
+                color: 'var(--primary)',
+              }}
+            />
+          ) : (
+            <Search
+              size={15}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                insetInlineStart: '11px',
+                color: 'var(--text-muted)',
+              }}
+            />
+          )}
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={isAr ? 'بحث في الامتحانات أو المعلم...' : 'Search exams or teacher...'}
+            placeholder={
+              isAr ? 'ابحث في اختبارات جميع الصفوف أو المعلم...' : 'Search exams across all grades or teacher...'
+            }
             style={{
               width: '100%',
               height: '38px',
@@ -696,7 +734,7 @@ export const ExamCatalog = ({
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                     {exam.isMinistry
                       ? `${isAr ? exam.sourceAr : exam.sourceEn}${exam.gradeAr ? ` • ${exam.gradeAr}` : ''}`
-                      : `${exam.teacherNameAr || (isAr ? 'معلم المادة' : 'Instructor')} • ${
+                      : `${exam.teacherNameAr || (isAr ? 'معلم المادة' : 'Instructor')}${exam.gradeAr ? ` • ${exam.gradeAr}` : ''} • ${
                           exam.isBubbleSheet
                             ? isAr
                               ? 'بابل شيت رسمي'

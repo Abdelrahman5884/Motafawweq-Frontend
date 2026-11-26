@@ -6,10 +6,8 @@ import {
   Search,
   CheckCircle2,
   X,
-  Layers,
   AlertCircle,
   RefreshCw,
-  ArrowUpDown,
   Users,
   Sparkles,
   Landmark,
@@ -40,23 +38,17 @@ export const StudentCoursesView = () => {
     filteredMinistryCurricula,
     loadingMinistry,
     ministryError,
-    selectedMinistryGrade,
-    setSelectedMinistryGrade,
-    resolvedMinistryGrade,
-    availableMinistryGrades,
+    studentGradeAr,
     toggleMinistryUnit,
     togglingUnitKey,
     refreshCourses,
     stats,
-    subjectOptions,
     activeTab,
     setActiveTab,
-    selectedSubject,
-    setSelectedSubject,
-    sortBy,
-    setSortBy,
     searchQuery,
     setSearchQuery,
+    searching,
+    isSearchingAllGrades,
     hasActiveFilters,
     resetFilters,
     enrollTargetCourse,
@@ -163,7 +155,7 @@ export const StudentCoursesView = () => {
           </div>
         )}
 
-        {/* Header + Search */}
+        {/* Header + Cross-Grade Search */}
         <div
           style={{
             display: 'flex',
@@ -176,41 +168,74 @@ export const StudentCoursesView = () => {
           }}
         >
           <div>
-            <h1
-              style={{
-                fontSize: '24px',
-                fontWeight: '900',
-                color: 'var(--text-primary)',
-                margin: '0 0 6px 0',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {isAr ? 'المقررات الدراسية والكورسات' : 'Courses & Ministry Curricula'}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+              <h1
+                style={{
+                  fontSize: '24px',
+                  fontWeight: '900',
+                  color: 'var(--text-primary)',
+                  margin: 0,
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                {isAr ? 'المقررات الدراسية والكورسات' : 'Courses & Ministry Curricula'}
+              </h1>
+              {studentGradeAr && (
+                <span
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    padding: '4px 11px',
+                    borderRadius: '999px',
+                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                    color: '#059669',
+                    border: '1px solid rgba(5, 150, 105, 0.2)',
+                  }}
+                >
+                  {studentGradeAr}
+                </span>
+              )}
+            </div>
             <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
               {isAr
-                ? 'تابع مقررات وزارة التربية والتعليم المعتمدة وكورسات معلميك المسجّلة في مكان واحد'
-                : 'Follow official Ministry of Education curricula alongside your enrolled teacher courses'}
+                ? 'تظهر مقررات صفّك الدراسي تلقائياً، ويمكنك البحث لاستكشاف مقررات وكورسات جميع الصفوف الدراسية'
+                : 'Showing curricula and courses for your grade by default — use search to explore all grades'}
             </p>
           </div>
 
-          <div style={{ position: 'relative', width: '100%', maxWidth: '330px' }}>
-            <Search
-              size={16}
-              style={{
-                position: 'absolute',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                insetInlineStart: '12px',
-                color: 'var(--text-muted)',
-              }}
-            />
+          <div style={{ position: 'relative', width: '100%', maxWidth: '340px' }}>
+            {searching ? (
+              <RefreshCw
+                size={16}
+                className="spin"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  insetInlineStart: '12px',
+                  color: 'var(--primary)',
+                }}
+              />
+            ) : (
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  insetInlineStart: '12px',
+                  color: 'var(--text-muted)',
+                }}
+              />
+            )}
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={
-                isAr ? 'بحث في مقررات الوزارة أو الكورسات أو المعلمين...' : 'Search Ministry curricula, courses, teachers...'
+                isAr
+                  ? 'ابحث في جميع الصفوف (مادة، صف، كورس، معلم)...'
+                  : 'Search all grades (subject, grade, course, teacher)...'
               }
               style={{
                 width: '100%',
@@ -295,7 +320,7 @@ export const StudentCoursesView = () => {
           </div>
         )}
 
-        {/* Filter Tabs + Sort Dropdown */}
+        {/* Filter Tabs + Cross-Grade Search Scope Indicator */}
         <div
           style={{
             display: 'flex',
@@ -326,10 +351,7 @@ export const StudentCoursesView = () => {
                   type="button"
                   role="tab"
                   aria-selected={isActive}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setSelectedSubject('all');
-                  }}
+                  onClick={() => setActiveTab(tab.id)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -376,90 +398,42 @@ export const StudentCoursesView = () => {
             })}
           </div>
 
-          {/* Sort Selector */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <ArrowUpDown size={14} color="var(--text-muted)" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              aria-label={isAr ? 'ترتيب المقررات' : 'Sort courses'}
+          {isSearchingAllGrades && (
+            <div
               style={{
-                padding: '8px 12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                fontFamily: 'inherit',
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="smart">{isAr ? 'الترتيب الافتراضي (مسجّلة أولاً)' : 'Recommended'}</option>
-              <option value="progress">{isAr ? 'الأعلى إنجازاً' : 'Highest Progress'}</option>
-              <option value="lessons">{isAr ? 'الأكثر حصصاً' : 'Most Lessons'}</option>
-              <option value="price_asc">{isAr ? 'الأقل سعراً' : 'Lowest Price'}</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Dynamic Subject Filter Chips */}
-        {subjectOptions.length > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span
-              style={{
-                fontSize: '12px',
-                fontWeight: '800',
-                color: 'var(--text-muted)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-              }}
-            >
-              <Layers size={13} />
-              {isAr ? 'المادة:' : 'Subject:'}
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedSubject('all')}
-              style={{
-                padding: '5px 12px',
+                gap: '8px',
+                padding: '6px 12px',
                 borderRadius: '999px',
-                border: `1px solid ${selectedSubject === 'all' ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                backgroundColor: selectedSubject === 'all' ? 'var(--primary-surface)' : 'var(--bg-surface)',
-                color: selectedSubject === 'all' ? 'var(--primary)' : 'var(--text-secondary)',
+                backgroundColor: 'var(--primary-surface)',
+                color: 'var(--primary)',
                 fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
+                fontWeight: '800',
               }}
             >
-              {isAr ? 'جميع المواد' : 'All Subjects'}
-            </button>
-            {subjectOptions.map((subj) => {
-              const active = selectedSubject === subj.ar;
-              return (
-                <button
-                  key={subj.ar}
-                  type="button"
-                  onClick={() => setSelectedSubject(subj.ar)}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '999px',
-                    border: `1px solid ${active ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                    backgroundColor: active ? 'var(--primary-surface)' : 'var(--bg-surface)',
-                    color: active ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {isAr ? subj.ar : subj.en}
-                </button>
-              );
-            })}
-          </div>
-        )}
+              <Search size={13} />
+              <span>{isAr ? 'البحث يشمل جميع الصفوف الدراسية' : 'Searching across all grades'}</span>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'inherit',
+                  textDecoration: 'underline',
+                  fontSize: '11.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {isAr ? 'العودة لصفّي' : 'Back to my grade'}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Loading Skeleton */}
         {isInitialLoading ? (
@@ -539,16 +513,16 @@ export const StudentCoursesView = () => {
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    {coursesCatalog.length === 0 ? (
+                    {!isSearchingAllGrades && coursesCatalog.length === 0 ? (
                       <>
                         <Users size={38} color="var(--primary)" style={{ marginBottom: '12px', opacity: 0.7 }} />
                         <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                          {isAr ? 'لا توجد كورسات معلمين منشورة حالياً' : 'No Published Teacher Courses Yet'}
+                          {isAr ? 'لا توجد كورسات معلمين لصفّك حالياً' : 'No Teacher Courses for Your Grade Yet'}
                         </div>
                         <div style={{ fontSize: '13.5px', marginBottom: '18px' }}>
                           {isAr
-                            ? 'انضم إلى مجموعة دراسية بكود معلمك لتظهر مقرراته وحصصه مباشرة هنا.'
-                            : 'Join a study group with your teacher code to access courses here.'}
+                            ? 'انضم إلى مجموعة دراسية بكود معلمك أو استخدم البحث للوصول إلى كورسات الصفوف الأخرى.'
+                            : 'Join a study group with your teacher code or search to explore courses from other grades.'}
                         </div>
                         <button
                           type="button"
@@ -623,7 +597,20 @@ export const StudentCoursesView = () => {
                       <h2 style={{ margin: 0, fontSize: '17.5px', fontWeight: '900', color: 'var(--text-primary)' }}>
                         {isAr ? 'مقررات وزارة التربية والتعليم المعتمدة' : 'Ministry of Education Official Curricula'}
                       </h2>
-                      {resolvedMinistryGrade && resolvedMinistryGrade !== 'all' && (
+                      {isSearchingAllGrades ? (
+                        <span
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: '800',
+                            padding: '3px 10px',
+                            borderRadius: '999px',
+                            backgroundColor: 'var(--primary-surface)',
+                            color: 'var(--primary)',
+                          }}
+                        >
+                          {isAr ? 'جميع الصفوف' : 'All Grades'}
+                        </span>
+                      ) : studentGradeAr ? (
                         <span
                           style={{
                             fontSize: '11.5px',
@@ -634,47 +621,16 @@ export const StudentCoursesView = () => {
                             color: '#059669',
                           }}
                         >
-                          {resolvedMinistryGrade}
+                          {studentGradeAr}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                       {isAr
-                        ? 'تصفّح وحدات المنهج الرسمي، سجّل تقدمك في كل وحدة، وحل نماذج اختبارات الوزارة الاسترشادية.'
-                        : 'Track your progress across official units, access MOE textbooks, and practice with guided Ministry exams.'}
+                        ? 'تصفّح وحدات المنهج الرسمي لصفّك الدراسي، سجّل تقدمك في كل وحدة، وحل نماذج اختبارات الوزارة الاسترشادية.'
+                        : 'Track your progress across official units for your grade, access MOE textbooks, and practice with guided Ministry exams.'}
                     </p>
                   </div>
-
-                  {/* Grade Selector for Ministry Curricula */}
-                  {availableMinistryGrades.length > 0 && (
-                    <select
-                      value={selectedMinistryGrade || resolvedMinistryGrade}
-                      onChange={(e) => {
-                        setSelectedMinistryGrade(e.target.value);
-                        setSelectedSubject('all');
-                      }}
-                      aria-label={isAr ? 'اختيار الصف الدراسي لمقررات الوزارة' : 'Select grade for Ministry curricula'}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border-subtle)',
-                        backgroundColor: 'var(--bg-surface-elevated)',
-                        color: 'var(--text-primary)',
-                        fontSize: '12.5px',
-                        fontWeight: '700',
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <option value="all">{isAr ? 'جميع الصفوف الدراسية' : 'All Grades'}</option>
-                      {availableMinistryGrades.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                  )}
                 </div>
 
                 {loadingMinistry ? (
