@@ -179,6 +179,20 @@ export const teacherApi = {
         language,
         force: Boolean(force),
       }),
+    startAiPipeline: (uuid, { features = null, language = 'auto', force = false } = {}) =>
+      apiPost(`/teacher/workspace/lessons/${uuid}/ai/process`, {
+        ...(features ? { features } : {}),
+        language,
+        force: Boolean(force),
+      }),
+    generateChapters: (uuid, { force = true } = {}) =>
+      apiPost(`/teacher/workspace/lessons/${uuid}/ai/chapters`, {
+        force: Boolean(force),
+      }),
+    generateConceptGraph: (uuid, { force = true } = {}) =>
+      apiPost(`/teacher/workspace/lessons/${uuid}/ai/concept-graph`, {
+        force: Boolean(force),
+      }),
   },
 
   // ─── Stage 7: Study Groups ───────────────────────────────────────────────────

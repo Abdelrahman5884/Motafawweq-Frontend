@@ -29,13 +29,13 @@ export const QuizQuestionCard = ({
         </span>
       </div>
 
-      <h2 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1.6, marginBottom: '24px' }}>
-        {currentQ.questionAr}
+      <h2 dir="auto" style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1.6, marginBottom: '24px' }}>
+        {lang === 'ar' ? currentQ.questionAr : (currentQ.questionEn || currentQ.questionAr)}
       </h2>
 
       {/* Answer Options */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
-        {currentQ.optionsAr.map((opt, optIdx) => {
+        {(lang === 'ar' ? currentQ.optionsAr : (currentQ.optionsEn?.length === 4 ? currentQ.optionsEn : currentQ.optionsAr)).map((opt, optIdx) => {
           const isSelected = selectedAnswers[currentIdx] === optIdx;
           const isCorrect = optIdx === currentQ.correctIndex;
           let optBg = 'var(--bg-subtle)';
@@ -110,8 +110,8 @@ export const QuizQuestionCard = ({
             <CheckCircle2 size={18} />
             <span>{lang === 'ar' ? 'التفسير العلمي المعتمد والنموذجي:' : 'Verified Explanation:'}</span>
           </div>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
-            {currentQ.explanationAr}
+          <p dir="auto" style={{ margin: 0, fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+            {lang === 'ar' ? currentQ.explanationAr : (currentQ.explanationEn || currentQ.explanationAr)}
           </p>
         </div>
       )}

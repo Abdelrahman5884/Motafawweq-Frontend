@@ -33,7 +33,7 @@ export const getOptimalAudioConfig = () => {
 
   return {
     mimeType: selectedMimeType || 'audio/webm',
-    audioBitsPerSecond: 48000, // 48 kbps produces ~21.6 MB for 60 minutes
+    audioBitsPerSecond: 64000, // 64 kbps produces ~28.8 MB for 60 minutes with crisp speech clarity
   };
 };
 

@@ -48,9 +48,13 @@ export const StudentConvertedLecturesView = () => {
     }
   };
 
-  // Open in Conversion Studio
-  const handleOpenInStudio = () => {
-    navigate('/student/smart-lecture');
+  // Open in Conversion Studio with the exact saved converted lecture loaded
+  const handleOpenInStudio = (lecture) => {
+    if (lecture?.id) {
+      navigate(`/student/smart-lecture?lecture=${encodeURIComponent(lecture.id)}`);
+    } else {
+      navigate('/student/smart-lecture');
+    }
   };
 
   // Delete lecture

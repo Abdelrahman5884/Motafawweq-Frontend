@@ -18,6 +18,7 @@ export const LectureRecorderUploader = ({
   uploadProgress = 0,
   uploadStatus = 'idle', // 'idle' | 'uploading' | 'processing' | 'done'
   currentStageIndex = 0,
+  overallProgress = null,
   selectedOutputs = ['graph', 'transcript', 'topics'],
   hasGenerated = false,
   lectureTitle = '',
@@ -328,7 +329,11 @@ export const LectureRecorderUploader = ({
                 {uploadStatus === 'done' && (isRtl ? 'المحتوى جاهز للعرض والتصفح الذكي' : 'Ready for study')}
               </span>
               <span style={{ fontWeight: '700' }}>
-                {uploadStatus === 'uploading' ? `${uploadProgress}%` : uploadStatus === 'processing' ? '99%' : '100%'}
+                {uploadStatus === 'uploading'
+                  ? `${uploadProgress}%`
+                  : uploadStatus === 'processing'
+                    ? `${Math.max(5, Math.min(99, Number(overallProgress ?? 50)))}%`
+                    : '100%'}
               </span>
             </div>
           </div>
@@ -340,7 +345,11 @@ export const LectureRecorderUploader = ({
         <LectureAiStagesProgress
           currentStageIndex={currentStageIndex}
           selectedOutputs={selectedOutputs}
-          overallProgress={uploadStatus === 'uploading' ? Math.round(uploadProgress * 0.4) : Math.min(99, 40 + Math.round(currentStageIndex * 20))}
+          overallProgress={
+            uploadStatus === 'uploading'
+              ? Math.round(uploadProgress * 0.25)
+              : Math.min(99, Math.max(8, Number(overallProgress ?? (40 + Math.round(currentStageIndex * 20)))))
+          }
           lang={lang}
         />
       )}

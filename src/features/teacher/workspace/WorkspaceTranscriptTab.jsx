@@ -18,8 +18,8 @@ import {
 import { formatSecondsToTimestamp, parseTimestampToSeconds } from './workspaceUtils';
 
 const LANGUAGE_OPTIONS = [
-  { value: 'auto', labelAr: 'تلقائي — أي لغة (موصى به)', labelEn: 'Auto-detect (Any Language)' },
-  { value: 'ar', labelAr: 'العربية (فصحى / مصري)', labelEn: 'Arabic (MSA / Egyptian)' },
+  { value: 'auto', labelAr: 'تلقائي — عربي/مصري + إنجليزي أو أي لغة (موصى به)', labelEn: 'Auto-detect (Arabic/Egyptian + English / Any)' },
+  { value: 'ar', labelAr: 'العربية / اللهجة المصرية (+ كلمات إنجليزي)', labelEn: 'Arabic / Egyptian Dialect (+ English Terms)' },
   { value: 'en', labelAr: 'الإنجليزية (English)', labelEn: 'English' },
   { value: 'fr', labelAr: 'الفرنسية (Français)', labelEn: 'French' },
   { value: 'de', labelAr: 'الألمانية (Deutsch)', labelEn: 'German' },
@@ -32,7 +32,7 @@ const STAGE_TEXT = {
   queued: { ar: 'في قائمة الانتظار...', en: 'Queued...' },
   downloading_media: { ar: 'جاري تجهيز الصوت من رابط الفيديو...', en: 'Fetching audio from video link...' },
   extracting_audio: { ar: 'جاري استخراج الصوت وعزل الضوضاء...', en: 'Extracting & cleaning audio...' },
-  loading_model: { ar: 'جاري تحميل موديل Whisper large-v3...', en: 'Loading Whisper large-v3...' },
+  loading_model: { ar: 'جاري تجهيز محرك الذكاء الاصطناعي...', en: 'Loading AI speech engine...' },
   detecting_language: { ar: 'جاري التعرف على لغة الصوت تلقائياً...', en: 'Auto-detecting language...' },
   transcribing: { ar: 'جاري التفريغ النصي الذكي...', en: 'Transcribing audio...' },
   post_processing: { ar: 'جاري تنسيق الفقرات والتوقيتات...', en: 'Formatting paragraphs...' },
@@ -381,13 +381,15 @@ export const WorkspaceTranscriptTab = ({
             </div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                {isAr ? 'التفريغ النصي الذكي (Whisper large-v3)' : 'AI Speech-to-Text (Whisper large-v3)'}
+                {isAr
+                  ? 'التفريغ النصي الذكي (QwenCleo-ASR + Whisper large-v3)'
+                  : 'AI Speech-to-Text (QwenCleo-ASR + Whisper large-v3)'}
               </div>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 {hasMedia
                   ? isAr
-                    ? 'يفهم الصوت تلقائياً ويكتب بنفس لغة الشرح (العربية، اللهجة المصرية، الإنجليزية، الفرنسية وغيرها).'
-                    : 'Automatically detects and transcribes any spoken language with accurate timestamps.'
+                    ? 'دقة فائقة في العربية واللهجة المصرية مع الحفاظ على الكلمات والمصطلحات الإنجليزية داخل الكلام، بالإضافة لدعم جميع اللغات الأخرى.'
+                    : 'High-accuracy Egyptian Arabic + English code-switching & 99+ languages with accurate timestamps.'
                   : isAr
                     ? 'ارفع ملف صوت/فيديو أو رابط يوتيوب للحصة لتفعيل التفريغ التلقائي.'
                     : 'Upload audio/video or attach a video link to enable AI transcription.'}

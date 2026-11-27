@@ -211,6 +211,8 @@ export const studentApi = {
     list: () => apiGet('/student/converted-lectures'),
     get: (uuid) => apiGet(`/student/converted-lectures/${uuid}`),
     status: (uuid) => apiGet(`/student/converted-lectures/${uuid}/status`),
+    generateQuiz: (uuid, { quizCount = 5 } = {}) =>
+      apiPost(`/student/converted-lectures/${uuid}/quiz`, { quiz_count: quizCount }),
     create: (formDataOrPayload) =>
       apiRequest('/student/converted-lectures', {
         method: 'POST',

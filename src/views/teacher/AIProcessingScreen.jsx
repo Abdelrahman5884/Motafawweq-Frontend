@@ -14,19 +14,25 @@ import {
   AlertCircle,
   RefreshCw,
   CheckCircle2,
+  Layers,
 } from 'lucide-react';
 import { ProcessingStepper } from '../../features/teacher/ai-processing';
 
 const STAGE_LABELS = {
-  queued: { ar: 'في قائمة الانتظار لبدء التحليل الصوتي...', en: 'Queued for AI audio analysis...' },
+  queued: { ar: 'في قائمة الانتظار لبدء المعالجة الذكية...', en: 'Queued for AI processing...' },
   downloading_media: { ar: 'جاري تجهيز الصوت من رابط الفيديو...', en: 'Extracting audio from video link...' },
   extracting_audio: { ar: 'جاري استخراج الصوت وعزل الضوضاء وضبط الوضوح...', en: 'Extracting audio & suppressing noise...' },
-  loading_model: { ar: 'جاري تجهيز محرك Whisper large-v3...', en: 'Loading Whisper large-v3 engine...' },
+  loading_model: { ar: 'جاري تجهيز محرك التفريغ الصوتي الذكي...', en: 'Loading AI Speech-to-Text engine...' },
   detecting_language: { ar: 'جاري اكتشاف لغة الشرح تلقائياً...', en: 'Auto-detecting spoken language...' },
   transcribing: { ar: 'جاري التفريغ النصي الذكي وتوقيت الفقرات...', en: 'Transcribing speech with timestamps...' },
-  post_processing: { ar: 'جاري تنسيق الفقرات وحفظ التفريغ النصي...', en: 'Formatting paragraphs & saving transcript...' },
-  completed: { ar: 'اكتمل التفريغ النصي بنجاح!', en: 'Transcription completed successfully!' },
-  failed: { ar: 'تعذر إتمام التفريغ النصي.', en: 'Transcription failed.' },
+  preparing_context: { ar: 'جاري تجهيز سياق الحصة للتحليل الذكي...', en: 'Preparing lesson transcript for AI analysis...' },
+  loading_llm: { ar: 'جاري تجهيز محرك التحليل الذكي (Qwen2.5 LLM)...', en: 'Loading bilingual AI analysis model...' },
+  generating_chapters: { ar: 'جاري فهرسة فصول الحصة واستخراج التوقيتات الزمنية...', en: 'Indexing timestamped lesson chapters...' },
+  generating_concept_graph: { ar: 'جاري بناء خريطة المفاهيم التفاعلية (NotebookLM)...', en: 'Building interactive NotebookLM concept map...' },
+  generating_quiz: { ar: 'جاري توليد أسئلة المراجعة...', en: 'Generating review questions...' },
+  post_processing: { ar: 'جاري مراجعة المخرجات وحفظها في مساحة العمل...', en: 'Validating and saving AI outputs...' },
+  completed: { ar: 'اكتملت جميع مخرجات الذكاء الاصطناعي بنجاح!', en: 'All AI outputs generated successfully!' },
+  failed: { ar: 'تعذر إتمام المعالجة الذكية.', en: 'AI processing failed.' },
 };
 
 export const AIProcessingScreen = () => {
@@ -45,7 +51,7 @@ export const AIProcessingScreen = () => {
       }
     })();
 
-  const [selectedFeatures] = useState(() => {
+  const [selectedFeatures, setSelectedFeatures] = useState(() => {
     try {
       const stored = sessionStorage.getItem('selectedAIFeatures');
       if (stored) return JSON.parse(stored);
@@ -55,10 +61,22 @@ export const AIProcessingScreen = () => {
     return { speechToText: true, conceptGraph: true, chapterIndexing: true };
   });
 
-  const wantsStt = selectedFeatures.speechToText !== false;
+  const wantsStt = Boolean(selectedFeatures.speechToText);
+  const wantsChapters = Boolean(selectedFeatures.chapterIndexing);
+  const wantsConceptGraph = Boolean(selectedFeatures.conceptGraph);
+  const wantsAnyFeature = wantsStt || wantsChapters || wantsConceptGraph;
 
-  const [job, setJob] = useState(null);
-  const [transcriptCount, setTranscriptCount] = useState(0);
+  const [pipelineState, setPipelineState] = useState({
+    overallStatus: 'queued',
+    overallProgress: 6,
+    activePhase: 'stt',
+    activeStage: 'queued',
+    sttJob: null,
+    analysisJob: null,
+    transcriptCount: 0,
+    chaptersCount: 0,
+    conceptsCount: 0,
+  });
   const [errorMsg, setErrorMsg] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
 
@@ -72,6 +90,29 @@ export const AIProcessingScreen = () => {
     }
   }, []);
 
+  const applyServerPayload = useCallback((data) => {
+    if (!data) return;
+    if (data.aiFeatures && typeof data.aiFeatures === 'object') {
+      setSelectedFeatures((prev) => ({ ...prev, ...data.aiFeatures }));
+    }
+    setPipelineState((prev) => ({
+      overallStatus: data.overallStatus || data.job?.status || prev.overallStatus,
+      overallProgress:
+        typeof data.overallProgress === 'number'
+          ? data.overallProgress
+          : typeof data.job?.progress === 'number'
+            ? data.job.progress
+            : prev.overallProgress,
+      activePhase: data.activePhase || prev.activePhase,
+      activeStage: data.activeStage || data.job?.stage || prev.activeStage,
+      sttJob: data.sttJob ?? data.job ?? prev.sttJob,
+      analysisJob: data.analysisJob ?? prev.analysisJob,
+      transcriptCount: typeof data.transcriptCount === 'number' ? data.transcriptCount : prev.transcriptCount,
+      chaptersCount: typeof data.chaptersCount === 'number' ? data.chaptersCount : prev.chaptersCount,
+      conceptsCount: typeof data.conceptsCount === 'number' ? data.conceptsCount : prev.conceptsCount,
+    }));
+  }, []);
+
   const pollStatus = useCallback(async () => {
     if (!lessonUuid) return;
     try {
@@ -79,14 +120,9 @@ export const AIProcessingScreen = () => {
       const data = res?.data;
       if (!data) return;
 
-      if (data.job) {
-        setJob(data.job);
-      }
-      if (typeof data.transcriptCount === 'number') {
-        setTranscriptCount(data.transcriptCount);
-      }
+      applyServerPayload(data);
 
-      const status = data.job?.status;
+      const status = data.overallStatus || data.job?.status;
       if (status === 'completed') {
         setErrorMsg('');
         clearPollTimer();
@@ -94,10 +130,13 @@ export const AIProcessingScreen = () => {
       }
       if (status === 'failed') {
         setErrorMsg(
-          data.job?.error ||
+          data.error ||
+            data.analysisJob?.error ||
+            data.sttJob?.error ||
+            data.job?.error ||
             (isAr
-              ? 'تعذر إتمام التفريغ النصي. تأكد من تشغيل خدمة الذكاء الاصطناعي وأعد المحاولة.'
-              : 'Transcription failed. Please verify the AI service is running and try again.')
+              ? 'تعذر إتمام المعالجة الذكية. تأكد من تشغيل خدمة الذكاء الاصطناعي وأعد المحاولة.'
+              : 'AI processing failed. Please verify the AI service is running and try again.')
         );
         clearPollTimer();
         return;
@@ -116,7 +155,7 @@ export const AIProcessingScreen = () => {
       );
       clearPollTimer();
     }
-  }, [lessonUuid, isAr, clearPollTimer]);
+  }, [lessonUuid, isAr, clearPollTimer, applyServerPayload]);
 
   const startPipeline = useCallback(
     async (force = false) => {
@@ -129,48 +168,55 @@ export const AIProcessingScreen = () => {
       setErrorMsg('');
       setIsRetrying(force);
 
-      if (!wantsStt) {
-        setJob({ status: 'completed', progress: 100, stage: 'completed' });
+      if (!wantsAnyFeature) {
+        setPipelineState((prev) => ({
+          ...prev,
+          overallStatus: 'completed',
+          overallProgress: 100,
+          activePhase: 'completed',
+          activeStage: 'completed',
+        }));
         setIsRetrying(false);
         return;
       }
 
       try {
-        setJob((prev) => ({
-          ...(prev || {}),
-          status: 'queued',
-          progress: 6,
-          stage: 'extracting_audio',
+        setPipelineState((prev) => ({
+          ...prev,
+          overallStatus: 'queued',
+          overallProgress: 6,
+          activeStage: 'extracting_audio',
         }));
 
-        const res = await teacherApi.workspace.startTranscription(lessonUuid, {
+        const res = await teacherApi.workspace.startAiPipeline(lessonUuid, {
+          features: selectedFeatures,
           language: 'auto',
           force,
         });
 
-        const nextJob = res?.data?.job || null;
-        if (nextJob) {
-          setJob(nextJob);
-          if (typeof nextJob.segmentsCount === 'number') {
-            setTranscriptCount(nextJob.segmentsCount);
-          }
+        const data = res?.data;
+        if (data) {
+          applyServerPayload(data);
         }
 
-        if (nextJob?.status === 'completed') {
-          await pollStatus();
-        } else if (nextJob?.status === 'failed') {
-          setErrorMsg(nextJob.error || (isAr ? 'تعذر بدء التفريغ النصي.' : 'Failed to start transcription.'));
+        const nextStatus = data?.overallStatus || data?.job?.status;
+        if (nextStatus === 'completed') {
+          setErrorMsg('');
+        } else if (nextStatus === 'failed') {
+          setErrorMsg(
+            data?.error || (isAr ? 'تعذر بدء المعالجة الذكية.' : 'Failed to start AI processing.')
+          );
         } else {
           pollTimerRef.current = window.setTimeout(() => {
             pollStatus();
           }, 1500);
         }
       } catch (err) {
-        setJob((prev) => ({
-          ...(prev || {}),
-          status: 'failed',
-          stage: 'failed',
-          progress: prev?.progress || 0,
+        setPipelineState((prev) => ({
+          ...prev,
+          overallStatus: 'failed',
+          activePhase: 'failed',
+          activeStage: 'failed',
         }));
         setErrorMsg(
           err?.message ||
@@ -182,7 +228,7 @@ export const AIProcessingScreen = () => {
         setIsRetrying(false);
       }
     },
-    [lessonUuid, wantsStt, isAr, clearPollTimer, pollStatus]
+    [lessonUuid, selectedFeatures, wantsAnyFeature, isAr, clearPollTimer, pollStatus, applyServerPayload]
   );
 
   useEffect(() => {
@@ -196,12 +242,15 @@ export const AIProcessingScreen = () => {
     };
   }, [lessonUuid, startPipeline, clearPollTimer]);
 
-  const status = job?.status || 'queued';
+  const status = pipelineState.overallStatus || 'queued';
   const isComplete = status === 'completed';
   const isFailed = status === 'failed';
-  const progress = isComplete ? 100 : Math.max(5, Math.min(99, Number(job?.progress || 8)));
+  const progress = isComplete ? 100 : Math.max(5, Math.min(99, Number(pipelineState.overallProgress || 8)));
+
+  const hasAnalysisSteps = wantsChapters || wantsConceptGraph;
 
   const steps = useMemo(() => {
+    const sttCap = hasAnalysisSteps ? 58 : 95;
     const list = [
       {
         id: 'extract',
@@ -209,55 +258,50 @@ export const AIProcessingScreen = () => {
           ? 'تجهيز ملف الحصة واستخراج الصوت وعزل الضوضاء الخلفية'
           : 'Media Audio Extraction & Classroom Noise Suppression',
         icon: Video,
-        threshold: 20,
+        threshold: Math.round(sttCap * 0.25),
+      },
+      {
+        id: 'detect_lang',
+        title: isAr
+          ? 'اكتشاف لغة الشرح تلقائياً (العربية / اللهجة المصرية / الإنجليزية / أي لغة)'
+          : 'Automatic Multilingual Detection (Arabic, English & 99+ languages)',
+        icon: Globe,
+        threshold: Math.round(sttCap * 0.45),
+      },
+      {
+        id: 'speechToText',
+        title: isAr
+          ? 'التفريغ النصي الذكي (عربي/مصري + كلمات إنجليزي + باقي اللغات) مع التوقيت'
+          : 'High-Accuracy Egyptian Arabic Code-Switching & Multilingual Speech-to-Text',
+        icon: FileText,
+        threshold: sttCap,
       },
     ];
 
-    if (wantsStt) {
-      list.push(
-        {
-          id: 'detect_lang',
-          title: isAr
-            ? 'اكتشاف لغة الشرح تلقائياً (العربية / اللهجة المصرية / الإنجليزية / أي لغة)'
-            : 'Automatic Multilingual Detection (Arabic, English & 99+ languages)',
-          icon: Globe,
-          threshold: 35,
-        },
-        {
-          id: 'speechToText',
-          title: isAr
-            ? 'التفريغ النصي الذكي بدقة عالية (Whisper large-v3) مع التوقيت الزمني'
-            : 'High-Accuracy Whisper large-v3 Speech-to-Text & Timestamps',
-          icon: FileText,
-          threshold: 95,
-        }
-      );
-    }
-
-    if (selectedFeatures.chapterIndexing !== false) {
+    if (wantsChapters) {
       list.push({
         id: 'chapters',
         title: isAr
-          ? 'تجهيز فهرسة الفصول والتوقيتات في مساحة العمل'
-          : 'Chapter Indexing Workspace Preparation',
+          ? 'فهرسة الفصول والتوقيتات الزمنية بالذكاء الاصطناعي'
+          : 'AI Timestamped Chapter Indexing',
         icon: Clock,
-        threshold: 100,
+        threshold: wantsConceptGraph ? 78 : 98,
       });
     }
 
-    if (selectedFeatures.conceptGraph !== false) {
+    if (wantsConceptGraph) {
       list.push({
         id: 'graph',
         title: isAr
-          ? 'تجهيز مساحة خريطة المفاهيم التفاعلية (NotebookLM)'
-          : 'Interactive Concept Graph Workspace Preparation',
+          ? 'استخراج وبناء خريطة المفاهيم التفاعلية (NotebookLM AI)'
+          : 'Interactive NotebookLM Concept Graph Generation',
         icon: Share2,
-        threshold: 100,
+        threshold: 99,
       });
     }
 
     return list;
-  }, [selectedFeatures, wantsStt, isAr]);
+  }, [hasAnalysisSteps, wantsChapters, wantsConceptGraph, isAr]);
 
   const currentStepIndex = useMemo(() => {
     if (isComplete) return steps.length - 1;
@@ -266,29 +310,32 @@ export const AIProcessingScreen = () => {
   }, [progress, steps, isComplete]);
 
   const stageLabel =
-    STAGE_LABELS[job?.stage]?.[isAr ? 'ar' : 'en'] ||
+    STAGE_LABELS[pipelineState.activeStage]?.[isAr ? 'ar' : 'en'] ||
     (isComplete
       ? isAr
-        ? 'اكتمل التفريغ النصي بنجاح!'
-        : 'Transcription completed!'
+        ? 'اكتملت المعالجة الذكية بنجاح!'
+        : 'AI processing completed!'
       : isAr
-        ? 'جاري تحليل الصوت وتوليد التفريغ النصي...'
-        : 'Analyzing audio and generating transcript...');
+        ? 'جاري تحليل الحصة وتوليد المخرجات الذكية...'
+        : 'Analyzing lesson and generating AI outputs...');
 
-  const detectedLangLabel = job?.detectedLanguage
+  const sttJob = pipelineState.sttJob;
+  const detectedLangLabel = sttJob?.detectedLanguage
     ? isAr
-      ? job.detectedLanguageNameAr || job.detectedLanguage.toUpperCase()
-      : job.detectedLanguageNameEn || job.detectedLanguage.toUpperCase()
+      ? sttJob.detectedLanguageNameAr || sttJob.detectedLanguage.toUpperCase()
+      : sttJob.detectedLanguageNameEn || sttJob.detectedLanguage.toUpperCase()
     : null;
 
   const detectedProbPct =
-    typeof job?.languageProbability === 'number' && job.languageProbability > 0
-      ? Math.round(job.languageProbability * 100)
+    typeof sttJob?.languageProbability === 'number' && sttJob.languageProbability > 0
+      ? Math.round(sttJob.languageProbability * 100)
       : null;
 
-  const workspaceUrl = lessonUuid
-    ? `/teacher/workspace?lesson=${encodeURIComponent(lessonUuid)}&tab=transcript`
-    : '/teacher/workspace';
+  const defaultTab = wantsConceptGraph ? 'graph' : wantsStt ? 'transcript' : 'media';
+  const buildWorkspaceUrl = (tab) =>
+    lessonUuid
+      ? `/teacher/workspace?lesson=${encodeURIComponent(lessonUuid)}&tab=${encodeURIComponent(tab)}`
+      : '/teacher/workspace';
 
   return (
     <div
@@ -305,7 +352,7 @@ export const AIProcessingScreen = () => {
     >
       <div
         style={{
-          maxWidth: '680px',
+          maxWidth: '700px',
           width: '100%',
           backgroundColor: 'var(--bg-surface-elevated)',
           border: '1px solid var(--border-medium)',
@@ -337,8 +384,8 @@ export const AIProcessingScreen = () => {
                 ? 'توقفت المعالجة الذكية'
                 : 'AI Processing Interrupted'
               : isAr
-                ? 'محرك متفوق للذكاء الاصطناعي (Whisper large-v3)'
-                : 'Motafawweq AI Engine (Whisper large-v3)'}
+                ? 'محرك متفوق للذكاء الاصطناعي (QwenCleo-ASR + Qwen2.5 LLM)'
+                : 'Motafawweq AI Engine (QwenCleo-ASR + Qwen2.5 LLM)'}
           </span>
         </div>
 
@@ -353,23 +400,26 @@ export const AIProcessingScreen = () => {
         >
           {isComplete
             ? isAr
-              ? 'اكتمل التفريغ النصي للحصة بنجاح!'
-              : 'Lesson Transcript Generated Successfully!'
+              ? 'اكتملت المعالجة الذكية للحصة بنجاح!'
+              : 'Lesson AI Pipeline Completed!'
             : isFailed
               ? isAr
-                ? 'تعذر إتمام التفريغ النصي'
-                : 'Transcription Could Not Complete'
+                ? 'تعذر إتمام المعالجة الذكية'
+                : 'AI Processing Could Not Complete'
               : isAr
-                ? 'جاري التفريغ النصي الذكي للحصة...'
-                : 'Transcribing Your Lesson with AI...'}
+                ? 'جاري تجهيز مخرجات الذكاء الاصطناعي للحصة...'
+                : 'Generating AI Lesson Intelligence...'}
         </h1>
 
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: 1.6 }}>
           {stageLabel}
         </p>
 
-        {/* Live Telemetry Pills (Detected Language, Segments Count, Speed) */}
-        {(detectedLangLabel || transcriptCount > 0 || job?.segmentsCount > 0) && (
+        {/* Live Telemetry Pills */}
+        {(detectedLangLabel ||
+          pipelineState.transcriptCount > 0 ||
+          pipelineState.chaptersCount > 0 ||
+          pipelineState.conceptsCount > 0) && (
           <div
             style={{
               display: 'flex',
@@ -396,13 +446,13 @@ export const AIProcessingScreen = () => {
               >
                 <Globe size={13} />
                 <span>
-                  {isAr ? `اللغة المكتشفة: ${detectedLangLabel}` : `Detected: ${detectedLangLabel}`}
+                  {isAr ? `اللغة: ${detectedLangLabel}` : `Language: ${detectedLangLabel}`}
                   {detectedProbPct ? ` (${detectedProbPct}%)` : ''}
                 </span>
               </span>
             )}
 
-            {(transcriptCount > 0 || job?.segmentsCount > 0) && (
+            {pipelineState.transcriptCount > 0 && (
               <span
                 style={{
                   display: 'inline-flex',
@@ -419,8 +469,54 @@ export const AIProcessingScreen = () => {
                 <CheckCircle2 size={13} />
                 <span>
                   {isAr
-                    ? `${transcriptCount || job?.segmentsCount} فقرة نصية مؤقتة`
-                    : `${transcriptCount || job?.segmentsCount} timestamped segments`}
+                    ? `${pipelineState.transcriptCount} فقرة نصية`
+                    : `${pipelineState.transcriptCount} transcript segments`}
+                </span>
+              </span>
+            )}
+
+            {pipelineState.chaptersCount > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                  color: '#0284C7',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                }}
+              >
+                <Layers size={13} />
+                <span>
+                  {isAr
+                    ? `${pipelineState.chaptersCount} فصول زمنية`
+                    : `${pipelineState.chaptersCount} chapters`}
+                </span>
+              </span>
+            )}
+
+            {pipelineState.conceptsCount > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                  color: '#7C3AED',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                }}
+              >
+                <Share2 size={13} />
+                <span>
+                  {isAr
+                    ? `${pipelineState.conceptsCount} مفهوم في الخريطة`
+                    : `${pipelineState.conceptsCount} map concepts`}
                 </span>
               </span>
             )}
@@ -506,7 +602,7 @@ export const AIProcessingScreen = () => {
         />
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {isFailed && (
             <button
               type="button"
@@ -516,7 +612,7 @@ export const AIProcessingScreen = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '12px 26px',
+                padding: '12px 24px',
                 borderRadius: 'var(--radius-full)',
                 backgroundColor: 'var(--primary)',
                 color: '#FFFFFF',
@@ -527,45 +623,97 @@ export const AIProcessingScreen = () => {
               }}
             >
               <RefreshCw size={15} />
-              <span>{isAr ? 'إعادة محاولة التفريغ النصي' : 'Retry Transcription'}</span>
+              <span>{isAr ? 'إعادة محاولة المعالجة الذكية' : 'Retry AI Pipeline'}</span>
             </button>
           )}
 
-          {(isComplete || isFailed) ? (
-            <button
-              type="button"
-              onClick={() => navigate(workspaceUrl)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '13px 30px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: isComplete ? 'var(--primary)' : 'var(--bg-subtle)',
-                color: isComplete ? '#FFFFFF' : 'var(--text-primary)',
-                border: isComplete ? 'none' : '1px solid var(--border-medium)',
-                fontSize: '14.5px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                boxShadow: isComplete ? '0 8px 24px rgba(21, 136, 199, 0.35)' : 'none',
-              }}
-            >
-              <span>
-                {isComplete
-                  ? isAr
-                    ? 'عرض التفريغ النصي في مساحة العمل'
-                    : 'Open Transcript in Workspace'
-                  : isAr
-                    ? 'الانتقال لمساحة عمل الدرس'
-                    : 'Go to Lesson Workspace'}
-              </span>
-              <ArrowRight size={16} style={{ transform: isRtl ? 'rotate(180deg)' : 'none' }} />
-            </button>
+          {isComplete || isFailed ? (
+            <>
+              <button
+                type="button"
+                onClick={() => navigate(buildWorkspaceUrl(defaultTab))}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '13px 28px',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: isComplete ? 'var(--primary)' : 'var(--bg-subtle)',
+                  color: isComplete ? '#FFFFFF' : 'var(--text-primary)',
+                  border: isComplete ? 'none' : '1px solid var(--border-medium)',
+                  fontSize: '14px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: isComplete ? '0 8px 24px rgba(21, 136, 199, 0.35)' : 'none',
+                }}
+              >
+                <span>
+                  {isComplete
+                    ? wantsConceptGraph
+                      ? isAr
+                        ? 'عرض خريطة المفاهيم في مساحة العمل'
+                        : 'Open Concept Map in Workspace'
+                      : isAr
+                        ? 'عرض النتائج في مساحة العمل'
+                        : 'Open Results in Workspace'
+                    : isAr
+                      ? 'الانتقال لمساحة عمل الدرس'
+                      : 'Go to Lesson Workspace'}
+                </span>
+                <ArrowRight size={16} style={{ transform: isRtl ? 'rotate(180deg)' : 'none' }} />
+              </button>
+
+              {isComplete && wantsStt && defaultTab !== 'transcript' && (
+                <button
+                  type="button"
+                  onClick={() => navigate(buildWorkspaceUrl('transcript'))}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    padding: '12px 20px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <FileText size={15} />
+                  <span>{isAr ? 'التفريغ النصي' : 'Transcript'}</span>
+                </button>
+              )}
+
+              {isComplete && wantsChapters && defaultTab !== 'media' && (
+                <button
+                  type="button"
+                  onClick={() => navigate(buildWorkspaceUrl('media'))}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    padding: '12px 20px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Clock size={15} />
+                  <span>{isAr ? 'الفصول والتوقيتات' : 'Chapters'}</span>
+                </button>
+              )}
+            </>
           ) : (
             <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
               {isAr
-                ? 'يتم تشغيل موديل الذكاء الاصطناعي فعلياً على صوت الحصة — يرجى عدم إغلاق الصفحة...'
-                : 'Whisper large-v3 is actively transcribing your lesson audio...'}
+                ? 'يتم تشغيل نماذج الذكاء الاصطناعي فعلياً على محتوى الحصة — يرجى عدم إغلاق الصفحة...'
+                : 'AI models are actively processing your lesson — please keep this page open...'}
             </div>
           )}
         </div>

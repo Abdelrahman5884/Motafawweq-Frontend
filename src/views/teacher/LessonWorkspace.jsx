@@ -62,6 +62,8 @@ export const LessonWorkspace = () => {
     ['media', 'transcript', 'graph'].includes(requestedTab) ? requestedTab : 'media'
   );
   const [startingSttLessonId, setStartingSttLessonId] = useState('');
+  const [startingChaptersLessonId, setStartingChaptersLessonId] = useState('');
+  const [startingMindMapLessonId, setStartingMindMapLessonId] = useState('');
   const sttPollTimerRef = useRef(null);
 
   // Modals: Lightbox, PDF Preview, Edit, Delete
@@ -307,8 +309,8 @@ export const LessonWorkspace = () => {
       } else {
         showToast(
           isAr
-            ? 'بدأ التفريغ النصي الذكي بواسطة Whisper large-v3...'
-            : 'Whisper large-v3 AI transcription started...'
+            ? 'بدأ التفريغ النصي الذكي بواسطة محرك متفوق للذكاء الاصطناعي...'
+            : 'Motafawweq AI transcription started...'
         );
       }
     } catch (err) {
@@ -323,9 +325,86 @@ export const LessonWorkspace = () => {
     }
   };
 
-  // Poll live AI STT job while current lesson has an active queued/processing transcription
+  const handleGenerateAiChapters = async (lessonId) => {
+    setStartingChaptersLessonId(lessonId);
+    try {
+      const res = await teacherApi.workspace.generateChapters(lessonId, { force: true });
+      const data = res?.data;
+      if (data) {
+        setLessonsList((prev) =>
+          prev.map((l) =>
+            l.id === lessonId
+              ? {
+                  ...l,
+                  aiSttJob: data.sttJob ?? l.aiSttJob,
+                  aiAnalysisJob: data.analysisJob ?? l.aiAnalysisJob,
+                  chapters: Array.isArray(data.chapters) ? data.chapters : l.chapters,
+                }
+              : l
+          )
+        );
+      }
+      showToast(
+        isAr
+          ? 'بدأ استخراج وفهرسة فصول الحصة بالذكاء الاصطناعي...'
+          : 'AI chapter indexing started...'
+      );
+    } catch (err) {
+      showToast(
+        err?.message ||
+          (isAr ? 'تعذر بدء فهرسة الفصول بالذكاء الاصطناعي.' : 'Failed to start AI chapter indexing.'),
+        'error'
+      );
+    } finally {
+      setStartingChaptersLessonId('');
+    }
+  };
+
+  const handleGenerateAiConceptGraph = async (lessonId) => {
+    setStartingMindMapLessonId(lessonId);
+    try {
+      const res = await teacherApi.workspace.generateConceptGraph(lessonId, { force: true });
+      const data = res?.data;
+      if (data) {
+        setLessonsList((prev) =>
+          prev.map((l) =>
+            l.id === lessonId
+              ? {
+                  ...l,
+                  aiSttJob: data.sttJob ?? l.aiSttJob,
+                  aiAnalysisJob: data.analysisJob ?? l.aiAnalysisJob,
+                  notebookMindMap: data.notebookMindMap ?? l.notebookMindMap,
+                }
+              : l
+          )
+        );
+      }
+      showToast(
+        isAr
+          ? 'بدأ بناء خريطة المفاهيم التفاعلية (NotebookLM AI)...'
+          : 'AI NotebookLM concept map generation started...'
+      );
+    } catch (err) {
+      showToast(
+        err?.message ||
+          (isAr ? 'تعذر بدء بناء خريطة المفاهيم بالذكاء الاصطناعي.' : 'Failed to start AI concept map generation.'),
+        'error'
+      );
+      throw err;
+    } finally {
+      setStartingMindMapLessonId('');
+    }
+  };
+
+  // Poll live AI jobs (STT + Chapter Indexing + NotebookLM Concept Graph) while active
   const activeSttStatus = currentLesson?.aiSttJob?.status;
-  const activeSttLessonId = currentLesson?.id;
+  const activeAnalysisStatus = currentLesson?.aiAnalysisJob?.status;
+  const activeAiLessonId = currentLesson?.id;
+  const hasActiveAiJob =
+    activeSttStatus === 'queued' ||
+    activeSttStatus === 'processing' ||
+    activeAnalysisStatus === 'queued' ||
+    activeAnalysisStatus === 'processing';
 
   useEffect(() => {
     if (sttPollTimerRef.current) {
@@ -333,29 +412,28 @@ export const LessonWorkspace = () => {
       sttPollTimerRef.current = null;
     }
 
-    if (
-      !activeSttLessonId ||
-      !canUseLessonAi ||
-      (activeSttStatus !== 'queued' && activeSttStatus !== 'processing')
-    ) {
+    if (!activeAiLessonId || !canUseLessonAi || !hasActiveAiJob) {
       return undefined;
     }
 
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await teacherApi.workspace.getAiStatus(activeSttLessonId);
+        const res = await teacherApi.workspace.getAiStatus(activeAiLessonId);
         if (cancelled) return;
         const data = res?.data;
         if (!data) return;
 
         setLessonsList((prev) =>
           prev.map((l) =>
-            l.id === activeSttLessonId
+            l.id === activeAiLessonId
               ? {
                   ...l,
-                  aiSttJob: data.job || l.aiSttJob,
+                  aiSttJob: data.sttJob ?? data.job ?? l.aiSttJob,
+                  aiAnalysisJob: data.analysisJob ?? l.aiAnalysisJob,
                   transcript: Array.isArray(data.transcript) ? data.transcript : l.transcript,
+                  chapters: Array.isArray(data.chapters) ? data.chapters : l.chapters,
+                  notebookMindMap: data.notebookMindMap ?? l.notebookMindMap,
                   durationSeconds: data.durationSeconds || l.durationSeconds,
                   durationFormatted: data.durationFormatted || l.durationFormatted,
                 }
@@ -363,25 +441,49 @@ export const LessonWorkspace = () => {
           )
         );
 
-        const nextStatus = data.job?.status;
-        if (nextStatus === 'completed') {
-          showToast(
-            isAr
-              ? `اكتمل التفريغ النصي بنجاح (${data.transcriptCount || 0} فقرة)!`
-              : `AI transcript ready (${data.transcriptCount || 0} segments)!`
-          );
+        const nextOverall = data.overallStatus || data.job?.status;
+        if (nextOverall === 'completed') {
+          const completedTasks = data.analysisJob?.tasks || [];
+          if (completedTasks.includes('concept_graph') && completedTasks.includes('chapters')) {
+            showToast(
+              isAr
+                ? `اكتملت الفصول (${data.chaptersCount || 0}) وخريطة المفاهيم (${data.conceptsCount || 0} مفهوم) بالذكاء الاصطناعي!`
+                : `AI chapters (${data.chaptersCount || 0}) & concept map (${data.conceptsCount || 0} nodes) ready!`
+            );
+          } else if (completedTasks.includes('concept_graph')) {
+            showToast(
+              isAr
+                ? `اكتملت خريطة المفاهيم التفاعلية (${data.conceptsCount || 0} مفهوم)!`
+                : `Interactive concept map ready (${data.conceptsCount || 0} concepts)!`
+            );
+          } else if (completedTasks.includes('chapters')) {
+            showToast(
+              isAr
+                ? `تمت فهرسة فصول الحصة بنجاح (${data.chaptersCount || 0} فصول)!`
+                : `Lesson chapters indexed (${data.chaptersCount || 0} chapters)!`
+            );
+          } else {
+            showToast(
+              isAr
+                ? `اكتمل التفريغ النصي بنجاح (${data.transcriptCount || 0} فقرة)!`
+                : `AI transcript ready (${data.transcriptCount || 0} segments)!`
+            );
+          }
           return;
         }
-        if (nextStatus === 'failed') {
+        if (nextOverall === 'failed') {
           showToast(
-            data.job?.error ||
-              (isAr ? 'تعذر إتمام التفريغ النصي.' : 'AI transcription failed.'),
+            data.error ||
+              data.analysisJob?.error ||
+              data.sttJob?.error ||
+              data.job?.error ||
+              (isAr ? 'تعذر إتمام المعالجة بالذكاء الاصطناعي.' : 'AI processing failed.'),
             'error'
           );
           return;
         }
 
-        if (nextStatus === 'queued' || nextStatus === 'processing') {
+        if (nextOverall === 'queued' || nextOverall === 'processing') {
           sttPollTimerRef.current = window.setTimeout(poll, 2000);
         }
       } catch {
@@ -400,7 +502,7 @@ export const LessonWorkspace = () => {
         sttPollTimerRef.current = null;
       }
     };
-  }, [activeSttLessonId, activeSttStatus, canUseLessonAi, isAr, showToast]);
+  }, [activeAiLessonId, hasActiveAiJob, canUseLessonAi, isAr, showToast]);
 
   const handleSaveConceptGraph = async (lessonId, treeData) => {
     const res = await teacherApi.workspace.saveConceptGraph(lessonId, treeData);
@@ -982,9 +1084,12 @@ export const LessonWorkspace = () => {
                   videoRef={videoRef}
                   lang={lang}
                   isRtl={isRtl}
+                  canUseLessonAi={canUseLessonAi}
                   onJumpToTimestamp={handleJumpToTimestamp}
                   onGetCurrentTime={getCurrentPlayerTime}
                   onSyncChapters={handleSyncChapters}
+                  onGenerateAiChapters={handleGenerateAiChapters}
+                  isStartingChaptersAi={startingChaptersLessonId === currentLesson.id}
                   onReorderWhiteboards={handleReorderWhiteboards}
                   onDeleteAttachment={handleDeleteAttachment}
                   onOpenLightbox={setLightboxImage}
@@ -1017,6 +1122,8 @@ export const LessonWorkspace = () => {
                     isRtl={isRtl}
                     onJumpToTimestamp={handleJumpToTimestamp}
                     onSaveConceptGraph={handleSaveConceptGraph}
+                    onGenerateAiConceptGraph={handleGenerateAiConceptGraph}
+                    isStartingAi={startingMindMapLessonId === currentLesson.id}
                   />
                 </TeacherSubscriptionGate>
               )}

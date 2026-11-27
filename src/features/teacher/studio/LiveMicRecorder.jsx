@@ -395,8 +395,8 @@ export const LiveMicRecorder = ({
 
       <div style={{ marginTop: '14px', fontSize: '12px', color: 'var(--text-secondary)' }}>
         {isAr
-          ? 'تسجيل مضغوط تلقائياً (48 kbps) مناسب لساعة كاملة بجودة عالية وحجم أقل من 50 ميجابايت'
-          : 'Auto-compressed (48 kbps) — fits ~60 min lectures comfortably under the 50 MB cloud limit'}
+          ? 'تسجيل صوتي عالي الوضوح مضغوط تلقائياً (64 kbps) مناسب لساعة كاملة وحجم أقل من 50 ميجابايت'
+          : 'Auto-compressed crisp speech (64 kbps) — fits ~60 min lectures comfortably under the 50 MB cloud limit'}
       </div>
     </div>
   );

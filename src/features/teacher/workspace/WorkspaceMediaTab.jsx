@@ -17,6 +17,7 @@ import {
   Cloud,
   Loader2,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import {
   formatBytesLabel,
@@ -32,15 +33,32 @@ export const WorkspaceMediaTab = ({
   videoRef,
   lang,
   isRtl,
+  canUseLessonAi = false,
   onJumpToTimestamp,
   onGetCurrentTime,
   onSyncChapters,
+  onGenerateAiChapters,
+  isStartingChaptersAi = false,
   onReorderWhiteboards,
   onDeleteAttachment,
   onOpenLightbox,
   onPreviewPdf,
 }) => {
   const isAr = lang === 'ar';
+
+  const analysisJob = lesson.aiAnalysisJob || null;
+  const sttJob = lesson.aiSttJob || null;
+  const isChaptersAiActive =
+    isStartingChaptersAi ||
+    ((analysisJob?.status === 'queued' || analysisJob?.status === 'processing') &&
+      (!analysisJob?.tasks?.length || analysisJob.tasks.includes('chapters'))) ||
+    ((sttJob?.status === 'queued' || sttJob?.status === 'processing') &&
+      Array.isArray(sttJob?.pendingAnalysisTasks) &&
+      sttJob.pendingAnalysisTasks.includes('chapters'));
+  const canGenerateChaptersWithAi =
+    canUseLessonAi &&
+    Boolean(onGenerateAiChapters) &&
+    Boolean(lesson.transcript?.length > 0 || lesson.mediaStreamUrl || lesson.embedUrl);
 
   // Chapters inline editor state
   const [editingChapters, setEditingChapters] = useState(false);
@@ -293,26 +311,64 @@ export const WorkspaceMediaTab = ({
             </div>
 
             {!editingChapters ? (
-              <button
-                type="button"
-                onClick={openChaptersEditor}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '5px 11px',
-                  borderRadius: '7px',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-subtle)',
-                  color: 'var(--primary)',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                <Edit3 size={13} />
-                <span>{isAr ? 'إدارة الفصول' : 'Manage Chapters'}</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {canGenerateChaptersWithAi && (
+                  <button
+                    type="button"
+                    disabled={isChaptersAiActive}
+                    onClick={() => onGenerateAiChapters(lesson.id)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '7px',
+                      border: 'none',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      cursor: isChaptersAiActive ? 'wait' : 'pointer',
+                      opacity: isChaptersAiActive ? 0.78 : 1,
+                    }}
+                  >
+                    {isChaptersAiActive ? <Loader2 size={13} className="lw-spin" /> : <Sparkles size={13} />}
+                    <span>
+                      {isChaptersAiActive
+                        ? isAr
+                          ? 'جاري فهرسة الفصول بالـ AI...'
+                          : 'Indexing Chapters with AI...'
+                        : lesson.chapters?.length > 0
+                          ? isAr
+                            ? 'إعادة فهرسة الفصول بالـ AI'
+                            : 'Re-index Chapters (AI)'
+                          : isAr
+                            ? 'فهرسة الفصول بالـ AI'
+                            : 'Auto-Index Chapters (AI)'}
+                    </span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={openChaptersEditor}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 11px',
+                    borderRadius: '7px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--primary)',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Edit3 size={13} />
+                  <span>{isAr ? 'إدارة الفصول' : 'Manage Chapters'}</span>
+                </button>
+              </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button
@@ -503,7 +559,7 @@ export const WorkspaceMediaTab = ({
                     cursor: 'pointer',
                   }}
                 >
-                  <span>{isAr ? ch.titleAr : ch.title}</span>
+                  <span dir="auto">{isAr ? ch.titleAr : ch.title}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--primary)' }}>
                     {ch.timestamp}
                   </span>

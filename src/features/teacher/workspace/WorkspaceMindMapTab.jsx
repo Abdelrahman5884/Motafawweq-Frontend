@@ -8,6 +8,7 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { NotebookMindMapCanvas } from '../../../components/knowledge-map/NotebookMindMapCanvas';
 import { formatSecondsToTimestamp, parseTimestampToSeconds } from './workspaceUtils';
@@ -199,12 +200,46 @@ export const WorkspaceMindMapTab = ({
   isRtl,
   onJumpToTimestamp,
   onSaveConceptGraph,
+  onGenerateAiConceptGraph,
+  isStartingAi = false,
 }) => {
   const isAr = lang === 'ar';
   const [isEditing, setIsEditing] = useState(false);
   const [treeDraft, setTreeDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const analysisJob = lesson.aiAnalysisJob || null;
+  const sttJob = lesson.aiSttJob || null;
+  const isAiRunning =
+    isStartingAi ||
+    ((analysisJob?.status === 'queued' || analysisJob?.status === 'processing') &&
+      (!analysisJob?.tasks?.length || analysisJob.tasks.includes('concept_graph'))) ||
+    ((sttJob?.status === 'queued' || sttJob?.status === 'processing') &&
+      Array.isArray(sttJob?.pendingAnalysisTasks) &&
+      sttJob.pendingAnalysisTasks.includes('concept_graph'));
+  const aiProgress =
+    analysisJob?.status === 'queued' || analysisJob?.status === 'processing'
+      ? Math.max(8, Number(analysisJob.progress || 15))
+      : sttJob?.status === 'queued' || sttJob?.status === 'processing'
+        ? Math.max(6, Math.round(Number(sttJob.progress || 10) * 0.55))
+        : 0;
+  const canGenerateWithAi =
+    Boolean(onGenerateAiConceptGraph) &&
+    Boolean(lesson.transcript?.length > 0 || lesson.mediaStreamUrl || lesson.embedUrl);
+
+  const handleGenerateAi = async () => {
+    if (!onGenerateAiConceptGraph || isAiRunning) return;
+    setError('');
+    try {
+      await onGenerateAiConceptGraph(lesson.id);
+    } catch (err) {
+      setError(
+        err?.message ||
+          (isAr ? 'تعذر بدء توليد خريطة المفاهيم بالذكاء الاصطناعي.' : 'Failed to start AI concept map generation.')
+      );
+    }
+  };
 
   const openEditor = () => {
     setError('');
@@ -302,34 +337,73 @@ export const WorkspaceMindMapTab = ({
         </div>
 
         {!isEditing ? (
-          <button
-            type="button"
-            onClick={openEditor}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--primary)',
-              backgroundColor: 'var(--primary-surface)',
-              color: 'var(--primary)',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer',
-            }}
-          >
-            <Edit3 size={14} />
-            <span>
-              {lesson.notebookMindMap
-                ? isAr
-                  ? 'تعديل خريطة المفاهيم'
-                  : 'Edit Mind Map'
-                : isAr
-                  ? 'بناء خريطة مفاهيم'
-                  : 'Build Mind Map'}
-            </span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {canGenerateWithAi && (
+              <button
+                type="button"
+                disabled={isAiRunning}
+                onClick={handleGenerateAi}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: isAiRunning ? 'wait' : 'pointer',
+                  opacity: isAiRunning ? 0.8 : 1,
+                }}
+              >
+                {isAiRunning ? <Loader2 size={14} className="lw-spin" /> : <Sparkles size={14} />}
+                <span>
+                  {isAiRunning
+                    ? isAr
+                      ? `جاري البناء بالـ AI (${aiProgress}%)...`
+                      : `Generating with AI (${aiProgress}%)...`
+                    : lesson.notebookMindMap
+                      ? isAr
+                        ? 'إعادة التوليد بالـ AI'
+                        : 'Regenerate with AI'
+                      : isAr
+                        ? 'توليد خريطة المفاهيم بالـ AI'
+                        : 'Generate Mind Map (AI)'}
+                </span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={openEditor}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '7px 14px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--primary)',
+                backgroundColor: 'var(--primary-surface)',
+                color: 'var(--primary)',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                cursor: 'pointer',
+              }}
+            >
+              <Edit3 size={14} />
+              <span>
+                {lesson.notebookMindMap
+                  ? isAr
+                    ? 'تعديل خريطة المفاهيم'
+                    : 'Edit Mind Map'
+                  : isAr
+                    ? 'بناء يدوي'
+                    : 'Build Manually'}
+              </span>
+            </button>
+          </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
@@ -373,6 +447,40 @@ export const WorkspaceMindMapTab = ({
         )}
       </div>
 
+      {isAiRunning && (
+        <div
+          style={{
+            marginBottom: '14px',
+            padding: '12px 14px',
+            borderRadius: '10px',
+            backgroundColor: 'var(--primary-surface)',
+            border: '1px solid var(--primary)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: '800', color: 'var(--primary)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+              <Loader2 size={14} className="lw-spin" />
+              <span>
+                {sttJob?.status === 'queued' || sttJob?.status === 'processing'
+                  ? isAr
+                    ? 'جاري التفريغ الصوتي للحصة تمهيداً لبناء خريطة المفاهيم...'
+                    : 'Transcribing lesson audio before building the concept map...'
+                  : isAr
+                    ? 'جاري استخراج المفاهيم وربط العلاقات الشجرية (NotebookLM AI)...'
+                    : 'Extracting concepts and building the interactive NotebookLM tree...'}
+              </span>
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{aiProgress}%</span>
+          </div>
+          <div style={{ height: '6px', borderRadius: '999px', backgroundColor: 'var(--border-subtle)', overflow: 'hidden' }}>
+            <div style={{ width: `${aiProgress}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 0.35s ease' }} />
+          </div>
+        </div>
+      )}
+
       {error && (
         <div
           style={{
@@ -415,11 +523,34 @@ export const WorkspaceMindMapTab = ({
           }}
         >
           <Share2 size={26} color="var(--primary)" style={{ margin: '0 auto 10px', display: 'block', opacity: 0.7 }} />
-          <div>
+          <div style={{ marginBottom: canGenerateWithAi ? '14px' : 0 }}>
             {isAr
-              ? 'لم يتم إنشاء خريطة مفاهيم لهذه الحصة بعد. اضغط «بناء خريطة مفاهيم» لإعدادها وحفظها للطلاب.'
-              : 'No concept map yet. Click "Build Mind Map" to create one for students.'}
+              ? 'لم يتم إنشاء خريطة مفاهيم لهذه الحصة بعد. يمكنك توليدها تلقائياً بالذكاء الاصطناعي (NotebookLM) أو بناؤها يدوياً.'
+              : 'No concept map yet. Generate one automatically with AI (NotebookLM) or build it manually.'}
           </div>
+          {canGenerateWithAi && (
+            <button
+              type="button"
+              disabled={isAiRunning}
+              onClick={handleGenerateAi}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                padding: '9px 18px',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                fontSize: '13px',
+                fontWeight: '800',
+                cursor: isAiRunning ? 'wait' : 'pointer',
+              }}
+            >
+              {isAiRunning ? <Loader2 size={15} className="lw-spin" /> : <Sparkles size={15} />}
+              <span>{isAr ? 'توليد خريطة المفاهيم الآن بالذكاء الاصطناعي' : 'Generate Concept Map Now with AI'}</span>
+            </button>
+          )}
         </div>
       ) : (
         <NotebookMindMapCanvas
