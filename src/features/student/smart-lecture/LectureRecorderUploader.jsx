@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   UploadCloud,
   Sparkles,
   FileText,
   Video,
   Music,
-  CheckCircle2,
+  Image as ImageIcon,
   X,
   PenLine,
   Mic,
@@ -14,6 +14,7 @@ import {
   AlertCircle,
   RefreshCw,
   Globe,
+  Plus,
 } from 'lucide-react';
 import { LectureOutputSelector } from './LectureOutputSelector';
 import { LectureAiStagesProgress } from './LectureAiStagesProgress';
@@ -26,11 +27,28 @@ const formatTimer = (totalSeconds) => {
   return `${mins}:${secs}`;
 };
 
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 KB';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const detectKind = (file) => {
+  const type = (file?.type || '').toLowerCase();
+  const name = (file?.name || '').toLowerCase();
+  if (type.startsWith('image/') || /\.(png|jpe?g|webp|bmp)$/.test(name)) return 'image';
+  if (type.startsWith('video/') || /\.(mp4|mkv|mov|avi)$/.test(name)) return 'video';
+  if (type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac|webm)$/.test(name)) return 'audio';
+  return 'document';
+};
+
 export const LectureRecorderUploader = ({
   lang = 'ar',
   inputMode = 'file', // 'file' | 'mic' | 'url' | 'lesson'
   onInputModeChange,
-  uploadedFile,
+  attachedFiles = [],
+  onFilesAdd,
+  onRemoveAttachedFile,
   recordedFile,
   onRecordedFileReady,
   embedUrl = '',
@@ -52,14 +70,13 @@ export const LectureRecorderUploader = ({
   onGenerate,
   onRetry,
   onToggleOutput,
-  onFileUpload,
   onResetFile,
 }) => {
   const isRtl = lang === 'ar';
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
+  const extraFilesInputRef = useRef(null);
 
-  // Live mic timer state
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -71,6 +88,23 @@ export const LectureRecorderUploader = ({
     }, 1000);
     return () => window.clearInterval(id);
   }, [isRecording, isPaused]);
+
+  // Safely build & revoke local thumbnail URLs for attached images
+  const imageThumbs = useMemo(() => {
+    const map = {};
+    attachedFiles.forEach((f, idx) => {
+      if (detectKind(f) === 'image') {
+        map[`${f.name}-${f.size}-${idx}`] = URL.createObjectURL(f);
+      }
+    });
+    return map;
+  }, [attachedFiles]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(imageThumbs).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imageThumbs]);
 
   const isBusy = uploadStatus === 'uploading' || uploadStatus === 'processing';
 
@@ -87,46 +121,38 @@ export const LectureRecorderUploader = ({
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragOver(false);
-    if (!isBusy && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onFileUpload(e.dataTransfer.files[0]);
+    if (!isBusy && e.dataTransfer.files && e.dataTransfer.files.length > 0 && onFilesAdd) {
+      onFilesAdd(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileInputChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      onFileUpload(e.target.files[0]);
+    const picked = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (picked.length > 0 && onFilesAdd) {
+      onFilesAdd(picked);
     }
   };
 
-  const getFileIcon = (file) => {
-    if (!file) return <FileText size={22} color="var(--primary)" />;
-    const name = file.name?.toLowerCase() || '';
-    const type = file.type?.toLowerCase() || '';
-    if (type.includes('audio') || name.match(/\.(mp3|wav|m4a|aac|ogg|flac|webm)$/)) {
-      return <Music size={22} color="var(--primary)" />;
-    }
-    if (type.includes('video') || name.match(/\.(mp4|mkv|mov|avi)$/)) {
-      return <Video size={22} color="var(--primary)" />;
-    }
-    return <FileText size={22} color="var(--primary)" />;
+  const getFileBadge = (kind) => {
+    if (kind === 'image') return { icon: ImageIcon, ar: 'صورة', en: 'Image', bg: 'rgba(16, 185, 129, 0.12)', color: '#059669' };
+    if (kind === 'video') return { icon: Video, ar: 'فيديو', en: 'Video', bg: 'rgba(99, 102, 241, 0.12)', color: '#4F46E5' };
+    if (kind === 'audio') return { icon: Music, ar: 'صوت', en: 'Audio', bg: 'rgba(21, 136, 199, 0.12)', color: 'var(--primary)' };
+    return { icon: FileText, ar: 'مستند', en: 'Doc', bg: 'rgba(245, 158, 11, 0.12)', color: '#D97706' };
   };
 
   const modes = [
-    { id: 'file', labelAr: 'رفع ملف', labelEn: 'Upload File', icon: UploadCloud },
+    { id: 'file', labelAr: 'ملفات وصور وفيديو', labelEn: 'Files, Images & Video', icon: UploadCloud },
     { id: 'mic', labelAr: 'تسجيل مباشر', labelEn: 'Live Mic', icon: Mic },
     { id: 'url', labelAr: 'رابط فيديو', labelEn: 'Video URL', icon: Link2 },
     { id: 'lesson', labelAr: 'من حصصي', labelEn: 'My Lessons', icon: BookOpen },
   ];
 
-  const activeSourceLabel = (() => {
-    if (inputMode === 'mic' && recordedFile) return recordedFile.name;
-    if (inputMode === 'url' && embedUrl.trim()) return embedUrl.trim();
-    if (inputMode === 'lesson' && selectedLessonId) {
-      const found = accessibleLessons.find((l) => l.id === selectedLessonId);
-      return found ? found.titleAr : '';
-    }
-    return uploadedFile?.name || '';
-  })();
+  const totalSourcesCount =
+    attachedFiles.length +
+    (recordedFile ? 1 : 0) +
+    (embedUrl.trim() ? 1 : 0) +
+    (selectedLessonId ? 1 : 0);
 
   return (
     <div style={{
@@ -136,9 +162,8 @@ export const LectureRecorderUploader = ({
       padding: '20px',
       marginBottom: '20px',
       boxShadow: 'var(--shadow-sm)',
-      transition: 'border-color 0.2s ease',
     }}>
-      {/* Card Header + Source Mode Switcher */}
+      {/* Card Header + 4 Source Tabs */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -167,11 +192,10 @@ export const LectureRecorderUploader = ({
             margin: 0,
             fontFamily: 'var(--font-arabic)',
           }}>
-            {isRtl ? 'مصدر المحاضرة الذكية' : 'Smart Lecture Source'}
+            {isRtl ? 'مصادر المحاضرة (فيديو + صور + ملفات معاً)' : 'Lecture Sources (Combine Video + Images + Docs)'}
           </h2>
         </div>
 
-        {/* 4 Clean Source Tabs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {modes.map((m) => {
             const Icon = m.icon;
@@ -195,7 +219,6 @@ export const LectureRecorderUploader = ({
                   fontWeight: '700',
                   cursor: isBusy || isRecording ? 'not-allowed' : 'pointer',
                   fontFamily: 'var(--font-arabic)',
-                  transition: 'all 0.15s ease',
                 }}
               >
                 <Icon size={14} />
@@ -206,7 +229,7 @@ export const LectureRecorderUploader = ({
         </div>
       </div>
 
-      {/* Inline Error Banner (Zero alert() popups!) */}
+      {/* Inline Error Banner */}
       {errorMessage && (
         <div
           role="alert"
@@ -255,194 +278,68 @@ export const LectureRecorderUploader = ({
         </div>
       )}
 
-      {/* MODE 1: File Upload Dropzone */}
+      {/* Hidden multi-file picker */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,audio/*,video/*,.pdf,.docx,.pptx,.txt,.md"
+        onChange={handleFileInputChange}
+        style={{ display: 'none' }}
+      />
+
+      {/* MODE 1: Multi-File Dropzone (Appends files instead of stopping after 1!) */}
       {inputMode === 'file' && (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => {
-            if (uploadStatus === 'idle' && fileInputRef.current) {
+            if (!isBusy && fileInputRef.current) {
               fileInputRef.current.click();
             }
           }}
           style={{
-            border: isDragOver
-              ? '1.5px dashed var(--primary)'
-              : uploadStatus !== 'idle'
-                ? '1px solid var(--border-subtle)'
-                : '1.5px dashed var(--border-medium)',
+            border: isDragOver ? '1.5px dashed var(--primary)' : '1.5px dashed var(--border-medium)',
             borderRadius: '16px',
-            padding: '22px 18px',
-            backgroundColor: isDragOver
-              ? 'var(--primary-surface)'
-              : uploadStatus !== 'idle'
-                ? 'var(--bg-surface)'
-                : 'var(--bg-subtle)',
-            position: 'relative',
-            cursor: uploadStatus === 'idle' ? 'pointer' : 'default',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            minHeight: '124px',
+            padding: attachedFiles.length > 0 ? '16px 18px' : '22px 18px',
+            backgroundColor: isDragOver ? 'var(--primary-surface)' : 'var(--bg-subtle)',
+            cursor: isBusy ? 'default' : 'pointer',
+            textAlign: 'center',
             transition: 'all 0.2s ease',
-            width: '100%',
-            boxSizing: 'border-box',
           }}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*,video/*,.pdf,.docx,.pptx,.txt,.md"
-            onChange={handleFileInputChange}
-            style={{ display: 'none' }}
-          />
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--primary)',
+            marginBottom: '8px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
+            {attachedFiles.length > 0 ? <Plus size={20} /> : <UploadCloud size={22} />}
+          </div>
 
-          {uploadStatus === 'idle' && !uploadedFile ? (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '12px',
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)',
-                marginBottom: '8px',
-                boxShadow: 'var(--shadow-xs)',
-              }}>
-                <UploadCloud size={22} />
-              </div>
+          <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+            {attachedFiles.length > 0
+              ? isRtl
+                ? 'اضغط أو اسحب هنا لإضافة المزيد من الصور أو الملفات (حتى 10 ملفات معاً)'
+                : 'Click or drop here to add MORE images or files (up to 10 combined)'
+              : isRtl
+                ? 'اسحب وأفلت فيديو أو صوت أو صور سبورة أو PDF هنا (يمكنك اختيار أكثر من ملف معاً)'
+                : 'Drop video, audio, whiteboard photos, or PDF/Word files here (multi-file supported)'}
+          </div>
 
-              <div style={{
-                fontSize: '14px',
-                fontWeight: '700',
-                color: 'var(--text-primary)',
-                marginBottom: '4px',
-                fontFamily: 'var(--font-arabic)',
-              }}>
-                {isRtl ? 'اسحب وأفلت ملف المحاضرة هنا أو اضغط للاختيار' : 'Drop lecture file here or click to browse'}
-              </div>
-
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                {isRtl
-                  ? 'يدعم الصوت (MP3/WAV/M4A/WEBM)، الفيديو (MP4)، ومستندات PDF و Word (DOCX) و PowerPoint (PPTX) و TXT'
-                  : 'Supports Audio (MP3/WAV/M4A/WEBM), Video (MP4), PDF, Word (DOCX), PowerPoint (PPTX), and TXT'}
-              </div>
-            </div>
-          ) : (
-            <div style={{ width: '100%' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: isBusy || uploadStatus === 'done' ? '10px' : 0,
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    backgroundColor: uploadStatus === 'done' ? 'var(--success-light)' : 'var(--primary-light)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    {uploadStatus === 'done' ? <CheckCircle2 size={18} color="var(--success)" /> : getFileIcon(uploadedFile)}
-                  </div>
-
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      color: 'var(--text-primary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      maxWidth: '320px',
-                    }}>
-                      {uploadedFile?.name || (isRtl ? 'ملف المحاضرة' : 'Lecture File')}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {uploadedFile?.sizeFormatted || ''}
-                      {uploadStatus === 'uploading' && ` • ${isRtl ? 'جاري الرفع' : 'Uploading'} (${uploadProgress}%)`}
-                      {uploadStatus === 'processing' && ` • ${isRtl ? 'جاري المعالجة بالذكاء الاصطناعي...' : 'AI Processing...'}`}
-                      {uploadStatus === 'done' && ` • ${isRtl ? 'تمت المعالجة بنجاح' : 'Processed'}`}
-                      {uploadStatus === 'failed' && ` • ${isRtl ? 'توقفت المعالجة' : 'Failed'}`}
-                    </div>
-                  </div>
-                </div>
-
-                {!isBusy && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (fileInputRef.current) fileInputRef.current.click();
-                      }}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-subtle)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-secondary)',
-                        fontSize: '11.5px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {isRtl ? 'تغيير الملف' : 'Change File'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onResetFile) onResetFile();
-                      }}
-                      title={isRtl ? 'إلغاء' : 'Cancel'}
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '8px',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {(isBusy || uploadStatus === 'done') && (
-                <div style={{
-                  height: '6px',
-                  backgroundColor: 'var(--bg-subtle)',
-                  borderRadius: '99px',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${uploadStatus === 'done' ? 100 : uploadStatus === 'processing' ? Math.max(10, Number(overallProgress ?? 50)) : uploadProgress}%`,
-                    backgroundColor: uploadStatus === 'done' ? 'var(--success)' : 'var(--primary)',
-                    borderRadius: '99px',
-                    transition: 'width 0.3s ease',
-                  }} />
-                </div>
-              )}
-            </div>
-          )}
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+            {isRtl
+              ? 'يدعم دمج: فيديو (MP4) + صور سبورة ومذكرات (JPG/PNG/WEBP) + صوت (MP3/WAV) + مستندات (PDF/Word/PowerPoint/TXT)'
+              : 'Combine: Video (MP4) + Photos (JPG/PNG/WEBP) + Audio (MP3/WAV) + Documents (PDF/DOCX/PPTX/TXT)'}
+          </div>
         </div>
       )}
 
@@ -495,7 +392,6 @@ export const LectureRecorderUploader = ({
             fontWeight: '700',
             color: 'var(--text-primary)',
             marginBottom: '8px',
-            fontFamily: 'var(--font-arabic)',
           }}>
             {isRtl ? 'رابط محاضرة يوتيوب أو فيميو (HTTPS)' : 'YouTube or Vimeo Lecture URL (HTTPS)'}
           </label>
@@ -521,8 +417,8 @@ export const LectureRecorderUploader = ({
           </div>
           <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '8px' }}>
             {isRtl
-              ? 'سيقوم محرك الذكاء الاصطناعي بسحب الصوت تلقائياً، تفريغه نصياً بدقة، ثم توليد خريطة المفاهيم والمحاور والكويز.'
-              : 'AI will extract audio from the video link, transcribe it accurately, and build the mind map, topics, and quiz.'}
+              ? 'يمكنك أيضاً إرفاق صور سبورة أو ملف ملخص مع رابط الفيديو بالأسفل ليحلّلهم الذكاء الاصطناعي معاً.'
+              : 'You can also attach whiteboard photos or a summary PDF below to analyze everything together.'}
           </div>
         </div>
       )}
@@ -541,15 +437,14 @@ export const LectureRecorderUploader = ({
             fontWeight: '700',
             color: 'var(--text-primary)',
             marginBottom: '8px',
-            fontFamily: 'var(--font-arabic)',
           }}>
-            {isRtl ? 'اختر حصة من مقرراتك الدراسية لتحويلها بالـ AI' : 'Select one of your enrolled course lessons'}
+            {isRtl ? 'اختر حصة من مقرراتك الدراسية (ويمكنك إضافة صورك وملاحظاتك عليها بالأسفل)' : 'Select an enrolled lesson (you can also attach photos/files below)'}
           </label>
           {accessibleLessons.length === 0 ? (
-            <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', padding: '10px 0' }}>
+            <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', padding: '6px 0' }}>
               {isRtl
-                ? 'لا توجد حصص متاحة في مقرراتك حالياً. يمكنك رفع ملف أو تسجيل صوتي أو لصق رابط يوتيوب.'
-                : 'No accessible course lessons yet. You can upload a file, record audio, or paste a video link.'}
+                ? 'لا توجد حصص متاحة في مقرراتك حالياً. يمكنك رفع ملفات وصور أو تسجيل صوتي.'
+                : 'No accessible course lessons yet. Upload files/images or record live audio.'}
             </div>
           ) : (
             <select
@@ -577,6 +472,212 @@ export const LectureRecorderUploader = ({
               ))}
             </select>
           )}
+        </div>
+      )}
+
+      {/* Always-available Quick Button to Combine Additional Images/Files across ANY mode */}
+      {inputMode !== 'file' && !isBusy && (
+        <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <input
+            ref={extraFilesInputRef}
+            type="file"
+            multiple
+            accept="image/*,audio/*,video/*,.pdf,.docx,.pptx,.txt,.md"
+            onChange={handleFileInputChange}
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            onClick={() => extraFilesInputRef.current?.click()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              padding: '8px 14px',
+              borderRadius: '11px',
+              backgroundColor: 'var(--bg-subtle)',
+              border: '1px dashed var(--primary)',
+              color: 'var(--primary)',
+              fontSize: '12.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+            }}
+          >
+            <ImageIcon size={15} />
+            <span>{isRtl ? '+ إرفاق صور (سبورة / كتاب) أو ملفات إضافية مع هذا المصدر' : '+ Attach Whiteboard Photos or Extra Files'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Attached Files & Images Queue (Shows ALL uploaded videos, audio, photos with thumbnails, and docs!) */}
+      {attachedFiles.length > 0 && (
+        <div style={{
+          marginTop: '14px',
+          padding: '14px',
+          borderRadius: '14px',
+          backgroundColor: 'var(--bg-main)',
+          border: '1px solid var(--border-subtle)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '12.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+              {isRtl ? `الملفات والصور المضافة (${attachedFiles.length} / 10)` : `Attached Files & Photos (${attachedFiles.length} / 10)`}
+            </span>
+
+            {!isBusy && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {attachedFiles.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 11px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--primary-light)',
+                      color: 'var(--primary)',
+                      border: 'none',
+                      fontSize: '11.5px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={13} />
+                    <span>{isRtl ? 'إضافة صورة أو ملف آخر' : 'Add Another File / Image'}</span>
+                  </button>
+                )}
+                {onResetFile && (
+                  <button
+                    type="button"
+                    onClick={onResetFile}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '8px',
+                      backgroundColor: 'transparent',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-secondary)',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isRtl ? 'مسح الكل' : 'Clear All'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+            gap: '10px',
+          }}>
+            {attachedFiles.map((file, idx) => {
+              const kind = detectKind(file);
+              const badge = getFileBadge(kind);
+              const BadgeIcon = badge.icon;
+              const thumbKey = `${file.name}-${file.size}-${idx}`;
+              const thumbUrl = imageThumbs[thumbKey];
+
+              return (
+                <div
+                  key={thumbKey}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    minWidth: 0,
+                  }}
+                >
+                  {thumbUrl ? (
+                    <img
+                      src={thumbUrl}
+                      alt={file.name}
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '9px',
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '9px',
+                      backgroundColor: badge.bg,
+                      color: badge.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <BadgeIcon size={18} />
+                    </div>
+                  )}
+
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      title={file.name}
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {file.name}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', fontSize: '10.5px' }}>
+                      <span style={{
+                        padding: '1px 6px',
+                        borderRadius: '6px',
+                        backgroundColor: badge.bg,
+                        color: badge.color,
+                        fontWeight: '800',
+                      }}>
+                        {isRtl ? badge.ar : badge.en}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)' }}>{formatFileSize(file.size)}</span>
+                    </div>
+                  </div>
+
+                  {!isBusy && onRemoveAttachedFile && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveAttachedFile(idx)}
+                      title={isRtl ? 'إزالة الملف' : 'Remove file'}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -631,7 +732,6 @@ export const LectureRecorderUploader = ({
               color: 'var(--text-secondary)',
               fontWeight: '600',
               marginBottom: '2px',
-              fontFamily: 'var(--font-arabic)',
             }}>
               {isRtl ? 'اسم المحاضرة أو الحصة' : 'Lecture / Lesson Title'}
             </label>
@@ -655,7 +755,6 @@ export const LectureRecorderUploader = ({
           </div>
         </div>
 
-        {/* Speech Language Selector */}
         <div style={{
           backgroundColor: 'var(--bg-main)',
           border: '1px solid var(--border-subtle)',
@@ -702,7 +801,7 @@ export const LectureRecorderUploader = ({
         </div>
       </div>
 
-      {/* Output Selector: Graph, Text, Topics, Quiz */}
+      {/* Output Selector */}
       <LectureOutputSelector
         selectedOutputs={selectedOutputs}
         onToggleOutput={onToggleOutput}
@@ -721,41 +820,22 @@ export const LectureRecorderUploader = ({
         flexWrap: 'wrap',
         gap: '12px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          {activeSourceLabel ? (
-            <div style={{
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              minWidth: 0,
-            }}>
-              <span style={{
-                display: 'inline-block',
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--success)',
-                flexShrink: 0,
-              }} />
-              <span>{isRtl ? 'المصدر الجاهز:' : 'Ready source:'}</span>
-              <strong style={{
-                color: 'var(--text-primary)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: '280px',
-              }}>
-                {activeSourceLabel}
-              </strong>
-            </div>
+        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+          {totalSourcesCount > 0 ? (
+            <>
+              <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+              <span>
+                {isRtl
+                  ? `جاهز للتحليل بالذكاء الاصطناعي (${totalSourcesCount} مصدر مضاف)`
+                  : `Ready for AI analysis (${totalSourcesCount} source${totalSourcesCount > 1 ? 's' : ''} attached)`}
+              </span>
+            </>
           ) : (
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>
               {isRtl
-                ? 'اختر ملفاً أو سجّل صوتاً أو أدخل رابط فيديو أو اختر حصة ثم اضغط توليد'
-                : 'Upload a file, record audio, paste a video URL, or pick a lesson to start'}
-            </div>
+                ? 'أضف فيديو أو صور أو ملفات أو تسجيل صوتي أو رابط — ويمكنك دمجهم معاً!'
+                : 'Add video, images, docs, mic recording, or URL — you can combine them!'}
+            </span>
           )}
         </div>
 
@@ -778,16 +858,15 @@ export const LectureRecorderUploader = ({
             opacity: isBusy || isRecording ? 0.7 : 1,
             boxShadow: '0 4px 14px rgba(21, 136, 199, 0.28)',
             fontFamily: 'var(--font-arabic)',
-            transition: 'all 0.15s ease',
           }}
         >
           <Sparkles size={16} />
           <span>
             {isBusy
-              ? (isRtl ? 'جاري التوليد والمعالجة الذكية...' : 'Generating...')
+              ? isRtl ? 'جاري التوليد والمعالجة الذكية...' : 'Generating...'
               : hasGenerated
-                ? (isRtl ? 'تحويل محاضرة جديدة بالخيارات الحالية' : 'Generate New with Options')
-                : (isRtl ? 'توليد المحتوى بالذكاء الاصطناعي' : 'Generate with AI')}
+                ? isRtl ? 'تحويل محاضرة جديدة بالخيارات الحالية' : 'Generate New with Options'
+                : isRtl ? 'توليد المحتوى بالذكاء الاصطناعي' : 'Generate with AI'}
           </span>
         </button>
       </div>

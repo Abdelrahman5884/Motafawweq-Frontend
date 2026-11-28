@@ -220,6 +220,13 @@ export const studentApi = {
         headers: { 'Idempotency-Key': makeIdempotencyKey('conv') },
         body: formDataOrPayload,
       }),
+    addAttachments: (uuid, formData) =>
+      apiRequest(`/student/converted-lectures/${uuid}/attachments`, {
+        method: 'POST',
+        body: formData,
+      }),
+    deleteAttachment: (uuid, attachmentId) =>
+      apiDelete(`/student/converted-lectures/${uuid}/attachments/${attachmentId}`),
     delete: (uuid) => apiDelete(`/student/converted-lectures/${uuid}`),
   },
 

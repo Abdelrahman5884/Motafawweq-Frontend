@@ -18,6 +18,7 @@ import {
   Calendar,
   Loader2,
   AlertCircle,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export const StudentConvertedLecturesView = () => {
@@ -417,6 +418,27 @@ export const StudentConvertedLecturesView = () => {
                           {lecture.questionsCount > 0
                             ? isAr ? `كويز (${lecture.questionsCount} أسئلة)` : `Quiz (${lecture.questionsCount})`
                             : isAr ? 'كويز ذكي' : 'AI Quiz'}
+                        </span>
+                      </span>
+                    )}
+                    {Number(lecture.attachmentsCount || 0) > 0 && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        fontSize: '11.5px',
+                        padding: '3.5px 9px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-subtle)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        fontWeight: '600',
+                      }}>
+                        <ImageIcon size={13} color="#059669" />
+                        <span>
+                          {isAr
+                            ? `صور ومرفقات (${lecture.attachmentsCount})`
+                            : `Files & Photos (${lecture.attachmentsCount})`}
                         </span>
                       </span>
                     )}
