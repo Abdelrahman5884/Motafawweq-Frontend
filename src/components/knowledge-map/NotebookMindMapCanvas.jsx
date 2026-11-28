@@ -68,33 +68,45 @@ export const NotebookMindMapCanvas = ({
   // Touch tracking for pinch-to-zoom & mobile panning
   const touchStartRef = useRef({ x: 0, y: 0, dist: 0 });
 
-  // Set of node IDs that are expanded
+  // Set of node IDs that are expanded (expand rich multi-level branches up to depth 2, or ALL when <= 36 nodes)
   const [expandedNodeIds, setExpandedNodeIds] = useState(() => {
     const defaultExpanded = new Set();
-    if (treeData) {
-      defaultExpanded.add(treeData.id);
-      if (treeData.children) {
-        // Expand first level by default so the tree is immediately informative
-        treeData.children.forEach(c => defaultExpanded.add(c.id));
+    if (!treeData) return defaultExpanded;
+
+    let totalNodes = 0;
+    const countNodes = (n) => {
+      totalNodes += 1;
+      if (Array.isArray(n.children)) n.children.forEach(countNodes);
+    };
+    countNodes(treeData);
+
+    const maxDefaultDepth = totalNodes <= 36 ? 6 : 2;
+    const collect = (n, depth) => {
+      if (depth <= maxDefaultDepth) {
+        defaultExpanded.add(n.id);
+        if (Array.isArray(n.children)) {
+          n.children.forEach((c) => collect(c, depth + 1));
+        }
       }
-    }
+    };
+    collect(treeData, 0);
     return defaultExpanded;
   });
 
-  // Dynamic Card sizing
+  // Dynamic Card sizing (room for full 2-line Arabic branch titles without truncation)
   const getCardWidth = useCallback((depth) => {
-    if (depth === 0) return isMobile ? 200 : 250;
-    if (depth === 1) return isMobile ? 180 : 220;
-    return isMobile ? 165 : 200;
+    if (depth === 0) return isMobile ? 210 : 265;
+    if (depth === 1) return isMobile ? 190 : 235;
+    return isMobile ? 175 : 220;
   }, [isMobile]);
 
   const getCardHeight = useCallback((depth) => {
-    if (depth === 0) return isMobile ? 54 : 60;
-    return isMobile ? 50 : 54;
+    if (depth === 0) return isMobile ? 60 : 68;
+    return isMobile ? 56 : 64;
   }, [isMobile]);
 
-  const GAP_X = isMobile ? 55 : 85;
-  const ROW_HEIGHT = isMobile ? 58 : 68;
+  const GAP_X = isMobile ? 55 : 88;
+  const ROW_HEIGHT = isMobile ? 66 : 78;
 
   // Layout calculation for horizontal tree
   const { renderedNodes, renderedEdges, treeBounds, canvasBounds } = useMemo(() => {
@@ -881,7 +893,8 @@ export const NotebookMindMapCanvas = ({
           const isL1 = node.depth === 1;
           const isMatched = searchQuery && (
             (node.label && node.label.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (node.labelAr && node.labelAr.toLowerCase().includes(searchQuery.toLowerCase()))
+            (node.labelAr && node.labelAr.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (node.summaryAr && node.summaryAr.toLowerCase().includes(searchQuery.toLowerCase()))
           );
 
           return (
@@ -940,14 +953,18 @@ export const NotebookMindMapCanvas = ({
               }}>
                 <div
                   dir="auto"
+                  title={lang === 'ar' ? (node.labelAr || node.label) : (node.labelEn || node.label || node.labelAr)}
                   style={{
-                  fontSize: isMobile ? (isRoot ? '12px' : '11px') : (isRoot ? '13px' : '11.8px'),
+                  fontSize: isMobile ? (isRoot ? '11.5px' : '10.8px') : (isRoot ? '12.8px' : '11.8px'),
                   fontWeight: isRoot ? '800' : '700',
                   color: isRoot ? '#FFFFFF' : '#E2E8F0',
-                  lineHeight: 1.3,
+                  lineHeight: 1.32,
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
                   fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit'
                 }}>
                   {lang === 'ar' ? (node.labelAr || node.label) : (node.labelEn || node.label || node.labelAr)}
@@ -1068,19 +1085,63 @@ export const NotebookMindMapCanvas = ({
             {lang === 'ar' ? (selectedNode.labelAr || selectedNode.label) : (selectedNode.labelEn || selectedNode.label || selectedNode.labelAr)}
           </h4>
 
+          <div style={{
+            fontSize: '10.5px',
+            fontWeight: '800',
+            color: '#38BDF8',
+            marginBottom: '4px',
+            fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit'
+          }}>
+            {lang === 'ar' ? 'معنى المفهوم والشرح:' : 'Concept Meaning:'}
+          </div>
           <p dir="auto" style={{
-            fontSize: '12px',
+            fontSize: '12.5px',
             color: '#CBD5E1',
-            lineHeight: 1.6,
+            lineHeight: 1.65,
             margin: '0 0 12px 0',
             fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit'
           }}>
             {selectedNode.summaryAr || selectedNode.summary || (
               lang === 'ar' 
-                ? 'مفهوم رئيسي تم استخلاصه وتحليله آلياً من تسجيل الحصة وتصنيفه ضمن شجرة المفاهيم المترابطة.'
-                : 'Key core concept automatically extracted and mapped from the lesson lecture.'
+                ? 'مفهوم مستخرج مباشرة من محتوى المحاضرة ومصنّف ضمن شجرة المفاهيم.'
+                : 'Concept extracted directly from the lecture content.'
             )}
           </p>
+          {selectedNode.hasChildren && (
+            <div style={{
+              fontSize: '11px',
+              color: '#94A3B8',
+              marginBottom: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+            }}>
+              <span>
+                {lang === 'ar'
+                  ? `يتفرع منه ${selectedNode.children?.length || 0} فروع داخل الخريطة`
+                  : `Branches into ${selectedNode.children?.length || 0} sub-nodes on the map`}
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleExpand(selectedNode.id)}
+                style={{
+                  padding: '3px 9px',
+                  borderRadius: '7px',
+                  border: '1px solid #334155',
+                  backgroundColor: '#0F172A',
+                  color: '#38BDF8',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                {expandedNodeIds.has(selectedNode.id)
+                  ? (lang === 'ar' ? 'طي الفروع' : 'Collapse')
+                  : (lang === 'ar' ? 'إظهار الفروع' : 'Expand')}
+              </button>
+            </div>
+          )}
 
           {selectedNode.timestamp && onJumpToTimestamp && (
             <button
