@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, useId } from 'react';
 import { 
   ChevronRight, 
   ChevronLeft, 
@@ -8,15 +8,12 @@ import {
   Maximize2, 
   Minimize2, 
   Search, 
-  Layers, 
-  Sparkles, 
   X, 
   Check, 
   Clock, 
   Download, 
   Loader2, 
   Smartphone,
-  Eye,
   FolderTree
 } from 'lucide-react';
 import { exportMindMapToPng } from '../../utils/mindMapExporter';
@@ -32,6 +29,8 @@ export const NotebookMindMapCanvas = ({
 }) => {
   const containerRef = useRef(null);
   const isFirstRender = useRef(true);
+  const rawUid = useId();
+  const svgUid = rawUid.replace(/[^a-zA-Z0-9_-]/g, '');
 
   // Check if screen is mobile
   const [isMobile, setIsMobile] = useState(
@@ -119,19 +118,21 @@ export const NotebookMindMapCanvas = ({
       depthX[d] = depthX[d - 1] + prevW / 2 + GAP_X + currW / 2;
     }
 
-    // First pass: calculate subtree heights
+    // Pure first pass: calculate subtree heights without mutating treeData props
+    const subtreeHeights = new Map();
     const calculateHeights = (node) => {
       const isExpanded = expandedNodeIds.has(node.id);
       if (!isExpanded || !node.children || node.children.length === 0) {
-        node._subtreeH = ROW_HEIGHT;
+        subtreeHeights.set(node, ROW_HEIGHT);
         return ROW_HEIGHT;
       }
       let totalH = 0;
       node.children.forEach(child => {
         totalH += calculateHeights(child);
       });
-      node._subtreeH = Math.max(ROW_HEIGHT, totalH);
-      return node._subtreeH;
+      const h = Math.max(ROW_HEIGHT, totalH);
+      subtreeHeights.set(node, h);
+      return h;
     };
 
     calculateHeights(treeData);
@@ -141,8 +142,9 @@ export const NotebookMindMapCanvas = ({
       const isExpanded = expandedNodeIds.has(node.id);
       const cardW = getCardWidth(depth);
       const cardH = getCardHeight(depth);
+      const nodeH = subtreeHeights.get(node) ?? ROW_HEIGHT;
       const x = depthX[depth] || (depthX[depth - 1] + cardW + GAP_X);
-      const y = topY + (node._subtreeH / 2);
+      const y = topY + (nodeH / 2);
 
       const nodeObj = {
         ...node,
@@ -159,13 +161,14 @@ export const NotebookMindMapCanvas = ({
       if (isExpanded && node.children && node.children.length > 0) {
         let childTopY = topY;
         node.children.forEach(child => {
+          const childH = subtreeHeights.get(child) ?? ROW_HEIGHT;
           layoutNode(child, depth + 1, childTopY);
 
           const childX = depthX[depth + 1] || (x + cardW / 2 + GAP_X + getCardWidth(depth + 1) / 2);
-          const childY = childTopY + (child._subtreeH / 2);
+          const childY = childTopY + (childH / 2);
           const childW = getCardWidth(depth + 1);
 
-          // Bezier curve starts exactly at parent right edge and ends at child left edge
+          // Bezier curve starts at parent right edge and ends at child left edge
           edgesList.push({
             id: `edge-${node.id}-${child.id}`,
             fromX: x + (cardW / 2),
@@ -174,7 +177,7 @@ export const NotebookMindMapCanvas = ({
             toY: childY
           });
 
-          childTopY += child._subtreeH;
+          childTopY += childH;
         });
       }
     };
@@ -323,7 +326,7 @@ export const NotebookMindMapCanvas = ({
   };
 
   // Toggle fullscreen with Fullscreen API support + Fallback
-  const toggleFullscreen = async () => {
+  const toggleFullscreen = useCallback(async () => {
     if (!isFullscreen) {
       setIsFullscreen(true);
       try {
@@ -332,7 +335,7 @@ export const NotebookMindMapCanvas = ({
         } else if (containerRef.current?.webkitRequestFullscreen) {
           await containerRef.current.webkitRequestFullscreen();
         }
-      } catch (err) {
+      } catch {
         // Fallback overlay mode
       }
     } else {
@@ -341,13 +344,13 @@ export const NotebookMindMapCanvas = ({
         if (document.exitFullscreen && document.fullscreenElement) {
           await document.exitFullscreen();
         } else if (document.webkitExitFullscreen && document.webkitFullscreenElement) {
-          await document.webkitFullscreenElement();
+          await document.webkitExitFullscreen();
         }
-      } catch (err) {
+      } catch {
         // Fallback
       }
     }
-  };
+  }, [isFullscreen]);
 
   // Sync with browser native fullscreen events
   useEffect(() => {
@@ -374,7 +377,7 @@ export const NotebookMindMapCanvas = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
+  }, [isFullscreen, toggleFullscreen]);
 
   // Mouse pan handlers
   const handleMouseDown = (e) => {
@@ -813,13 +816,29 @@ export const NotebookMindMapCanvas = ({
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
         >
           <defs>
-            <linearGradient id="notebookCurveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.95" />
+            {/* userSpaceOnUse guarantees horizontal single-child curves (height=0 bbox) ALWAYS render */}
+            <linearGradient
+              id={`notebookCurveGrad-${svgUid}`}
+              gradientUnits="userSpaceOnUse"
+              x1="0"
+              y1="0"
+              x2={canvasBounds.width}
+              y2="0"
+            >
+              <stop offset="0%" stopColor="#6366F1" stopOpacity="0.95" />
+              <stop offset="50%" stopColor="#38BDF8" stopOpacity="1" />
+              <stop offset="100%" stopColor="#22D3EE" stopOpacity="0.95" />
             </linearGradient>
-            <linearGradient id="notebookGlowUnder" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6366F1" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#0EA5E9" stopOpacity="0.35" />
+            <linearGradient
+              id={`notebookGlowUnder-${svgUid}`}
+              gradientUnits="userSpaceOnUse"
+              x1="0"
+              y1="0"
+              x2={canvasBounds.width}
+              y2="0"
+            >
+              <stop offset="0%" stopColor="#6366F1" stopOpacity="0.32" />
+              <stop offset="100%" stopColor="#0EA5E9" stopOpacity="0.38" />
             </linearGradient>
           </defs>
 
@@ -837,19 +856,20 @@ export const NotebookMindMapCanvas = ({
                 <path
                   d={pathD}
                   fill="none"
-                  stroke="url(#notebookGlowUnder)"
-                  strokeWidth="5"
+                  stroke={`url(#notebookGlowUnder-${svgUid})`}
+                  strokeWidth="6"
                   strokeLinecap="round"
                 />
                 <path
                   d={pathD}
                   fill="none"
-                  stroke="url(#notebookCurveGrad)"
-                  strokeWidth="2.2"
+                  stroke={`url(#notebookCurveGrad-${svgUid})`}
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                 />
-                {/* Connector dot at child left edge */}
-                <circle cx={edge.toX} cy={edge.toY} r="3" fill="#38BDF8" />
+                {/* Connector dots on both parent exit and child entry */}
+                <circle cx={edge.fromX} cy={edge.fromY} r="3.2" fill="#6366F1" />
+                <circle cx={edge.toX} cy={edge.toY} r="3.5" fill="#38BDF8" />
               </g>
             );
           })}
@@ -1037,7 +1057,7 @@ export const NotebookMindMapCanvas = ({
             </button>
           </div>
 
-          <h4 style={{
+          <h4 dir="auto" style={{
             fontSize: '14px',
             fontWeight: '800',
             color: '#FFFFFF',
@@ -1045,10 +1065,10 @@ export const NotebookMindMapCanvas = ({
             lineHeight: 1.4,
             fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit'
           }}>
-            {lang === 'ar' ? (selectedNode.labelAr || selectedNode.label) : (selectedNode.label || selectedNode.labelAr)}
+            {lang === 'ar' ? (selectedNode.labelAr || selectedNode.label) : (selectedNode.labelEn || selectedNode.label || selectedNode.labelAr)}
           </h4>
 
-          <p style={{
+          <p dir="auto" style={{
             fontSize: '12px',
             color: '#CBD5E1',
             lineHeight: 1.6,
@@ -1062,11 +1082,21 @@ export const NotebookMindMapCanvas = ({
             )}
           </p>
 
-          {selectedNode.timestamp && (
+          {selectedNode.timestamp && onJumpToTimestamp && (
             <button
               onClick={() => {
-                if (onJumpToTimestamp && selectedNode.seconds !== undefined) {
-                  onJumpToTimestamp(selectedNode.seconds);
+                const rawSecs = selectedNode.startSeconds ?? selectedNode.seconds;
+                if (rawSecs !== undefined && rawSecs !== null && Number.isFinite(Number(rawSecs))) {
+                  onJumpToTimestamp(Number(rawSecs));
+                  return;
+                }
+                const parts = String(selectedNode.timestamp || '00:00').split(':').map((n) => parseInt(n, 10));
+                if (parts.length === 2 && !parts.some(Number.isNaN)) {
+                  onJumpToTimestamp(parts[0] * 60 + parts[1]);
+                } else if (parts.length === 3 && !parts.some(Number.isNaN)) {
+                  onJumpToTimestamp(parts[0] * 3600 + parts[1] * 60 + parts[2]);
+                } else {
+                  onJumpToTimestamp(0);
                 }
               }}
               style={{

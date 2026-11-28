@@ -1,11 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Brain,
   Layers,
   Network,
-  Minimize2,
-  Maximize2,
-  Sparkles,
   Play,
   CheckCircle2,
   Lock,
@@ -13,6 +10,46 @@ import {
   CheckSquare,
   Square,
 } from 'lucide-react';
+import { NotebookMindMapCanvas } from '../../../components/knowledge-map/NotebookMindMapCanvas';
+
+/**
+ * Reconstruct a hierarchical NotebookLM tree if only flat graph nodes/edges are available.
+ * Keeps Student Lesson 100% consistent with the Teacher's NotebookMindMapCanvas.
+ */
+function buildTreeFromFlatGraph(nodes, edges, fmt) {
+  if (!Array.isArray(nodes) || nodes.length === 0) return null;
+
+  const nodeById = new Map();
+  const childIds = new Set();
+
+  nodes.forEach((n, idx) => {
+    const startSecs = Math.max(0, Number(n.startSec ?? n.startSeconds ?? 0));
+    nodeById.set(n.id, {
+      id: n.id || `node-${idx + 1}`,
+      label: n.label || n.labelAr || '',
+      labelAr: n.labelAr || n.label || '',
+      labelEn: n.labelEn || n.label || n.labelAr || '',
+      summaryAr: n.desc || n.summaryAr || null,
+      startSeconds: startSecs,
+      timestamp: n.tag || (fmt ? fmt(startSecs) : '00:00'),
+      children: [],
+    });
+  });
+
+  if (Array.isArray(edges)) {
+    edges.forEach((e) => {
+      const parent = nodeById.get(e.from);
+      const child = nodeById.get(e.to);
+      if (parent && child && parent !== child && !childIds.has(child.id)) {
+        parent.children.push(child);
+        childIds.add(child.id);
+      }
+    });
+  }
+
+  const root = nodes.map((n) => nodeById.get(n.id)).find((n) => n && !childIds.has(n.id));
+  return root || nodeById.get(nodes[0].id) || null;
+}
 
 export const LessonConceptMapTab = ({
   kmRef,
@@ -20,8 +57,6 @@ export const LessonConceptMapTab = ({
   lesson,
   roadmapViewMode,
   setRoadmapViewMode,
-  isKMFS,
-  toggleKMFS,
   progress,
   currentCh,
   currentTime,
@@ -29,22 +64,26 @@ export const LessonConceptMapTab = ({
   setExpandedConcept,
   masteredConcepts,
   handleToggleMasteredClick,
-  selectedGraphNode,
-  setSelectedGraphNode,
+  notebookMindMap = null,
   graphNodes = [],
   graphEdges = [],
-  graphCanvas = { width: 1120, height: 360 },
   seekTo,
   setIsPlaying,
   fmt,
   lang,
+  isRtl = lang === 'ar',
 }) => {
   const isAr = lang === 'ar';
-  const activeGraphNodeObj =
-    graphNodes.find((n) => n.id === selectedGraphNode) || graphNodes[0] || null;
 
-  const viewBoxW = Math.max(920, Number(graphCanvas?.width || 1120));
-  const viewBoxH = Math.max(320, Number(graphCanvas?.height || 360));
+  const effectiveMindMap = useMemo(
+    () => notebookMindMap || buildTreeFromFlatGraph(graphNodes, graphEdges, fmt),
+    [notebookMindMap, graphNodes, graphEdges, fmt]
+  );
+
+  const mindMapKey = useMemo(() => {
+    if (!effectiveMindMap) return `${lesson.id || 'lesson'}-empty`;
+    return `${lesson.id || 'lesson'}-${effectiveMindMap.id || 'root'}-${effectiveMindMap.labelAr || effectiveMindMap.label || ''}-${effectiveMindMap.children?.length || 0}`;
+  }, [lesson.id, effectiveMindMap]);
 
   return (
     <div className="lv-roadmap-tab" ref={kmRef}>
@@ -56,8 +95,8 @@ export const LessonConceptMapTab = ({
           <div className="lv-km__header-text">
             <h2 className="lv-km__title">
               {isAr
-                ? 'خارطة المفاهيم وشبكة المعرفة التفاعلية'
-                : 'Interactive Knowledge Roadmap & Graph'}
+                ? 'خريطة المفاهيم الشجرية ومحطات الشرح'
+                : 'Interactive Concept Map & Chapters'}
             </h2>
             <p className="lv-km__sub">
               {courseInfo.subjectAr ? `${courseInfo.subjectAr} • ` : ''}
@@ -70,38 +109,28 @@ export const LessonConceptMapTab = ({
           <div className="lv-roadmap-toggle-group">
             <button
               type="button"
+              className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'graph' ? 'active' : ''}`}
+              onClick={() => setRoadmapViewMode('graph')}
+            >
+              <Network size={13} />
+              <span>{isAr ? 'خريطة المفاهيم' : 'Mind Map'}</span>
+            </button>
+
+            <button
+              type="button"
               className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'cards' ? 'active' : ''}`}
               onClick={() => setRoadmapViewMode('cards')}
             >
               <Layers size={13} />
               <span>{isAr ? 'محطات الشرح' : 'Chapters View'}</span>
             </button>
-
-            <button
-              type="button"
-              className={`lv-roadmap-toggle-btn ${roadmapViewMode === 'graph' ? 'active' : ''}`}
-              onClick={() => setRoadmapViewMode('graph')}
-            >
-              <Network size={13} />
-              <span>{isAr ? 'خريطة المفاهيم (Graph)' : 'Concept Graph'}</span>
-            </button>
           </div>
-
-          <button
-            type="button"
-            className="lv-km__action"
-            onClick={toggleKMFS}
-            title={isAr ? 'شاشة كاملة' : 'Fullscreen'}
-            aria-label={isAr ? 'شاشة كاملة' : 'Fullscreen'}
-          >
-            {isKMFS ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
         </div>
       </div>
 
-      {/* ── SUB-MODE 1: Interactive Network Graph ── */}
+      {/* ── SUB-MODE 1: Exact Same Interactive NotebookLM Mind Map as Teacher ── */}
       {roadmapViewMode === 'graph' &&
-        (graphNodes.length === 0 ? (
+        (!effectiveMindMap ? (
           <div
             style={{
               padding: '32px 16px',
@@ -117,178 +146,24 @@ export const LessonConceptMapTab = ({
             <Network size={28} color="var(--primary)" style={{ opacity: 0.6, marginBottom: '8px' }} />
             <div>
               {isAr
-                ? 'لم يتم إضافة شبكة مفاهيم بيانية لهذه الحصة بعد.'
-                : 'No interactive concept graph available for this lesson yet.'}
+                ? 'لم يتم إضافة خريطة مفاهيم لهذه الحصة بعد.'
+                : 'No interactive concept map available for this lesson yet.'}
             </div>
           </div>
         ) : (
-          <div className="lv-graph-container">
-            <div className="lv-graph-hint">
-              <Sparkles size={14} />
-              <span>
-                {isAr
-                  ? 'اضغط على أي عقدة لاستكشاف تفاصيلها والانتقال المباشر لتوقيتها في الشرح'
-                  : 'Click any concept node to inspect details & jump directly in the video'}
-              </span>
-            </div>
-
-            <div className="lv-graph-svg-wrap">
-              <svg viewBox={`0 0 ${viewBoxW} ${viewBoxH}`} className="lv-graph-svg">
-                <defs>
-                  <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#1588C7" stopOpacity="0.8" />
-                    <stop offset="50%" stopColor="#06B6D4" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="#10B981" stopOpacity="0.8" />
-                  </linearGradient>
-                  <filter id="glow">
-                    <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-
-                {graphEdges.map((e, idx) => {
-                  const source = graphNodes.find((n) => n.id === e.from);
-                  const target = graphNodes.find((n) => n.id === e.to);
-                  if (!source || !target) return null;
-                  const midX = (source.x + target.x) / 2;
-                  const pathData = `M ${source.x} ${source.y} C ${midX} ${source.y}, ${midX} ${target.y}, ${target.x} ${target.y}`;
-                  return (
-                    <g key={`${e.from}-${e.to}-${idx}`}>
-                      <path
-                        d={pathData}
-                        stroke="var(--border-subtle)"
-                        strokeWidth="3"
-                        fill="none"
-                      />
-                      <path
-                        d={pathData}
-                        stroke="url(#edgeGrad)"
-                        strokeWidth="2.5"
-                        strokeDasharray="8 6"
-                        className="lv-graph-edge-flow"
-                        fill="none"
-                      />
-                    </g>
-                  );
-                })}
-
-                {graphNodes.map((node) => {
-                  const isSelected = activeGraphNodeObj?.id === node.id;
-                  const startSec = Number(node.startSec || 0);
-                  const isCurrent =
-                    startSec > 0 && currentTime >= startSec && currentTime < startSec + 300;
-                  const displayLabel = String(
-                    isAr ? node.label : node.labelEn || node.label || ''
-                  );
-                  const truncated =
-                    displayLabel.length > 16 ? `${displayLabel.slice(0, 15)}…` : displayLabel;
-
-                  return (
-                    <g
-                      key={node.id}
-                      transform={`translate(${node.x}, ${node.y})`}
-                      className={`lv-graph-node ${isSelected ? 'selected' : ''} ${isCurrent ? 'current' : ''}`}
-                      onClick={() => setSelectedGraphNode(node.id)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {isCurrent && (
-                        <circle
-                          r={(node.r || 40) + 10}
-                          fill="none"
-                          stroke={node.color || '#1588C7'}
-                          strokeWidth="2"
-                          className="lv-graph-node-pulse"
-                        />
-                      )}
-
-                      <circle
-                        r={node.r || 40}
-                        fill="var(--bg-surface)"
-                        stroke={isSelected ? '#1588C7' : node.color || '#1588C7'}
-                        strokeWidth={isSelected ? 3.5 : 2}
-                        filter="url(#glow)"
-                      />
-
-                      <circle
-                        r={(node.r || 40) - 5}
-                        fill={node.color || '#1588C7'}
-                        fillOpacity="0.16"
-                      />
-
-                      <text
-                        y="-4"
-                        textAnchor="middle"
-                        fill="var(--text-primary)"
-                        fontSize="12"
-                        fontWeight="800"
-                        fontFamily="var(--font-heading)"
-                      >
-                        {truncated}
-                      </text>
-
-                      <text
-                        y="14"
-                        textAnchor="middle"
-                        fill="var(--text-secondary)"
-                        fontSize="9.5"
-                        fontWeight="600"
-                      >
-                        {node.tag || fmt(startSec)}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-
-            {activeGraphNodeObj && (
-              <div className="lv-graph-card animate-pop">
-                <div className="lv-graph-card__head">
-                  <div className="lv-graph-card__title-group">
-                    <span
-                      className="lv-graph-card__dot"
-                      style={{ backgroundColor: activeGraphNodeObj.color || '#1588C7' }}
-                    />
-                    <h4 className="lv-graph-card__title">
-                      {isAr
-                        ? activeGraphNodeObj.label
-                        : activeGraphNodeObj.labelEn || activeGraphNodeObj.label}
-                    </h4>
-                    {activeGraphNodeObj.tag && (
-                      <span className="lv-graph-card__tag">{activeGraphNodeObj.tag}</span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="lv-graph-card__jump-btn"
-                    onClick={() => {
-                      seekTo(Number(activeGraphNodeObj.startSec || 0));
-                      setIsPlaying(true);
-                    }}
-                  >
-                    <Play size={13} fill="currentColor" />
-                    <span>
-                      {isAr
-                        ? `تشغيل من هذه النقطة (${fmt(Number(activeGraphNodeObj.startSec || 0))})`
-                        : `Play from ${fmt(Number(activeGraphNodeObj.startSec || 0))}`}
-                    </span>
-                  </button>
-                </div>
-
-                {activeGraphNodeObj.desc && (
-                  <p
-                    className="lv-graph-card__desc"
-                    style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
-                  >
-                    {activeGraphNodeObj.desc}
-                  </p>
-                )}
-              </div>
-            )}
+          <div style={{ borderRadius: '16px', overflow: 'hidden' }}>
+            <NotebookMindMapCanvas
+              key={mindMapKey}
+              treeData={effectiveMindMap}
+              lessonTitle={isAr ? lesson.titleAr : lesson.titleEn || lesson.titleAr}
+              unitTitle={courseInfo.subjectAr || courseInfo.titleAr || ''}
+              onJumpToTimestamp={(secs) => {
+                seekTo(Math.max(0, Number(secs) || 0));
+                setIsPlaying(true);
+              }}
+              lang={lang}
+              isRtl={isRtl}
+            />
           </div>
         ))}
 
@@ -371,6 +246,7 @@ export const LessonConceptMapTab = ({
                         </span>
                       </div>
                       <h4
+                        dir="auto"
                         className="lv-concept__title"
                         style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
                       >
@@ -384,7 +260,7 @@ export const LessonConceptMapTab = ({
                       {isExpanded && (
                         <div className="lv-concept__details" onClick={(e) => e.stopPropagation()}>
                           {ch.descAr && (
-                            <p className="lv-concept__desc">{ch.descAr}</p>
+                            <p dir="auto" className="lv-concept__desc">{ch.descAr}</p>
                           )}
                           {Array.isArray(ch.keyTerms) && ch.keyTerms.length > 0 && (
                             <div className="lv-concept__terms">

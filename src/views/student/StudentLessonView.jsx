@@ -91,17 +91,13 @@ export const StudentLessonView = () => {
     setMobileSubpage,
     roadmapViewMode,
     setRoadmapViewMode,
-    isKMFS,
-    setIsKMFS,
     expandedConcept,
     setExpandedConcept,
     masteredConcepts,
     toggleConceptMastered,
-    selectedGraphNode,
-    setSelectedGraphNode,
+    notebookMindMap,
     graphNodes,
     graphEdges,
-    graphCanvas,
     transcriptSearch,
     setTranscriptSearch,
     transcriptSegments,
@@ -142,14 +138,13 @@ export const StudentLessonView = () => {
     const onFullscreenChange = () => {
       const fsEl = document.fullscreenElement;
       setIsPlayerFS(Boolean(fsEl && playerRef.current && fsEl === playerRef.current));
-      setIsKMFS(Boolean(fsEl && kmRef.current && fsEl === kmRef.current));
       if (!fsEl) {
         setIsLandscape(false);
       }
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, [playerRef, kmRef, setIsPlayerFS, setIsKMFS, setIsLandscape]);
+  }, [playerRef, setIsPlayerFS, setIsLandscape]);
 
   const lessonTitleAr = lesson?.titleAr || '';
   const lessonTitleEn = lesson?.titleEn || lessonTitleAr;
@@ -183,11 +178,11 @@ export const StudentLessonView = () => {
     () => [
       { id: 'notes', label: isAr ? 'ملاحظات الدرس' : 'Lesson Notes', icon: FileText, count: notes.length },
       { id: 'transcript', label: isAr ? 'نص الحصة' : 'Transcript', icon: AlignLeft, count: transcriptSegments.length },
-      { id: 'roadmap', label: isAr ? 'خريطة الحصة' : 'Lesson Map', icon: Map, count: (lesson.chapters || []).length },
+      { id: 'roadmap', label: isAr ? 'خريطة الحصة' : 'Lesson Map', icon: Map, count: (lesson.chapters || []).length || graphNodes.length },
       { id: 'materials', label: isAr ? 'الملفات' : 'Files', icon: Folder, count: materialsCount },
       { id: 'questions', label: isAr ? 'الأسئلة' : 'Questions', icon: HelpCircle, count: questionsBadgeCount },
     ],
-    [isAr, notes.length, transcriptSegments.length, lesson.chapters, materialsCount, questionsBadgeCount]
+    [isAr, notes.length, transcriptSegments.length, lesson.chapters, graphNodes.length, materialsCount, questionsBadgeCount]
   );
 
   const toggleLandscape = async () => {
@@ -225,19 +220,6 @@ export const StudentLessonView = () => {
       }
     } catch {
       setIsPlayerFS((v) => !v);
-    }
-  };
-
-  const toggleKMFS = async () => {
-    if (!kmRef.current) return;
-    try {
-      if (!document.fullscreenElement) {
-        await kmRef.current.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch {
-      setIsKMFS((v) => !v);
     }
   };
 
@@ -357,8 +339,6 @@ export const StudentLessonView = () => {
             lesson={lesson}
             roadmapViewMode={roadmapViewMode}
             setRoadmapViewMode={setRoadmapViewMode}
-            isKMFS={isKMFS}
-            toggleKMFS={toggleKMFS}
             progress={progress}
             currentCh={currentCh}
             currentTime={currentTime}
@@ -366,15 +346,14 @@ export const StudentLessonView = () => {
             setExpandedConcept={setExpandedConcept}
             masteredConcepts={masteredConcepts}
             handleToggleMasteredClick={handleToggleMasteredClick}
-            selectedGraphNode={selectedGraphNode}
-            setSelectedGraphNode={setSelectedGraphNode}
+            notebookMindMap={notebookMindMap}
             graphNodes={graphNodes}
             graphEdges={graphEdges}
-            graphCanvas={graphCanvas}
             seekTo={seekTo}
             setIsPlaying={setIsPlaying}
             fmt={fmt}
             lang={lang}
+            isRtl={isRtl}
           />
         );
       case 'materials':

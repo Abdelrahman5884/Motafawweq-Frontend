@@ -45,6 +45,7 @@ export const useLesson = (lang) => {
   const [lessonStatuses, setLessonStatuses] = useState({});
 
   const [liveTranscript, setLiveTranscript] = useState([]);
+  const [liveNotebookMindMap, setLiveNotebookMindMap] = useState(null);
   const [liveGraphNodes, setLiveGraphNodes] = useState([]);
   const [liveGraphEdges, setLiveGraphEdges] = useState([]);
   const [graphCanvas, setGraphCanvas] = useState({ width: 1120, height: 360 });
@@ -111,7 +112,7 @@ export const useLesson = (lang) => {
 
   const [activeTab, setActiveTab] = useState('notes');
   const [mobileSubpage, setMobileSubpage] = useState(null);
-  const [roadmapViewMode, setRoadmapViewMode] = useState('cards');
+  const [roadmapViewMode, setRoadmapViewMode] = useState('graph');
   const [isKMFS, setIsKMFS] = useState(false);
   const [expandedConcept, setExpandedConcept] = useState(null);
   const [selectedGraphNode, setSelectedGraphNode] = useState('');
@@ -260,6 +261,8 @@ export const useLesson = (lang) => {
           : []
       );
 
+      setLiveNotebookMindMap(ld.notebookMindMap || null);
+
       if (ld.conceptGraph && Array.isArray(ld.conceptGraph.nodes)) {
         setLiveGraphNodes(ld.conceptGraph.nodes);
         setLiveGraphEdges(
@@ -274,6 +277,12 @@ export const useLesson = (lang) => {
         setLiveGraphNodes([]);
         setLiveGraphEdges([]);
         setSelectedGraphNode('');
+      }
+
+      if (ld.notebookMindMap || (ld.conceptGraph && Array.isArray(ld.conceptGraph.nodes) && ld.conceptGraph.nodes.length > 0)) {
+        setRoadmapViewMode('graph');
+      } else if (normalizedChapters.length > 0) {
+        setRoadmapViewMode('cards');
       }
 
       setLiveRelatedExams(Array.isArray(ld.relatedExams) ? ld.relatedExams : []);
@@ -1168,6 +1177,7 @@ export const useLesson = (lang) => {
     toggleConceptMastered,
     selectedGraphNode,
     setSelectedGraphNode,
+    notebookMindMap: liveNotebookMindMap,
     graphNodes: liveGraphNodes,
     graphEdges: liveGraphEdges,
     graphCanvas,
