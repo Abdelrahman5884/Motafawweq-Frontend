@@ -580,6 +580,7 @@ export const StudentSmartLectureView = () => {
             {activeTab === 'map' && selectedOutputs.includes('graph') && (
               <div className="smart-map-wrapper" style={{ minHeight: '580px', borderRadius: '16px', overflow: 'hidden' }}>
                 <NotebookMindMapCanvas
+                  key={`${generatedLecture?.id || 'smart'}-${lesson.notebookMindMap?.labelAr || ''}-${lesson.notebookMindMap?.children?.length || 0}`}
                   treeData={lesson.notebookMindMap}
                   lessonTitle={isAr ? lesson.titleAr : lesson.title}
                   unitTitle={isAr ? lesson.unitAr : lesson.unit}

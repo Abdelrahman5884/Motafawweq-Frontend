@@ -918,7 +918,9 @@ export const NotebookMindMapCanvas = ({
                 direction: isRtl ? 'rtl' : 'ltr',
                 textAlign: isRtl ? 'right' : 'left'
               }}>
-                <div style={{
+                <div
+                  dir="auto"
+                  style={{
                   fontSize: isMobile ? (isRoot ? '12px' : '11px') : (isRoot ? '13px' : '11.8px'),
                   fontWeight: isRoot ? '800' : '700',
                   color: isRoot ? '#FFFFFF' : '#E2E8F0',
@@ -928,7 +930,7 @@ export const NotebookMindMapCanvas = ({
                   whiteSpace: 'nowrap',
                   fontFamily: isRtl ? 'var(--font-arabic)' : 'inherit'
                 }}>
-                  {lang === 'ar' ? (node.labelAr || node.label) : (node.label || node.labelAr)}
+                  {lang === 'ar' ? (node.labelAr || node.label) : (node.labelEn || node.label || node.labelAr)}
                 </div>
                 {node.timestamp && (
                   <div style={{

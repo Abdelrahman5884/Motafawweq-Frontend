@@ -554,6 +554,7 @@ export const WorkspaceMindMapTab = ({
         </div>
       ) : (
         <NotebookMindMapCanvas
+          key={`${lesson.id}-${lesson.notebookMindMap?.labelAr || ''}-${lesson.notebookMindMap?.children?.length || 0}`}
           treeData={lesson.notebookMindMap}
           lessonTitle={isAr ? lesson.titleAr : lesson.title}
           unitTitle={lesson.unitAr || ''}
