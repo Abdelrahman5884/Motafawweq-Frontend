@@ -7,10 +7,25 @@ export const useQuiz = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const requestedConvertedId = searchParams.get('convertedLecture') || '';
+  const requestedLessonId = searchParams.get('lesson') || '';
+  const autostartLesson = searchParams.get('autostart') === '1';
+
   const initialLectureFromState = location.state?.convertedLecture || null;
+  const initialCustomQuizFromState = location.state?.customQuiz || null;
+
+  const [sourceMode, setSourceMode] = useState(() => {
+    if (initialCustomQuizFromState?.questions?.length > 0) return 'custom';
+    if (requestedLessonId) return 'lesson';
+    return 'converted';
+  });
 
   const [convertedLectures, setConvertedLectures] = useState([]);
+  const [accessibleLessons, setAccessibleLessons] = useState([]);
+  const [selectedLessonId, setSelectedLessonId] = useState(requestedLessonId || '');
   const [activeLecture, setActiveLecture] = useState(initialLectureFromState);
+  const [customQuiz, setCustomQuiz] = useState(initialCustomQuizFromState);
+  const [quizCount, setQuizCount] = useState(5);
+
   const [loadingQuiz, setLoadingQuiz] = useState(true);
   const [quizError, setQuizError] = useState('');
 
@@ -23,8 +38,10 @@ export const useQuiz = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
 
   const pollTimerRef = useRef(null);
+  const autostartDoneRef = useRef(false);
 
   const clearPollTimer = useCallback(() => {
     if (pollTimerRef.current) {
@@ -44,6 +61,8 @@ export const useQuiz = () => {
   const loadConvertedLecture = useCallback(
     async (uuid) => {
       if (!uuid) return null;
+      setSourceMode('converted');
+      setCustomQuiz(null);
       setLoadingQuiz(true);
       setQuizError('');
       try {
@@ -64,38 +83,133 @@ export const useQuiz = () => {
     [resetAttemptState]
   );
 
-  // Load archive + requested lecture on mount
+  const handleGenerateLessonAIQuiz = useCallback(
+    async (targetLessonUuid = null, countOverride = null) => {
+      const lid = targetLessonUuid || selectedLessonId;
+      if (!lid || isGeneratingAI) return;
+
+      clearPollTimer();
+      setSourceMode('lesson');
+      setSelectedLessonId(lid);
+      setIsGeneratingAI(true);
+      setGenerationProgress(10);
+      setQuizError('');
+
+      try {
+        const startRes = await studentApi.ai.generateLessonQuiz(lid, {
+          quizCount: countOverride || quizCount,
+        });
+        const jobId = startRes?.data?.job?.id;
+        if (!jobId) {
+          throw new Error('تعذر بدء توليد الكويز بالذكاء الاصطناعي.');
+        }
+
+        for (let attempt = 0; attempt < 90; attempt += 1) {
+          await new Promise((resolve) => {
+            pollTimerRef.current = window.setTimeout(resolve, 2000);
+          });
+          const statusRes = await studentApi.ai.getJobStatus(jobId);
+          const payload = statusRes?.data;
+          const job = payload?.job;
+          if (job) {
+            setGenerationProgress(Number(job.progress || 25));
+            if (job.status === 'completed') {
+              const qs = Array.isArray(payload.quizQuestions) ? payload.quizQuestions : [];
+              setCustomQuiz({
+                titleAr: payload.lessonTitleAr || 'كويز الحصة الذكي',
+                subjectAr: payload.subjectAr || '',
+                sourceLabelAr: 'كويز ذكي من الحصة (AI)',
+                questions: qs,
+              });
+              resetAttemptState(qs.length);
+              setQuizSource('ai');
+              setActiveMode('quiz');
+              break;
+            }
+            if (job.status === 'failed') {
+              setQuizError(job.errorMessage || 'تعذر توليد الكويز بالذكاء الاصطناعي.');
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        setQuizError(err?.message || 'تعذر توليد الكويز بالذكاء الاصطناعي.');
+      } finally {
+        setIsGeneratingAI(false);
+        setGenerationProgress(0);
+      }
+    },
+    [selectedLessonId, isGeneratingAI, clearPollTimer, quizCount, resetAttemptState]
+  );
+
+  // Hydrate converted lectures + accessible course lessons on mount
   useEffect(() => {
     let mounted = true;
     const init = async () => {
       setLoadingQuiz(true);
       setQuizError('');
       try {
-        const listRes = await studentApi.convertedLectures.list().catch(() => ({ data: [] }));
+        const [convRes, lessonsRes] = await Promise.all([
+          studentApi.convertedLectures.list().catch(() => ({ data: [] })),
+          studentApi.ai.listLessons().catch(() => ({ data: [] })),
+        ]);
         if (!mounted) return;
-        const list = Array.isArray(listRes?.data) ? listRes.data : [];
-        setConvertedLectures(list);
 
-        if (initialLectureFromState?.quizQuestions?.length > 0 && (!requestedConvertedId || initialLectureFromState.id === requestedConvertedId)) {
+        const convList = Array.isArray(convRes?.data) ? convRes.data : [];
+        const lessonsList = Array.isArray(lessonsRes?.data) ? lessonsRes.data : [];
+        setConvertedLectures(convList);
+        setAccessibleLessons(lessonsList);
+
+        // 1. Custom remediation quiz passed via router state (from Weak Areas / Revision)
+        if (initialCustomQuizFromState?.questions?.length > 0) {
+          setSourceMode('custom');
+          setCustomQuiz(initialCustomQuizFromState);
+          resetAttemptState(initialCustomQuizFromState.questions.length);
+          setLoadingQuiz(false);
+          return;
+        }
+
+        // 2. Direct lesson link (?lesson=<uuid>)
+        if (requestedLessonId) {
+          setSourceMode('lesson');
+          setSelectedLessonId(requestedLessonId);
+          setLoadingQuiz(false);
+          return;
+        }
+
+        // 3. Passed convertedLecture state
+        if (
+          initialLectureFromState?.quizQuestions?.length > 0 &&
+          (!requestedConvertedId || initialLectureFromState.id === requestedConvertedId)
+        ) {
+          setSourceMode('converted');
           setActiveLecture(initialLectureFromState);
           resetAttemptState(initialLectureFromState.quizQuestions.length);
           setLoadingQuiz(false);
           return;
         }
 
-        const targetId =
+        // 4. Pick requested or first converted lecture with questions
+        const targetConvId =
           requestedConvertedId ||
-          list.find((l) => Number(l.questionsCount || 0) > 0)?.id ||
-          list[0]?.id ||
+          convList.find((l) => Number(l.questionsCount || 0) > 0)?.id ||
+          convList[0]?.id ||
           '';
 
-        if (targetId) {
-          const detailRes = await studentApi.convertedLectures.get(targetId);
+        if (targetConvId) {
+          const detailRes = await studentApi.convertedLectures.get(targetConvId);
           if (!mounted) return;
           const lecture = detailRes?.data || null;
+          setSourceMode('converted');
           setActiveLecture(lecture);
           const qs = Array.isArray(lecture?.quizQuestions) ? lecture.quizQuestions : [];
           resetAttemptState(qs.length);
+        } else if (lessonsList.length > 0) {
+          // If no converted lectures yet, cleanly default to "From My Lessons" tab!
+          const firstWithTranscript = lessonsList.find((l) => l.hasTranscript) || lessonsList[0];
+          setSourceMode('lesson');
+          setSelectedLessonId(firstWithTranscript.id);
+          setActiveLecture(null);
         } else {
           setActiveLecture(null);
         }
@@ -113,20 +227,49 @@ export const useQuiz = () => {
       mounted = false;
       clearPollTimer();
     };
-  }, [requestedConvertedId, initialLectureFromState, resetAttemptState, clearPollTimer]);
+  }, [
+    requestedConvertedId,
+    requestedLessonId,
+    initialLectureFromState,
+    initialCustomQuizFromState,
+    resetAttemptState,
+    clearPollTimer,
+  ]);
 
-  const currentQuestionsList = Array.isArray(activeLecture?.quizQuestions)
-    ? activeLecture.quizQuestions
-    : [];
+  // Auto-start AI quiz generation when navigated from LessonQuestionsTab with ?lesson=...&autostart=1
+  useEffect(() => {
+    if (
+      !loadingQuiz &&
+      autostartLesson &&
+      requestedLessonId &&
+      !autostartDoneRef.current &&
+      !isGeneratingAI
+    ) {
+      autostartDoneRef.current = true;
+      handleGenerateLessonAIQuiz(requestedLessonId, quizCount);
+    }
+  }, [loadingQuiz, autostartLesson, requestedLessonId, isGeneratingAI, handleGenerateLessonAIQuiz, quizCount]);
+
+  const currentQuestionsList =
+    sourceMode === 'converted'
+      ? (Array.isArray(activeLecture?.quizQuestions) ? activeLecture.quizQuestions : [])
+      : (Array.isArray(customQuiz?.questions) ? customQuiz.questions : []);
+
+  const activeTitleAr =
+    sourceMode === 'converted'
+      ? (activeLecture?.titleAr || 'كويز المحاضرة الذكي')
+      : (customQuiz?.titleAr ||
+          accessibleLessons.find((l) => l.id === selectedLessonId)?.titleAr ||
+          'كويز تدريبي ذكي');
 
   useEffect(() => {
     let timer;
     if (!isSubmitted && timeLeft > 0 && activeMode === 'quiz' && currentQuestionsList.length > 0) {
-      timer = setInterval(() => {
+      timer = window.setInterval(() => {
         setTimeLeft((prev) => Math.max(0, prev - 1));
       }, 1000);
     }
-    return () => clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, [isSubmitted, timeLeft, activeMode, currentQuestionsList.length]);
 
   const formatTime = (secs) => {
@@ -168,10 +311,11 @@ export const useQuiz = () => {
 
     clearPollTimer();
     setIsGeneratingAI(true);
+    setGenerationProgress(12);
     setQuizError('');
 
     try {
-      await studentApi.convertedLectures.generateQuiz(id, { quizCount: 5 });
+      await studentApi.convertedLectures.generateQuiz(id, { quizCount });
 
       for (let attempt = 0; attempt < 90; attempt += 1) {
         await new Promise((resolve) => {
@@ -181,6 +325,7 @@ export const useQuiz = () => {
         const data = statusRes?.data;
         if (data) {
           setActiveLecture(data);
+          setGenerationProgress(Number(data.overallProgress || 45));
           if (data.overallStatus === 'completed') {
             const qs = Array.isArray(data.quizQuestions) ? data.quizQuestions : [];
             resetAttemptState(qs.length);
@@ -198,10 +343,10 @@ export const useQuiz = () => {
       setQuizError(err?.message || 'تعذر توليد الكويز بالذكاء الاصطناعي.');
     } finally {
       setIsGeneratingAI(false);
+      setGenerationProgress(0);
     }
   };
 
-  // Score calculation
   let correctCount = 0;
   currentQuestionsList.forEach((q, idx) => {
     if (selectedAnswers[idx] === q.correctIndex) {
@@ -221,8 +366,17 @@ export const useQuiz = () => {
   const currentQ = currentQuestionsList[currentIdx] || currentQuestionsList[0];
 
   return {
+    sourceMode,
+    setSourceMode,
     convertedLectures,
+    accessibleLessons,
+    selectedLessonId,
+    setSelectedLessonId,
     activeLecture,
+    customQuiz,
+    activeTitleAr,
+    quizCount,
+    setQuizCount,
     loadingQuiz,
     quizError,
     loadConvertedLecture,
@@ -238,6 +392,7 @@ export const useQuiz = () => {
     showReviewModal,
     setShowReviewModal,
     isGeneratingAI,
+    generationProgress,
     currentQuestionsList,
     currentQ,
     formatTime,
@@ -246,6 +401,7 @@ export const useQuiz = () => {
     handleSubmitQuiz,
     handleResetQuiz,
     handleGenerateAIQuiz,
+    handleGenerateLessonAIQuiz,
     scorePercent,
     correctCount,
     mcqPoints,

@@ -211,6 +211,7 @@ export const studentApi = {
     list: () => apiGet('/student/converted-lectures'),
     get: (uuid) => apiGet(`/student/converted-lectures/${uuid}`),
     status: (uuid) => apiGet(`/student/converted-lectures/${uuid}/status`),
+    retry: (uuid) => apiPost(`/student/converted-lectures/${uuid}/retry`, {}),
     generateQuiz: (uuid, { quizCount = 5 } = {}) =>
       apiPost(`/student/converted-lectures/${uuid}/quiz`, { quiz_count: quizCount }),
     create: (formDataOrPayload) =>
@@ -220,6 +221,21 @@ export const studentApi = {
         body: formDataOrPayload,
       }),
     delete: (uuid) => apiDelete(`/student/converted-lectures/${uuid}`),
+  },
+
+  // Student AI Suite: Accessible Lessons, Direct Lesson AI Quiz, Weak-Area AI Coach & Job Status
+  ai: {
+    listLessons: () => apiGet('/student/ai/lessons'),
+    generateLessonQuiz: (lessonUuid, { quizCount = 5 } = {}) =>
+      apiPost(`/student/ai/lessons/${lessonUuid}/quiz`, { quiz_count: quizCount }),
+    getLatestWeakAreasDiagnosis: () => apiGet('/student/ai/weak-areas/latest'),
+    diagnoseWeakAreas: ({ mistakeIds = [], includeQuiz = true, quizCount = 5 } = {}) =>
+      apiPost('/student/ai/weak-areas/diagnose', {
+        ...(Array.isArray(mistakeIds) && mistakeIds.length > 0 ? { mistake_ids: mistakeIds } : {}),
+        include_quiz: Boolean(includeQuiz),
+        quiz_count: quizCount,
+      }),
+    getJobStatus: (jobUuid) => apiGet(`/student/ai/jobs/${jobUuid}`),
   },
 
   // Phase 9: Billing, Student Subscriptions, Coupons & Direct Payments

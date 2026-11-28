@@ -1,8 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, ClipboardCheck, Clock, ArrowLeft, ArrowRight, CheckCircle2, HelpCircle } from 'lucide-react';
+import { Star, ClipboardCheck, Clock, ArrowLeft, ArrowRight, CheckCircle2, HelpCircle, Sparkles } from 'lucide-react';
 
 export const LessonQuestionsTab = ({
+  lessonId = '',
+  lessonTitleAr = '',
+  hasTranscript = false,
   relatedExams = [],
   questions = [],
   savedQ = {},
@@ -16,6 +19,72 @@ export const LessonQuestionsTab = ({
 
   return (
     <div className="lv-questions" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/* Instant AI Practice Quiz from this lesson */}
+      {lessonId && hasTranscript && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(21, 136, 199, 0.08), rgba(99, 102, 241, 0.08))',
+            border: '1px solid rgba(21, 136, 199, 0.28)',
+            borderRadius: '14px',
+            padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Sparkles size={18} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                {isAr ? 'اختبر فهمك فوراً بكويز ذكي (AI)' : 'Test Your Mastery with an Instant AI Quiz'}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                {isAr
+                  ? `توليد أسئلة اختيار من متعدد جديدة مبنية على شرح «${lessonTitleAr || 'هذه الحصة'}» مع التفسير العلمي.`
+                  : `Generate fresh multiple-choice questions strictly grounded in "${lessonTitleAr || 'this lesson'}".`}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/student/quiz?lesson=${encodeURIComponent(lessonId)}&autostart=1`)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 16px',
+              borderRadius: '10px',
+              backgroundColor: 'var(--primary)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '12.5px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Sparkles size={14} />
+            <span>{isAr ? 'توليد كويز بالـ AI الآن' : 'Generate AI Quiz'}</span>
+          </button>
+        </div>
+      )}
       {/* Linked Course Exams / Quizzes */}
       {relatedExams.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

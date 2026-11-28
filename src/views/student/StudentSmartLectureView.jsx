@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSetBreadcrumbs } from '../../context/BreadcrumbContext';
@@ -62,6 +62,21 @@ function computeStageIndex(lectureData, selectedOutputs) {
   return 0;
 }
 
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 KB';
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const formatSecs = (s) => {
+  const safe = Math.max(0, Math.floor(Number(s || 0)));
+  const m = Math.floor(safe / 60).toString().padStart(2, '0');
+  const sec = (safe % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+};
+
 export const StudentSmartLectureView = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -69,26 +84,61 @@ export const StudentSmartLectureView = () => {
   const { lang, isRtl } = useLanguage();
   const isAr = lang === 'ar';
 
+  const [inputMode, setInputMode] = useState('file'); // 'file' | 'mic' | 'url' | 'lesson'
   const [generatedLecture, setGeneratedLecture] = useState(null);
   const [selectedOutputs, setSelectedOutputs] = useState(['graph', 'transcript', 'topics', 'quiz']);
   const [hasGenerated, setHasGenerated] = useState(false);
+
   const [uploadedFile, setUploadedFile] = useState(null);
   const [rawFileObj, setRawFileObj] = useState(null);
+  const [recordedFile, setRecordedFile] = useState(null);
+  const [embedUrl, setEmbedUrl] = useState('');
+  const [accessibleLessons, setAccessibleLessons] = useState([]);
+  const [selectedLessonId, setSelectedLessonId] = useState('');
+  const [language, setLanguage] = useState('auto');
+
   const [lectureTitle, setLectureTitle] = useState('');
-  const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'processing' | 'done'
+  const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'processing' | 'done' | 'failed'
   const [uploadProgress, setUploadProgress] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [isRegeneratingQuiz, setIsRegeneratingQuiz] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const uploadTimerRef = useRef(null);
   const stageTimeoutRef = useRef(null);
   const [searchTranscript, setSearchTranscript] = useState('');
 
-  // Active synchronized player & timestamp
+  // Synchronized real media player state
   const [activeSeconds, setActiveSeconds] = useState(0);
+  const [seekNonce, setSeekNonce] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeTab, setActiveTab] = useState('map'); // 'map' | 'transcript' | 'topics' | 'quiz'
+  const [activeTab, setActiveTab] = useState('map');
+
+  // Local preview URL for freshly uploaded/recorded audio or video (before or as fallback to signed URL)
+  const localMediaFile = useMemo(() => {
+    const candidate = inputMode === 'mic' ? recordedFile : rawFileObj;
+    if (!candidate) return null;
+    const type = (candidate.type || '').toLowerCase();
+    const name = (candidate.name || '').toLowerCase();
+    if (type.startsWith('audio/') || type.startsWith('video/') || /\.(mp3|wav|m4a|ogg|webm|mp4|mkv|mov)$/.test(name)) {
+      return candidate;
+    }
+    return null;
+  }, [inputMode, recordedFile, rawFileObj]);
+
+  const localPreviewUrl = useMemo(
+    () => (localMediaFile ? URL.createObjectURL(localMediaFile) : ''),
+    [localMediaFile]
+  );
+
+  useEffect(() => {
+    if (!localPreviewUrl) return undefined;
+    return () => URL.revokeObjectURL(localPreviewUrl);
+  }, [localPreviewUrl]);
+
+  const resolvedMediaUrl = generatedLecture?.mediaUrl || localPreviewUrl || '';
+  const resolvedMediaType = generatedLecture?.mediaType
+    || (localMediaFile?.type?.startsWith('video/') ? 'video' : localMediaFile ? 'audio' : 'document');
 
   const lesson = {
     titleAr: generatedLecture?.titleAr || '',
@@ -122,11 +172,39 @@ export const StudentSmartLectureView = () => {
       : []
   );
 
+  // Load accessible enrolled course lessons once for "From My Lessons" tab
+  useEffect(() => {
+    let mounted = true;
+    studentApi.ai
+      .listLessons()
+      .then((res) => {
+        if (mounted && Array.isArray(res?.data)) {
+          setAccessibleLessons(res.data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const pickBestTab = useCallback((lectureData, outs) => {
+    if (outs.includes('graph') && lectureData?.mindmap) {
+      setActiveTab('map');
+    } else if (outs.includes('transcript') && Array.isArray(lectureData?.transcript) && lectureData.transcript.length > 0) {
+      setActiveTab('transcript');
+    } else if (outs.includes('topics') && Array.isArray(lectureData?.topics) && lectureData.topics.length > 0) {
+      setActiveTab('topics');
+    } else if (outs.includes('quiz')) {
+      setActiveTab('quiz');
+    }
+  }, []);
+
   const pollUntilComplete = useCallback(async (lectureId, targetOutputs) => {
     let latestData = null;
     for (let attempt = 0; attempt < 240; attempt += 1) {
       await new Promise((r) => {
-        stageTimeoutRef.current = setTimeout(r, 2000);
+        stageTimeoutRef.current = window.setTimeout(r, 2000);
       });
       const statusRes = await studentApi.convertedLectures.status(lectureId);
       if (statusRes?.data) {
@@ -151,9 +229,9 @@ export const StudentSmartLectureView = () => {
 
     studentApi.convertedLectures
       .get(requestedLectureId)
-      .then((res) => {
+      .then(async (res) => {
         if (!mounted || !res?.data) return;
-        const data = res.data;
+        let data = res.data;
         const outs = Array.isArray(data.outputs) && data.outputs.length > 0 ? data.outputs : ['graph', 'transcript', 'topics'];
         setGeneratedLecture(data);
         setSelectedOutputs(outs);
@@ -162,26 +240,41 @@ export const StudentSmartLectureView = () => {
           setUploadedFile({ name: data.fileName, sizeFormatted: data.fileSize || '' });
         }
         setHasGenerated(true);
-        setUploadStatus(data.overallStatus === 'processing' || data.overallStatus === 'queued' ? 'processing' : 'done');
         setOverallProgress(Number(data.overallProgress || 100));
         setCurrentStageIndex(computeStageIndex(data, outs));
 
-        if (data.mindmap && outs.includes('graph')) {
-          setActiveTab('map');
-        } else if (Array.isArray(data.transcript) && data.transcript.length > 0 && outs.includes('transcript')) {
-          setActiveTab('transcript');
-        } else if (Array.isArray(data.topics) && data.topics.length > 0 && outs.includes('topics')) {
-          setActiveTab('topics');
-        } else if (outs.includes('quiz')) {
-          setActiveTab('quiz');
+        if (data.overallStatus === 'processing' || data.overallStatus === 'queued') {
+          setUploadStatus('processing');
+          const finished = await pollUntilComplete(data.id, outs);
+          if (!mounted) return;
+          if (finished) data = finished;
+        }
+
+        if (data.overallStatus === 'failed') {
+          setUploadStatus('failed');
+          setErrorMessage(data.error || (isAr ? 'تعذر إتمام معالجة المحاضرة بالذكاء الاصطناعي.' : 'AI processing failed.'));
+        } else {
+          setUploadStatus('done');
+          setErrorMessage('');
+          pickBestTab(data, outs);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (mounted) {
+          setErrorMessage(err?.message || (isAr ? 'تعذر تحميل بيانات المحاضرة.' : 'Failed to load lecture.'));
+        }
+      });
 
     return () => {
       mounted = false;
     };
-  }, [requestedLectureId]);
+  }, [requestedLectureId, pollUntilComplete, pickBestTab, isAr]);
+
+  useEffect(() => {
+    return () => {
+      if (stageTimeoutRef.current) window.clearTimeout(stageTimeoutRef.current);
+    };
+  }, []);
 
   const handleToggleOutput = (id) => {
     setSelectedOutputs((prev) => {
@@ -203,38 +296,44 @@ export const StudentSmartLectureView = () => {
     });
   };
 
-  const formatFileSize = (bytes) => {
-    if (!bytes) return '0 KB';
-    if (bytes < 1024 * 1024) {
-      return (bytes / 1024).toFixed(1) + ' KB';
-    }
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
-  useEffect(() => {
-    return () => {
-      if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
-      if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
-    };
-  }, []);
-
-  // Run real multi-stage AI pipeline (Hybrid STT -> Qwen2.5 LLM for Mind Map, Topics, Quiz & Summary)
   const runAiStages = async (targetOutputs) => {
+    setErrorMessage('');
     setCurrentStageIndex(0);
     setOverallProgress(10);
 
     try {
       let body;
-      if (rawFileObj) {
+      const activeFile = inputMode === 'mic' ? recordedFile : (inputMode === 'file' ? rawFileObj : null);
+
+      if (activeFile) {
         body = new FormData();
-        body.append('file', rawFileObj);
+        body.append('file', activeFile);
         if (lectureTitle.trim()) body.append('title_ar', lectureTitle.trim());
+        if (language && language !== 'auto') body.append('language', language);
         targetOutputs.forEach((out) => body.append('outputs[]', out));
+      } else if (inputMode === 'url') {
+        body = {
+          title_ar: lectureTitle.trim() || 'محاضرة من رابط فيديو',
+          embed_url: embedUrl.trim(),
+          language: language || 'auto',
+          outputs: targetOutputs,
+        };
+      } else if (inputMode === 'lesson') {
+        const picked = accessibleLessons.find((l) => l.id === selectedLessonId);
+        body = {
+          title_ar: lectureTitle.trim() || picked?.titleAr || 'محاضرة من حصصي',
+          subject_ar: picked?.subjectAr || null,
+          grade_ar: picked?.gradeAr || null,
+          lesson_uuid: selectedLessonId,
+          language: language || 'auto',
+          outputs: targetOutputs,
+        };
       } else {
         body = {
           title_ar: lectureTitle.trim() || uploadedFile?.name || 'محاضرة جديدة',
           file_name: uploadedFile?.name || null,
           file_size: uploadedFile?.sizeFormatted || null,
+          language: language || 'auto',
           outputs: targetOutputs,
         };
       }
@@ -257,37 +356,65 @@ export const StudentSmartLectureView = () => {
         }
       }
 
+      if (lectureData?.overallStatus === 'failed') {
+        setUploadStatus('failed');
+        setErrorMessage(
+          lectureData.error ||
+            (isAr ? 'تعذر إتمام التحليل بالذكاء الاصطناعي. يمكنك الضغط على «إعادة المحاولة».' : 'AI processing failed. You can retry below.')
+        );
+        return;
+      }
+
       setOverallProgress(100);
       setCurrentStageIndex(1 + targetOutputs.length);
       setUploadStatus('done');
       setHasGenerated(true);
-
-      if (targetOutputs.includes('graph') && lectureData?.mindmap) {
-        setActiveTab('map');
-      } else if (targetOutputs.includes('transcript') && Array.isArray(lectureData?.transcript) && lectureData.transcript.length > 0) {
-        setActiveTab('transcript');
-      } else if (targetOutputs.includes('topics') && Array.isArray(lectureData?.topics) && lectureData.topics.length > 0) {
-        setActiveTab('topics');
-      } else if (targetOutputs.includes('quiz')) {
-        setActiveTab('quiz');
-      }
+      pickBestTab(lectureData, targetOutputs);
     } catch (err) {
       setUploadStatus('idle');
-      alert(err?.message || (isAr ? 'تعذر حفظ طلب تحويل المحاضرة.' : 'Failed to save lecture conversion.'));
+      setErrorMessage(err?.message || (isAr ? 'تعذر حفظ طلب تحويل المحاضرة.' : 'Failed to start lecture AI conversion.'));
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!generatedLecture?.id) return;
+    setErrorMessage('');
+    setUploadStatus('processing');
+    setOverallProgress(10);
+    setCurrentStageIndex(0);
+    try {
+      const res = await studentApi.convertedLectures.retry(generatedLecture.id);
+      if (res?.data) setGeneratedLecture(res.data);
+      const finalData = await pollUntilComplete(generatedLecture.id, selectedOutputs);
+      if (finalData?.overallStatus === 'failed') {
+        setUploadStatus('failed');
+        setErrorMessage(finalData.error || (isAr ? 'تعذر إتمام المعالجة الذكية.' : 'AI processing failed.'));
+      } else {
+        setUploadStatus('done');
+        setHasGenerated(true);
+        pickBestTab(finalData, selectedOutputs);
+      }
+    } catch (err) {
+      setUploadStatus('failed');
+      setErrorMessage(err?.message || (isAr ? 'تعذر إعادة تشغيل المعالجة الذكية.' : 'Failed to retry AI processing.'));
     }
   };
 
   const handleRegenerateQuiz = async () => {
     if (!generatedLecture?.id || isRegeneratingQuiz) return;
     setIsRegeneratingQuiz(true);
+    setErrorMessage('');
     try {
       const res = await studentApi.convertedLectures.generateQuiz(generatedLecture.id, { quizCount: 5 });
       if (res?.data) {
         setGeneratedLecture(res.data);
       }
-      await pollUntilComplete(generatedLecture.id, selectedOutputs);
+      const finalData = await pollUntilComplete(generatedLecture.id, selectedOutputs);
+      if (finalData?.overallStatus === 'failed') {
+        setErrorMessage(finalData.error || (isAr ? 'تعذر توليد أسئلة الكويز بالذكاء الاصطناعي.' : 'Failed to generate AI quiz.'));
+      }
     } catch (err) {
-      alert(err?.message || (isAr ? 'تعذر توليد أسئلة الكويز بالذكاء الاصطناعي.' : 'Failed to generate AI quiz.'));
+      setErrorMessage(err?.message || (isAr ? 'تعذر توليد أسئلة الكويز بالذكاء الاصطناعي.' : 'Failed to generate AI quiz.'));
     } finally {
       setIsRegeneratingQuiz(false);
     }
@@ -295,6 +422,7 @@ export const StudentSmartLectureView = () => {
 
   const handleFileUpload = (file) => {
     if (!file) return;
+    setErrorMessage('');
     setRawFileObj(file);
     setUploadedFile({
       name: file.name,
@@ -310,54 +438,84 @@ export const StudentSmartLectureView = () => {
     setCurrentStageIndex(0);
   };
 
+  const handleRecordedFileReady = (file) => {
+    setErrorMessage('');
+    setRecordedFile(file);
+    if (file && !lectureTitle) {
+      setLectureTitle(isAr ? 'تسجيل محاضرة صوتية مباشر' : 'Live Voice Lecture');
+    }
+  };
+
+  const handleSelectLesson = (lid) => {
+    setErrorMessage('');
+    setSelectedLessonId(lid);
+    const found = accessibleLessons.find((l) => l.id === lid);
+    if (found) {
+      setLectureTitle(found.titleAr || '');
+    }
+  };
+
   const handleGenerate = () => {
     if (uploadStatus === 'processing' || uploadStatus === 'uploading') return;
-    if (!uploadedFile && !lectureTitle.trim()) {
-      alert(
-        isAr
-          ? 'يرجى اختيار ملف محاضرة أو كتابة عنوان المحاضرة أولاً.'
-          : 'Please select a lecture file or enter a title first.'
-      );
+    setErrorMessage('');
+
+    if (inputMode === 'file' && !rawFileObj && !uploadedFile) {
+      setErrorMessage(isAr ? 'يرجى اختيار ملف صوتي أو فيديو أو PDF/Word أولاً.' : 'Please select an audio, video, or document file first.');
       return;
     }
-    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
-    if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
+    if (inputMode === 'mic' && !recordedFile) {
+      setErrorMessage(isAr ? 'يرجى تسجيل الصوت وإيقافه أولاً قبل التوليد.' : 'Please record and stop your voice lecture before generating.');
+      return;
+    }
+    if (inputMode === 'url') {
+      const trimmed = embedUrl.trim();
+      if (!trimmed || !trimmed.startsWith('https://')) {
+        setErrorMessage(isAr ? 'يرجى إدخال رابط HTTPS صحيح (مثل رابط يوتيوب أو فيميو).' : 'Please enter a valid HTTPS video URL.');
+        return;
+      }
+    }
+    if (inputMode === 'lesson' && !selectedLessonId) {
+      setErrorMessage(isAr ? 'يرجى اختيار حصة من مقرراتك الدراسية أولاً.' : 'Please select one of your lessons first.');
+      return;
+    }
+
+    if (stageTimeoutRef.current) window.clearTimeout(stageTimeoutRef.current);
 
     setUploadStatus('uploading');
-    setUploadProgress(60);
+    setUploadProgress(65);
     setOverallProgress(12);
     setCurrentStageIndex(0);
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setUploadProgress(100);
       setUploadStatus('processing');
       runAiStages(selectedOutputs);
-    }, 150);
+    }, 120);
   };
 
   const handleResetFile = () => {
-    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
-    if (stageTimeoutRef.current) clearTimeout(stageTimeoutRef.current);
+    if (stageTimeoutRef.current) window.clearTimeout(stageTimeoutRef.current);
     setUploadedFile(null);
     setRawFileObj(null);
+    setRecordedFile(null);
+    setEmbedUrl('');
+    setSelectedLessonId('');
     setGeneratedLecture(null);
     setLectureTitle('');
+    setErrorMessage('');
     setUploadStatus('idle');
     setUploadProgress(0);
     setOverallProgress(0);
     setCurrentStageIndex(0);
     setHasGenerated(false);
+    setIsPlaying(false);
+    setActiveSeconds(0);
   };
 
   const handleJumpToTime = (secs) => {
-    setActiveSeconds(secs);
+    setActiveSeconds(Math.max(0, Math.floor(Number(secs || 0))));
+    setSeekNonce((n) => n + 1);
     setIsPlaying(true);
-  };
-
-  const formatSecs = (s) => {
-    const m = Math.floor(s / 60).toString().padStart(2, '0');
-    const sec = (s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
   };
 
   const filteredTranscript = lesson.transcript.filter((t) => {
@@ -408,7 +566,7 @@ export const StudentSmartLectureView = () => {
 
   return (
     <div className="smart-lecture-container">
-      {/* Calm Responsive Header */}
+      {/* Header */}
       <div className="smart-lecture-header">
         <div>
           <h1
@@ -433,14 +591,14 @@ export const StudentSmartLectureView = () => {
             }}
           >
             {isAr
-              ? 'تفريغ صوتي فوري، فهرسة للمحاور، خريطة مفاهيم NotebookLM، وكويز تفاعلي بالذكاء الاصطناعي'
-              : 'Instant audio transcription, chapter indexing, interactive NotebookLM mind map, and AI quiz'}
+              ? 'تفريغ صوتي فوري (عربي/مصري + 99 لغة)، فهرسة محاور، خريطة مفاهيم NotebookLM، وكويز تفاعلي بالذكاء الاصطناعي'
+              : 'Instant multi-language transcription, chapter indexing, interactive NotebookLM mind map, and AI quiz'}
           </p>
         </div>
 
-        {/* Header Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
+            type="button"
             onClick={() => navigate('/student/converted-lectures')}
             style={{
               display: 'inline-flex',
@@ -455,7 +613,6 @@ export const StudentSmartLectureView = () => {
               fontWeight: '700',
               cursor: 'pointer',
               fontFamily: 'var(--font-arabic)',
-              transition: 'all 0.15s ease',
             }}
           >
             <FolderCheck size={16} color="var(--primary)" />
@@ -464,6 +621,7 @@ export const StudentSmartLectureView = () => {
 
           {hasGenerated && generatedLecture?.lessonId && (
             <button
+              type="button"
               onClick={() => navigate(`/student/lesson?id=${encodeURIComponent(generatedLecture.lessonId)}`)}
               style={{
                 display: 'inline-flex',
@@ -479,7 +637,6 @@ export const StudentSmartLectureView = () => {
                 cursor: 'pointer',
                 fontFamily: 'var(--font-arabic)',
                 boxShadow: '0 2px 8px rgba(21, 136, 199, 0.25)',
-                transition: 'all 0.15s ease',
               }}
             >
               <PlayCircle size={16} />
@@ -489,10 +646,24 @@ export const StudentSmartLectureView = () => {
         </div>
       </div>
 
-      {/* Upload Action Section with Multi-stage AI, Output Selector & Generate Action */}
+      {/* Multi-Source Upload / Live Mic / YouTube / Course Lessons Panel */}
       <LectureRecorderUploader
         lang={lang}
+        inputMode={inputMode}
+        onInputModeChange={(m) => {
+          setInputMode(m);
+          setErrorMessage('');
+        }}
         uploadedFile={uploadedFile}
+        recordedFile={recordedFile}
+        onRecordedFileReady={handleRecordedFileReady}
+        embedUrl={embedUrl}
+        onEmbedUrlChange={setEmbedUrl}
+        accessibleLessons={accessibleLessons}
+        selectedLessonId={selectedLessonId}
+        onSelectLesson={handleSelectLesson}
+        language={language}
+        onLanguageChange={setLanguage}
         uploadProgress={uploadProgress}
         overallProgress={overallProgress}
         uploadStatus={uploadStatus}
@@ -500,8 +671,10 @@ export const StudentSmartLectureView = () => {
         selectedOutputs={selectedOutputs}
         hasGenerated={hasGenerated}
         lectureTitle={lectureTitle}
+        errorMessage={errorMessage}
         onTitleChange={setLectureTitle}
         onGenerate={handleGenerate}
+        onRetry={handleRetry}
         onToggleOutput={handleToggleOutput}
         onFileUpload={handleFileUpload}
         onResetFile={handleResetFile}
@@ -510,7 +683,6 @@ export const StudentSmartLectureView = () => {
       {/* Generated Results */}
       {hasGenerated ? (
         <div className="smart-generated-results">
-          {/* AI Executive Summary Banner */}
           {lesson.summaryAr && (
             <div
               dir="auto"
@@ -532,15 +704,22 @@ export const StudentSmartLectureView = () => {
             </div>
           )}
 
-          {/* Synchronized Media Mini-Player Bar */}
+          {/* Real Synchronized Audio/Video Player Bar */}
           <LectureMiniPlayer
             lesson={lesson}
+            mediaUrl={resolvedMediaUrl}
+            mediaType={resolvedMediaType}
+            sourceUrl={generatedLecture?.sourceUrl || ''}
+            hasLinkedLesson={Boolean(generatedLecture?.lessonId)}
             activeSeconds={activeSeconds}
+            seekNonce={seekNonce}
             isPlaying={isPlaying}
             formatSecs={formatSecs}
             isRtl={isRtl}
             lang={lang}
-            onTogglePlay={() => setIsPlaying(!isPlaying)}
+            onTimeUpdate={setActiveSeconds}
+            onPlayingChange={setIsPlaying}
+            onTogglePlay={() => setIsPlaying((p) => !p)}
             onOpenFullRoom={() =>
               navigate(
                 generatedLecture?.lessonId
@@ -566,6 +745,7 @@ export const StudentSmartLectureView = () => {
                 return (
                   <button
                     key={tab.id}
+                    type="button"
                     onClick={() => setActiveTab(tab.id)}
                     className={`smart-tab-btn ${isActive ? 'active' : ''}`}
                   >
@@ -576,7 +756,6 @@ export const StudentSmartLectureView = () => {
               })}
             </div>
 
-            {/* Tab 1: Interactive Knowledge Map */}
             {activeTab === 'map' && selectedOutputs.includes('graph') && (
               <div className="smart-map-wrapper" style={{ minHeight: '580px', borderRadius: '16px', overflow: 'hidden' }}>
                 <NotebookMindMapCanvas
@@ -591,7 +770,6 @@ export const StudentSmartLectureView = () => {
               </div>
             )}
 
-            {/* Tab 2: Transcript with Search */}
             {activeTab === 'transcript' && selectedOutputs.includes('transcript') && (
               <LectureTranscriptTab
                 searchTranscript={searchTranscript}
@@ -603,7 +781,6 @@ export const StudentSmartLectureView = () => {
               />
             )}
 
-            {/* Tab 3: Topics Division */}
             {activeTab === 'topics' && selectedOutputs.includes('topics') && (
               <LectureTopicsTab
                 chapters={lesson.chapters}
@@ -613,7 +790,6 @@ export const StudentSmartLectureView = () => {
               />
             )}
 
-            {/* Tab 4: Real AI-Generated Quiz Tab */}
             {activeTab === 'quiz' && selectedOutputs.includes('quiz') && (
               <div style={{ padding: '28px 24px', textAlign: 'center' }}>
                 <div
@@ -670,6 +846,7 @@ export const StudentSmartLectureView = () => {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   {quizCount > 0 && (
                     <button
+                      type="button"
                       onClick={() =>
                         navigate(`/student/quiz?convertedLecture=${encodeURIComponent(generatedLecture?.id || '')}`, {
                           state: { convertedLecture: generatedLecture },
@@ -697,6 +874,7 @@ export const StudentSmartLectureView = () => {
 
                   {lesson.transcript.length > 0 && (
                     <button
+                      type="button"
                       onClick={handleRegenerateQuiz}
                       disabled={isRegeneratingQuiz}
                       style={{
@@ -776,15 +954,15 @@ export const StudentSmartLectureView = () => {
             style={{
               fontSize: '12.5px',
               color: 'var(--text-secondary)',
-              maxWidth: '480px',
+              maxWidth: '520px',
               margin: '0 auto',
               lineHeight: 1.5,
               fontFamily: 'var(--font-arabic)',
             }}
           >
             {isAr
-              ? 'ارفع ملف صوتي أو فيديو أو PDF، وحدد المخرجات المطلوبة (خريطة مفاهيم، تفريغ نصي، محاور، كويز) ثم اضغط «توليد المحتوى بالذكاء الاصطناعي».'
-              : 'Upload an audio, video, or PDF file, pick your desired outputs (mind map, transcript, topics, quiz), and click "Generate with AI".'}
+              ? 'ارفع ملف صوتي أو فيديو أو PDF/Word/PowerPoint، أو سجّل بالميكروفون، أو الصق رابط يوتيوب، أو اختر حصة من مقرراتك لتوليد خريطة مفاهيم NotebookLM وتفريغ نصي وكويز تفاعلي.'
+              : 'Upload audio, video, PDF/Word/PowerPoint, record via mic, paste a YouTube URL, or select an enrolled lesson to generate a NotebookLM mind map, transcript, topics, and quiz.'}
           </div>
         </div>
       )}

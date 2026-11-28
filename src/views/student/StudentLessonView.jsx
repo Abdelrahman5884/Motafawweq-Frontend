@@ -369,6 +369,9 @@ export const StudentLessonView = () => {
       case 'questions':
         return (
           <LessonQuestionsTab
+            lessonId={activeLessonId}
+            lessonTitleAr={lesson.titleAr}
+            hasTranscript={transcriptSegments.length > 0}
             relatedExams={relatedExams}
             questions={questions}
             savedQ={savedQ}
